@@ -7,9 +7,14 @@
 #   DATABASE_URL='postgresql://...' ./commun/deploy/backup-db.sh
 set -euo pipefail
 
-# Racine app réelle = /opt/soundly (audit DB/infra §6 : ne pas confondre avec
-# /opt/soundy/.env, qui reste le chemin conventionnel du fichier secrets).
-BACKUP_DIR="${BACKUP_DIR:-/opt/soundly/backups}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/soundy-root.sh
+source "${SCRIPT_DIR}/lib/soundy-root.sh"
+
+# Usage (sur le VPS) :
+#   set -a && source ${ROOT}/.env && set +a
+#   bash ${ROOT}/deploy/backup-db.sh
+BACKUP_DIR="${BACKUP_DIR:-${ROOT}/backups}"
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
 TIMESTAMP="$(date '+%Y%m%d-%H%M%S')"
 LOG="${BACKUP_DIR}/backup.log"
@@ -19,7 +24,7 @@ log() {
 }
 
 if [[ -z "${DATABASE_URL:-}" ]]; then
-  echo "Erreur : DATABASE_URL non défini (source /opt/soundy/.env ou export DATABASE_URL=...)" >&2
+  echo "Erreur : DATABASE_URL non défini (source ${ROOT}/.env ou export DATABASE_URL=...)" >&2
   exit 1
 fi
 

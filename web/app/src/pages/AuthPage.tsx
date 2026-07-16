@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { MsdevDualIpPanel } from '../components/MsdevDualIpPanel';
@@ -37,7 +37,7 @@ function oauthErrorMessage(code: string, provider: string): string {
 
 export function AuthPage() {
   const { t } = useTranslation();
-  const { register, setSession, token } = useAuth();
+  const { register, setSession, token, login } = useAuth();
   const handleAutoLogin = useCallback(
     (t: string, u: User) => { setSession(t, u); },
     [setSession]
@@ -50,8 +50,20 @@ export function AuthPage() {
   const [twoFALoading, setTwoFALoading] = useState(false);
   const [twoFAError, setTwoFAError] = useState('');
   const isMsdev = import.meta.env.VITE_APP_ENV === 'msdev';
-  const [email, setEmail] = useState(isMsdev ? 'listener@msdev.local' : '');
-  const [password, setPassword] = useState(isMsdev ? 'msdev123' : '');
+  const isPreprod = import.meta.env.VITE_APP_ENV === 'preproduction';
+  const demoLoginEmail = (
+    import.meta.env.VITE_DEMO_LOGIN_EMAIL ||
+    (isMsdev ? 'listener@msdev.local' : isPreprod ? 'admin@staging.getsoundy.com' : '')
+  ).trim();
+  const demoLoginPassword = (
+    import.meta.env.VITE_DEMO_LOGIN_PASSWORD ||
+    (isMsdev ? 'msdev123' : '')
+  ).trim();
+  const demoAutoLogin =
+    import.meta.env.VITE_DEMO_AUTO_LOGIN === '1' ||
+    (isPreprod && Boolean(demoLoginEmail && demoLoginPassword));
+  const [email, setEmail] = useState(demoLoginEmail);
+  const [password, setPassword] = useState(demoLoginPassword);
   const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
@@ -124,6 +136,30 @@ export function AuthPage() {
         .catch(() => setBiometricSupported(false));
     }
   }, []);
+
+  /** Staging / preprod : connexion auto au compte admin (comme msdev listener). */
+  const demoAutoLoginAttempted = useRef(false);
+  useEffect(() => {
+    if (!demoAutoLogin || !demoLoginEmail || !demoLoginPassword || token || demoAutoLoginAttempted.current) {
+      return;
+    }
+    demoAutoLoginAttempted.current = true;
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+    login(demoLoginEmail, demoLoginPassword, true)
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Connexion admin automatique impossible');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [demoAutoLogin, demoLoginEmail, demoLoginPassword, token, login]);
 
   useEffect(() => {
     if (mode === 'register') void preloadPasswordStrength();
@@ -818,6 +854,20 @@ export function AuthPage() {
             <span className="text-gray-400 font-mono text-[10px]">listener@msdev.local</span>
             {' · '}
             <span className="text-gray-400 font-mono text-[10px]">msdev123</span>
+          </p>
+        )}
+
+        {isPreprod && demoLoginEmail && (
+          <p className="mt-4 text-center text-[11px] text-gray-500 leading-relaxed">
+            Staging — connexion admin par défaut
+            <br />
+            <span className="text-gray-400 font-mono text-[10px]">{demoLoginEmail}</span>
+            {demoAutoLogin ? (
+              <>
+                <br />
+                <span className="text-gray-500">Connexion automatique…</span>
+              </>
+            ) : null}
           </p>
         )}
 

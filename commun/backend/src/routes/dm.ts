@@ -38,6 +38,7 @@ import { trackEvent, trackUserActive } from '../lib/analytics';
 import { moderateDmAttachment, moderationRejectionMessage } from '../lib/contentModeration';
 import { isAllowedChatAttachmentUrl } from '../lib/chatAttachmentUrl';
 import { checkChatRateLimit } from '../lib/chatRateLimit';
+import { sanitizeChatText } from '../lib/sanitizeUserText';
 
 export const dmRouter = Router();
 
@@ -474,7 +475,7 @@ dmRouter.post('/thread/:userId', authenticateJWT, asyncHandler(async (req: Reque
     id: `dm_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
     senderId: me,
     receiverId,
-    content: content?.trim() || '',
+    content: content ? sanitizeChatText(String(content).slice(0, 2000)) : '',
     timestamp: Date.now(),
     accepted: true,
     ...(attachmentUrl ? { attachmentUrl, attachmentName, attachmentSize, attachmentMimeType } : {}),

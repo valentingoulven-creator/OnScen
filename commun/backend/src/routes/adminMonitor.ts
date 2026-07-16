@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
-import { isAccessAdmin } from '../lib/accessControl';
-import { db } from '../models/schema';
+import { requireDevStaff } from '../middleware/requireAdmin';
 import { getAlertHistory } from '../lib/alertNotifier';
 import { getYoutubeSearchQuotaStatus } from '../lib/youtubeQuotaBudget';
 import { getApiQuotaStatsSnapshot } from '../lib/apiQuotaMonitor';
@@ -9,23 +8,9 @@ import { getBackupsStatusReport } from '../lib/backupsStatus';
 
 export const adminMonitorRouter = Router();
 
-function requireAdmin(req: Request, res: Response): boolean {
-  const userId = (req as Request & { user?: { id: string } }).user?.id;
-  if (!userId) {
-    res.status(401).json({ error: 'Authentification requise' });
-    return false;
-  }
-  const user = db.users.get(userId);
-  if (!user || !isAccessAdmin(user)) {
-    res.status(403).json({ error: 'Accès réservé aux administrateurs' });
-    return false;
-  }
-  return true;
-}
-
 /** GET /api/admin/monitor/alerts — historique des alertes (admin uniquement) */
 adminMonitorRouter.get('/alerts', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireDevStaff(req, res) == null) return;
   const history = getAlertHistory();
   res.json({
     alerts: history,
@@ -42,13 +27,13 @@ adminMonitorRouter.get('/alerts', authenticateJWT, (req: Request, res: Response)
 
 /** GET /api/admin/monitor/youtube-quota — consommation du bucket dédié search.list (admin uniquement) */
 adminMonitorRouter.get('/youtube-quota', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireDevStaff(req, res) == null) return;
   res.json({ searchList: getYoutubeSearchQuotaStatus() });
 });
 
 /** GET /api/admin/monitor/api-quota — taux d'erreur ACRCloud/Sightengine sur fenêtre glissante (admin uniquement) */
 adminMonitorRouter.get('/api-quota', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireDevStaff(req, res) == null) return;
   res.json({
     services: getApiQuotaStatsSnapshot(),
     errorRateThreshold: parseFloat(process.env.API_QUOTA_ERROR_RATE_THRESHOLD ?? '0.2'),
@@ -58,7 +43,7 @@ adminMonitorRouter.get('/api-quota', authenticateJWT, (req: Request, res: Respon
 
 /** GET /api/admin/monitor/backups — statut sauvegardes DB/uploads/off-site (admin uniquement) */
 adminMonitorRouter.get('/backups', authenticateJWT, async (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireDevStaff(req, res) == null) return;
   try {
     const report = await getBackupsStatusReport();
     res.json(report);

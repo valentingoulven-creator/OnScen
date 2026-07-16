@@ -1,19 +1,20 @@
-import type { ComponentPropsWithoutRef, ElementType } from 'react';
+import { createElement, type CSSProperties, type ElementType, type HTMLAttributes } from 'react';
 import {
   usernameDisplayClassName,
   usernameDisplayStyle,
   type UsernameWaveTint,
 } from '../lib/usernameColor';
 
-type UsernameDisplayProps<T extends ElementType = 'span'> = {
+type UsernameDisplayProps = {
   username: string;
   usernameColor?: string | null;
   usernameWaveFrom?: string | null;
   usernameWaveTo?: string | null;
   className?: string;
-  as?: T;
+  as?: ElementType;
   title?: string;
-} & Omit<ComponentPropsWithoutRef<T>, 'children' | 'className' | 'style' | 'color'>;
+  style?: CSSProperties;
+} & Omit<HTMLAttributes<HTMLElement>, 'children' | 'className' | 'style' | 'color' | 'title'>;
 
 function waveTint(
   from?: string | null,
@@ -23,7 +24,7 @@ function waveTint(
   return { from, to };
 }
 
-export function UsernameDisplay<T extends ElementType = 'span'>({
+export function UsernameDisplay({
   username,
   usernameColor,
   usernameWaveFrom,
@@ -31,21 +32,22 @@ export function UsernameDisplay<T extends ElementType = 'span'>({
   className = '',
   as,
   title,
+  style: styleProp,
   ...rest
-}: UsernameDisplayProps<T>) {
-  const Tag = (as ?? 'span') as ElementType;
+}: UsernameDisplayProps) {
+  const Tag = as ?? 'span';
   const tint = waveTint(usernameWaveFrom, usernameWaveTo);
-  const style = usernameDisplayStyle(usernameColor, tint);
+  const style = { ...usernameDisplayStyle(usernameColor, tint), ...styleProp };
   const displayClassName = usernameDisplayClassName(usernameColor, tint, className);
 
-  return (
-    <Tag
-      className={displayClassName || undefined}
-      style={style}
-      title={title ?? username}
-      {...rest}
-    >
-      {username}
-    </Tag>
+  return createElement(
+    Tag,
+    {
+      className: displayClassName || undefined,
+      style,
+      title: title ?? username,
+      ...rest,
+    },
+    username
   );
 }

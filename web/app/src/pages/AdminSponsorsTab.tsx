@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 
 import { useTranslation } from 'react-i18next';
 
@@ -50,9 +50,23 @@ import type { Sponsor, SponsorFilter, SponsorPlacement, SponsorPlatformConfig } 
 
 const FILTER_OPTIONS: SponsorFilter[] = ['all', 'active', 'inactive'];
 
-const PLACEMENT_OPTIONS: SponsorPlacement[] = ['map_banner', 'feed_inline', 'stories_banner', 'stories_sponsored', 'reels_sponsored'];
+const PLACEMENT_OPTIONS: SponsorPlacement[] = [
+  'map_banner',
+  'feed_inline',
+  'stories_banner',
+  'stories_sponsored',
+  'reels_sponsored',
+  'salon_theater',
+];
 
-
+/** Petit badge de métadonnée pour les cartes sponsor (liste). */
+function MetaTag({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full bg-[#1a1a26] border border-[#2d2d3d] px-2 py-0.5 text-[10px] text-gray-400">
+      {children}
+    </span>
+  );
+}
 
 function SponsorsSubTabBar({
   subTab,
@@ -64,35 +78,50 @@ function SponsorsSubTabBar({
   t: (key: string) => string;
 }) {
   const labelFor = (tab: SponsorPlacementTab) => {
-    if (tab === 'all') return t('admin.sponsors.subTabAll');
-    if (tab === 'map_banner') return t('admin.sponsors.subTabMap');
-    if (tab === 'feed_inline') return t('admin.sponsors.subTabFeed');
-    if (tab === 'stories_banner') return t('admin.sponsors.subTabStories');
-    if (tab === 'stories_sponsored') return t('admin.sponsors.subTabStoriesViewer');
-    if (tab === 'reels_sponsored') return t('admin.sponsors.subTabReels');
-    return t('admin.sponsors.subTabStories');
+    switch (tab) {
+      case 'all':
+        return t('admin.sponsors.subTabAll');
+      case 'map_banner':
+        return t('admin.sponsors.subTabMap');
+      case 'feed_inline':
+        return t('admin.sponsors.subTabFeed');
+      case 'stories_banner':
+        return t('admin.sponsors.subTabStories');
+      case 'stories_sponsored':
+        return t('admin.sponsors.subTabStoriesViewer');
+      case 'reels_sponsored':
+        return t('admin.sponsors.subTabReels');
+      case 'salon_theater':
+        return t('admin.sponsors.subTabSalonTheater');
+    }
   };
 
   return (
-    <AdminScrollTabBar
-      className="-mx-1 px-1 border-b border-[#1e1e2f]"
-      aria-label={t('admin.sponsors.subTabsAria')}
-    >
-      {SPONSOR_PLACEMENT_TABS.map((tab) => (
-        <button
-          key={tab}
-          type="button"
-          onClick={() => onChange(tab)}
-          className={`shrink-0 px-2 py-1.5 min-h-8 sm:px-3 sm:py-2 sm:min-h-0 text-[11px] sm:text-xs font-semibold whitespace-nowrap transition border-b-2 -mb-px ${
-            subTab === tab
-              ? 'border-purple-500 text-white'
-              : 'border-transparent text-gray-500 hover:text-gray-300'
-          }`}
-        >
-          {labelFor(tab)}
-        </button>
-      ))}
-    </AdminScrollTabBar>
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-1.5 px-0.5">
+        {t('admin.sponsors.placementSectionLabel')}
+      </p>
+      <AdminScrollTabBar
+        className="-mx-1 px-1 border-b border-[#1e1e2f]"
+        aria-label={t('admin.sponsors.subTabsAria')}
+      >
+        {SPONSOR_PLACEMENT_TABS.map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => onChange(tab)}
+            aria-current={subTab === tab ? 'true' : undefined}
+            className={`shrink-0 px-2 py-1.5 min-h-8 sm:px-3 sm:py-2 sm:min-h-0 text-[11px] sm:text-xs font-semibold whitespace-nowrap transition border-b-2 -mb-px ${
+              subTab === tab
+                ? 'border-purple-500 text-white'
+                : 'border-transparent text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            {labelFor(tab)}
+          </button>
+        ))}
+      </AdminScrollTabBar>
+    </div>
   );
 }
 
@@ -945,93 +974,55 @@ export function AdminSponsorsTab() {
 
 
 
-      <div className="grid grid-cols-3 gap-2 text-center text-xs">
-
-        <div className="bg-[#12121a] border border-[#1e1e2f] rounded-xl p-3">
-
-          <div className="text-xl font-bold text-white">{counts.total}</div>
-
-          <div className="text-gray-500">{t('admin.sponsors.statsTotal')}</div>
-
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-1.5 px-0.5">
+          {t('admin.sponsors.statusSectionLabel')}
+        </p>
+        <div className="grid grid-cols-3 gap-2 text-center text-xs">
+          {FILTER_OPTIONS.map((f) => {
+            const value = f === 'all' ? counts.total : f === 'active' ? counts.active : counts.inactive;
+            const active = filter === f;
+            const valueClass =
+              f === 'active' ? 'text-green-400' : f === 'inactive' ? 'text-gray-400' : 'text-white';
+            return (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                aria-pressed={active}
+                className={`rounded-xl border p-3 transition ${
+                  active
+                    ? 'border-purple-500 bg-purple-600/15'
+                    : 'border-[#1e1e2f] bg-[#12121a] hover:border-purple-500/30'
+                }`}
+              >
+                <div className={`text-xl font-bold ${valueClass}`}>{value}</div>
+                <div className="text-gray-500 mt-0.5">{filterLabel(f)}</div>
+              </button>
+            );
+          })}
         </div>
-
-        <div className="bg-[#12121a] border border-[#1e1e2f] rounded-xl p-3">
-
-          <div className="text-xl font-bold text-green-400">{counts.active}</div>
-
-          <div className="text-gray-500">{t('admin.sponsors.statsActive')}</div>
-
-        </div>
-
-        <div className="bg-[#12121a] border border-[#1e1e2f] rounded-xl p-3">
-
-          <div className="text-xl font-bold text-gray-400">{counts.inactive}</div>
-
-          <div className="text-gray-500">{t('admin.sponsors.statsInactive')}</div>
-
-        </div>
-
       </div>
 
-
-
-      <div className="flex flex-wrap gap-2">
-
-        {FILTER_OPTIONS.map((f) => (
-
-          <button
-
-            key={f}
-
-            type="button"
-
-            onClick={() => setFilter(f)}
-
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
-
-              filter === f ? 'bg-purple-600 text-white' : 'bg-[#1a1a26] text-gray-400'
-
-            }`}
-
-          >
-
-            {filterLabel(f)}
-
-          </button>
-
-        ))}
-
+      <div className="flex gap-2">
+        <input
+          className="flex-1 min-w-0 bg-[#12121a] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm"
+          placeholder={t('admin.sponsors.searchPlaceholder')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <button
+          type="button"
+          onClick={openCreateForm}
+          className={`shrink-0 px-4 py-2 rounded-xl text-sm font-medium border transition ${
+            showCreate
+              ? 'bg-[#1a1a26] border-[#2d2d3d] text-gray-300'
+              : 'bg-purple-600/15 border-purple-500/40 text-purple-300 hover:bg-purple-600/25'
+          }`}
+        >
+          {showCreate ? t('admin.sponsors.cancelCreate') : `+ ${t('admin.sponsors.add')}`}
+        </button>
       </div>
-
-
-
-      <input
-
-        className="w-full bg-[#12121a] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm"
-
-        placeholder={t('admin.sponsors.searchPlaceholder')}
-
-        value={search}
-
-        onChange={(e) => setSearch(e.target.value)}
-
-      />
-
-
-
-      <button
-
-        type="button"
-
-        onClick={openCreateForm}
-
-        className="w-full py-2.5 rounded-xl bg-[#1a1a26] border border-purple-500/40 text-purple-300 text-sm font-medium"
-
-      >
-
-        {showCreate ? t('admin.sponsors.cancelCreate') : t('admin.sponsors.add')}
-
-      </button>
 
 
 
@@ -1143,23 +1134,32 @@ export function AdminSponsorsTab() {
                       <p className="text-xs text-gray-400 line-clamp-2">{sponsor.subtitle}</p>
                     )}
 
-                    <p className="text-[10px] text-gray-600 mt-1">
-                      #{sponsor.priority + 1} · {placementLabel(sponsor.placement)}
-                      {sponsor.endsAt
-                        ? ` · ${t('admin.sponsors.listDisplayDays', {
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      <MetaTag>#{sponsor.priority + 1}</MetaTag>
+                      <MetaTag>{placementLabel(sponsor.placement)}</MetaTag>
+                      {sponsor.endsAt && (
+                        <MetaTag>
+                          {t('admin.sponsors.listDisplayDays', {
                             days: computeDisplayDays(sponsor.startsAt, sponsor.endsAt),
-                          })}`
-                        : ''}
-                      {sponsor.displayDurationSec != null
-                        ? ` · ${t('admin.sponsors.listDisplayDuration', { sec: sponsor.displayDurationSec })}`
-                        : ''}
-                      {sponsor.linkUrl ? ` · ${t('admin.sponsors.listHasLink')}` : ''}
-                      {sponsor.placement === 'map_banner'
-                        ? sponsor.mapVisibilityScope === 'region'
-                          ? ` · ${t('admin.sponsors.mapScopeRegionBadge', { region: sponsor.mapTargetRegionName ?? '—' })}`
-                          : ` · ${t('admin.sponsors.mapScopeFranceBadge')}`
-                        : ''}
-                    </p>
+                          })}
+                        </MetaTag>
+                      )}
+                      {sponsor.displayDurationSec != null && (
+                        <MetaTag>
+                          {t('admin.sponsors.listDisplayDuration', { sec: sponsor.displayDurationSec })}
+                        </MetaTag>
+                      )}
+                      {sponsor.linkUrl && <MetaTag>{t('admin.sponsors.listHasLink')}</MetaTag>}
+                      {sponsor.placement === 'map_banner' && (
+                        <MetaTag>
+                          {sponsor.mapVisibilityScope === 'region'
+                            ? t('admin.sponsors.mapScopeRegionBadge', {
+                                region: sponsor.mapTargetRegionName ?? '—',
+                              })
+                            : t('admin.sponsors.mapScopeFranceBadge')}
+                        </MetaTag>
+                      )}
+                    </div>
 
                   </div>
 

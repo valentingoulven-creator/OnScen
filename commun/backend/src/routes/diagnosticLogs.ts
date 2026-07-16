@@ -1,8 +1,7 @@
 import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { authenticateJWT, verifyAuthToken, AUTH_TOKEN_HEADER, AUTH_COOKIE_NAME } from '../middleware/auth';
-import { db } from '../models/schema';
-import { isAccessAdmin } from '../lib/accessControl';
+import { requireAdmin } from '../middleware/requireAdmin';
 import {
   appendDiagnosticLogs,
   canPersistDiagnosticLogs,
@@ -37,20 +36,6 @@ function attachOptionalUser(req: Request): void {
   if (decoded) {
     (req as Request & { user?: { id: string; username: string } }).user = decoded;
   }
-}
-
-function requireAdmin(req: Request, res: Response): boolean {
-  const userId = (req as Request & { user?: { id: string } }).user?.id;
-  if (!userId) {
-    res.status(401).json({ error: 'Authentification requise' });
-    return false;
-  }
-  const user = db.users.get(userId);
-  if (!user || !isAccessAdmin(user)) {
-    res.status(403).json({ error: 'Accès réservé aux administrateurs' });
-    return false;
-  }
-  return true;
 }
 
 function parseIncomingEntries(body: unknown): DiagnosticLogInput[] {
@@ -113,7 +98,7 @@ diagnosticLogsRouter.post('/', ingestLimiter, (req: Request, res: Response) => {
 
 /** Admin: list persisted client diagnostic logs (retention 5 months). */
 diagnosticLogsRouter.get('/admin/diagnostic-logs', authenticateJWT, async (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
 
   const level = typeof req.query.level === 'string' ? req.query.level : 'all';
   const limit = Number(req.query.limit) || 200;

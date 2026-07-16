@@ -1,5 +1,7 @@
 import sanitizeHtml from 'sanitize-html';
 
+import { maskProfanity } from './chatTextFilter';
+
 /**
  * Neutralise tout HTML dans un texte libre saisi par l'utilisateur (bio, chat,
  * DM, description de groupe, texte de post…). Le client web n'utilise jamais
@@ -19,4 +21,9 @@ export function sanitizePlainText(input: string): string {
     allowedAttributes: {},
     disallowedTagsMode: 'discard',
   }).trim();
+}
+
+/** Chat / DM — assainit le HTML puis masque les insultes grossières. */
+export function sanitizeChatText(input: string): string {
+  return maskProfanity(sanitizePlainText(input));
 }

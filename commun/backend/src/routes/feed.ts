@@ -15,6 +15,7 @@ import {
 } from '../lib/feedPosts';
 import { notifyMentions } from '../lib/mentions';
 import { notifyContentHeartReceived, notifyEventCreated, notifyEventTagged } from '../lib/notifications';
+import { refreshUserPublicCoords } from '../lib/locationPrivacy';
 import { db } from '../models/schema';
 import { getIo } from '../lib/ioInstance';
 import { getWeeklyTopSongs } from '../lib/weeklyVotes';
@@ -114,12 +115,17 @@ feedRouter.post('/', authenticateJWT, asyncHandler(async (req: Request, res: Res
       eventLocation: result.post.eventLocation,
     });
     // Broadcast to all connected clients so nearby viewers can auto-refresh.
+    // Only blurred coords are sent (never `creator.latitude/longitude` précis) :
+    // ce broadcast n'a pas de viewerId dédié, donc pas de blur par-destinataire
+    // possible — on utilise les coords publiques déjà floutées du créateur,
+    // cohérent avec ce que /geo/nearby renvoie pour les autres utilisateurs.
     const creator = db.users.get(me);
+    if (creator) refreshUserPublicCoords(creator);
     getIo()?.emit('event_created', {
       postId: result.post.id,
       eventLocation: result.post.eventLocation ?? null,
-      lat: creator?.latitude ?? null,
-      lng: creator?.longitude ?? null,
+      lat: creator?.blurredLatitude ?? null,
+      lng: creator?.blurredLongitude ?? null,
     });
   }
   res.status(201).json({ post: result.post });

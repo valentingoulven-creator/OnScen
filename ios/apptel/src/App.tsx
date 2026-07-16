@@ -34,6 +34,7 @@ import { ProfileSearchBar, nearbyPreviewFromSearchItem } from './components/Prof
 import type { GlobalSearchResultItem } from './components/ProfileSearchBar';
 import { MainTabNav } from './components/MainTabNav';
 import type { NearbyPerson } from './types';
+import type { HomePageHandle } from './pages/HomePage';
 
 const DmPage = lazy(() => import('./pages/DmPage').then((m) => ({ default: m.DmPage })));
 const ActualiteTabPage = lazy(() =>
@@ -84,6 +85,7 @@ export default function App() {
   const [reelsInitialId, setReelsInitialId] = useState<string | undefined>();
   const salonDeepLinkHandled = useRef(false);
   const profileDeepLinkHandled = useRef(false);
+  const homePageRef = useRef<HomePageHandle>(null);
   const appLayout = APPTEL_LAYOUT;
   const [dmPeerToOpen, setDmPeerToOpen] = useState<string | null>(null);
   const [dmGroupToOpen, setDmGroupToOpen] = useState<string | null>(null);
@@ -193,6 +195,13 @@ export default function App() {
     }
     if (view.type !== 'home') {
       setView({ type: 'home' });
+      return true;
+    }
+    // Onglet Carte à l'état racine (pas de vue/profil ouvert) : referme les
+    // overlays internes de la carte (fiche salon, liste proximité) avant de
+    // basculer d'onglet / minimiser — sinon le retour matériel Android
+    // minimisait l'app directement en ignorant ces overlays.
+    if (tab === 'map' && homePageRef.current?.handleBackPress()) {
       return true;
     }
     if (tab !== 'map') {
@@ -488,6 +497,7 @@ export default function App() {
             {mapTabMounted && (
               <Suspense fallback={<PageFallback />}>
                 <HomePage
+                  ref={homePageRef}
                   appLayout={appLayout}
                   onOpenSalon={openSalonPage}
                   onOpenLive={openLive}

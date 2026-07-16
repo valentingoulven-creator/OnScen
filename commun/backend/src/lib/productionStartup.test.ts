@@ -15,6 +15,8 @@ function setProductionEnv(): void {
   process.env.TOTP_ENCRYPTION_KEY = TOTP_KEY;
   process.env.OPS_HEALTH_TOKEN = OPS_TOKEN;
   process.env.SENTRY_DSN = 'https://test@test.ingest.sentry.io/1';
+  process.env.ACRCLOUD_ACCESS_KEY = 'acr-key';
+  process.env.ACRCLOUD_ACCESS_SECRET = 'acr-secret';
 }
 
 describe('assertProductionStartup', () => {
@@ -87,6 +89,13 @@ describe('assertProductionStartup', () => {
     process.env.PM2_INSTANCES = '2';
     delete process.env.REDIS_URL;
     expect(() => assertProductionStartup()).toThrow(/REDIS_URL/);
+  });
+
+  it('throws when ACRCloud is missing in production', () => {
+    setProductionEnv();
+    delete process.env.ACRCLOUD_ACCESS_KEY;
+    delete process.env.ACRCLOUD_ACCESS_SECRET;
+    expect(() => assertProductionStartup()).toThrow(/ACRCLOUD/);
   });
 
   it('throws when SENTRY_DSN is missing in production', () => {

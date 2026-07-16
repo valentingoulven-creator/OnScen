@@ -2,6 +2,8 @@
 
 **Runbook production** (backups, `.env`, `legal-publisher.json`, vérifs ops) : [`RUNBOOK-PROD.md`](RUNBOOK-PROD.md)
 
+**Priorités infra audit** (Cloudflare CDN, ACRCloud, backup gaps, uptime) : [`OPS-PRIORITIES.md`](OPS-PRIORITIES.md)
+
 ## Déploiement zero-downtime (production)
 
 Script recommandé pour les mises à jour prod sans coupure :

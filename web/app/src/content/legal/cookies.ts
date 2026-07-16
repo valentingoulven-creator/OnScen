@@ -3,7 +3,7 @@ import type { LegalDocument } from './types';
 /** Politique cookies et traceurs (ePrivacy / CNIL) */
 export const politiqueCookies: LegalDocument = {
   title: 'Politique cookies',
-  updated: '29 juin 2026',
+  updated: '15 juillet 2026',
   sections: [
     {
       heading: '1. Qu\'est-ce qu\'un cookie ?',
@@ -15,7 +15,7 @@ export const politiqueCookies: LegalDocument = {
     },
     {
       heading: '3. Cookies et services tiers (consentement requis)',
-      body: 'Ces services ne sont chargés que si vous choisissez « Tout accepter » dans la bannière cookies :\n\n• Stripe.js : traitement sécurisé des paiements (pourboires, abonnements créateurs) sur le web.\n• YouTube IFrame API : lecteur intégré lorsque vous visionnez du contenu YouTube dans l\'application.\n\nVous pouvez retirer votre consentement à tout moment via Paramètres > Préférences cookies.',
+      body: 'Ces services ne sont chargés que si vous choisissez « Tout accepter » dans la bannière cookies :\n\n• Stripe.js : traitement sécurisé des paiements (pourboires, abonnements créateurs) sur le web.\n• YouTube IFrame API : lecteur intégré lorsque vous visionnez du contenu YouTube dans l\'application.\n• Sentry : surveillance des erreurs techniques (stack traces anonymisées, session replay masquée) pour améliorer la stabilité de l\'application.\n\nVous pouvez retirer votre consentement à tout moment via Paramètres > Préférences cookies.',
     },
     {
       heading: '4. Durée de conservation',

@@ -15,8 +15,12 @@ import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys
 
 const DOCK_MODE_KEY = STORAGE_KEYS.theaterChatDockMode;
 const CHAT_DOCK_WIDTH_KEY = 'salon-theater-chat-width';
+const LIVE_CHAT_DOCK_WIDTH_KEY = 'soundy-live-chat-dock-width';
 const CHAT_DOCK_MIN_WIDTH = 240;
 const CHAT_DOCK_MAX_WIDTH = 480;
+const LIVE_CHAT_DOCK_MIN_WIDTH_MOBILE = 144;
+const LIVE_CHAT_DOCK_MIN_WIDTH_DESKTOP = 176;
+const LIVE_CHAT_DOCK_MAX_WIDTH = 280;
 
 function getChatDockMaxWidth(viewportWidth = window.innerWidth) {
   return Math.min(CHAT_DOCK_MAX_WIDTH, Math.floor(viewportWidth * 0.5));
@@ -41,6 +45,42 @@ function readChatDockWidth(): number | null {
 function persistChatDockWidth(width: number) {
   try {
     localStorage.setItem(CHAT_DOCK_WIDTH_KEY, String(width));
+  } catch {
+    /* ignore */
+  }
+}
+
+function getLiveChatDockMinWidth(viewportWidth = window.innerWidth) {
+  return viewportWidth < 640 ? LIVE_CHAT_DOCK_MIN_WIDTH_MOBILE : LIVE_CHAT_DOCK_MIN_WIDTH_DESKTOP;
+}
+
+function getLiveChatDockMaxWidth(viewportWidth = window.innerWidth) {
+  const ratioCap = Math.floor(viewportWidth * (viewportWidth < 640 ? 0.38 : 0.3));
+  return Math.min(LIVE_CHAT_DOCK_MAX_WIDTH, ratioCap);
+}
+
+function clampLiveChatDockWidth(width: number, viewportWidth = window.innerWidth) {
+  return Math.min(
+    getLiveChatDockMaxWidth(viewportWidth),
+    Math.max(getLiveChatDockMinWidth(viewportWidth), Math.round(width))
+  );
+}
+
+function readLiveChatDockWidth(): number | null {
+  try {
+    const raw = localStorage.getItem(LIVE_CHAT_DOCK_WIDTH_KEY);
+    if (!raw) return null;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return null;
+    return clampLiveChatDockWidth(n);
+  } catch {
+    return null;
+  }
+}
+
+function persistLiveChatDockWidth(width: number) {
+  try {
+    localStorage.setItem(LIVE_CHAT_DOCK_WIDTH_KEY, String(width));
   } catch {
     /* ignore */
   }
@@ -132,6 +172,40 @@ function useTheaterChatDockWidth() {
   return { width, setWidth, commitWidth };
 }
 
+function useLiveChatDockWidth() {
+  const [width, setWidthState] = useState<number | null>(() => readLiveChatDockWidth());
+
+  const setWidth = useCallback((next: number, options?: { persist?: boolean }) => {
+    const clamped = clampLiveChatDockWidth(next);
+    setWidthState(clamped);
+    if (options?.persist !== false) {
+      persistLiveChatDockWidth(clamped);
+    }
+  }, []);
+
+  const commitWidth = useCallback(
+    (next: number) => {
+      setWidth(next, { persist: true });
+    },
+    [setWidth]
+  );
+
+  useEffect(() => {
+    const onResize = () => {
+      setWidthState((current) => {
+        if (current === null) return null;
+        const clamped = clampLiveChatDockWidth(current);
+        if (clamped !== current) persistLiveChatDockWidth(clamped);
+        return clamped;
+      });
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  return { width, setWidth, commitWidth };
+}
+
 function TheaterChatDockResizeHandle({
   dockEdge,
   asideRef,
@@ -139,6 +213,9 @@ function TheaterChatDockResizeHandle({
   setWidth,
   commitWidth,
   onDraggingChange,
+  minWidth = CHAT_DOCK_MIN_WIDTH,
+  maxWidth = getChatDockMaxWidth(),
+  clampWidth = clampChatDockWidth,
 }: {
   dockEdge: 'left' | 'right';
   asideRef: RefObject<HTMLElement | null>;
@@ -146,6 +223,9 @@ function TheaterChatDockResizeHandle({
   setWidth: (width: number, options?: { persist?: boolean }) => void;
   commitWidth: (width: number) => void;
   onDraggingChange?: (dragging: boolean) => void;
+  minWidth?: number;
+  maxWidth?: number;
+  clampWidth?: (width: number, viewportWidth?: number) => number;
 }) {
   const resizeRef = useRef<{
     active: boolean;
@@ -165,7 +245,7 @@ function TheaterChatDockResizeHandle({
     e.currentTarget.setPointerCapture(e.pointerId);
     const measured = asideRef.current?.getBoundingClientRect().width;
     const startWidth = width ?? measured ?? 320;
-    const clampedStart = clampChatDockWidth(startWidth);
+    const clampedStart = clampWidth(startWidth);
     resizeRef.current = {
       active: true,
       pointerId: e.pointerId,
@@ -186,7 +266,7 @@ function TheaterChatDockResizeHandle({
       e.preventDefault();
       const delta = e.clientX - resize.startX;
       const next = dockEdge === 'right' ? resize.startWidth - delta : resize.startWidth + delta;
-      const clamped = clampChatDockWidth(next);
+      const clamped = clampWidth(next);
       if (clamped === resize.lastWidth) return;
       resize.lastWidth = clamped;
       setPreviewWidth(clamped);
@@ -211,7 +291,7 @@ function TheaterChatDockResizeHandle({
       window.removeEventListener('pointerup', onEnd);
       window.removeEventListener('pointercancel', onEnd);
     };
-  }, [commitWidth, dockEdge, onDraggingChange, setWidth]);
+  }, [clampWidth, commitWidth, dockEdge, maxWidth, minWidth, onDraggingChange, setWidth]);
 
   return (
     <>
@@ -223,8 +303,8 @@ function TheaterChatDockResizeHandle({
         role="separator"
         aria-orientation="vertical"
         aria-valuenow={previewWidth ?? width ?? undefined}
-        aria-valuemin={CHAT_DOCK_MIN_WIDTH}
-        aria-valuemax={getChatDockMaxWidth()}
+        aria-valuemin={minWidth}
+        aria-valuemax={maxWidth}
         aria-label="Redimensionner le chat"
         title="Glisser pour ajuster la largeur du chat"
       />
@@ -245,6 +325,9 @@ function TheaterChatDockAside({
   resizable,
   resizing,
   onDraggingChange,
+  minWidth,
+  maxWidth,
+  clampWidth,
   className,
   children,
 }: {
@@ -255,6 +338,9 @@ function TheaterChatDockAside({
   resizable?: boolean;
   resizing?: boolean;
   onDraggingChange?: (dragging: boolean) => void;
+  minWidth?: number;
+  maxWidth?: number;
+  clampWidth?: (width: number, viewportWidth?: number) => number;
   className: string;
   children: ReactNode;
 }) {
@@ -285,6 +371,9 @@ function TheaterChatDockAside({
           setWidth={setWidth}
           commitWidth={commitWidth}
           onDraggingChange={onDraggingChange}
+          minWidth={minWidth}
+          maxWidth={maxWidth}
+          clampWidth={clampWidth}
         />
       ) : null}
       {children}
@@ -578,6 +667,11 @@ export function RoomTheaterLayout({
 }: RoomTheaterLayoutProps) {
   const { width: chatDockWidth, setWidth: setChatDockWidth, commitWidth: commitChatDockWidth } =
     useTheaterChatDockWidth();
+  const {
+    width: liveChatDockWidth,
+    setWidth: setLiveChatDockWidth,
+    commitWidth: commitLiveChatDockWidth,
+  } = useLiveChatDockWidth();
   const [chatDockResizing, setChatDockResizing] = useState(false);
   const [dockMode, setDockMode] = useState<'floating' | 'right'>(() =>
     allowFloatingChat ? readDockMode() : 'right'
@@ -653,12 +747,30 @@ export function RoomTheaterLayout({
     chatMinimized,
   };
 
+  const showLeftDock = !chatHidden && theaterDock === 'left';
+  const showRightDock = !chatHidden && theaterDock === 'right';
+  const showFloating = !chatHidden && theaterDock === 'floating';
+  const showBottomDock = !chatHidden && theaterDock === 'bottom';
+  const showSideDock = showLeftDock || showRightDock;
+  const liveLeftPinned = liveTheaterChrome && showLeftDock;
+  const activeDockWidth = liveLeftPinned ? liveChatDockWidth : chatDockWidth;
+  const activeDockSetWidth = liveLeftPinned ? setLiveChatDockWidth : setChatDockWidth;
+  const activeDockCommitWidth = liveLeftPinned ? commitLiveChatDockWidth : commitChatDockWidth;
+  const liveDockWidthLimits = liveLeftPinned
+    ? {
+        minWidth: getLiveChatDockMinWidth(),
+        maxWidth: getLiveChatDockMaxWidth(),
+        clampWidth: clampLiveChatDockWidth,
+      }
+    : undefined;
+
   const chatDockAsideProps = {
-    width: chatDockWidth,
-    setWidth: setChatDockWidth,
-    commitWidth: commitChatDockWidth,
+    width: activeDockWidth,
+    setWidth: activeDockSetWidth,
+    commitWidth: activeDockCommitWidth,
     resizable: true as const,
     resizing: chatDockResizing,
+    ...liveDockWidthLimits,
   };
 
   if (variant === 'queue-chat') {
@@ -706,31 +818,25 @@ export function RoomTheaterLayout({
     );
   }
 
-  const showLeftDock = !chatHidden && theaterDock === 'left';
-  const showRightDock = !chatHidden && theaterDock === 'right';
-  const showFloating = !chatHidden && theaterDock === 'floating';
-  const showBottomDock = !chatHidden && theaterDock === 'bottom';
-  const showSideDock = showLeftDock || showRightDock;
   const useMatchHero = sideDockMatchHero && showSideDock;
   const useVideoStack = stackBelowVideo && theaterDock === 'bottom';
   const sideRowClass = showSideDock
     ? ` room-theater-side-row${showRightDock ? ' room-theater-side-row--right' : ' room-theater-side-row--left'}${
-        useMatchHero ? ' room-theater-side-row--match-hero' : ''
-      }${chatDockWidth !== null || chatDockResizing ? ' room-theater-side-row--custom-width' : ''}${
-        chatDockResizing ? ' room-theater-side-row--resizing' : ''
-      }`
+        liveLeftPinned ? ' room-theater-side-row--live-left' : ''
+      }${useMatchHero ? ' room-theater-side-row--match-hero' : ''}${
+        activeDockWidth !== null || chatDockResizing ? ' room-theater-side-row--custom-width' : ''
+      }${chatDockResizing ? ' room-theater-side-row--resizing' : ''}`
     : '';
   const sideRowFlex = useMatchHero ? 'shrink-0' : 'flex-1';
   const sideRowStyle: CSSProperties | undefined =
-    chatDockWidth !== null && showSideDock
+    activeDockWidth !== null && showSideDock && !liveLeftPinned
       ? showRightDock
-        ? { gridTemplateColumns: `minmax(0, 1fr) ${chatDockWidth}px` }
-        : { gridTemplateColumns: `${chatDockWidth}px minmax(0, 1fr)` }
+        ? { gridTemplateColumns: `minmax(0, 1fr) ${activeDockWidth}px` }
+        : { gridTemplateColumns: `${activeDockWidth}px minmax(0, 1fr)` }
       : undefined;
 
   /** Live théâtre : pas de toggle bas-droite — le chrome vidéo 💬 + FloatingSalonChat suffisent. */
   const showVideoChatToggle = !liveTheaterChrome;
-  const liveLeftPinned = liveTheaterChrome && showLeftDock;
 
   const chatHiddenButton = showVideoChatToggle ? (
     <button
@@ -890,7 +996,7 @@ export function RoomTheaterLayout({
               dockEdge="left"
               {...chatDockAsideProps}
               onDraggingChange={setChatDockResizing}
-              className={`room-theater-chat-dock room-theater-chat-dock--theater room-theater-chat-dock--left ${
+              className={`room-theater-chat-dock room-theater-chat-dock--theater room-theater-chat-dock--left shrink-0 ${
                 liveTheaterChrome
                   ? 'room-theater-chat-dock--live-left flex'
                   : 'room-theater-chat-dock--match-hero hidden sm:flex'

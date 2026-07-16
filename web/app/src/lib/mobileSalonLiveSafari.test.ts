@@ -40,6 +40,13 @@ describe('Salon / Live — compat Safari mobile (CSS + structure)', () => {
     expect(livePage).toMatch(/allowFloatingChat=\{false\}/);
   });
 
+  it('Live chat épinglé : colonne gauche étroite sans chevauchement vidéo', () => {
+    expect(indexCss).toMatch(/room-theater-chat-dock--live-left/);
+    expect(indexCss).toMatch(/room-theater-side-row--live-left/);
+    expect(indexCss).toMatch(/width:\s*min\(38vw,\s*200px\)/);
+    expect(indexCss).toMatch(/width:\s*min\(260px,\s*28vw\)/);
+  });
+
   it('YouTube salon : playsinline pour iOS', () => {
     expect(ytPlayer).toMatch(/playsinline:\s*1/);
   });

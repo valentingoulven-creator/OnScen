@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Soundy — Prototype UX Core Journey</title>
+  <style>
+    :root {
+      --bg: #0b0b0f;
+      --surface: #12121a;
+      --surface-2: #1a1a26;
+      --border: #1e1e2f;
+      --text: #f4f4f5;
+      --muted: #a1a1aa;
+      --accent: #9333ea;
+      --wave-from: #22d3ee;
+      --wave-mid: #a855f7;
+      --wave-to: #f472b6;
+      --phone-w: 390px;
+      --phone-h: 780px;
+      --safe-b: 8px;
+      --tab-h: 64px;
+      --session-h: 52px;
+      --header-h: 52px;
+      --radius: 16px;
+      --font: "Segoe UI", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+    body {
+      min-height: 100dvh;
+      font-family: var(--font);
+      color: var(--text);
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, #1a1030 0%, transparent 55%),
+        #07070a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 40px;
+      gap: 16px;
+    }
+
+    .page-head {
+      width: min(960px, 100%);
+      text-align: center;
+    }
+    .page-head h1 {
+      font-size: 1.25rem;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+    }
+    .page-head p {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 0.875rem;
+      line-height: 1.45;
+    }
+    .wave {
+      background: linear-gradient(90deg, var(--wave-from), var(--wave-mid), var(--wave-to));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .hints {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 12px;
+    }
+    .hint {
+      font-size: 0.75rem;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      padding: 6px 10px;
+      border-radius: 999px;
+    }
+
+    .stage {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 28px;
+      align-items: flex-start;
+      justify-content: center;
+      width: min(1100px, 100%);
+    }
+
+    .phone {
+      width: var(--phone-w);
+      height: var(--phone-h);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 0 1px #000 inset;
+    }
+
+    .status {
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      font-size: 0.7rem;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    .header {
+      height: var(--header-h);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .logo {
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: -0.03em;
+    }
+    .search {
+      flex: 1;
+      height: 34px;
+      border-radius: 10px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.8rem;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+    }
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: var(--surface-2);
+      display: grid;
+      place-items: center;
+      font-size: 0.85rem;
+      position: relative;
+    }
+    .icon-btn .badge {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--wave-to);
+    }
+    .avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--wave-from), var(--wave-mid));
+      border: 2px solid var(--surface);
+    }
+
+    .main {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+      min-height: 0;
+    }
+    .screen {
+      display: none;
+      height: 100%;
+      overflow-y: auto;
+      padding: 12px 14px 16px;
+      scrollbar-width: thin;
+    }
+    .screen.active { display: block; }
+
+    .section-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin: 4px 0 10px;
+    }
+    .h-scroll {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      margin-bottom: 16px;
+      scrollbar-width: none;
+    }
+    .h-scroll::-webkit-scrollbar { display: none; }
+
+    .story {
+      flex: 0 0 auto;
+      width: 64px;
+      text-align: center;
+    }
+    .story-ring {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      padding: 2px;
+      background: linear-gradient(135deg, var(--wave-from), var(--wave-to));
+      margin: 0 auto 6px;
+    }
+    .story-ring inner, .story-ring > span {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: var(--surface-2);
+      border: 2px solid var(--bg);
+    }
+    .story span.name {
+      font-size: 0.65rem;
+      color: var(--muted);
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-bottom: 12px;
+      text-align: left;
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+    .card:hover, .card:focus-visible { border-color: #3f3f5a; outline: none; }
+    .card.tonight {
+      background:
+        linear-gradient(135deg, rgba(34, 211, 238, 0.08), rgba(168, 85, 247, 0.1));
+      border-color: #2a2a45;
+    }
+    .card-title { font-size: 0.92rem; font-weight: 600; margin-bottom: 4px; }
+    .card-meta { font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .pill {
+      font-size: 0.68rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .pill.live { color: #fda4af; border-color: #4c1d24; background: #1f1014; }
+    .pill.salon { color: #a5f3fc; border-color: #164e63; background: #0c1a22; }
+
+    .feed-post {
+      display: flex;
+      gap: 10px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .feed-post:last-child { border-bottom: none; }
+    .feed-body { flex: 1; min-width: 0; }
+    .feed-user { font-size: 0.82rem; font-weight: 600; }
+    .feed-text { font-size: 0.8rem; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+
+    /* Monde */
+    .map-canvas {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 42% 48%, #1e293b 0%, transparent 28%),
+        radial-gradient(circle at 58% 42%, #312e81 0%, transparent 22%),
+        linear-gradient(160deg, #0f172a, #0b0b0f 60%);
+    }
+    .map-dot {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.25);
+    }
+    .map-dot.me {
+      background: #6366f1;
+      width: 14px;
+      height: 14px;
+      box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.3);
+    }
+    .map-dot.salon { background: var(--wave-from); }
+    .map-dot.live { background: #f43f5e; }
+    .map-dot.event { background: #fbbf24; }
+    .map-ui {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 10px;
+    }
+    .map-ui > * { pointer-events: auto; }
+    .filters {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .filter {
+      flex: 0 0 auto;
+      font-size: 0.72rem;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: rgba(18, 18, 26, 0.92);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .filter.on {
+      color: var(--text);
+      border-color: #4c1d95;
+      background: rgba(88, 28, 135, 0.45);
+    }
+    .nearby-sheet {
+      background: rgba(18, 18, 26, 0.96);
+      border: 1px solid var(--border);
+      border-radius: 18px 18px 12px 12px;
+      padding: 10px 12px 12px;
+      max-height: 38%;
+      overflow-y: auto;
+    }
+    .nearby-handle {
+      width: 36px;
+      height: 4px;
+      border-radius: 2px;
+      background: #3f3f5a;
+      margin: 0 auto 10px;
+    }
+    .nearby-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 8px 4px;
+      text-align: left;
+      border-radius: 10px;
+    }
+    .nearby-row:hover { background: var(--surface-2); }
+    .nearby-row .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* Social */
+    .seg {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 12px;
+    }
+    .seg button {
+      padding: 8px;
+      border-radius: 9px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .seg button.on {
+      background: var(--surface-2);
+      color: var(--text);
+      font-weight: 600;
+    }
+    .dm-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      width: 100%;
+      padding: 10px 4px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+    .dm-row .meta { flex: 1; min-width: 0; }
+    .dm-row .preview {
+      font-size: 0.75rem;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .unread {
+      min-width: 18px;
+      height: 18px;
+      border-radius: 9px;
+      background: var(--accent);
+      font-size: 0.65rem;
+      display: grid;
+      place-items: center;
+      padding: 0 5px;
+    }
+
+    /* Profil */
+    .profile-hero {
+      text-align: center;
+      padding: 8px 0 16px;
+    }
+    .profile-hero .big-av {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      margin: 0 auto 10px;
+      background: linear-gradient(135deg, var(--wave-from), var(--wave-to));
+    }
+    .profile-tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 12px;
+      overflow-x: auto;
+    }
+    .profile-tabs button {
+      flex: 0 0 auto;
+      padding: 10px 12px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+    }
+    .profile-tabs button.on {
+      color: var(--text);
+      border-bottom-color: var(--wave-mid);
+    }
+    .settings-link {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      margin-top: 8px;
+      font-size: 0.85rem;
+    }
+
+    /* Session bar */
+    .session-bar {
+      display: none;
+      height: var(--session-h);
+      flex-shrink: 0;
+      align-items: center;
+      gap: 10px;
+      padding: 0 12px;
+      background: linear-gradient(90deg, #0e1a22, #1a1028);
+      border-top: 1px solid #2a2540;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+    }
+    .session-bar.visible { display: flex; }
+    .session-bar .art {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--wave-from), var(--wave-mid));
+      flex-shrink: 0;
+    }
+    .session-bar .info { flex: 1; min-width: 0; }
+    .session-bar .t { font-size: 0.8rem; font-weight: 600; }
+    .session-bar .s { font-size: 0.68rem; color: var(--muted); }
+    .session-bar .play {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--surface-2);
+      display: grid;
+      place-items: center;
+    }
+
+    /* Dock */
+    .dock {
+      height: calc(var(--tab-h) + var(--safe-b));
+      padding: 6px 8px var(--safe-b);
+      display: grid;
+      grid-template-columns: 1fr 1fr 56px 1fr 1fr;
+      gap: 2px;
+      align-items: start;
+      border-top: 1px solid var(--border);
+      background: rgba(11, 11, 15, 0.96);
+      flex-shrink: 0;
+    }
+    .tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 6px 4px;
+      min-height: 44px;
+      color: var(--muted);
+      font-size: 0.65rem;
+      border-radius: 10px;
+    }
+    .tab.on { color: var(--text); }
+    .tab .glyph { font-size: 1.05rem; line-height: 1; }
+    .tab.on .glyph {
+      background: linear-gradient(90deg, var(--wave-from), var(--wave-to));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .fab-wrap {
+      display: flex;
+      justify-content: center;
+      margin-top: -18px;
+    }
+    .fab {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--wave-from), var(--wave-mid), var(--wave-to));
+      color: #0b0b0f;
+      font-size: 1.6rem;
+      font-weight: 500;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 4px 20px rgba(168, 85, 247, 0.35);
+    }
+
+    /* Overlay sheets */
+    .overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 40;
+      background: rgba(0, 0, 0, 0.55);
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .overlay.open { display: flex; }
+    .sheet {
+      width: 100%;
+      max-height: 78%;
+      background: var(--surface);
+      border-radius: 20px 20px 0 0;
+      border: 1px solid var(--border);
+      border-bottom: none;
+      padding: 12px 16px 28px;
+      animation: slideUp 0.22s ease-out;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(24px); opacity: 0.6; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .sheet-handle {
+      width: 40px;
+      height: 4px;
+      background: #3f3f5a;
+      border-radius: 2px;
+      margin: 0 auto 14px;
+    }
+    .sheet h2 {
+      font-size: 1.05rem;
+      margin-bottom: 4px;
+    }
+    .sheet .sub {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+    .create-grid {
+      display: grid;
+      gap: 8px;
+    }
+    .create-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 12px;
+      border-radius: 14px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      text-align: left;
+      width: 100%;
+      min-height: 52px;
+    }
+    .create-item:hover { border-color: #4c3f6a; }
+    .create-item .ci {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      font-size: 1.1rem;
+      background: var(--bg);
+    }
+    .create-item strong { display: block; font-size: 0.9rem; }
+    .create-item small { color: var(--muted); font-size: 0.72rem; }
+
+    .theater {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 50;
+      background: #050508;
+      flex-direction: column;
+    }
+    .theater.open { display: flex; }
+    .theater-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .theater-stage {
+      flex: 1;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 50% 40%, #2e1065 0%, transparent 50%),
+        #0a0a10;
+      padding: 24px;
+      text-align: center;
+    }
+    .theater-stage .album {
+      width: 160px;
+      height: 160px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--wave-from), var(--wave-mid));
+      margin: 0 auto 16px;
+    }
+    .theater-chat {
+      height: 140px;
+      border-top: 1px solid var(--border);
+      padding: 10px 14px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      overflow-y: auto;
+    }
+
+    .toast {
+      position: absolute;
+      top: 72px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 60;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; }
+
+    .legend {
+      width: min(420px, 100%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+    }
+    .legend h2 {
+      font-size: 0.95rem;
+      margin-bottom: 10px;
+    }
+    .legend ol {
+      margin-left: 1.1rem;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.55;
+    }
+    .legend li { margin-bottom: 6px; }
+    .legend code {
+      font-size: 0.75rem;
+      background: var(--bg);
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: #c4b5fd;
+    }
+    .screen-monde { padding: 0; position: relative; overflow: hidden; }
+
+    @media (max-width: 480px) {
+      body { padding: 12px 0 24px; }
+      .phone {
+        width: 100%;
+        max-width: 390px;
+        height: min(780px, calc(100dvh - 120px));
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+      }
+      .legend { margin: 0 12px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="page-head">
+    <h1><span class="wave">Soundy</span> — Prototype Core Journey</h1>
+    <p>Wireframe clickable (pas l’app). Clique les onglets, le + Créer, la SessionBar et les pins carte.</p>
+    <div class="hints">
+      <span class="hint">390px mobile-first</span>
+      <span class="hint">4 onglets + FAB</span>
+      <span class="hint">SessionBar globale</span>
+    </div>
+  </header>
+
+  <div class="stage">
+    <div class="phone" id="phone" aria-label="Prototype téléphone Soundy">
+      <div class="status"><span>21:04</span><span>Soundy · proto</span></div>
+
+      <header class="header">
+        <div class="logo wave">Soundy</div>
+        <div class="search">Rechercher…</div>
+        <button type="button" class="icon-btn" id="btnBell" title="Notifications" aria-label="Notifications">
+          ⌂
+          <span class="badge"></span>
+        </button>
+        <button type="button" class="avatar" id="btnAvatar" title="Mon profil" aria-label="Mon profil"></button>
+      </header>
+
+      <div class="main">
+        <!-- ACCUEIL -->
+        <section class="screen active" id="screen-accueil" data-screen="accueil">
+          <div class="section-label">Stories</div>
+          <div class="h-scroll">
+            <div class="story"><div class="story-ring"><span></span></div><span class="name">Toi</span></div>
+            <div class="story"><div class="story-ring"><span></span></div><span class="name">Léa</span></div>
+            <div class="story"><div class="story-ring"><span></span></div><span class="name">Karim</span></div>
+            <div class="story"><div class="story-ring"><span></span></div><span class="name">Neon</span></div>
+            <div class="story"><div class="story-ring"><span></span></div><span class="name">Basement</span></div>
+          </div>
+
+          <div class="section-label">Ce soir près de toi</div>
+          <button type="button" class="card tonight" data-go="monde">
+            <div class="card-title">3 salons · 1 live · 2 events</div>
+            <div class="card-meta">Dans 2,4 km — ouvre Monde pour la carte</div>
+            <div class="pill-row">
+              <span class="pill salon">Salon YouTube</span>
+              <span class="pill live">LIVE</span>
+              <span class="pill">Events</span>
+            </div>
+          </button>
+
+          <div class="section-label">À écouter / découvrir</div>
+          <button type="button" class="card" data-action="toast" data-toast="Section Music (plus d’onglet dédié)">
+            <div class="card-title">Music — section Accueil</div>
+            <div class="card-meta">Albums communauté · pas d’onglet Music séparé</div>
+          </button>
+
+          <div class="section-label">Fil</div>
+          <div class="feed-post">
+            <div class="avatar" style="width:36px;height:36px;flex-shrink:0"></div>
+            <div class="feed-body">
+              <div class="feed-user wave">sophie_bar</div>
+              <div class="feed-text">Soirée electro vendredi — entrée libre après 23h. Lien event sur la carte.</div>
+            </div>
+          </div>
+          <div class="feed-post">
+            <div class="avatar" style="width:36px;height:36px;flex-shrink:0;background:linear-gradient(135deg,#f472b6,#a855f7)"></div>
+            <div class="feed-body">
+              <div class="feed-user wave">dj_karim</div>
+              <div class="feed-text">Live dans 20 min. Tips ouverts · rejoins depuis Monde.</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- MONDE -->
+        <section class="screen screen-monde" id="screen-monde" data-screen="monde">
+          <div class="map-canvas" aria-hidden="true">
+            <button type="button" class="map-dot me" style="left:48%;top:52%" title="Moi" data-action="toast" data-toast="Ma position"></button>
+            <button type="button" class="map-dot salon" style="left:38%;top:44%" title="Salon" data-action="join-salon"></button>
+            <button type="button" class="map-dot live" style="left:62%;top:40%" title="Live" data-action="toast" data-toast="Aperçu live → rejoindre (PiP / theater)"></button>
+            <button type="button" class="map-dot event" style="left:55%;top:58%" title="Event" data-action="toast" data-toast="Fiche événement"></button>
+            <button type="button" class="map-dot salon" style="left:30%;top:60%" title="Salon" data-action="join-salon"></button>
+          </div>
+          <div class="map-ui">
+            <div class="filters">
+              <button type="button" class="filter on">Tout</button>
+              <button type="button" class="filter">Salons</button>
+              <button type="button" class="filter">Lives</button>
+              <button type="button" class="filter">Events</button>
+              <button type="button" class="filter">Personnes</button>
+            </div>
+            <div class="nearby-sheet">
+              <div class="nearby-handle"></div>
+              <div class="section-label" style="margin-top:0">Autour · liste (pas stories / pas create)</div>
+              <button type="button" class="nearby-row" data-action="join-salon">
+                <span class="dot" style="background:var(--wave-from)"></span>
+                <div>
+                  <div class="card-title" style="margin:0;font-size:0.85rem">Salon · Wave Night</div>
+                  <div class="card-meta">12 auditeurs · YouTube sync</div>
+                </div>
+              </button>
+              <button type="button" class="nearby-row" data-action="toast" data-toast="Ouvrir live">
+                <span class="dot" style="background:#f43f5e"></span>
+                <div>
+                  <div class="card-title" style="margin:0;font-size:0.85rem">Live · Karim</div>
+                  <div class="card-meta">84 viewers · tips</div>
+                </div>
+              </button>
+              <button type="button" class="nearby-row" data-action="toast" data-toast="Fiche event">
+                <span class="dot" style="background:#fbbf24"></span>
+                <div>
+                  <div class="card-title" style="margin:0;font-size:0.85rem">Event · Basement</div>
+                  <div class="card-meta">Ven. 23h · 1,1 km</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- SOCIAL -->
+        <section class="screen" id="screen-social" data-screen="social">
+          <div class="seg" role="tablist">
+            <button type="button" class="on" data-seg="dms">Messages</button>
+            <button type="button" data-seg="notifs">Notifs</button>
+            <button type="button" data-seg="matchs">Matchs</button>
+          </div>
+          <div id="seg-dms">
+            <button type="button" class="dm-row" data-action="toast" data-toast="Thread DM">
+              <div class="avatar"></div>
+              <div class="meta">
+                <div class="feed-user">Léa</div>
+                <div class="preview">On se retrouve au salon ?</div>
+              </div>
+              <span class="unread">2</span>
+            </button>
+            <button type="button" class="dm-row" data-action="toast" data-toast="Thread groupe">
+              <div class="avatar" style="background:linear-gradient(135deg,#22d3ee,#6366f1)"></div>
+              <div class="meta">
+                <div class="feed-user">Crew Lyon</div>
+                <div class="preview">Karim : live dans 10</div>
+              </div>
+            </button>
+            <button type="button" class="dm-row" data-action="toast" data-toast="Support Soundy">
+              <div class="avatar" style="background:#334155"></div>
+              <div class="meta">
+                <div class="feed-user">Support Soundy</div>
+                <div class="preview">Ticket #128 — résolu</div>
+              </div>
+            </button>
+          </div>
+          <div id="seg-notifs" hidden>
+            <button type="button" class="card" data-go="monde">
+              <div class="card-title">Live démarré près de toi</div>
+              <div class="card-meta">Karim · il y a 2 min</div>
+            </button>
+            <button type="button" class="card" data-action="toast" data-toast="Ouvrir profil">
+              <div class="card-title">Nouveau follower</div>
+              <div class="card-meta">@neon_wave</div>
+            </button>
+          </div>
+          <div id="seg-matchs" hidden>
+            <button type="button" class="card" data-action="toast" data-toast="Match · raison refus affichée si denial (UX-07)">
+              <div class="card-title">Cœurs / matchs</div>
+              <div class="card-meta">Raisons de refus visibles (âge, statut…)</div>
+            </button>
+          </div>
+        </section>
+
+        <!-- PROFIL -->
+        <section class="screen" id="screen-profil" data-screen="profil">
+          <div class="profile-hero">
+            <div class="big-av"></div>
+            <div class="feed-user wave" style="font-size:1.1rem">toi</div>
+            <div class="card-meta">Fan · Lyon · genres electro</div>
+          </div>
+          <div class="profile-tabs">
+            <button type="button" class="on">Profil</button>
+            <button type="button">Reels</button>
+            <button type="button">Compositions</button>
+            <button type="button">Lives</button>
+          </div>
+          <div class="card">
+            <div class="card-title">Bio courte</div>
+            <div class="card-meta">Une photo avatar · pas de galerie (aligné QA profil).</div>
+          </div>
+          <button type="button" class="settings-link" data-action="toast" data-toast="Paramètres (hors onglet Profil)">
+            <span>Paramètres</span>
+            <span style="color:var(--muted)">›</span>
+          </button>
+        </section>
+
+        <div class="toast" id="toast" role="status"></div>
+      </div>
+
+      <button type="button" class="session-bar" id="sessionBar" data-action="open-theater" aria-label="Ouvrir le grand salon">
+        <div class="art"></div>
+        <div class="info">
+          <div class="t">Salon · Wave Night</div>
+          <div class="s">Écoute sync · appuyer pour grand salon</div>
+        </div>
+        <div class="play" aria-hidden="true">▶</div>
+      </button>
+
+      <nav class="dock" aria-label="Navigation principale">
+        <button type="button" class="tab on" data-nav="accueil"><span class="glyph">◎</span>Accueil</button>
+        <button type="button" class="tab" data-nav="monde"><span class="glyph">◉</span>Monde</button>
+        <div class="fab-wrap">
+          <button type="button" class="fab" id="btnCreate" aria-label="Créer">+</button>
+        </div>
+        <button type="button" class="tab" data-nav="social"><span class="glyph">✉</span>Social</button>
+        <button type="button" class="tab" data-nav="profil"><span class="glyph">☺</span>Profil</button>
+      </nav>
+
+      <!-- Créer sheet -->
+      <div class="overlay" id="createOverlay" role="dialog" aria-modal="true" aria-labelledby="createTitle">
+        <div class="sheet">
+          <div class="sheet-handle"></div>
+          <h2 id="createTitle">Créer</h2>
+          <p class="sub">Hub unique — plus de create dispersé dans la carte</p>
+          <div class="create-grid">
+            <button type="button" class="create-item" data-action="toast" data-toast="Flux création Salon">
+              <span class="ci">S</span>
+              <span><strong>Salon</strong><small>Écoute sync YouTube</small></span>
+            </button>
+            <button type="button" class="create-item" data-action="toast" data-toast="Flux Start Live">
+              <span class="ci">L</span>
+              <span><strong>Live</strong><small>Direct vidéo + tips</small></span>
+            </button>
+            <button type="button" class="create-item" data-action="toast" data-toast="Create Reel">
+              <span class="ci">R</span>
+              <span><strong>Reel</strong><small>Vidéo verticale</small></span>
+            </button>
+            <button type="button" class="create-item" data-action="toast" data-toast="Story camera">
+              <span class="ci">St</span>
+              <span><strong>Story</strong><small>24h</small></span>
+            </button>
+            <button type="button" class="create-item" data-action="toast" data-toast="Create event">
+              <span class="ci">E</span>
+              <span><strong>Événement</strong><small>Ancré carte + feed</small></span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grand salon -->
+      <div class="theater" id="theater">
+        <div class="theater-top">
+          <button type="button" class="icon-btn" id="btnMinimize" aria-label="Réduire">↓</button>
+          <div>
+            <div class="feed-user">Wave Night</div>
+            <div class="card-meta">Grand salon · même session</div>
+          </div>
+        </div>
+        <div class="theater-stage">
+          <div class="album"></div>
+          <div class="card-title">Lecture synchronisée</div>
+          <div class="card-meta" style="margin-top:6px">Continuité petit salon (SessionBar) ↔ grand théâtre</div>
+        </div>
+        <div class="theater-chat">
+          <div>Léa : ce track 🔥</div>
+          <div>Karim : next = mon set</div>
+          <div>toi : j’arrive IRL après</div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="legend">
+      <h2>Parcours à cliquer</h2>
+      <ol>
+        <li><strong>Accueil</strong> → carte « Ce soir près de toi » → <code>Monde</code></li>
+        <li>Pin salon cyan ou ligne liste → <strong>SessionBar</strong> apparaît</li>
+        <li>SessionBar → <strong>grand salon</strong> ; ↓ pour réduire (session garde)</li>
+        <li><strong>+</strong> → sheet Créer (Salon / Live / Reel / Story / Event)</li>
+        <li><strong>Social</strong> → onglets Messages / Notifs / Matchs</li>
+        <li>Avatar header → <strong>Profil</strong> ; Paramètres hors profil</li>
+      </ol>
+      <p style="margin-top:14px;font-size:0.78rem;color:var(--muted);line-height:1.45">
+        Spec : <code>commun/docs/UX-REFONTE-TOTALE-CTO.md</code> · prototype non branché à l’API.
+      </p>
+    </aside>
+  </div>
+
+  <script>
+    (function () {
+      const screens = ["accueil", "monde", "social", "profil"];
+      const toastEl = document.getElementById("toast");
+      let toastTimer;
+
+      function showToast(msg) {
+        toastEl.textContent = msg;
+        toastEl.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2200);
+      }
+
+      function go(screen) {
+        screens.forEach((id) => {
+          document.getElementById("screen-" + id).classList.toggle("active", id === screen);
+        });
+        document.querySelectorAll(".dock .tab").forEach((t) => {
+          t.classList.toggle("on", t.dataset.nav === screen);
+        });
+        closeCreate();
+      }
+
+      function openCreate() {
+        document.getElementById("createOverlay").classList.add("open");
+      }
+      function closeCreate() {
+        document.getElementById("createOverlay").classList.remove("open");
+      }
+
+      function setSession(on) {
+        document.getElementById("sessionBar").classList.toggle("visible", on);
+      }
+
+      function openTheater() {
+        document.getElementById("theater").classList.add("open");
+        setSession(true);
+      }
+      function closeTheater() {
+        document.getElementById("theater").classList.remove("open");
+      }
+
+      document.querySelectorAll("[data-nav]").forEach((btn) => {
+        btn.addEventListener("click", () => go(btn.dataset.nav));
+      });
+
+      document.getElementById("btnCreate").addEventListener("click", openCreate);
+      document.getElementById("createOverlay").addEventListener("click", (e) => {
+        if (e.target.id === "createOverlay") closeCreate();
+      });
+
+      document.getElementById("btnAvatar").addEventListener("click", () => go("profil"));
+      document.getElementById("btnBell").addEventListener("click", () => {
+        go("social");
+        document.querySelectorAll(".seg button").forEach((b) => b.classList.toggle("on", b.dataset.seg === "notifs"));
+        document.getElementById("seg-dms").hidden = true;
+        document.getElementById("seg-notifs").hidden = false;
+        document.getElementById("seg-matchs").hidden = true;
+      });
+
+      document.getElementById("btnMinimize").addEventListener("click", closeTheater);
+      document.getElementById("sessionBar").addEventListener("click", openTheater);
+
+      document.querySelectorAll(".seg button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".seg button").forEach((b) => b.classList.remove("on"));
+          btn.classList.add("on");
+          const seg = btn.dataset.seg;
+          document.getElementById("seg-dms").hidden = seg !== "dms";
+          document.getElementById("seg-notifs").hidden = seg !== "notifs";
+          document.getElementById("seg-matchs").hidden = seg !== "matchs";
+        });
+      });
+
+      document.querySelectorAll(".filter").forEach((f) => {
+        f.addEventListener("click", () => {
+          document.querySelectorAll(".filter").forEach((x) => x.classList.remove("on"));
+          f.classList.add("on");
+        });
+      });
+
+      document.querySelectorAll(".profile-tabs button").forEach((b) => {
+        b.addEventListener("click", () => {
+          document.querySelectorAll(".profile-tabs button").forEach((x) => x.classList.remove("on"));
+          b.classList.add("on");
+          showToast("Onglet profil · " + b.textContent);
+        });
+      });
+
+      document.body.addEventListener("click", (e) => {
+        const t = e.target.closest("[data-go], [data-action]");
+        if (!t) return;
+        if (t.dataset.go) {
+          go(t.dataset.go);
+          return;
+        }
+        const action = t.dataset.action;
+        if (action === "toast") showToast(t.dataset.toast || "OK");
+        if (action === "join-salon") {
+          setSession(true);
+          showToast("Petit salon · SessionBar active");
+        }
+        if (action === "open-theater") openTheater();
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          closeCreate();
+          closeTheater();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

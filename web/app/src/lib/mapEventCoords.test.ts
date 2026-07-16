@@ -95,6 +95,26 @@ describe('resolveManyEventCoords', () => {
     });
   });
 
+  it('resolves world festival city seeds without network', () => {
+    const locations = [
+      'Boom, Belgium',
+      'Pilton, Somerset, United Kingdom',
+      'Indio, California, USA',
+      'Niigata, Japan',
+      'Rio de Janeiro, Brazil',
+      'Miami, Florida, USA',
+      'Amsterdam, Netherlands',
+      'Barcelona, Spain',
+      'Rabat, Morocco',
+      'Goa, India',
+    ];
+    const map = resolveManyEventCoordsSync(locations);
+    expect(map.size).toBe(10);
+    for (const loc of locations) {
+      expect(map.get(loc)).toBeTruthy();
+    }
+  });
+
   it('resolveManyEventCoordsRemaining geocodes each unique location once', async () => {
     geocodeQuery.mockResolvedValue({
       latitude: 10,

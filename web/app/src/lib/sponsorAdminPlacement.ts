@@ -3,13 +3,13 @@ import type { Sponsor, SponsorPlacement } from '../types';
 export type SponsorPlacementTab = SponsorPlacement | 'all';
 
 export const SPONSOR_PLACEMENT_TABS: SponsorPlacementTab[] = [
+  'all',
   'map_banner',
   'feed_inline',
   'stories_banner',
   'stories_sponsored',
   'reels_sponsored',
   'salon_theater',
-  'all',
 ];
 
 export function placementTabToApiPlacement(tab: SponsorPlacementTab): SponsorPlacement | undefined {

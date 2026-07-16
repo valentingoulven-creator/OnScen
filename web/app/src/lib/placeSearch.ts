@@ -2,6 +2,7 @@ import { searchCities, type CitySuggestion } from './citySearch';
 import { resolveEventCityCoordsSync } from './mapEventCoords';
 import { dedupePlaceHits } from './placeSearchDedupe';
 import { filterPresetCitySuggestions, PRESET_CITIES, presetCityToSuggestion } from './livesGeo';
+import { WORLD_CAPITALS } from './worldCapitals';
 
 export interface PlaceSearchCityHit {
   kind: 'city';
@@ -80,17 +81,42 @@ function presetCitiesForQuery(query: string): PlaceSearchCityHit[] {
 function countriesForQuery(query: string): PlaceSearchCountryHit[] {
   const q = normalizePlaceQuery(query);
   if (q.length < 2) return [];
-  return COUNTRY_CENTROIDS.filter(
-    (c) =>
-      normalizePlaceQuery(c.label).includes(q) ||
-      c.code.toLowerCase().startsWith(q)
-  ).map((c) => ({
-    kind: 'country' as const,
-    label: c.label,
-    code: c.code,
-    latitude: c.latitude,
-    longitude: c.longitude,
-  }));
+
+  const seen = new Set<string>();
+  const hits: PlaceSearchCountryHit[] = [];
+
+  const push = (hit: PlaceSearchCountryHit) => {
+    const key = normalizePlaceQuery(hit.label);
+    if (seen.has(key)) return;
+    seen.add(key);
+    hits.push(hit);
+  };
+
+  for (const c of COUNTRY_CENTROIDS) {
+    if (normalizePlaceQuery(c.label).includes(q) || c.code.toLowerCase().startsWith(q)) {
+      push({
+        kind: 'country',
+        label: c.label,
+        code: c.code,
+        latitude: c.latitude,
+        longitude: c.longitude,
+      });
+    }
+  }
+
+  for (const cap of WORLD_CAPITALS) {
+    const countryNorm = normalizePlaceQuery(cap.country);
+    const capitalNorm = normalizePlaceQuery(cap.name);
+    if (!countryNorm.includes(q) && !capitalNorm.includes(q)) continue;
+    push({
+      kind: 'country',
+      label: cap.country,
+      latitude: cap.lat,
+      longitude: cap.lng,
+    });
+  }
+
+  return hits;
 }
 
 function popularCities(): PlaceSearchCityHit[] {

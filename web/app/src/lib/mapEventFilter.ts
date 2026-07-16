@@ -160,10 +160,27 @@ export function filterMapEventsByCriteria(
   return result;
 }
 
-/** Événements avec au moins une occurrence aujourd'hui (affichage pins carte). */
+/** Au moins une occurrence aujourd'hui (jour calendaire locale). */
 export function filterMapEventsOccurringToday(
   events: MapEventMarker[],
   now = new Date()
 ): MapEventMarker[] {
   return events.filter((event) => isMapEventOccurringToday(event, now));
+}
+
+/** Aujourd'hui ou demain — vue globe overview (festivals multi-jours). */
+export function filterMapEventsOccurringTodayOrTomorrow(
+  events: MapEventMarker[],
+  now = new Date()
+): MapEventMarker[] {
+  const today = now.toLocaleDateString('en-CA');
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toLocaleDateString('en-CA');
+  return events.filter((event) =>
+    getMapEventOccurrenceDates(event).some((iso) => {
+      const day = new Date(iso).toLocaleDateString('en-CA');
+      return day === today || day === tomorrowStr;
+    })
+  );
 }

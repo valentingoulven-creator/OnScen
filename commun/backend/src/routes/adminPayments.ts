@@ -4,27 +4,13 @@ import Stripe from 'stripe';
 import type { InvoiceWithLegacyFields } from '../lib/stripeLegacyTypes';
 import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
-import { isAccessAdmin } from '../lib/accessControl';
+import { requireDevStaff } from '../middleware/requireAdmin';
 import { getStripeClient } from '../lib/stripeClient';
 import { persistDonationPaymentToPgAsync } from '../lib/pgDonations';
 import { persistCreatorSubscriptionToPgAsync } from '../lib/pgSubscriptions';
 import { logAdminAction } from '../lib/adminAuditLog';
 
 export const adminPaymentsRouter = Router();
-
-function requireAdmin(req: Request, res: Response): string | null {
-  const userId = (req as Request & { user?: { id: string } }).user?.id;
-  if (!userId) {
-    res.status(401).json({ error: 'Authentification requise' });
-    return null;
-  }
-  const user = db.users.get(userId);
-  if (!user || !isAccessAdmin(user)) {
-    res.status(403).json({ error: 'Accès réservé aux administrateurs' });
-    return null;
-  }
-  return userId;
-}
 
 /** Journalise une action admin paiement : audit trail PG (migration 030) + console. */
 function logAdminPaymentAction(
@@ -58,7 +44,7 @@ adminPaymentsRouter.post(
   '/donations/:id/refund',
   authenticateJWT,
   async (req: Request, res: Response) => {
-    const adminId = requireAdmin(req, res);
+    const adminId = requireDevStaff(req, res);
     if (!adminId) return;
 
     const payment = db.donationPayments.find((p) => p.id === req.params.id);
@@ -151,7 +137,7 @@ adminPaymentsRouter.post(
   '/subscriptions/:id/refund',
   authenticateJWT,
   async (req: Request, res: Response) => {
-    const adminId = requireAdmin(req, res);
+    const adminId = requireDevStaff(req, res);
     if (!adminId) return;
 
     const sub = db.creatorSubscriptions.find((s) => s.id === req.params.id);

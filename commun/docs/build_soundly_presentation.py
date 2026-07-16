@@ -30,7 +30,7 @@ SLIDES = [
     {
         "title": "Le problème",
         "bullets": [
-            "Écouter seul sur Spotify ou YouTube, c’est bien… mais isolant",
+            "Écouter seul sur YouTube ou ailleurs, c’est bien… mais isolant",
             "Difficile de trouver qui partage vos goûts musicaux à proximité",
             "Les créateurs manquent d’espaces simples pour performer en live",
             "Pas de lien naturel entre carte, communauté et monétisation",
@@ -49,7 +49,7 @@ SLIDES = [
         "steps": [
             ("1", "Créez votre profil", "Goûts musicaux, photo, affinités"),
             ("2", "Explorez la carte", "Salons et lives près de vous"),
-            ("3", "Rejoignez ou lancez", "Écoute synchronisée Spotify / YouTube"),
+            ("3", "Rejoignez ou lancez", "Écoute synchronisée YouTube en salon"),
             ("4", "Partagez l’instant", "Chat, réactions, pourboires en live"),
         ],
         "image": "07-messages.png",
@@ -71,7 +71,7 @@ SLIDES = [
         "title": "Salons & petits salons",
         "bullets": [
             "Salons : watch party musicale à plusieurs",
-            "Musique synchronisée via Spotify ou YouTube",
+            "Musique synchronisée via YouTube (salons watch party)",
             "Chat en direct, playlist partagée, modération par l’hôte",
             "Petit salon : rejoindre rapidement depuis la carte",
             "Idéal pour soirées, amis ou rencontres autour d’un morceau",

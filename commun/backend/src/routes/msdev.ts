@@ -15,6 +15,7 @@ import { isMsdevShortcutBlocked, loginAccessDeniedReason } from '../lib/accessCo
 import { seedCommunityPosts } from '../seed-community-posts';
 import { getHomeFeedSeedStats, seedHomeFeed } from '../seed-home-feed';
 import { seedMsdevStories } from '../seed-msdev-stories';
+import { seedMsdevDensity } from '../seed-msdev-density';
 import { assertMsdev } from '../lib/msdevGuard';
 
 export const msdevRouter = Router();
@@ -113,6 +114,17 @@ msdevRouter.post('/seed-home-feed', authenticateJWT, (req: Request, res: Respons
     ...result,
     stats: getHomeFeedSeedStats(),
     message: `Accueil : ${result.listenerFavoriteCount} favoris, ${result.favoritePostsTotal} posts favoris, ${result.communityPostsTotal} posts hors favoris.`,
+  });
+});
+
+/** 100 lives (~1000 spectateurs) + 10 festivals monde aujourd'hui/demain (msdev). ?force=1 remplace le seed précédent. */
+msdevRouter.post('/seed-density-demo', authenticateJWT, (req: Request, res: Response) => {
+  const force = req.body?.force === true || req.query.force === '1';
+  const result = seedMsdevDensity({ force });
+  res.json({
+    ok: true,
+    ...result,
+    message: `${result.livesCreated} live(s) (~${result.averageViewers} spectateurs en moyenne) et ${result.eventsCreated} festival(s) créés.`,
   });
 });
 

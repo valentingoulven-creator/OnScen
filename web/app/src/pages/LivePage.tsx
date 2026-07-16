@@ -83,7 +83,9 @@ const LIVE_MAX_DURATION_MS = 8 * 60 * 60 * 1000;
 const LIVE_CHAT_HIDDEN_KEY = 'melosong_live_chat_hidden';
 
 function readLiveChatPinned(): boolean {
-  return getStorageItem(STORAGE_KEYS.liveChatPinned) === '1';
+  const stored = getStorageItem(STORAGE_KEYS.liveChatPinned);
+  if (stored === '0') return false;
+  return true;
 }
 
 function readFullscreenChatOverlay(): boolean {

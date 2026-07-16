@@ -1,0 +1,31 @@
+{
+  "name": "Soundy CDN cache",
+  "kind": "zone",
+  "phase": "http_request_cache_settings",
+  "rules": [
+    {
+      "action": "set_cache_settings",
+      "action_parameters": { "cache": false },
+      "expression": "(starts_with(http.request.uri.path, \"/api\")) or (starts_with(http.request.uri.path, \"/socket.io\")) or (http.request.uri.path eq \"/health\") or (http.request.uri.path eq \"/health/db\")",
+      "description": "Soundy bypass API socket health",
+      "enabled": true
+    },
+    {
+      "action": "set_cache_settings",
+      "action_parameters": { "cache": false },
+      "expression": "(http.request.uri.path eq \"/sw.js\") or (http.request.uri.path eq \"/\") or (http.request.uri.path eq \"/index.html\")",
+      "description": "Soundy bypass SPA shell and service worker",
+      "enabled": true
+    },
+    {
+      "action": "set_cache_settings",
+      "action_parameters": {
+        "cache": true,
+        "edge_ttl": { "mode": "respect_origin" }
+      },
+      "expression": "starts_with(http.request.uri.path, \"/assets/\")",
+      "description": "Soundy cache hashed assets",
+      "enabled": true
+    }
+  ]
+}

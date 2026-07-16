@@ -7,6 +7,8 @@ export type ConnectPlatform = MusicPlatform | 'instagram';
 
 export type AccountStatus = 'active' | 'pending' | 'blocked';
 
+export type StaffRole = 'admin' | 'dev';
+
 export type AccessRegistrationMode = 'open' | 'invite_only' | 'admin_approval' | 'closed';
 
 export interface PublicAccessConfig {
@@ -35,6 +37,8 @@ export interface AccessManagedUser {
   avatarUrl?: string;
   accountStatus: AccountStatus;
   isAdmin: boolean;
+  /** Rôle staff : admin (opérationnel) ou dev (panel complet). */
+  staffRole?: StaffRole;
   /** Droit admin persisté (`user.isAdmin`), distinct des comptes dev par pseudo/e-mail. */
   adminFlag?: boolean;
   memberSince?: number;
@@ -90,6 +94,24 @@ export interface AdminUserSocialResponse {
 }
 
 export type AdminUserSort = 'lastSeen' | 'memberSince' | 'username' | 'status';
+
+/** Restauration de compte — spec commun/docs/RESTORE-COMPTE-ADMIN.md. */
+export interface UserSnapshotMeta {
+  id: string;
+  userId: string;
+  createdAt: number;
+  createdBy?: string;
+  reason?: string;
+  sizeBytes: number;
+  formatVersion: number;
+  itemCounts: {
+    feedPosts: number;
+    reels: number;
+    stories: number;
+    albums: number;
+    compositions: number;
+  };
+}
 
 export interface AccessAdminUsersResponse {
   users: AccessManagedUser[];
@@ -749,6 +771,7 @@ export interface User {
   /** false tant que l'onboarding n'est pas complété. Renvoyé au propriétaire uniquement. */
   onboardingCompleted?: boolean;
   isAdmin?: boolean;
+  staffRole?: StaffRole;
   /** Badge Dev visible publiquement (soundy_dev, ACCESS_ADMIN). */
   isDev?: boolean;
   avatarUrl?: string;

@@ -34,6 +34,13 @@ export const compositionsApi = {
       token
     ),
 
+  recordCompositionPlay: (token: string, compositionId: string) =>
+    request<{ weeklyPlayCount: number }>(
+      `/compositions/${compositionId}/play`,
+      { method: 'POST' },
+      token
+    ),
+
   getMyAlbums: (token: string) =>
     request<{
       albums: import('../../components/UserCompositionsSection').UserAlbumItem[];

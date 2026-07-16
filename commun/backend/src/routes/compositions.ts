@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { toggleCompositionUpvote } from '../lib/compositionUpvotes';
+import { recordCompositionPlay } from '../lib/compositionPlays';
 import {
   createUserComposition,
   deleteUserComposition,
@@ -36,6 +37,17 @@ compositionsRouter.post('/', authenticateJWT, asyncHandler(async (req: Request, 
   }
   res.status(201).json({ composition: result });
 }));
+
+compositionsRouter.post('/:id/play', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const result = recordCompositionPlay(req.params.id, me);
+  if (!result.ok) {
+    res.status(404).json({ error: 'Composition introuvable' });
+    return;
+  }
+  schedulePersist();
+  res.json({ weeklyPlayCount: result.weeklyPlayCount });
+});
 
 compositionsRouter.post('/:id/upvote', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;

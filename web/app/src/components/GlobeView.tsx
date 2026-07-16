@@ -1,13 +1,27 @@
-import { memo, startTransition, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, forwardRef } from 'react';
-import Globe from 'react-globe.gl';
-import type { GlobeMethods } from 'react-globe.gl';
+import {
+  memo,
+  startTransition,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  forwardRef,
+  lazy,
+  Suspense,
+  type CSSProperties,
+} from 'react';
 import { formatEventDateShort } from '../lib/feedEvents';
 import { getEventTypeIcon } from '../lib/eventType';
 import { isValidLatLng } from '../lib/mapCoords';
 import { isWebGLError } from '../lib/webglSupport';
 import { getCityMapView } from '../lib/mapEventClusters';
 import { buildEventClusterKey, buildSalonLivePeopleKey } from '../lib/mapMarkersKey';
-import { loadGlobeCountryFeatures, type CountryGeoFeature } from '../lib/globeCountries';
+import { loadGlobeCountryFeatures } from '../lib/globeCountries';
+import { prepareGlobeCountries } from '../lib/globe3d/prepareCountries';
+import { CAMERA_DEFAULT_ALTITUDE } from '../lib/globe3d/constants';
+import type { PreparedCountry } from '../lib/globe3d/types';
 import { clusterLiveMapMarkers, type MapLiveLocationCluster } from '../lib/mapLiveClusters';
 import {
   filterPeopleForZoom,
@@ -20,6 +34,12 @@ import {
 } from '../lib/mapMarkerVisibility';
 import { toGlobeCapitalLabels, type GlobeCapitalLabel } from '../lib/worldCapitals';
 import type { Salon, Live, NearbyPerson, MapEventCityCluster, MapEventMarker } from '../types';
+import type { GlobeCameraBridgeHandle, RecenterRequest } from './globe3d/GlobeCameraBridge';
+import type { SoundyGlobePoint } from './globe3d/SoundyGlobeMarkers';
+
+const SoundyGlobeCanvas = lazy(() =>
+  import('./globe3d/SoundyGlobeCanvas').then((m) => ({ default: m.SoundyGlobeCanvas }))
+);
 
 const GLOBE_CAPITAL_LABELS = toGlobeCapitalLabels();
 
@@ -30,7 +50,11 @@ interface GlobePoint {
   color: string;
   radius: number;
   label: string;
-  entity?: Salon | Live | NearbyPerson | MapEventCityCluster | MapLiveLocationCluster;
+  entity?: Salon | Live | NearbyPerson | MapEventCityCluster | MapLiveLocationCluster | MapEventMarker;
+  /** Emoji affiché sur le badge événement (globe uniquement). */
+  icon?: string;
+  /** Nombre d'événements regroupés — affiché en badge sur l'icône (globe). */
+  count?: number;
 }
 
 interface GlobeRing {
@@ -38,295 +62,58 @@ interface GlobeRing {
   lng: number;
 }
 
-/** Altitude en dessous de laquelle le globe bascule automatiquement vers la carte plate. */
 const ALTITUDE_AUTO_SWITCH = 0.03;
-
-/** Durée animation zoom globe → marqueur (ms). */
 const GLOBE_MARKER_ZOOM_MS = 520;
-
-/** Délai avant bascule carte plate pendant l'animation globe (ms). */
 const GLOBE_FLAT_TRIGGER_MS = 280;
 
-/**
- * Appareil à faible puissance GPU : mobile, petit DPR, ou peu de cœurs CPU.
- * Sur ces devices un nombre élevé de markers risque l'OOM / crash WebGL.
- */
 const IS_LOW_POWER_DEVICE =
   typeof window !== 'undefined' &&
   (window.devicePixelRatio <= 1 ||
     navigator.hardwareConcurrency <= 4 ||
     /Mobile|Android|iPhone/i.test(navigator.userAgent));
 
-/** Caps adaptatifs : bas (mobile) vs haut (desktop). */
 const GLOBE_PEOPLE_CAP = IS_LOW_POWER_DEVICE ? 800 : 5000;
 const GLOBE_OVERVIEW_CAP = IS_LOW_POWER_DEVICE ? 400 : 5000;
-
-/** Debounce POV pour rechargement nearby (filtre Lives). */
 const POV_DEBOUNCE_MS = 400;
-
-/** DPR réduit pendant drag/zoom globe — moins de fill-rate GPU. */
 const GLOBE_INTERACTION_MAX_DPR = IS_LOW_POWER_DEVICE ? 1 : 1.5;
 
-/** Fenêtre après dernier mouvement OrbitControls avant arrêt du loop damping. */
-const DAMPING_IDLE_MS = IS_LOW_POWER_DEVICE ? 900 : 320;
-
-/** Profil rendu adaptatif — netteté desktop vs perf mobile. */
 const GLOBE_RENDER_PROFILE = (() => {
-  const base = {
-    skyTexture: '/globe/night-sky.png',
-    backgroundColor: '#0a1220',
-    atmosphereColor: 'rgba(150, 190, 255, 0.58)',
-    atmosphereAltitude: 0.16,
-    toneExposure: 1.62,
-    spaceLighting: true,
-    skyBrightness: 1.28,
-  };
+  const base = { backgroundColor: '#0a1220' };
   if (typeof window === 'undefined') {
-    return {
-      maxPixelRatio: 1.5,
-      antialias: false,
-      curvatureResolution: 4,
-      bumpTexture: null as string | null,
-      bumpScale: 0,
-      labelResolution: 3,
-      ...base,
-    };
+    return { maxPixelRatio: 1.5, antialias: false, ...base };
   }
   if (IS_LOW_POWER_DEVICE) {
     return {
       maxPixelRatio: Math.min(window.devicePixelRatio, 1.5),
       antialias: false,
-      curvatureResolution: 4,
-      bumpTexture: null,
-      bumpScale: 0,
-      labelResolution: 3,
       ...base,
     };
   }
   return {
     maxPixelRatio: Math.min(window.devicePixelRatio, 2),
     antialias: true,
-    curvatureResolution: 8,
-    bumpTexture: '/globe/earth-topology.png',
-    bumpScale: 0.32,
-    labelResolution: 5,
-    skyTexture: '/globe/stars-enhanced.jpg',
     backgroundColor: '#0c1628',
-    /** Halo atmosphérique bleu (vue ISS) avec légère teinte Soundy. */
-    atmosphereColor: 'rgba(120, 178, 240, 0.5)',
-    atmosphereAltitude: 0.12,
-    toneExposure: 1.82,
-    spaceLighting: true,
-    skyBrightness: 1.38,
   };
 })();
 
-/** Textures globe servies localement (app/public/globe → backend/public/globe). */
-const GLOBE_EARTH_TEXTURE = '/globe/earth-night.jpg';
+/** Largeur de référence (px) pour l'échelle 1.0 des icônes DOM (pins/live/labels) du globe. */
+const GLOBE_ICON_SCALE_REFERENCE_WIDTH = 640;
+const GLOBE_ICON_SCALE_MIN = 0.55;
 
-/** Améliore netteté textures + rendu HDR (desktop). Constantes Three.js (transitif via react-globe.gl). */
-const THREE_LINEAR_FILTER = 1006;
-const THREE_LINEAR_MIPMAP_LINEAR = 1008;
-const THREE_SRGB_COLOR_SPACE = 'srgb';
-const THREE_ACES_FILMIC = 4;
-
-type GlobeTexture = {
-  anisotropy: number;
-  minFilter: number;
-  magFilter: number;
-  generateMipmaps?: boolean;
-  needsUpdate: boolean;
-};
-
-type GlobePhongMaterial = {
-  map?: GlobeTexture;
-  bumpMap?: GlobeTexture;
-  bumpScale?: number;
-  shininess?: number;
-  specular?: { setHex: (hex: number) => void };
-  color?: { setRGB: (r: number, g: number, b: number) => void };
-  needsUpdate?: boolean;
-};
-
-function configureGlobeSpaceLighting(globe: GlobeMethods): void {
-  globe.scene().traverse((obj: unknown) => {
-    const light = obj as {
-      isAmbientLight?: boolean;
-      isDirectionalLight?: boolean;
-      intensity?: number;
-      color?: { setHex: (hex: number) => void };
-    };
-    if (light.isAmbientLight && typeof light.intensity === 'number') {
-      light.intensity = 0.84;
-      light.color?.setHex(0x486080);
-    }
-    if (light.isDirectionalLight && typeof light.intensity === 'number') {
-      light.intensity = 1.52;
-      light.color?.setHex(0xfff8ee);
-    }
-  });
+/** Icônes DOM (drei Html) en taille CSS fixe : sans ce facteur elles ne rétrécissent
+ * pas avec un canvas plus petit (contrairement aux sphères 3D, mises à l'échelle
+ * par la perspective). On les fait donc adapter à la largeur du viewport globe. */
+function computeGlobeIconScale(width: number): number {
+  if (width <= 0) return 1;
+  const ratio = width / GLOBE_ICON_SCALE_REFERENCE_WIDTH;
+  return Math.min(1, Math.max(GLOBE_ICON_SCALE_MIN, ratio));
 }
 
-function applyGlobeVisualProfile(globe: GlobeMethods): void {
-  configureGlobeVisualQuality(globe, GLOBE_RENDER_PROFILE.bumpScale, {
-    toneExposure: GLOBE_RENDER_PROFILE.toneExposure,
-    spaceLighting: GLOBE_RENDER_PROFILE.spaceLighting,
-    skyBrightness: GLOBE_RENDER_PROFILE.skyBrightness,
-  });
-}
-
-function configureGlobeVisualQuality(
-  globe: GlobeMethods,
-  bumpScale: number,
-  opts: { toneExposure: number; spaceLighting: boolean; skyBrightness: number }
-): void {
-  try {
-    const renderer = globe.renderer() as {
-      outputColorSpace: string;
-      toneMapping: number;
-      toneMappingExposure: number;
-      capabilities: { getMaxAnisotropy: () => number };
-    };
-    renderer.outputColorSpace = THREE_SRGB_COLOR_SPACE;
-    renderer.toneMapping = THREE_ACES_FILMIC;
-    renderer.toneMappingExposure = opts.toneExposure;
-
-    const maxAniso = renderer.capabilities.getMaxAnisotropy();
-
-    globe.scene().traverse((obj: unknown) => {
-      const mesh = obj as { isMesh?: boolean; material?: GlobePhongMaterial | GlobePhongMaterial[] };
-      if (!mesh.isMesh || !mesh.material) return;
-      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      for (const m of materials) {
-        const isSkyMaterial = m.map && !m.bumpMap && typeof m.shininess !== 'number';
-        if (m.map) {
-          m.map.anisotropy = maxAniso;
-          m.map.minFilter = THREE_LINEAR_MIPMAP_LINEAR;
-          m.map.magFilter = THREE_LINEAR_FILTER;
-          m.map.generateMipmaps = true;
-          m.map.needsUpdate = true;
-        }
-        if (m.bumpMap) {
-          m.bumpMap.anisotropy = maxAniso;
-          m.bumpMap.minFilter = THREE_LINEAR_MIPMAP_LINEAR;
-          m.bumpMap.magFilter = THREE_LINEAR_FILTER;
-          m.bumpMap.needsUpdate = true;
-          if (bumpScale > 0) m.bumpScale = bumpScale;
-        }
-        if (typeof m.shininess === 'number') {
-          m.shininess = 14;
-          m.specular?.setHex(0x4a5878);
-          // Relève la texture earth-night sans la blanchir
-          m.color?.setRGB(1.72, 1.65, 1.52);
-        }
-        if (isSkyMaterial && m.color && opts.skyBrightness !== 1) {
-          const b = opts.skyBrightness;
-          m.color.setRGB(b, b, b * 1.04);
-        }
-        m.needsUpdate = true;
-      }
-    });
-
-    if (opts.spaceLighting) {
-      configureGlobeSpaceLighting(globe);
-    }
-  } catch {
-    /* mesh / textures pas encore prêts */
-  }
-}
-
-/**
- * Stable empty arrays — passed as globe layer props when the layer has no data.
- * Using module-level constants prevents Three.js from receiving a new array
- * reference on every render, which would otherwise trigger geometry re-uploads
- * even when there is nothing to show.
- */
+const MAX_LIVE_RINGS = 40;
 const EMPTY_RINGS: GlobeRing[] = [];
 const EMPTY_CAPITAL_LABELS: GlobeCapitalLabel[] = [];
-const EMPTY_COUNTRY_POLYGONS: CountryGeoFeature[] = [];
+const EMPTY_PREPARED_COUNTRIES: PreparedCountry[] = [];
 
-/** Frontières pays — remplissage transparent, trait très discret. */
-const GLOBE_COUNTRY_BORDER_ALTITUDE = 0.004;
-const GLOBE_COUNTRY_BORDER_CURVATURE = IS_LOW_POWER_DEVICE ? 2 : 3;
-const getPolygonGeoJsonGeometry = (d: object) =>
-  (d as CountryGeoFeature).geometry as unknown as { type: string; coordinates: number[] };
-const getPolygonCapColor = () => 'rgba(0, 0, 0, 0)';
-const getPolygonSideColor = () => 'rgba(0, 0, 0, 0)';
-const getPolygonStrokeColor = () => 'rgba(130, 150, 180, 0.14)';
-
-/**
- * Stable WebGL renderer configuration.
- *
- * Must be a module-level constant so the same object reference is passed on
- * every render.  react-globe.gl forwards rendererConfig to the Three.js
- * WebGLRenderer constructor; a new object reference on every render risks
- * triggering renderer re-creation (context destroy + recreate) in versions that
- * do not memo the config themselves.
- *
- * preserveDrawingBuffer is intentionally false (the WebGL default):
- *   – true forces the GPU to keep the full colour buffer alive between frames,
- *     preventing the driver from using double-buffering / buffer-swap optimisation.
- *   – On integrated GPUs this costs roughly 2–5 ms per frame → 10–20 % overhead
- *     at 60 fps, visible as globe stuttering especially on mobile.
- *   – The only reason to enable it is canvas.toDataURL() screenshots; Soundy does
- *     not take globe screenshots, so the flag is unnecessary.
- */
-const GLOBE_RENDERER_CONFIG = {
-  antialias: GLOBE_RENDER_PROFILE.antialias,
-  alpha: true,
-  powerPreference: (IS_LOW_POWER_DEVICE ? 'default' : 'high-performance') as WebGLPowerPreference,
-  failIfMajorPerformanceCaveat: false,
-  preserveDrawingBuffer: false,
-};
-
-/**
- * Stable accessor functions for react-globe.gl layer props.
- *
- * react-globe.gl's underlying ThreeGlobe library tracks accessor function
- * identity: when a function reference changes it schedules a full geometry
- * rebuild for the affected layer.  Inline JSX arrow functions are new object
- * references on every React render, so they cause unnecessary Three.js buffer
- * re-uploads on every re-render even when the actual data has not changed.
- *
- * Module-level functions are always the same reference → no spurious rebuilds.
- */
-const getPointLat    = (d: object) => (d as GlobePoint).lat;
-const getPointLng    = (d: object) => (d as GlobePoint).lng;
-const getPointColor  = (d: object) => (d as GlobePoint).color;
-const getPointRadius = (d: object) => (d as GlobePoint).radius;
-const getPointLabel  = (d: object) => (d as GlobePoint).label;
-
-const getRingLat   = (d: object) => (d as GlobeRing).lat;
-const getRingLng   = (d: object) => (d as GlobeRing).lng;
-const getRingColor = () => 'rgba(248, 113, 113, 0.72)';
-
-/** DOM labels (CSS2D) — toujours au-dessus du globe et des marqueurs. */
-const capitalHtmlElementCache = new Map<string, HTMLSpanElement>();
-
-function getCapitalHtmlElementKey(cap: GlobeCapitalLabel): string {
-  return `${cap.lat},${cap.lng}`;
-}
-
-function getCapitalHtmlElement(cap: GlobeCapitalLabel): HTMLSpanElement {
-  const key = getCapitalHtmlElementKey(cap);
-  let el = capitalHtmlElementCache.get(key);
-  if (!el) {
-    el = document.createElement('span');
-    el.className = 'globe-capital-label';
-    el.textContent = cap.text;
-    capitalHtmlElementCache.set(key, el);
-  }
-  return el;
-}
-
-const getHtmlLat     = (d: object) => (d as GlobeCapitalLabel).lat;
-const getHtmlLng     = (d: object) => (d as GlobeCapitalLabel).lng;
-const getHtmlElement = (d: object) => getCapitalHtmlElement(d as GlobeCapitalLabel);
-
-/**
- * Shallow equality over the fields that drive Three.js geometry / material.
- * If these fields are unchanged, Three.js does not need to re-upload the buffer.
- */
 function globePointsEqual(a: GlobePoint[], b: GlobePoint[]): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
@@ -337,9 +124,12 @@ function globePointsEqual(a: GlobePoint[], b: GlobePoint[]): boolean {
       ai.lng !== bi.lng ||
       ai.type !== bi.type ||
       ai.color !== bi.color ||
-      ai.radius !== bi.radius
-    )
+      ai.radius !== bi.radius ||
+      ai.icon !== bi.icon ||
+      ai.count !== bi.count
+    ) {
       return false;
+    }
   }
   return true;
 }
@@ -349,28 +139,20 @@ export interface GlobeViewProps {
   lives: Live[];
   people?: NearbyPerson[];
   eventClusters?: MapEventCityCluster[];
-  /** True when events exist before viewport clip (keeps layer visible while panning). */
   hasEventClusters?: boolean;
-  /** Masque capitales — ne laisse que les pins événement (+ position utilisateur). */
   eventsOnly?: boolean;
-  /** Au zoom ville, afficher tous les salons (filtre Salon sans Lives). */
   showAllSalonsAtCityZoom?: boolean;
   center: [number, number];
-  /** Incrémenté uniquement sur recentrage explicite (bouton GPS, changement ville). */
   recenterToken?: number;
   userPosition?: [number, number];
   onSelectSalon: (s: Salon) => void;
   onSelectLive: (l: Live) => void;
   onSelectPerson?: (person: NearbyPerson) => void;
+  /** Clic sur un pin événement individuel (tier city/street) — ouvre le détail de CET événement. */
+  onSelectMapEvent?: (event: MapEventMarker) => void;
+  /** Clic sur un hub ville (tier overview) ou un pin regroupant plusieurs événements au même endroit. */
   onSelectEventCluster?: (cluster: MapEventCityCluster) => void;
-  /** Plusieurs lives au même endroit — popup liste (vue globe overview). */
   onSelectLiveCluster?: (cluster: MapLiveLocationCluster) => void;
-  /**
-   * Appelé après l'animation de zoom sur un marqueur (~900 ms) **ou** quand
-   * l'utilisateur zoome manuellement en dessous de `ALTITUDE_AUTO_SWITCH`.
-   * `doSelect` est une no-op dans le cas du zoom manuel.
-   * `zoom` est le niveau Leaflet cible (optionnel, défaut 14).
-   */
   onZoomToFlat?: (
     lat: number,
     lng: number,
@@ -379,30 +161,21 @@ export interface GlobeViewProps {
     radiusKm?: number,
     animated?: boolean
   ) => void;
-  /** Altitude globe (pointOfView) — panneau latéral carte. */
   onGlobeAltitudeChange?: (altitude: number) => void;
-  /** POV complet (centre visible + altitude) — rechargement nearby globe. */
   onGlobePovChange?: (lat: number, lng: number, altitude: number) => void;
-  /** Filtre Lives actif — points live (simplifiés en vue globale). */
   livesFilterOn?: boolean;
   salonFilterOn?: boolean;
   eventsFilterOn?: boolean;
-  /** WebGL / Three.js init failed — parent should fall back to flat map. */
   onGlobeUnavailable?: () => void;
-  /**
-   * Pré-charge la carte plate (position + tuiles) pendant l'animation globe,
-   * avant le basculement mapStyle → flat.
-   */
   onPrepareFlatMap?: (lat: number, lng: number, zoom?: number, radiusKm?: number) => void;
-  /** L'utilisateur a commencé à tourner/zoomer le globe (libère le recentrage GPS). */
   onMapExplored?: () => void;
-  /** Altitude courante (slider / molette) — sans re-render tier à chaque frame. */
   onGlobeAltitudeLive?: (altitude: number) => void;
 }
 
 export interface GlobeViewHandle {
   getPointOfView: () => { lat: number; lng: number; altitude: number } | null;
   setAltitude: (altitude: number, durationMs?: number) => void;
+  flyTo: (lat: number, lng: number, altitude?: number, durationMs?: number) => void;
 }
 
 function buildEventClusterGlobeLabel(cluster: MapEventCityCluster): string {
@@ -425,852 +198,594 @@ function buildIndividualEventGlobeLabel(ev: MapEventMarker): string {
   return parts.join(' · ');
 }
 
-export const GlobeView = memo(forwardRef<GlobeViewHandle, GlobeViewProps>(function GlobeView({
-  salons,
-  lives,
-  people = [],
-  eventClusters = [],
-  hasEventClusters,
-  eventsOnly = false,
-  showAllSalonsAtCityZoom = false,
-  center,
-  recenterToken = 0,
-  userPosition,
-  onSelectSalon,
-  onSelectLive,
-  onSelectPerson,
-  onSelectEventCluster,
-  onSelectLiveCluster,
-  onZoomToFlat,
-  onGlobeAltitudeChange,
-  onGlobePovChange,
-  livesFilterOn = false,
-  salonFilterOn = false,
-  eventsFilterOn = false,
-  onGlobeUnavailable,
-  onPrepareFlatMap,
-  onMapExplored,
-  onGlobeAltitudeLive,
-}: GlobeViewProps, ref) {
-  const globeRef = useRef<GlobeMethods | undefined>(undefined);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
-  /** Tier seul en state — évite re-renders lourds à chaque frame d'altitude. */
-  const [globeDetailTier, setGlobeDetailTier] = useState<MapDetailTier>('overview');
-  const [globeCapitalRegion, setGlobeCapitalRegion] = useState(() => ({
-    lat: center[0],
-    lng: center[1],
-    altitude: 1,
-  }));
-  const [countryPolygons, setCountryPolygons] = useState<CountryGeoFeature[]>(EMPTY_COUNTRY_POLYGONS);
-  const [isInteracting, setIsInteracting] = useState(false);
-  const isInteractingRef = useRef(false);
-  const globeAltitudeRef = useRef(1.0);
-  const altitudeRafRef = useRef<number | null>(null);
-  const povDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingPovRef = useRef<{ lat: number; lng: number; altitude: number } | null>(null);
-  const povSetRef = useRef(false);
-  const zoomTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Ref stable pour éviter les closures périmées dans le listener OrbitControls
-  const onZoomToFlatRef = useRef(onZoomToFlat);
-  onZoomToFlatRef.current = onZoomToFlat;
-  const onSelectSalonRef = useRef(onSelectSalon);
-  onSelectSalonRef.current = onSelectSalon;
-  const onSelectLiveRef = useRef(onSelectLive);
-  onSelectLiveRef.current = onSelectLive;
-  const onSelectPersonRef = useRef(onSelectPerson);
-  onSelectPersonRef.current = onSelectPerson;
-  const onSelectEventClusterRef = useRef(onSelectEventCluster);
-  onSelectEventClusterRef.current = onSelectEventCluster;
-  const onSelectLiveClusterRef = useRef(onSelectLiveCluster);
-  onSelectLiveClusterRef.current = onSelectLiveCluster;
-  const onGlobeAltitudeChangeRef = useRef(onGlobeAltitudeChange);
-  onGlobeAltitudeChangeRef.current = onGlobeAltitudeChange;
-  const onGlobePovChangeRef = useRef(onGlobePovChange);
-  onGlobePovChangeRef.current = onGlobePovChange;
-  const onGlobeUnavailableRef = useRef(onGlobeUnavailable);
-  onGlobeUnavailableRef.current = onGlobeUnavailable;
-  const onPrepareFlatMapRef = useRef(onPrepareFlatMap);
-  onPrepareFlatMapRef.current = onPrepareFlatMap;
-  const onMapExploredRef = useRef(onMapExplored);
-  onMapExploredRef.current = onMapExplored;
-  const onGlobeAltitudeLiveRef = useRef(onGlobeAltitudeLive);
-  onGlobeAltitudeLiveRef.current = onGlobeAltitudeLive;
-  const lastRecenterTokenRef = useRef(recenterToken);
-  const globeUnavailableReportedRef = useRef(false);
-  // Empêche la transition auto de se déclencher plusieurs fois
-  const autoSwitchedRef = useRef(false);
-  const lastReportedTierRef = useRef<MapDetailTier>(getGlobeDetailTier(1.0));
+export const GlobeView = memo(
+  forwardRef<GlobeViewHandle, GlobeViewProps>(function GlobeView(
+    {
+      salons,
+      lives,
+      people = [],
+      eventClusters = [],
+      hasEventClusters,
+      eventsOnly = false,
+      showAllSalonsAtCityZoom = false,
+      center,
+      recenterToken = 0,
+      userPosition,
+      onSelectSalon,
+      onSelectLive,
+      onSelectPerson,
+      onSelectEventCluster,
+      onSelectMapEvent,
+      onSelectLiveCluster,
+      onZoomToFlat,
+      onGlobeAltitudeChange,
+      onGlobePovChange,
+      livesFilterOn = false,
+      salonFilterOn = false,
+      eventsFilterOn = false,
+      onGlobeUnavailable,
+      onPrepareFlatMap,
+      onMapExplored,
+      onGlobeAltitudeLive,
+    }: GlobeViewProps,
+    ref
+  ) {
+    const cameraBridgeRef = useRef<GlobeCameraBridgeHandle | null>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+    const [globeDetailTier, setGlobeDetailTier] = useState<MapDetailTier>('overview');
+    const [globeCapitalRegion, setGlobeCapitalRegion] = useState(() => ({
+      lat: center[0],
+      lng: center[1],
+      altitude: CAMERA_DEFAULT_ALTITUDE,
+    }));
+    const [preparedCountries, setPreparedCountries] = useState<PreparedCountry[]>(EMPTY_PREPARED_COUNTRIES);
+    const [isInteracting, setIsInteracting] = useState(false);
+    const [recenterRequest, setRecenterRequest] = useState<RecenterRequest | null>(null);
+    const isInteractingRef = useRef(false);
+    const globeAltitudeRef = useRef(CAMERA_DEFAULT_ALTITUDE);
+    const altitudeRafRef = useRef<number | null>(null);
+    const povDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pendingPovRef = useRef<{ lat: number; lng: number; altitude: number } | null>(null);
+    const povSetRef = useRef(false);
+    const zoomTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const onZoomToFlatRef = useRef(onZoomToFlat);
+    onZoomToFlatRef.current = onZoomToFlat;
+    const onSelectSalonRef = useRef(onSelectSalon);
+    onSelectSalonRef.current = onSelectSalon;
+    const onSelectLiveRef = useRef(onSelectLive);
+    onSelectLiveRef.current = onSelectLive;
+    const onSelectPersonRef = useRef(onSelectPerson);
+    onSelectPersonRef.current = onSelectPerson;
+    const onSelectEventClusterRef = useRef(onSelectEventCluster);
+    onSelectEventClusterRef.current = onSelectEventCluster;
+    const onSelectMapEventRef = useRef(onSelectMapEvent);
+    onSelectMapEventRef.current = onSelectMapEvent;
+    const onSelectLiveClusterRef = useRef(onSelectLiveCluster);
+    onSelectLiveClusterRef.current = onSelectLiveCluster;
+    const onGlobeAltitudeChangeRef = useRef(onGlobeAltitudeChange);
+    onGlobeAltitudeChangeRef.current = onGlobeAltitudeChange;
+    const onGlobePovChangeRef = useRef(onGlobePovChange);
+    onGlobePovChangeRef.current = onGlobePovChange;
+    const onGlobeUnavailableRef = useRef(onGlobeUnavailable);
+    onGlobeUnavailableRef.current = onGlobeUnavailable;
+    const onPrepareFlatMapRef = useRef(onPrepareFlatMap);
+    onPrepareFlatMapRef.current = onPrepareFlatMap;
+    const onMapExploredRef = useRef(onMapExplored);
+    onMapExploredRef.current = onMapExplored;
+    const onGlobeAltitudeLiveRef = useRef(onGlobeAltitudeLive);
+    onGlobeAltitudeLiveRef.current = onGlobeAltitudeLive;
+    const lastRecenterTokenRef = useRef(recenterToken);
+    const globeUnavailableReportedRef = useRef(false);
+    const autoSwitchedRef = useRef(false);
+    const lastReportedTierRef = useRef<MapDetailTier>(getGlobeDetailTier(CAMERA_DEFAULT_ALTITUDE));
 
-  const reportGlobeUnavailable = useCallback((err?: unknown) => {
-    if (globeUnavailableReportedRef.current) return;
-    if (err != null && !isWebGLError(err)) return;
-    globeUnavailableReportedRef.current = true;
-    onGlobeUnavailableRef.current?.();
-  }, []);
+    const reportGlobeUnavailable = useCallback((err?: unknown) => {
+      if (globeUnavailableReportedRef.current) return;
+      if (err != null && !isWebGLError(err)) return;
+      globeUnavailableReportedRef.current = true;
+      onGlobeUnavailableRef.current?.();
+    }, []);
 
-  const flushPovChange = useCallback(() => {
-    if (povDebounceRef.current !== null) {
-      clearTimeout(povDebounceRef.current);
-      povDebounceRef.current = null;
-    }
-    const pov = pendingPovRef.current;
-    pendingPovRef.current = null;
-    if (pov && isValidLatLng(pov.lat, pov.lng)) {
-      onGlobePovChangeRef.current?.(pov.lat, pov.lng, pov.altitude);
-    }
-  }, []);
-
-  const schedulePovChange = useCallback(
-    (lat: number, lng: number, altitude: number) => {
-      pendingPovRef.current = { lat, lng, altitude };
-      if (povDebounceRef.current !== null) return;
-      povDebounceRef.current = setTimeout(() => {
+    const flushPovChange = useCallback(() => {
+      if (povDebounceRef.current !== null) {
+        clearTimeout(povDebounceRef.current);
         povDebounceRef.current = null;
-        flushPovChange();
-      }, POV_DEBOUNCE_MS);
-    },
-    [flushPovChange]
-  );
-
-  const refreshGlobeCapitalRegion = useCallback((lat: number, lng: number, altitude: number) => {
-    if (getGlobeDetailTier(altitude) === 'overview') return;
-    if (!isValidLatLng(lat, lng)) return;
-    setGlobeCapitalRegion((prev) => {
-      if (
-        prev.lat === lat &&
-        prev.lng === lng &&
-        Math.abs(prev.altitude - altitude) < 0.008
-      ) {
-        return prev;
       }
-      return { lat, lng, altitude };
-    });
-  }, []);
-
-  const syncTierAndPovFromGlobe = useCallback(
-    (scheduleNearby: boolean) => {
-      try {
-        const pov = globeRef.current?.pointOfView() as
-          | { lat: number; lng: number; altitude: number }
-          | undefined;
-        if (!pov || typeof pov.altitude !== 'number') return;
-        globeAltitudeRef.current = pov.altitude;
-        onGlobeAltitudeLiveRef.current?.(pov.altitude);
-        const tier = getGlobeDetailTier(pov.altitude);
-        const tierChanged = tier !== lastReportedTierRef.current;
-        if (tierChanged) {
-          lastReportedTierRef.current = tier;
-          setGlobeDetailTier(tier);
-          onGlobeAltitudeChangeRef.current?.(pov.altitude);
-        }
-        if (!isInteractingRef.current) {
-          refreshGlobeCapitalRegion(pov.lat, pov.lng, pov.altitude);
-        }
-        if (scheduleNearby && isValidLatLng(pov.lat, pov.lng)) {
-          schedulePovChange(pov.lat, pov.lng, pov.altitude);
-        }
-      } catch {
-        // pointOfView peut ne pas être disponible
+      const pov = pendingPovRef.current;
+      pendingPovRef.current = null;
+      if (pov && isValidLatLng(pov.lat, pov.lng)) {
+        onGlobePovChangeRef.current?.(pov.lat, pov.lng, pov.altitude);
       }
-    },
-    [schedulePovChange, refreshGlobeCapitalRegion]
-  );
+    }, []);
 
-  const setGlobeInteractionDpr = useCallback((interacting: boolean) => {
-    try {
-      const renderer = globeRef.current?.renderer() as { setPixelRatio: (r: number) => void } | undefined;
-      if (!renderer) return;
-      const ratio = interacting
-        ? Math.min(window.devicePixelRatio, GLOBE_INTERACTION_MAX_DPR)
-        : Math.min(window.devicePixelRatio, GLOBE_RENDER_PROFILE.maxPixelRatio);
-      renderer.setPixelRatio(ratio);
-    } catch {
-      /* renderer may not be ready */
-    }
-  }, []);
+    const schedulePovChange = useCallback(
+      (lat: number, lng: number, altitude: number) => {
+        pendingPovRef.current = { lat, lng, altitude };
+        if (povDebounceRef.current !== null) return;
+        povDebounceRef.current = setTimeout(() => {
+          povDebounceRef.current = null;
+          flushPovChange();
+        }, POV_DEBOUNCE_MS);
+      },
+      [flushPovChange]
+    );
 
-  // Track container dimensions for the canvas
-  useEffect(() => {
-    let cancelled = false;
-    void loadGlobeCountryFeatures().then((features) => {
-      if (!cancelled && features.length) setCountryPolygons(features);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    const refreshGlobeCapitalRegion = useCallback((lat: number, lng: number, altitude: number) => {
+      if (getGlobeDetailTier(altitude) === 'overview') return;
+      if (!isValidLatLng(lat, lng)) return;
+      setGlobeCapitalRegion((prev) => {
+        if (prev.lat === lat && prev.lng === lng && Math.abs(prev.altitude - altitude) < 0.008) {
+          return prev;
+        }
+        return { lat, lng, altitude };
+      });
+    }, []);
 
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const update = () => {
-      const rect = el.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
-        setSize({ w: Math.floor(rect.width), h: Math.floor(rect.height) });
-      }
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  // Configure OrbitControls and renderer once the globe canvas is ready
-  useEffect(() => {
-    if (!globeRef.current || size.w === 0) return;
-    let cleanupListener: (() => void) | undefined;
-    let cleanupRendererListeners: (() => void) | undefined;
-    let dampingRafId = 0;
-    let interactionRafId = 0;
-    let lastDampingAt = 0;
-    try {
-      const controls = globeRef.current.controls() as {
-        autoRotate: boolean;
-        autoRotateSpeed: number;
-        enableRotate: boolean;
-        enablePan: boolean;
-        enableZoom: boolean;
-        enableDamping: boolean;
-        dampingFactor: number;
-        zoomSpeed: number;
-        maxDistance: number;
-        update: () => void;
-        addEventListener: (event: string, cb: () => void) => void;
-        removeEventListener: (event: string, cb: () => void) => void;
-      };
-      controls.autoRotate = false;
-      controls.enableRotate = true;
-      controls.enablePan = true;
-      controls.enableZoom = true;
-      controls.enableDamping = true;
-      // Damping plus réactif : inertie courte = zoom/pan qui répond sans traîner
-      controls.dampingFactor = 0.08;
-      // Zoom légèrement accéléré pour une réponse plus vive au pinch/scroll
-      controls.zoomSpeed = 1.2;
-      // Globe radius ≈ 100 units; 400 = altitude ~3× — prevents the globe from shrinking to a dot
-      controls.maxDistance = 400;
-
-      const tickDamping = () => {
-        dampingRafId = 0;
+    const syncTierAndPovFromGlobe = useCallback(
+      (scheduleNearby: boolean) => {
         try {
-          controls.update();
+          const pov = cameraBridgeRef.current?.getPointOfView();
+          if (!pov || typeof pov.altitude !== 'number') return;
+          globeAltitudeRef.current = pov.altitude;
+          onGlobeAltitudeLiveRef.current?.(pov.altitude);
+          const tier = getGlobeDetailTier(pov.altitude);
+          const tierChanged = tier !== lastReportedTierRef.current;
+          if (tierChanged) {
+            lastReportedTierRef.current = tier;
+            setGlobeDetailTier(tier);
+            onGlobeAltitudeChangeRef.current?.(pov.altitude);
+          }
+          if (!isInteractingRef.current) {
+            refreshGlobeCapitalRegion(pov.lat, pov.lng, pov.altitude);
+          }
+          if (scheduleNearby && isValidLatLng(pov.lat, pov.lng)) {
+            schedulePovChange(pov.lat, pov.lng, pov.altitude);
+          }
         } catch {
-          return;
+          /* POV indisponible */
         }
-        if (performance.now() - lastDampingAt < DAMPING_IDLE_MS) {
-          dampingRafId = requestAnimationFrame(tickDamping);
+      },
+      [schedulePovChange, refreshGlobeCapitalRegion]
+    );
+
+    useEffect(() => {
+      let cancelled = false;
+      void loadGlobeCountryFeatures().then((features) => {
+        if (!cancelled && features.length) {
+          setPreparedCountries(prepareGlobeCountries(features));
+        }
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []);
+
+    useEffect(() => {
+      const el = containerRef.current;
+      if (!el) return;
+      const update = () => {
+        const rect = el.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          setSize({ w: Math.floor(rect.width), h: Math.floor(rect.height) });
         }
       };
+      update();
+      const ro = new ResizeObserver(update);
+      ro.observe(el);
+      return () => ro.disconnect();
+    }, []);
 
-      const bumpDampingLoop = () => {
-        lastDampingAt = performance.now();
-        if (!dampingRafId) {
-          dampingRafId = requestAnimationFrame(tickDamping);
-        }
+    useEffect(() => {
+      return () => {
+        if (zoomTimerRef.current !== null) clearTimeout(zoomTimerRef.current);
+        if (povDebounceRef.current !== null) clearTimeout(povDebounceRef.current);
+        if (altitudeRafRef.current !== null) cancelAnimationFrame(altitudeRafRef.current);
       };
+    }, []);
 
-      const handleInteractionStart = () => {
-        isInteractingRef.current = true;
-        onMapExploredRef.current?.();
-        setIsInteracting(true);
-        setGlobeInteractionDpr(true);
-        bumpDampingLoop();
-        if (!interactionRafId) {
-          const runInteractionLoop = () => {
-            if (!isInteractingRef.current) {
-              interactionRafId = 0;
-              return;
-            }
+    useEffect(() => {
+      if (!isValidLatLng(center[0], center[1])) return;
+      if (recenterToken === lastRecenterTokenRef.current && povSetRef.current) return;
+      lastRecenterTokenRef.current = recenterToken;
+      if (isInteractingRef.current) return;
+      const pov = cameraBridgeRef.current?.getPointOfView();
+      const altitude = pov?.altitude ?? CAMERA_DEFAULT_ALTITUDE;
+      const durationMs = povSetRef.current ? 900 : 0;
+      povSetRef.current = true;
+      setRecenterRequest({
+        lat: center[0],
+        lng: center[1],
+        altitude,
+        token: recenterToken,
+        durationMs,
+      });
+    }, [recenterToken, center]);
+
+    const handleInteractionStart = useCallback(() => {
+      isInteractingRef.current = true;
+      onMapExploredRef.current?.();
+      setIsInteracting(true);
+    }, []);
+
+    const handleInteractionEnd = useCallback(() => {
+      isInteractingRef.current = false;
+      startTransition(() => setIsInteracting(false));
+      syncTierAndPovFromGlobe(true);
+      flushPovChange();
+    }, [syncTierAndPovFromGlobe, flushPovChange]);
+
+    const handleControlsChange = useCallback(() => {
+      if (altitudeRafRef.current === null) {
+        altitudeRafRef.current = requestAnimationFrame(() => {
+          altitudeRafRef.current = null;
+          if (isInteractingRef.current) {
             try {
-              controls.update();
-            } catch {
-              interactionRafId = 0;
-              return;
-            }
-            interactionRafId = requestAnimationFrame(runInteractionLoop);
-          };
-          interactionRafId = requestAnimationFrame(runInteractionLoop);
-        }
-      };
-      const handleInteractionEnd = () => {
-        isInteractingRef.current = false;
-        if (interactionRafId) {
-          cancelAnimationFrame(interactionRafId);
-          interactionRafId = 0;
-        }
-        startTransition(() => setIsInteracting(false));
-        setGlobeInteractionDpr(false);
-        syncTierAndPovFromGlobe(true);
-        flushPovChange();
-        bumpDampingLoop();
-      };
-
-      const handleControlsChange = () => {
-        bumpDampingLoop();
-
-        // Tier / POV nearby : différés pendant le geste pour éviter re-renders HomePage.
-        if (altitudeRafRef.current === null) {
-          altitudeRafRef.current = requestAnimationFrame(() => {
-            altitudeRafRef.current = null;
-            if (isInteractingRef.current) {
-              try {
-                const pov = globeRef.current?.pointOfView() as
-                  | { lat: number; lng: number; altitude: number }
-                  | undefined;
-                if (pov && typeof pov.altitude === 'number') {
-                  globeAltitudeRef.current = pov.altitude;
-                  onGlobeAltitudeLiveRef.current?.(pov.altitude);
-                }
-              } catch {
-                /* ignore */
+              const pov = cameraBridgeRef.current?.getPointOfView();
+              if (!pov || typeof pov.altitude !== 'number') return;
+              globeAltitudeRef.current = pov.altitude;
+              onGlobeAltitudeLiveRef.current?.(pov.altitude);
+              const tier = getGlobeDetailTier(pov.altitude);
+              if (tier !== lastReportedTierRef.current) {
+                lastReportedTierRef.current = tier;
+                setGlobeDetailTier(tier);
               }
-            } else {
-              syncTierAndPovFromGlobe(true);
+            } catch {
+              /* ignore */
             }
-          });
-        }
-
-        // Bascule auto vers la carte plate quand l'utilisateur zoome trop près
-        if (autoSwitchedRef.current || !onZoomToFlatRef.current) return;
-        try {
-          const pov = globeRef.current?.pointOfView() as
-            | { lat: number; lng: number; altitude: number }
-            | undefined;
-          if (!pov || pov.altitude >= ALTITUDE_AUTO_SWITCH) return;
-          autoSwitchedRef.current = true;
-          const altKm = pov.altitude * 6371;
-          const leafletZoom = Math.round(Math.max(6, Math.min(10, Math.log2(40075 / (altKm * 2)) + 1)));
-          onPrepareFlatMapRef.current?.(pov.lat, pov.lng, leafletZoom);
-          onZoomToFlatRef.current(pov.lat, pov.lng, () => {}, leafletZoom, undefined, false);
-        } catch {
-          // pointOfView peut ne pas être disponible
-        }
-      };
-      controls.addEventListener('start', handleInteractionStart);
-      controls.addEventListener('end', handleInteractionEnd);
-      controls.addEventListener('change', handleControlsChange);
-
-      cleanupListener = () => {
-        if (dampingRafId) cancelAnimationFrame(dampingRafId);
-        if (interactionRafId) cancelAnimationFrame(interactionRafId);
-        controls.removeEventListener('start', handleInteractionStart);
-        controls.removeEventListener('end', handleInteractionEnd);
-        controls.removeEventListener('change', handleControlsChange);
-      };
-    } catch (err) {
-      if (isWebGLError(err)) reportGlobeUnavailable(err);
-      // OrbitControls may not be ready on first render
-    }
-    try {
-      const renderer = (globeRef.current as unknown as { renderer: () => { domElement: HTMLCanvasElement; setPixelRatio: (r: number) => void } }).renderer();
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, GLOBE_RENDER_PROFILE.maxPixelRatio));
-      applyGlobeVisualProfile(globeRef.current);
-
-      // Ensure the canvas captures all touch gestures so OrbitControls handles
-      // drag/rotation everywhere on mobile without browser interference.
-      renderer.domElement.style.touchAction = 'none';
-
-      const onContextLost = () => reportGlobeUnavailable();
-      const onContextCreationError = (event: Event) => {
-        reportGlobeUnavailable((event as WebGLContextEvent).statusMessage ?? event);
-      };
-      renderer.domElement.addEventListener('webglcontextlost', onContextLost);
-      renderer.domElement.addEventListener('webglcontextcreationerror', onContextCreationError);
-
-      // Disable pointer events on any HTML overlay elements that react-globe.gl
-      // places beside the canvas (tooltip div, CSS2D/CSS3D containers).
-      // These overlays can absorb pointerdown in zones with markers/rings/labels,
-      // blocking OrbitControls from starting a drag. The canvas itself keeps
-      // pointer-events: auto so OrbitControls and onPointClick raycasting still work.
-      const wrapper = renderer.domElement.parentElement;
-      if (wrapper) {
-        Array.from(wrapper.children).forEach((child) => {
-          if (child !== renderer.domElement) {
-            (child as HTMLElement).style.pointerEvents = 'none';
+          } else {
+            syncTierAndPovFromGlobe(true);
           }
         });
       }
 
-      // Double-click anywhere on the globe surface → transition to flat map
-      // centered on that location, with a brief globe spin as visual feedback.
-      const handleDblClick = (e: MouseEvent) => {
-        if (!globeRef.current) return;
-        try {
-          const globeWithCoords = globeRef.current as unknown as {
-            toGlobeCoords?: (x: number, y: number) => { lat: number; lng: number } | null;
-          };
-          const coords = globeWithCoords.toGlobeCoords?.(e.offsetX, e.offsetY);
-          if (!coords || !isValidLatLng(coords.lat, coords.lng)) return;
-          // Cancel any pending single-click zoom timer to avoid a double transition.
-          if (zoomTimerRef.current !== null) {
-            clearTimeout(zoomTimerRef.current);
-            zoomTimerRef.current = null;
-          }
-          // Start crossfade while spin animation is still playing.
-          onPrepareFlatMapRef.current?.(coords.lat, coords.lng, 12);
-          try {
-            globeRef.current?.pointOfView({ lat: coords.lat, lng: coords.lng, altitude: 0.5 }, 280);
-          } catch { /* Globe may not be ready */ }
-          zoomTimerRef.current = setTimeout(() => {
-            zoomTimerRef.current = null;
-            onZoomToFlatRef.current?.(coords.lat, coords.lng, () => {}, 12, undefined, false);
-          }, 160);
-        } catch { /* toGlobeCoords may not be available */ }
-      };
-      renderer.domElement.addEventListener('dblclick', handleDblClick);
-
-      cleanupRendererListeners = () => {
-        renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
-        renderer.domElement.removeEventListener('webglcontextcreationerror', onContextCreationError);
-        renderer.domElement.removeEventListener('dblclick', handleDblClick);
-      };
-    } catch (err) {
-      if (isWebGLError(err)) reportGlobeUnavailable(err);
-      // renderer accessor may not be available
-    }
-    return () => {
-      cleanupListener?.();
-      cleanupRendererListeners?.();
-      if (altitudeRafRef.current !== null) {
-        cancelAnimationFrame(altitudeRafRef.current);
-        altitudeRafRef.current = null;
-      }
-    };
-  }, [size.w, flushPovChange, syncTierAndPovFromGlobe, setGlobeInteractionDpr, reportGlobeUnavailable]);
-
-  // Cleanup pending zoom timer and dispose WebGL resources on unmount
-  useEffect(() => {
-    return () => {
-      if (zoomTimerRef.current !== null) clearTimeout(zoomTimerRef.current);
-      if (povDebounceRef.current !== null) clearTimeout(povDebounceRef.current);
-      if (altitudeRafRef.current !== null) cancelAnimationFrame(altitudeRafRef.current);
+      if (autoSwitchedRef.current || !onZoomToFlatRef.current) return;
       try {
-        const globe = globeRef.current as unknown as {
-          renderer?: () => { dispose: () => void; forceContextLoss?: () => void };
-          scene?: () => { traverse: (cb: (obj: unknown) => void) => void };
-        } | null;
-        if (globe?.scene) {
-          globe.scene().traverse((obj: unknown) => {
-            const o = obj as { geometry?: { dispose: () => void }; material?: { dispose: () => void } | { dispose: () => void }[] };
-            o.geometry?.dispose();
-            if (Array.isArray(o.material)) {
-              o.material.forEach((m) => m.dispose());
-            } else {
-              o.material?.dispose();
-            }
-          });
-        }
-        if (globe?.renderer) {
-          const r = globe.renderer();
-          r.forceContextLoss?.();
-          r.dispose();
-        }
+        const pov = cameraBridgeRef.current?.getPointOfView();
+        if (!pov || pov.altitude >= ALTITUDE_AUTO_SWITCH) return;
+        autoSwitchedRef.current = true;
+        const altKm = pov.altitude * 6371;
+        const leafletZoom = Math.round(
+          Math.max(6, Math.min(10, Math.log2(40075 / (altKm * 2)) + 1))
+        );
+        onPrepareFlatMapRef.current?.(pov.lat, pov.lng, leafletZoom);
+        onZoomToFlatRef.current(pov.lat, pov.lng, () => {}, leafletZoom, undefined, false);
       } catch {
-        // Ignore disposal errors — globe may already be unmounted
+        /* POV indisponible */
       }
-    };
-  }, []);
+    }, [syncTierAndPovFromGlobe]);
 
-  // Recentrage explicite uniquement — pas de retour GPS après rotation libre.
-  useEffect(() => {
-    if (!globeRef.current || !isValidLatLng(center[0], center[1])) return;
-    if (recenterToken === lastRecenterTokenRef.current && povSetRef.current) return;
-    lastRecenterTokenRef.current = recenterToken;
-    if (isInteractingRef.current) return;
-    try {
-      const pov = globeRef.current.pointOfView() as
-        | { lat: number; lng: number; altitude: number }
-        | undefined;
-      const duration = povSetRef.current ? 900 : 0;
-      povSetRef.current = true;
-      let altitude = 1.0;
-      if (pov && typeof pov.altitude === 'number') {
-        altitude = pov.altitude;
-      }
-      globeRef.current.pointOfView({ lat: center[0], lng: center[1], altitude }, duration);
-    } catch {
-      // Globe may not be ready yet
-    }
-  }, [recenterToken, center]);
+    const salonIds = useMemo(() => new Set(salons.map((s) => s.id)), [salons]);
 
-  const salonIds = useMemo(() => new Set(salons.map((s) => s.id)), [salons]);
-
-  const eventClustersActive = hasEventClusters ?? eventClusters.length > 0;
-  const markerVisibility = useMemo(
-    () =>
-      getMapMarkerVisibility({
-        tier: globeDetailTier,
+    const eventClustersActive = hasEventClusters ?? eventClusters.length > 0;
+    const markerVisibility = useMemo(
+      () =>
+        getMapMarkerVisibility({
+          tier: globeDetailTier,
+          eventsOnly,
+          hasEventClusters: eventClustersActive,
+          showAllSalonsAtCityZoom,
+          livesFilterOn,
+          salonFilterOn,
+          eventsFilterOn,
+        }),
+      [
+        globeDetailTier,
         eventsOnly,
-        hasEventClusters: eventClustersActive,
+        eventClustersActive,
         showAllSalonsAtCityZoom,
         livesFilterOn,
         salonFilterOn,
         eventsFilterOn,
-      }),
-    [
-      globeDetailTier,
-      eventsOnly,
-      eventClustersActive,
-      showAllSalonsAtCityZoom,
-      livesFilterOn,
-      salonFilterOn,
-      eventsFilterOn,
-    ]
-  );
+      ]
+    );
 
-  const visibleSalons = useMemo(
-    () => filterSalonsForZoom(salons, markerVisibility, showAllSalonsAtCityZoom, globeDetailTier),
-    [salons, markerVisibility, showAllSalonsAtCityZoom, globeDetailTier]
-  );
-  const visibleLives = useMemo(
-    () => (markerVisibility.lives ? lives : []),
-    [lives, markerVisibility.lives]
-  );
-  const visiblePeople = useMemo(
-    () =>
-      filterPeopleForZoom(people, markerVisibility, globeDetailTier)
-        .filter((p) => isValidLatLng(Number(p.latitude), Number(p.longitude)))
-        .slice(0, GLOBE_PEOPLE_CAP),
-    [people, markerVisibility, globeDetailTier]
-  );
-  const cappedSalonsForGlobe = useMemo(
-    () => visibleSalons.slice(0, GLOBE_OVERVIEW_CAP),
-    [visibleSalons]
-  );
-  const cappedLivesForGlobe = useMemo(
-    () => visibleLives.slice(0, GLOBE_OVERVIEW_CAP),
-    [visibleLives]
-  );
-  /**
-   * Hôtes déjà représentés par un point salon/live — sans ceci, le même hôte
-   * (visible dans la liste "à proximité" dès qu'il est en live ou a un salon,
-   * cf. personHasMapActivity) recevait EN PLUS un point "person" séparé au
-   * même endroit : 2 points superposés sur la carte pour un seul live/salon.
-   */
-  const mapActivityHostIds = useMemo(
-    () =>
-      new Set([
-        ...cappedSalonsForGlobe.map((s) => s.hostId),
-        ...cappedLivesForGlobe.map((l) => l.hostId),
-      ]),
-    [cappedSalonsForGlobe, cappedLivesForGlobe]
-  );
-  const liveLocationClusters = useMemo(
-    () =>
-      globeDetailTier === 'overview' && markerVisibility.lives
-        ? clusterLiveMapMarkers(
-            cappedSalonsForGlobe.filter((s) => s.isLive),
-            cappedLivesForGlobe,
-            salonIds
-          )
-        : [],
-    [
-      globeDetailTier,
-      markerVisibility.lives,
-      cappedSalonsForGlobe,
-      cappedLivesForGlobe,
-      salonIds,
-    ]
-  );
-  const useLiveClusters = globeDetailTier === 'overview' && liveLocationClusters.length > 0;
-  const visibleEventClusters = useMemo(
-    () => (markerVisibility.eventClusters ? eventClusters : []),
-    [eventClusters, markerVisibility.eventClusters]
-  );
+    const visibleSalons = useMemo(
+      () => filterSalonsForZoom(salons, markerVisibility, showAllSalonsAtCityZoom, globeDetailTier),
+      [salons, markerVisibility, showAllSalonsAtCityZoom, globeDetailTier]
+    );
+    const visibleLives = useMemo(
+      () => (markerVisibility.lives ? lives : []),
+      [lives, markerVisibility.lives]
+    );
+    const visiblePeople = useMemo(
+      () =>
+        filterPeopleForZoom(people, markerVisibility, globeDetailTier)
+          .filter((p) => isValidLatLng(Number(p.latitude), Number(p.longitude)))
+          .slice(0, GLOBE_PEOPLE_CAP),
+      [people, markerVisibility, globeDetailTier]
+    );
+    const cappedSalonsForGlobe = useMemo(
+      () => visibleSalons.slice(0, GLOBE_OVERVIEW_CAP),
+      [visibleSalons]
+    );
+    const cappedLivesForGlobe = useMemo(
+      () => visibleLives.slice(0, GLOBE_OVERVIEW_CAP),
+      [visibleLives]
+    );
+    const mapActivityHostIds = useMemo(
+      () =>
+        new Set([
+          ...cappedSalonsForGlobe.map((s) => s.hostId),
+          ...cappedLivesForGlobe.map((l) => l.hostId),
+        ]),
+      [cappedSalonsForGlobe, cappedLivesForGlobe]
+    );
+    const liveLocationClusters = useMemo(
+      () =>
+        markerVisibility.lives
+          ? clusterLiveMapMarkers(
+              cappedSalonsForGlobe.filter((s) => s.isLive),
+              cappedLivesForGlobe,
+              salonIds
+            )
+          : [],
+      [markerVisibility.lives, cappedSalonsForGlobe, cappedLivesForGlobe, salonIds]
+    );
+    const useLiveClusters = markerVisibility.lives && liveLocationClusters.length > 0;
+    const visibleEventClusters = useMemo(
+      () => (markerVisibility.eventClusters ? eventClusters : []),
+      [eventClusters, markerVisibility.eventClusters]
+    );
 
-  const globeMarkersContentKey = useMemo(() => {
-    const userKey = userPosition
-      ? `${userPosition[0]},${userPosition[1]}`
-      : '';
-    return [
+    const globeMarkersContentKey = useMemo(() => {
+      const userKey = userPosition ? `${userPosition[0]},${userPosition[1]}` : '';
+      return [
+        globeDetailTier,
+        markerVisibility.density,
+        buildSalonLivePeopleKey(cappedSalonsForGlobe, cappedLivesForGlobe, visiblePeople),
+        useLiveClusters
+          ? liveLocationClusters.map((c) => `${c.id}:${c.count}`).join('|')
+          : '',
+        buildEventClusterKey(visibleEventClusters, globeDetailTier),
+        userKey,
+      ].join('::');
+    }, [
       globeDetailTier,
       markerVisibility.density,
-      buildSalonLivePeopleKey(cappedSalonsForGlobe, cappedLivesForGlobe, visiblePeople),
-      useLiveClusters
-        ? liveLocationClusters.map((c) => `${c.id}:${c.count}`).join('|')
-        : '',
-      buildEventClusterKey(visibleEventClusters, globeDetailTier),
-      userKey,
-    ].join('::');
-  }, [
-    globeDetailTier,
-    markerVisibility.density,
-    cappedSalonsForGlobe,
-    cappedLivesForGlobe,
-    visiblePeople,
-    visibleEventClusters,
-    userPosition,
-    useLiveClusters,
-    liveLocationClusters,
-  ]);
+      cappedSalonsForGlobe,
+      cappedLivesForGlobe,
+      visiblePeople,
+      visibleEventClusters,
+      userPosition,
+      useLiveClusters,
+      liveLocationClusters,
+    ]);
 
-  const cachedGlobePointsRef = useRef<{ key: string; points: GlobePoint[] }>({
-    key: '',
-    points: [],
-  });
-
-  const rawPoints = useMemo<GlobePoint[]>(() => {
-    if (cachedGlobePointsRef.current.key === globeMarkersContentKey) {
-      return cachedGlobePointsRef.current.points;
-    }
-
-    const pts: GlobePoint[] = [];
-    const overviewDots = markerVisibility.density === 'overview';
-
-    if (useLiveClusters) {
-      liveLocationClusters.forEach((cluster) => {
-        const lat = cluster.latitude;
-        const lng = cluster.longitude;
-        if (!isValidLatLng(lat, lng)) return;
-        const multi = cluster.count > 1;
-        pts.push({
-          lat,
-          lng,
-          type: 'live-cluster',
-          color: '#f87171',
-          radius: multi ? 0.28 : 0.22,
-          label: multi ? `🔴 ${cluster.count} LIVE` : `🔴 LIVE`,
-          entity: cluster,
-        });
-      });
-    } else {
-      cappedSalonsForGlobe.forEach((s) => {
-        const lat = Number(s.latitude);
-        const lng = Number(s.longitude);
-        if (!isValidLatLng(lat, lng)) return;
-        const liveSuffix = s.isLive ? ' · LIVE' : '';
-        pts.push({
-          lat,
-          lng,
-          type: 'salon',
-          color: s.isLive ? '#f87171' : '#c084fc',
-          radius: overviewDots ? (s.isLive ? 0.34 : 0.3) : s.isLive ? 0.52 : 0.48,
-          label: overviewDots
-            ? `${s.isLive ? '🔴' : '🎵'} ${s.hostName}${liveSuffix}`
-            : `🎵 ${s.hostName}${liveSuffix}`,
-          entity: s,
-        });
-      });
-
-      cappedLivesForGlobe.forEach((l) => {
-        if (salonIds.has(l.id)) return;
-        const lat = Number(l.latitude);
-        const lng = Number(l.longitude);
-        if (!isValidLatLng(lat, lng)) return;
-        pts.push({
-          lat,
-          lng,
-          type: 'live',
-          color: '#f87171',
-          radius: overviewDots ? 0.34 : 0.52,
-          label: `🔴 ${l.hostName} · LIVE`,
-          entity: l,
-        });
-      });
-    }
-
-    visiblePeople.forEach((p) => {
-      if (mapActivityHostIds.has(p.id)) return;
-      const lat = Number(p.latitude);
-      const lng = Number(p.longitude);
-      const liveSuffix = p.isLive ? ' · LIVE' : '';
-      pts.push({
-        lat,
-        lng,
-        type: 'person',
-        color: p.isLive ? '#f87171' : '#a78bfa',
-        radius: p.isLive ? 0.52 : 0.46,
-        label: `${p.isLive ? '🔴' : '👤'} ${p.username}${liveSuffix}`,
-        entity: p,
-      });
+    const cachedGlobePointsRef = useRef<{ key: string; points: GlobePoint[] }>({
+      key: '',
+      points: [],
     });
 
-    if (globeDetailTier !== 'overview') {
-      visibleEventClusters.forEach((cluster) => {
-        cluster.events.forEach((ev) => {
-          const lat = Number(ev.latitude);
-          const lng = Number(ev.longitude);
+    const rawPoints = useMemo<GlobePoint[]>(() => {
+      if (cachedGlobePointsRef.current.key === globeMarkersContentKey) {
+        return cachedGlobePointsRef.current.points;
+      }
+
+      const pts: GlobePoint[] = [];
+      const overviewDots = markerVisibility.density === 'overview';
+
+      if (useLiveClusters) {
+        liveLocationClusters.forEach((cluster) => {
+          const lat = cluster.latitude;
+          const lng = cluster.longitude;
+          if (!isValidLatLng(lat, lng)) return;
+          const multi = cluster.count > 1;
+          pts.push({
+            lat,
+            lng,
+            type: 'live-cluster',
+            color: '#ef4444',
+            radius: multi ? 0.42 : 0.34,
+            label: multi ? `🔴 ${cluster.count} LIVE` : '🔴 LIVE',
+            entity: cluster,
+            count: multi ? cluster.count : undefined,
+          });
+        });
+        cappedSalonsForGlobe
+          .filter((s) => !s.isLive)
+          .forEach((s) => {
+            const lat = Number(s.latitude);
+            const lng = Number(s.longitude);
+            if (!isValidLatLng(lat, lng)) return;
+            pts.push({
+              lat,
+              lng,
+              type: 'salon',
+              color: '#c084fc',
+              radius: overviewDots ? 0.3 : 0.48,
+              label: overviewDots ? `🎵 ${s.hostName}` : `🎵 ${s.hostName}`,
+              entity: s,
+            });
+          });
+      } else {
+        cappedSalonsForGlobe.forEach((s) => {
+          const lat = Number(s.latitude);
+          const lng = Number(s.longitude);
+          if (!isValidLatLng(lat, lng)) return;
+          const liveSuffix = s.isLive ? ' · LIVE' : '';
+          pts.push({
+            lat,
+            lng,
+            type: 'salon',
+            color: s.isLive ? '#f87171' : '#c084fc',
+            radius: overviewDots ? (s.isLive ? 0.34 : 0.3) : s.isLive ? 0.52 : 0.48,
+            label: overviewDots
+              ? `${s.isLive ? '🔴' : '🎵'} ${s.hostName}${liveSuffix}`
+              : `🎵 ${s.hostName}${liveSuffix}`,
+            entity: s,
+          });
+        });
+
+        cappedLivesForGlobe.forEach((l) => {
+          if (salonIds.has(l.id)) return;
+          const lat = Number(l.latitude);
+          const lng = Number(l.longitude);
+          if (!isValidLatLng(lat, lng)) return;
+          pts.push({
+            lat,
+            lng,
+            type: 'live',
+            color: '#ef4444',
+            radius: overviewDots ? 0.4 : 0.56,
+            label: `🔴 ${l.hostName} · LIVE`,
+            entity: l,
+          });
+        });
+      }
+
+      visiblePeople.forEach((p) => {
+        if (mapActivityHostIds.has(p.id)) return;
+        const lat = Number(p.latitude);
+        const lng = Number(p.longitude);
+        const liveSuffix = p.isLive ? ' · LIVE' : '';
+        pts.push({
+          lat,
+          lng,
+          type: 'person',
+          color: p.isLive ? '#f87171' : '#a78bfa',
+          radius: p.isLive ? 0.52 : 0.46,
+          label: `${p.isLive ? '🔴' : '👤'} ${p.username}${liveSuffix}`,
+          entity: p,
+        });
+      });
+
+      if (globeDetailTier !== 'overview') {
+        visibleEventClusters.forEach((cluster) => {
+          cluster.events.forEach((ev) => {
+            const lat = Number(ev.latitude);
+            const lng = Number(ev.longitude);
+            if (!isValidLatLng(lat, lng)) return;
+            pts.push({
+              lat,
+              lng,
+              type: 'event',
+              color: '#f59e0b',
+              radius: 0.52,
+              label: buildIndividualEventGlobeLabel(ev),
+              // `entity` = l'événement précis (pas le cluster ville) : le clic
+              // sur ce pin doit ouvrir le détail de CET événement, pas la
+              // liste de la ville — cf. handlePointClick.
+              entity: ev,
+            });
+          });
+        });
+      } else {
+        visibleEventClusters.forEach((cluster) => {
+          const lat = Number(cluster.latitude);
+          const lng = Number(cluster.longitude);
           if (!isValidLatLng(lat, lng)) return;
           pts.push({
             lat,
             lng,
             type: 'event',
             color: '#f59e0b',
-            radius: 0.52,
-            label: buildIndividualEventGlobeLabel(ev),
+            radius: cluster.count > 1 ? 0.78 : 0.68,
+            label: buildEventClusterGlobeLabel(cluster),
             entity: cluster,
+            count: cluster.count > 1 ? cluster.count : undefined,
           });
         });
-      });
-    } else {
-      visibleEventClusters.forEach((cluster) => {
-        const lat = Number(cluster.latitude);
-        const lng = Number(cluster.longitude);
-        if (!isValidLatLng(lat, lng)) return;
+      }
+
+      if (userPosition && isValidLatLng(userPosition[0], userPosition[1])) {
         pts.push({
-          lat,
-          lng,
-          type: 'event',
-          color: '#f59e0b',
-          radius: cluster.count > 1 ? 0.68 : 0.58,
-          label: buildEventClusterGlobeLabel(cluster),
-          entity: cluster,
+          lat: userPosition[0],
+          lng: userPosition[1],
+          type: 'user',
+          color: '#6366f1',
+          radius: 0.42,
+          label: 'Ma position',
         });
-      });
+      }
+
+      cachedGlobePointsRef.current = { key: globeMarkersContentKey, points: pts };
+      return pts;
+    }, [
+      globeMarkersContentKey,
+      cappedSalonsForGlobe,
+      cappedLivesForGlobe,
+      visiblePeople,
+      visibleEventClusters,
+      userPosition,
+      salonIds,
+      mapActivityHostIds,
+      globeDetailTier,
+      markerVisibility.density,
+      useLiveClusters,
+      liveLocationClusters,
+    ]);
+
+    const prevRawPointsRef = useRef<GlobePoint[] | null>(null);
+    const stablePointsRef = useRef<GlobePoint[]>(rawPoints);
+    if (rawPoints !== prevRawPointsRef.current) {
+      prevRawPointsRef.current = rawPoints;
+      if (!globePointsEqual(rawPoints, stablePointsRef.current)) {
+        stablePointsRef.current = rawPoints;
+      }
     }
+    const points = stablePointsRef.current;
 
-    if (userPosition && isValidLatLng(userPosition[0], userPosition[1])) {
-      pts.push({
-        lat: userPosition[0],
-        lng: userPosition[1],
-        type: 'user',
-        color: '#6366f1',
-        radius: 0.42,
-        label: 'Ma position',
-      });
-    }
+    // Anneaux "sonar" pulsés sur les lives actifs (feature MODIF 710, perdue
+    // lors de la migration R3F — MODIF 981 laissait `liveRings` figé à vide).
+    // Dérivés des `points` déjà calculés (pas de calcul géo supplémentaire),
+    // plafonnés pour éviter un coût perf en zone très dense.
+    const liveRings = useMemo(() => {
+      const rings: GlobeRing[] = [];
+      for (const p of points) {
+        if (p.type !== 'live') continue;
+        rings.push({ lat: p.lat, lng: p.lng });
+        if (rings.length >= MAX_LIVE_RINGS) break;
+      }
+      return rings.length > 0 ? rings : EMPTY_RINGS;
+    }, [points]);
 
-    cachedGlobePointsRef.current = { key: globeMarkersContentKey, points: pts };
-    return pts;
-  }, [
-    globeMarkersContentKey,
-    cappedSalonsForGlobe,
-    cappedLivesForGlobe,
-    visiblePeople,
-    visibleEventClusters,
-    userPosition,
-    salonIds,
-    mapActivityHostIds,
-    globeDetailTier,
-    markerVisibility.density,
-    useLiveClusters,
-    liveLocationClusters,
-  ]);
+    const capitalLabels = useMemo(() => {
+      if (!markerVisibility.capitals || isInteracting) return EMPTY_CAPITAL_LABELS;
+      const radiusKm = getGlobeCapitalVisibleRadiusKm(globeCapitalRegion.altitude);
+      return filterCapitalsInGlobeRegion(
+        GLOBE_CAPITAL_LABELS,
+        globeCapitalRegion.lat,
+        globeCapitalRegion.lng,
+        radiusKm
+      );
+    }, [markerVisibility.capitals, isInteracting, globeCapitalRegion]);
 
-  /**
-   * Reference stabilizer for `rawPoints`.
-   * When the parent re-renders due to a bounds update (e.g., every 250 ms while
-   * panning with a filter active), `rawPoints` may be a new array object even
-   * though every point's geometry/color/radius is identical.  Passing a new
-   * reference to <Globe pointsData> would cause Three.js to re-upload the
-   * entire geometry buffer for no visual change.
-   *
-   * This block runs during render (not in an effect) so there is no extra
-   * commit cycle.  Mutating refs during render is safe here because it has no
-   * observable side-effects on React state.
-   */
-  const prevRawPointsRef = useRef<GlobePoint[] | null>(null);
-  const stablePointsRef = useRef<GlobePoint[]>(rawPoints);
-  if (rawPoints !== prevRawPointsRef.current) {
-    prevRawPointsRef.current = rawPoints;
-    if (!globePointsEqual(rawPoints, stablePointsRef.current)) {
-      stablePointsRef.current = rawPoints;
-    }
-  }
-  const points = stablePointsRef.current;
+    const overviewDots = markerVisibility.density === 'overview';
+    const ringMaxRadius = overviewDots ? 0.85 : 1.35;
+    const ringPropagationSpeed = overviewDots ? 0.65 : 1.1;
+    const ringRepeatPeriod = overviewDots ? 1100 : 900;
+    const pointResolution = isInteracting ? 3 : overviewDots ? 4 : 8;
 
-  // Pulsing rings — 1 sonar par cluster (overview) ou par live (zoom ville)
-  const liveRings = useMemo<GlobeRing[]>(() => {
-    if (!markerVisibility.lives || isInteracting) return EMPTY_RINGS;
-    if (useLiveClusters) {
-      return liveLocationClusters.map((c) => ({
-        lat: c.latitude,
-        lng: c.longitude,
-      }));
-    }
-    const rings: GlobeRing[] = [];
-    cappedSalonsForGlobe.forEach((s) => {
-      if (!s.isLive) return;
-      const lat = Number(s.latitude);
-      const lng = Number(s.longitude);
-      if (!isValidLatLng(lat, lng)) return;
-      rings.push({ lat, lng });
-    });
-    cappedLivesForGlobe.forEach((l) => {
-      if (salonIds.has(l.id)) return;
-      const lat = Number(l.latitude);
-      const lng = Number(l.longitude);
-      if (!isValidLatLng(lat, lng)) return;
-      rings.push({ lat, lng });
-    });
-    return rings;
-  }, [
-    cappedSalonsForGlobe,
-    cappedLivesForGlobe,
-    salonIds,
-    markerVisibility.lives,
-    isInteracting,
-    useLiveClusters,
-    liveLocationClusters,
-  ]);
-
-  // useMemo keeps the reference stable — GLOBE_CAPITAL_LABELS and EMPTY_CAPITAL_LABELS
-  // are module-level constants, so labelsData never gets a fresh array object unless
-  // the visible tier actually changes.
-  const capitalLabels = useMemo(() => {
-    if (!markerVisibility.capitals || isInteracting) return EMPTY_CAPITAL_LABELS;
-    const radiusKm = getGlobeCapitalVisibleRadiusKm(globeCapitalRegion.altitude);
-    return filterCapitalsInGlobeRegion(
-      GLOBE_CAPITAL_LABELS,
-      globeCapitalRegion.lat,
-      globeCapitalRegion.lng,
-      radiusKm
-    );
-  }, [markerVisibility.capitals, isInteracting, globeCapitalRegion]);
-
-  const overviewDots = markerVisibility.density === 'overview';
-  const ringMaxRadius = overviewDots ? 0.85 : 1.35;
-  const ringPropagationSpeed = overviewDots ? 0.65 : 1.1;
-  const ringRepeatPeriod = overviewDots ? 1100 : 900;
-  const pointResolution = isInteracting ? 3 : overviewDots ? 4 : 8;
-
-  const handleGlobeReady = useCallback(() => {
-    if (globeRef.current) {
-      applyGlobeVisualProfile(globeRef.current);
-    }
-  }, []);
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      getPointOfView() {
-        try {
-          const pov = globeRef.current?.pointOfView() as
-            | { lat: number; lng: number; altitude: number }
-            | undefined;
-          if (!pov || typeof pov.altitude !== 'number') return null;
-          return pov;
-        } catch {
-          return null;
-        }
-      },
-      setAltitude(altitude: number, durationMs = 0) {
-        try {
-          const pov = globeRef.current?.pointOfView() as
-            | { lat: number; lng: number; altitude: number }
-            | undefined;
-          if (!pov || !globeRef.current) return;
-          globeRef.current.pointOfView(
-            { lat: pov.lat, lng: pov.lng, altitude },
-            durationMs
-          );
+    useImperativeHandle(
+      ref,
+      () => ({
+        getPointOfView() {
+          return cameraBridgeRef.current?.getPointOfView() ?? null;
+        },
+        setAltitude(altitude: number, durationMs = 0) {
+          cameraBridgeRef.current?.setAltitude(altitude, durationMs);
           globeAltitudeRef.current = altitude;
           onGlobeAltitudeLiveRef.current?.(altitude);
-          refreshGlobeCapitalRegion(pov.lat, pov.lng, altitude);
+          const pov = cameraBridgeRef.current?.getPointOfView();
+          if (pov) {
+            refreshGlobeCapitalRegion(pov.lat, pov.lng, altitude);
+          }
           syncTierAndPovFromGlobe(false);
-        } catch {
-          /* globe may not be ready */
-        }
-      },
-    }),
-    [syncTierAndPovFromGlobe, refreshGlobeCapitalRegion]
-  );
+        },
+        flyTo(lat: number, lng: number, altitude = 0.5, durationMs = 900) {
+          if (!isValidLatLng(lat, lng)) return;
+          cameraBridgeRef.current?.pointOfView(lat, lng, altitude, durationMs);
+          globeAltitudeRef.current = altitude;
+          onGlobeAltitudeLiveRef.current?.(altitude);
+          refreshGlobeCapitalRegion(lat, lng, altitude);
+          syncTierAndPovFromGlobe(true);
+        },
+      }),
+      [syncTierAndPovFromGlobe, refreshGlobeCapitalRegion]
+    );
 
-  const handlePointClick = useCallback(
-    (pointObj: object) => {
-      const p = pointObj as GlobePoint;
-
+    const handlePointClick = useCallback((p: SoundyGlobePoint) => {
       if (p.type === 'live-cluster') {
         const cluster = p.entity as MapLiveLocationCluster | undefined;
         if (!cluster) return;
@@ -1286,23 +801,33 @@ export const GlobeView = memo(forwardRef<GlobeViewHandle, GlobeViewProps>(functi
       }
 
       if (p.type === 'event') {
-        const cluster = p.entity as MapEventCityCluster | undefined;
+        // Pin individuel (tier city/street, `entity` = l'événement précis) vs
+        // hub ville (tier overview / regroupement, `entity` = le cluster) —
+        // distingués par la présence de `events` (seul le cluster l'a).
+        const entity = p.entity as MapEventCityCluster | MapEventMarker | undefined;
+        const isCluster = !!entity && 'events' in entity;
+        const cluster = isCluster ? (entity as MapEventCityCluster) : undefined;
+        const singleEvent = !isCluster ? (entity as MapEventMarker | undefined) : undefined;
         const doSelect = () => {
-          if (cluster) onSelectEventClusterRef.current?.(cluster);
+          if (singleEvent) onSelectMapEventRef.current?.(singleEvent);
+          else if (cluster) onSelectEventClusterRef.current?.(cluster);
         };
 
         if (onZoomToFlatRef.current && isValidLatLng(p.lat, p.lng)) {
           const cityView = getCityMapView(cluster?.cityKey ?? '');
           onPrepareFlatMapRef.current?.(p.lat, p.lng, cityView.zoom, cityView.radiusKm);
-          try {
-            globeRef.current?.pointOfView({ lat: p.lat, lng: p.lng, altitude: 0.05 }, GLOBE_MARKER_ZOOM_MS);
-          } catch {
-            // Globe may not be ready
-          }
+          cameraBridgeRef.current?.pointOfView(p.lat, p.lng, 0.05, GLOBE_MARKER_ZOOM_MS);
           if (zoomTimerRef.current !== null) clearTimeout(zoomTimerRef.current);
           zoomTimerRef.current = setTimeout(() => {
             zoomTimerRef.current = null;
-            onZoomToFlatRef.current?.(p.lat, p.lng, doSelect, cityView.zoom, cityView.radiusKm, false);
+            onZoomToFlatRef.current?.(
+              p.lat,
+              p.lng,
+              doSelect,
+              cityView.zoom,
+              cityView.radiusKm,
+              false
+            );
           }, GLOBE_FLAT_TRIGGER_MS);
           return;
         }
@@ -1327,11 +852,7 @@ export const GlobeView = memo(forwardRef<GlobeViewHandle, GlobeViewProps>(functi
 
       if (onZoomToFlatRef.current && isValidLatLng(p.lat, p.lng)) {
         onPrepareFlatMapRef.current?.(p.lat, p.lng, 14);
-        try {
-          globeRef.current?.pointOfView({ lat: p.lat, lng: p.lng, altitude: 0.05 }, GLOBE_MARKER_ZOOM_MS);
-        } catch {
-          // Globe may not be ready
-        }
+        cameraBridgeRef.current?.pointOfView(p.lat, p.lng, 0.05, GLOBE_MARKER_ZOOM_MS);
         if (zoomTimerRef.current !== null) clearTimeout(zoomTimerRef.current);
         zoomTimerRef.current = setTimeout(() => {
           zoomTimerRef.current = null;
@@ -1341,67 +862,68 @@ export const GlobeView = memo(forwardRef<GlobeViewHandle, GlobeViewProps>(functi
       }
 
       doSelect();
-    },
-    []
-  );
+    }, []);
 
-  return (
-    <div ref={containerRef} className="absolute inset-0 bg-[#0a1220] overflow-hidden touch-none">
-      {size.w > 0 && (
-        <Globe
-          ref={globeRef}
-          width={size.w}
-          height={size.h}
-          animateIn={false}
-          waitForGlobeReady={false}
-          rendererConfig={GLOBE_RENDERER_CONFIG}
-          onGlobeReady={handleGlobeReady}
-          globeCurvatureResolution={GLOBE_RENDER_PROFILE.curvatureResolution}
-          backgroundColor={GLOBE_RENDER_PROFILE.backgroundColor}
-          // Earth-at-night texture: dark continents + city lights (bundled locally)
-          globeImageUrl={GLOBE_EARTH_TEXTURE}
-          bumpImageUrl={GLOBE_RENDER_PROFILE.bumpTexture}
-          backgroundImageUrl={GLOBE_RENDER_PROFILE.skyTexture}
-          atmosphereColor={GLOBE_RENDER_PROFILE.atmosphereColor}
-          atmosphereAltitude={GLOBE_RENDER_PROFILE.atmosphereAltitude}
-          // Country borders (Natural Earth 110m — stroke only)
-          polygonsData={countryPolygons}
-          polygonGeoJsonGeometry={getPolygonGeoJsonGeometry}
-          polygonCapColor={getPolygonCapColor}
-          polygonSideColor={getPolygonSideColor}
-          polygonStrokeColor={getPolygonStrokeColor}
-          polygonAltitude={GLOBE_COUNTRY_BORDER_ALTITUDE}
-          polygonCapCurvatureResolution={GLOBE_COUNTRY_BORDER_CURVATURE}
-          polygonsTransitionDuration={0}
-          pointsTransitionDuration={0}
-          labelsTransitionDuration={0}
-          // Salon / live / person markers
-          pointsData={points}
-          pointLat={getPointLat}
-          pointLng={getPointLng}
-          pointColor={getPointColor}
-          pointRadius={getPointRadius}
-          pointAltitude={0.008}
-          pointResolution={pointResolution}
-          pointLabel={getPointLabel}
-          onPointClick={handlePointClick}
-          // Animated pulsing rings on live sessions
-          ringsData={liveRings}
-          ringLat={getRingLat}
-          ringLng={getRingLng}
-          ringColor={getRingColor}
-          ringMaxRadius={ringMaxRadius}
-          ringPropagationSpeed={ringPropagationSpeed}
-          ringRepeatPeriod={ringRepeatPeriod}
-          // Capital city labels — couche HTML (CSS2D) au premier plan
-          htmlElementsData={capitalLabels}
-          htmlLat={getHtmlLat}
-          htmlLng={getHtmlLng}
-          htmlAltitude={0.004}
-          htmlElement={getHtmlElement}
-          htmlTransitionDuration={0}
-        />
-      )}
-    </div>
-  );
-}));
+    const handleGlobeDblClick = useCallback((lat: number, lng: number) => {
+      if (!isValidLatLng(lat, lng)) return;
+      if (zoomTimerRef.current !== null) {
+        clearTimeout(zoomTimerRef.current);
+        zoomTimerRef.current = null;
+      }
+      onPrepareFlatMapRef.current?.(lat, lng, 12);
+      cameraBridgeRef.current?.pointOfView(lat, lng, 0.5, 280);
+      zoomTimerRef.current = setTimeout(() => {
+        zoomTimerRef.current = null;
+        onZoomToFlatRef.current?.(lat, lng, () => {}, 12, undefined, false);
+      }, 160);
+    }, []);
+
+    return (
+      <div
+        ref={containerRef}
+        className="absolute inset-0 bg-[#0a1220] overflow-hidden touch-none"
+        style={{ '--globe-icon-scale': computeGlobeIconScale(size.w) } as CSSProperties}
+      >
+        {size.w > 0 && (
+          <Suspense
+            fallback={
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="w-6 h-6 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin" />
+              </div>
+            }
+          >
+            <SoundyGlobeCanvas
+              width={size.w}
+              height={size.h}
+              maxPixelRatio={GLOBE_RENDER_PROFILE.maxPixelRatio}
+              interactionMaxPixelRatio={GLOBE_INTERACTION_MAX_DPR}
+              isInteracting={isInteracting}
+              antialias={GLOBE_RENDER_PROFILE.antialias}
+              backgroundColor={GLOBE_RENDER_PROFILE.backgroundColor}
+              lowPower={IS_LOW_POWER_DEVICE}
+              countries={preparedCountries}
+              points={points}
+              rings={liveRings}
+              capitalLabels={capitalLabels}
+              overviewDots={overviewDots}
+              pointResolution={pointResolution}
+              ringMaxRadius={ringMaxRadius}
+              ringPropagationSpeed={ringPropagationSpeed}
+              ringRepeatPeriod={ringRepeatPeriod}
+              cameraRef={cameraBridgeRef}
+              recenterRequest={recenterRequest}
+              onPointClick={handlePointClick}
+              onGlobeDblClick={handleGlobeDblClick}
+              autoRotateEnabled={false}
+              onInteractionStart={handleInteractionStart}
+              onInteractionEnd={handleInteractionEnd}
+              onControlsChange={handleControlsChange}
+              onGlobeReady={() => syncTierAndPovFromGlobe(false)}
+              onGlobeUnavailable={reportGlobeUnavailable}
+            />
+          </Suspense>
+        )}
+      </div>
+    );
+  })
+);

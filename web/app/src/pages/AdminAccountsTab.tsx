@@ -3,11 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { getProfilePath } from '../lib/profileDeepLink';
+import { resolveStaffRole } from '../lib/adminStaffRoles';
+import { AdminUserSnapshotsPanel } from '../components/AdminUserSnapshotsPanel';
 import type {
   AccessManagedUser,
   AccountStatus,
   AdminUserSocialResponse,
   AdminUserSort,
+  StaffRole,
 } from '../types';
 
 type UserFilter = 'all' | AccountStatus;
@@ -226,7 +229,9 @@ function exportUsersCsv(users: AccessManagedUser[], t: (key: string) => string):
 }
 
 export function AdminAccountsTab() {
-  const { token } = useAuth();
+  const { token, user: me } = useAuth();
+  const myStaffRole = resolveStaffRole(me);
+  const canGrantDev = myStaffRole === 'dev';
   const { t, i18n } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -329,13 +334,18 @@ export function AdminAccountsTab() {
     }
   };
 
-  const toggleAdmin = async (userId: string, promote: boolean) => {
+  const toggleStaffRole = async (userId: string, role: StaffRole | null) => {
     if (!token) return;
-    const confirmKey = promote ? 'admin.accounts.promoteConfirm' : 'admin.accounts.demoteConfirm';
+    const confirmKey =
+      role === 'dev'
+        ? 'admin.accounts.promoteDevConfirm'
+        : role === 'admin'
+          ? 'admin.accounts.promoteAdminConfirm'
+          : 'admin.accounts.demoteConfirm';
     if (!window.confirm(t(confirmKey))) return;
     setBusy(userId);
     try {
-      if (promote) await api.promoteAccessUser(token, userId);
+      if (role) await api.promoteAccessUser(token, userId, role);
       else await api.demoteAccessUser(token, userId);
       await reload();
     } catch (e) {
@@ -622,11 +632,15 @@ export function AdminAccountsTab() {
                     <div className="min-w-0">
                       <div className="font-medium truncate flex items-center gap-1.5 flex-wrap">
                         {u.username}
-                        {detail.isAdmin && (
+                        {detail.staffRole === 'dev' ? (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-200 font-bold">
+                            DEV
+                          </span>
+                        ) : detail.staffRole === 'admin' || detail.isAdmin ? (
                           <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/25 text-purple-200 font-bold">
                             ADMIN
                           </span>
-                        )}
+                        ) : null}
                         {isBot && (
                           <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-500/25 text-gray-300 font-bold">
                             BOT
@@ -727,21 +741,35 @@ export function AdminAccountsTab() {
                 {detail.adminFlag ? (
                   <button
                     type="button"
-                    disabled={busy === u.id}
+                    disabled={busy === u.id || (detail.staffRole === 'dev' && !canGrantDev)}
                     className="px-2.5 py-1.5 min-h-[44px] rounded-lg text-[11px] font-semibold bg-purple-600/30 border border-purple-500/40 disabled:opacity-50"
-                    onClick={() => void toggleAdmin(u.id, false)}
+                    onClick={() => void toggleStaffRole(u.id, null)}
                   >
-                    {t('admin.accounts.demoteAdmin')}
+                    {detail.staffRole === 'dev'
+                      ? t('admin.accounts.demoteDev', { defaultValue: 'Retirer Dev' })
+                      : t('admin.accounts.demoteAdmin')}
                   </button>
                 ) : (
-                  <button
-                    type="button"
-                    disabled={busy === u.id}
-                    className="px-2.5 py-1.5 min-h-[44px] rounded-lg text-[11px] font-semibold bg-purple-600/70 disabled:opacity-50"
-                    onClick={() => void toggleAdmin(u.id, true)}
-                  >
-                    {t('admin.accounts.promoteAdmin')}
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      disabled={busy === u.id}
+                      className="px-2.5 py-1.5 min-h-[44px] rounded-lg text-[11px] font-semibold bg-purple-600/70 disabled:opacity-50"
+                      onClick={() => void toggleStaffRole(u.id, 'admin')}
+                    >
+                      {t('admin.accounts.promoteStaffAdmin', { defaultValue: 'Accès Admin' })}
+                    </button>
+                    {canGrantDev ? (
+                      <button
+                        type="button"
+                        disabled={busy === u.id}
+                        className="px-2.5 py-1.5 min-h-[44px] rounded-lg text-[11px] font-semibold bg-amber-600/70 disabled:opacity-50"
+                        onClick={() => void toggleStaffRole(u.id, 'dev')}
+                      >
+                        {t('admin.accounts.promoteStaffDev', { defaultValue: 'Accès Dev' })}
+                      </button>
+                    ) : null}
+                  </>
                 )}
                 <button
                   type="button"
@@ -1033,28 +1061,56 @@ export function AdminAccountsTab() {
                       )
                     )}
 
-                    <div className="flex gap-2 pt-1">
+                    <div className="flex flex-wrap gap-2 pt-1">
                       {detail.adminFlag ? (
                         <button
                           type="button"
-                          disabled={busy === u.id}
+                          disabled={busy === u.id || (detail.staffRole === 'dev' && !canGrantDev)}
                           className="flex-1 min-h-[44px] py-2 rounded-lg bg-purple-600/40 text-xs border border-purple-500/40 disabled:opacity-50"
-                          onClick={() => void toggleAdmin(u.id, false)}
+                          onClick={() => void toggleStaffRole(u.id, null)}
                         >
-                          {t('admin.accounts.demoteAdmin')}
+                          {detail.staffRole === 'dev'
+                            ? t('admin.accounts.demoteDev', { defaultValue: 'Retirer Dev' })
+                            : t('admin.accounts.demoteAdmin')}
                         </button>
                       ) : (
+                        <>
+                          <button
+                            type="button"
+                            disabled={busy === u.id}
+                            className="flex-1 min-h-[44px] py-2 rounded-lg bg-purple-600/80 text-xs disabled:opacity-50"
+                            onClick={() => void toggleStaffRole(u.id, 'admin')}
+                          >
+                            {t('admin.accounts.promoteStaffAdmin', { defaultValue: 'Accès Admin' })}
+                          </button>
+                          {canGrantDev ? (
+                            <button
+                              type="button"
+                              disabled={busy === u.id}
+                              className="flex-1 min-h-[44px] py-2 rounded-lg bg-amber-600/80 text-xs disabled:opacity-50"
+                              onClick={() => void toggleStaffRole(u.id, 'dev')}
+                            >
+                              {t('admin.accounts.promoteStaffDev', { defaultValue: 'Accès Dev' })}
+                            </button>
+                          ) : null}
+                        </>
+                      )}
+                      {detail.staffRole === 'admin' && canGrantDev ? (
                         <button
                           type="button"
                           disabled={busy === u.id}
-                          className="flex-1 min-h-[44px] py-2 rounded-lg bg-purple-600/80 text-xs disabled:opacity-50"
-                          onClick={() => void toggleAdmin(u.id, true)}
+                          className="flex-1 min-h-[44px] py-2 rounded-lg bg-amber-600/50 text-xs border border-amber-500/40 disabled:opacity-50"
+                          onClick={() => void toggleStaffRole(u.id, 'dev')}
                         >
-                          {t('admin.accounts.promoteAdmin')}
+                          {t('admin.accounts.upgradeToDev', { defaultValue: 'Passer en Dev' })}
                         </button>
-                      )}
+                      ) : null}
                     </div>
                   </section>
+
+                  {token && !detail.isAdmin && (
+                    <AdminUserSnapshotsPanel token={token} userId={u.id} username={detail.username} />
+                  )}
 
                   <p className="text-[10px] text-gray-600 font-mono truncate">{detail.id}</p>
                 </div>

@@ -6,6 +6,7 @@ import { isValidLatLng, sanitizeLatLngTuple } from '../lib/mapCoords';
 import { getDistanceKm } from '../lib/mapMarkerVisibility';
 import { resolveMapCameraFallbackCenter } from '../lib/mapUserPosition';
 import { getPrivacyPreferences } from '../lib/settings';
+import { getCurrentGeoPosition, isGeolocationAvailable } from '../lib/geoPosition';
 
 export const HOME_GEO_REFRESH_INTERVAL_MS = 30_000;
 export const HOME_GEO_REFRESH_BACKGROUND_MS = 60_000;
@@ -105,18 +106,18 @@ export function useHomeGeoRefresh(options: {
       const coords: Coords = [geo.latitude, geo.longitude];
       setSafeCenter(coords);
       loadNearbyAt(coords);
-    } else if (!navigator.geolocation || !locationSharing) {
+    } else if (!isGeolocationAvailable()) {
       applyProfileCityFallback();
     } else {
-      navigator.geolocation.getCurrentPosition(
+      getCurrentGeoPosition().then(
         (pos) => {
           if (cancelled) return;
-          const coords: Coords = [pos.coords.latitude, pos.coords.longitude];
+          const coords: Coords = [pos.latitude, pos.longitude];
           setUserPosition(sanitizeLatLngTuple(coords[0], coords[1], defaultCenter));
           if (!mapExploredRef.current) {
             setSafeCenter(coords);
           }
-          loadNearbyAt(coords);
+          loadNearbyAt(coords, { updateUserGeo: locationSharing });
         },
         () => {
           if (cancelled) return;
@@ -149,27 +150,25 @@ export function useHomeGeoRefresh(options: {
         loadNearbyAtRef.current([current.latitude, current.longitude]);
         return;
       }
-      if (!navigator.geolocation || !sharing) {
+      if (!isGeolocationAvailable()) {
         loadNearbyAtRef.current([current.latitude, current.longitude], { updateUserGeo: false });
         return;
       }
-      navigator.geolocation.getCurrentPosition(
+      getCurrentGeoPosition().then(
         (pos) => {
-          const coords: Coords = [pos.coords.latitude, pos.coords.longitude];
+          const coords: Coords = [pos.latitude, pos.longitude];
           const sanitized = sanitizeLatLngTuple(coords[0], coords[1], defaultCenterRef.current);
           const prev = lastUserGeoRef.current;
           if (
-            prev &&
-            getDistanceKm(prev[0], prev[1], sanitized[0], sanitized[1]) < HOME_GEO_MIN_MOVE_KM
+            !prev ||
+            getDistanceKm(prev[0], prev[1], sanitized[0], sanitized[1]) >= HOME_GEO_MIN_MOVE_KM
           ) {
-            loadNearbyAtRef.current(coords);
-            return;
+            lastUserGeoRef.current = sanitized;
+            setUserPositionRef.current(sanitized);
           }
-          lastUserGeoRef.current = sanitized;
-          setUserPositionRef.current(sanitized);
-          loadNearbyAtRef.current(coords);
+          loadNearbyAtRef.current(coords, { updateUserGeo: sharing });
         },
-        () => loadNearbyAtRef.current([current.latitude, current.longitude])
+        () => loadNearbyAtRef.current([current.latitude, current.longitude], { updateUserGeo: false })
       );
     };
 

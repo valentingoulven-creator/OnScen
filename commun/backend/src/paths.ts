@@ -64,3 +64,14 @@ export function getMsdevConfigPath(): string {
   }
   return candidates[0];
 }
+
+/**
+ * Répertoire de données privées de l'application — jamais servi par le serveur
+ * web statique (hors `public/`). Utilisé pour des artefacts sensibles qui ne
+ * doivent pas être accessibles par URL directe (ex. snapshots de compte).
+ */
+export function getDataDir(): string {
+  const dir = path.join(getAppRoot(), 'data');
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}

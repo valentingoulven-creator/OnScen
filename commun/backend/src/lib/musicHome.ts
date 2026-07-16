@@ -1,5 +1,6 @@
 import { db, type UserAlbum, type UserComposition, type UserReel } from '../models/schema';
 import { getCompositionUpvoteCount, userHasCompositionUpvote } from './compositionUpvotes';
+import { getWeeklyCompositionPlayCounts } from './compositionPlays';
 import { getFollowingIds } from './follows';
 import { isAdminBlockedReel, isPrivateReel } from './reels';
 import {
@@ -33,6 +34,7 @@ export interface MusicTrackItem {
   durationSec?: number;
   upvoteCount?: number;
   userHasUpvoted?: boolean;
+  weeklyPlayCount?: number;
   createdAt: number;
 }
 
@@ -203,26 +205,44 @@ function buildWeeklyTrendSection(viewerId: string): MusicHomeWeeklySection {
   return { albums, tracks, reels, weekStart };
 }
 
+function buildPopularSection(viewerId: string): MusicHomeSection {
+  const weeklyPlays = getWeeklyCompositionPlayCounts();
+
+  const tracks: MusicTrackItem[] = [...weeklyPlays.entries()]
+    .sort((a, b) => b[1] - a[1] || 0)
+    .slice(0, 12)
+    .flatMap(([compositionId, weeklyPlayCount]) => {
+      const composition = db.compositions.find((c) => c.id === compositionId);
+      if (!composition) return [];
+      return [
+        {
+          ...compositionTrack(composition, viewerId),
+          weeklyPlayCount,
+        },
+      ];
+    });
+
+  const albums: MusicAlbumItem[] = db.albums
+    .map((album) => {
+      const item = albumItem(album);
+      const plays = db.compositions
+        .filter((c) => c.albumId === album.id && c.userId === album.userId)
+        .reduce((sum, c) => sum + (weeklyPlays.get(c.id) ?? 0), 0);
+      return { item, plays };
+    })
+    .filter(({ plays }) => plays > 0)
+    .sort((a, b) => b.plays - a.plays || b.item.updatedAt - a.item.updatedAt)
+    .slice(0, 12)
+    .map(({ item }) => item);
+
+  return { albums, tracks };
+}
+
 export function buildMusicHome(viewerId: string): MusicHomePayload {
   const following = new Set(getFollowingIds(viewerId));
   const everyone = allUserIds();
 
-  const popularTracks = [...db.compositions]
-    .map((c) => compositionTrack(c, viewerId))
-    .sort((a, b) => (b.upvoteCount ?? 0) - (a.upvoteCount ?? 0) || b.createdAt - a.createdAt)
-    .slice(0, 12);
-
-  const popularAlbums = [...db.albums]
-    .map((album) => {
-      const item = albumItem(album);
-      const likes = db.compositions
-        .filter((c) => c.albumId === album.id && c.userId === album.userId)
-        .reduce((sum, c) => sum + getCompositionUpvoteCount(c.id), 0);
-      return { item, likes };
-    })
-    .sort((a, b) => b.likes - a.likes || b.item.updatedAt - a.item.updatedAt)
-    .slice(0, 12)
-    .map(({ item }) => item);
+  const popular = buildPopularSection(viewerId);
 
   const looseTracks = db.compositions
     .filter((c) => c.userId === viewerId && !c.albumId)
@@ -247,10 +267,7 @@ export function buildMusicHome(viewerId: string): MusicHomePayload {
         .map(albumItem),
       tracks: looseTracks,
     },
-    popular: {
-      albums: popularAlbums,
-      tracks: popularTracks,
-    },
+    popular,
     weeklyTrend: buildWeeklyTrendSection(viewerId),
   };
 }

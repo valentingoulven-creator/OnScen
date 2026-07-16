@@ -1,12 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
+import { requireAdmin } from '../middleware/requireAdmin';
 import {
   db,
   type SupportContactMessage,
   type SupportThreadMessage,
 } from '../models/schema';
 import { schedulePersist } from '../lib/persist';
-import { isAccessAdmin } from '../lib/accessControl';
 import {
   notifySupportContact,
   notifySupportReply,
@@ -17,20 +17,6 @@ import { broadcastSupportTicketUpdated } from '../lib/supportBroadcast';
 
 export const supportRouter = Router();
 export const supportAdminRouter = Router();
-
-function requireAdmin(req: Request, res: Response): boolean {
-  const userId = (req as Request & { user?: { id: string } }).user?.id;
-  if (!userId) {
-    res.status(401).json({ error: 'Authentification requise' });
-    return false;
-  }
-  const user = db.users.get(userId);
-  if (!user || !isAccessAdmin(user)) {
-    res.status(403).json({ error: 'Accès réservé aux administrateurs' });
-    return false;
-  }
-  return true;
-}
 
 function buildThread(msg: SupportContactMessage): SupportThreadMessage[] {
   if (msg.thread && msg.thread.length > 0) return msg.thread;
@@ -257,7 +243,7 @@ supportRouter.patch('/contact/:id/status', authenticateJWT, (req: Request, res: 
 });
 
 supportAdminRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const status = req.query.status;
   let messages = [...db.supportContactMessages];
   if (status === 'open' || status === 'replied' || status === 'resolved') {
@@ -268,7 +254,7 @@ supportAdminRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
 });
 
 supportAdminRouter.post('/:id/reply', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const adminId = (req as Request & { user: { id: string } }).user.id;
   const admin = db.users.get(adminId);
   const msg = db.supportContactMessages.find((m) => m.id === req.params.id);
@@ -320,7 +306,7 @@ supportAdminRouter.post('/:id/reply', authenticateJWT, (req: Request, res: Respo
 });
 
 supportAdminRouter.patch('/:id/status', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const adminId = (req as Request & { user: { id: string } }).user.id;
   const admin = db.users.get(adminId);
   const msg = db.supportContactMessages.find((m) => m.id === req.params.id);

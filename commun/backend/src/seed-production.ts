@@ -28,6 +28,7 @@ export async function seedProductionAdmin(): Promise<boolean> {
     email,
     passwordHash,
     isAdmin: true,
+    staffRole: 'dev' as const,
     mustChangePassword: true,
     emailVerified: true,
     onboardingCompleted: true,

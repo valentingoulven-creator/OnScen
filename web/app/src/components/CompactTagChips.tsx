@@ -38,9 +38,9 @@ function CompactTagSection({
         className={`flex overflow-x-auto ${compact ? 'gap-1.5 pb-0.5' : 'gap-2 pb-1'}`}
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
       >
-        {tags.map((t) => (
+        {tags.map((t, i) => (
           <span
-            key={`${color}-${t}`}
+            key={`${color}-${t}-${i}`}
             className={`shrink-0 rounded-full font-medium border whitespace-nowrap ${CHIP_COLORS[color]} ${
               compact ? 'px-2 py-0.5 text-[10px]' : 'px-3 py-1.5 text-[11px]'
             }`}

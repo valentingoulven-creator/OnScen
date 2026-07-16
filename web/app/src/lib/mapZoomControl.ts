@@ -1,10 +1,12 @@
+import { CAMERA_DEFAULT_ALTITUDE } from './globe3d/constants';
+
 /** Plage zoom carte plate (Leaflet) contrôlée par le slider. */
 export const MAP_FLAT_ZOOM_MIN = 3;
 export const MAP_FLAT_ZOOM_MAX = 19;
 
 /** Plage altitude globe (pointOfView) — bas = proche, haut = vue globale. */
 export const MAP_GLOBE_ALT_MIN = 0.03;
-export const MAP_GLOBE_ALT_MAX = 2.5;
+export const MAP_GLOBE_ALT_MAX = CAMERA_DEFAULT_ALTITUDE;
 
 export type MapZoomMode = 'flat' | 'globe';
 

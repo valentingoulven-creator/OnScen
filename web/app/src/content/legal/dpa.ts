@@ -124,13 +124,71 @@ export const SUBPROCESSORS: SubprocessorRecord[] = [
     ],
     retentionNote: 'Jetons révoqués à la déconnexion — Google gère ses propres données',
   },
+  {
+    name: 'LiveKit, Inc.',
+    role: 'Salons audio temps réel — signalisation WebRTC, métadonnées de session',
+    country: 'États-Unis (hors UE)',
+    euTransfer: true,
+    transferMechanism: 'Clauses Contractuelles Types (CCT)',
+    dpaUrl: 'https://livekit.io/legal/data-processing-addendum',
+    dpaStatus: 'pending',
+    dataCategories: [
+      'Identifiant utilisateur Soundy (pseudonyme)',
+      'Métadonnées de salon (titre, participants)',
+      'Adresse IP (transit WebRTC)',
+    ],
+    retentionNote: 'Durée de la session live — pas de stockage audio permanent côté LiveKit',
+  },
+  {
+    name: 'Sightengine',
+    role: 'Modération automatique des contenus visuels uploadés (NSFW, violence)',
+    country: 'France (UE)',
+    euTransfer: false,
+    transferMechanism: 'Pas de transfert hors UE',
+    dpaUrl: 'https://sightengine.com/dpa',
+    dpaStatus: 'pending',
+    dataCategories: [
+      'Images et vidéos uploadées (profil, reels, stories, chat)',
+      'Métadonnées de modération (scores, labels)',
+    ],
+    retentionNote: 'Analyse en temps réel — pas de conservation prolongée des médias par défaut',
+  },
+  {
+    name: 'ACRCloud',
+    role: 'Empreinte audio — détection de correspondances avec catalogue commercial',
+    country: 'Chine / États-Unis (selon région)',
+    euTransfer: true,
+    transferMechanism: 'Clauses Contractuelles Types (CCT) — [À VÉRIFIER]',
+    dpaUrl: 'https://www.acrcloud.com/privacy-policy/',
+    dpaStatus: 'pending',
+    dataCategories: [
+      'Fichiers audio/vidéo uploadés (compositions, reels)',
+      'Empreintes acoustiques (fingerprints)',
+    ],
+    retentionNote: 'Analyse ponctuelle à l\'upload — pas de stockage permanent des fichiers',
+  },
+  {
+    name: 'Functional Software, Inc. (Sentry)',
+    role: 'Monitoring erreurs frontend — stack traces, contexte technique anonymisé',
+    country: 'États-Unis (hors UE)',
+    euTransfer: true,
+    transferMechanism: 'Clauses Contractuelles Types (CCT) + Data Processing Agreement Sentry',
+    dpaUrl: 'https://sentry.io/legal/dpa/',
+    dpaStatus: 'pending',
+    dataCategories: [
+      'Stack traces et messages d\'erreur',
+      'Version navigateur, URL de page (sans PII par défaut)',
+      'Session replay masquée (texte et médias bloqués) — si consentement cookies',
+    ],
+    retentionNote: '90 jours par défaut (configurable) — activé uniquement avec consentement utilisateur',
+  },
 ];
 
 // ─── Modèle de clauses contractuelles internes ───────────────────────────────
 
 export const dpaTemplate: LegalDocument = {
   title: 'DPA — Accords de Traitement (Art. 28 RGPD) [MODÈLE INTERNE]',
-  updated: 'juin 2026',
+  updated: '15 juillet 2026',
   sections: [
     {
       heading: '1. Objet et périmètre',

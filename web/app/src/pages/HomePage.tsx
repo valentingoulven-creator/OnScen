@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { MapView, type MapViewHandle, type MapStyle, MAP_GLOBE_FLAT_DO_SELECT_MS } from '../components/MapView';
 import { MapZoomSlider } from '../components/MapZoomSlider';
+import { MapGlobePlaceSearch } from '../components/MapGlobePlaceSearch';
 import { NearbyPeoplePanel } from '../components/NearbyPeoplePanel';
 import { MapCityEventsPanel } from '../components/MapCityEventsPanel';
 import { MapLiveClusterSheet } from '../components/MapLiveClusterSheet';
@@ -34,6 +35,7 @@ import {
   createDefaultEventFilter,
   filterMapEventsByCriteria,
   filterMapEventsOccurringToday,
+  filterMapEventsOccurringTodayOrTomorrow,
   getEventFilterCityMapRadiusKm,
   hasEventFilterCityLocation,
   resolveDefaultUserCityLabel,
@@ -80,6 +82,7 @@ import {
   type MapViewDetailState,
 } from '../lib/mapMarkerVisibility';
 import { flatZoomToNorm, type MapZoomControlSnapshot } from '../lib/mapZoomControl';
+import type { PlaceSearchHit } from '../lib/placeSearch';
 import type { NearbyPerson, Salon, Live, MapEventMarker, MapEventCityCluster, PlaybackState, FeedPost } from '../types';
 import { getNearbyRadiusKm, SETTINGS_CHANGED_EVENT } from '../lib/settings';
 import {
@@ -611,8 +614,8 @@ export function HomePage({
   /** Rechargement nearby au centre viewport (carte / globe). */
   const mapFilterViewportOn = livesFilterOn || salonFilterOn;
 
-  /** GPS si géoloc activée, sinon ville profil ; masqué en mode fantôme. */
-  const mapUserPosition = useMapUserDisplayPosition(
+  /** GPS si disponible, sinon ville profil ; masqué en mode fantôme. */
+  const mapUserDisplay = useMapUserDisplayPosition(
     userPosition,
     user?.city,
     user?.isGhostMode
@@ -637,6 +640,18 @@ export function HomePage({
   /** Vue globe overview : sonars live visibles sans activer le filtre Lives. */
   const globeLiveAmbientOn =
     mapDetailMapStyle === 'globe' && mapDetailTier === 'overview';
+
+  /** Vue globe (tout zoom) : événements du jour visibles sans activer le filtre Évènement. */
+  const globeEventAmbientOn = mapDetailMapStyle === 'globe';
+
+  /**
+   * Le panneau latéral (liste) doit refléter exactement ce qui s'affiche sur le globe,
+   * y compris en mode « ambiant » (pins visibles sans que le filtre correspondant soit activé) —
+   * sinon la liste reste vide alors que le globe montre déjà des lives/événements.
+   * Suivi/Enregistré est inclus automatiquement (sections gérées par NearbyPeoplePanel).
+   */
+  const sidebarLivesFilterOn = livesFilterOn || globeLiveAmbientOn;
+  const sidebarEventsFilterOn = eventsFilterOn || globeEventAmbientOn;
 
   const rawMapSalonsForView = useMemo(() => {
     if (!anyMapFilterActive && !globeLiveAmbientOn) return [];
@@ -713,13 +728,13 @@ export function HomePage({
     nearbyFetchCenter,
   ]);
 
-  const globeLiveAudienceFilterActive =
-    mapDetailMapStyle === 'globe' && (livesFilterOn || globeLiveAmbientOn);
+  const liveAudienceFilterActive =
+    !livesFilterOn && (globeLiveAmbientOn || rawMapLivesForView.length > 0);
 
   const globeLiveAudienceFiltered = useMemo(() => {
-    if (!globeLiveAudienceFilterActive) return null;
+    if (!liveAudienceFilterActive) return null;
     return filterGlobeLiveMarkersAboveAverageAudience(rawMapLivesForView, rawMapSalonsForView);
-  }, [globeLiveAudienceFilterActive, rawMapLivesForView, rawMapSalonsForView]);
+  }, [liveAudienceFilterActive, rawMapLivesForView, rawMapSalonsForView]);
 
   const mapLivesForView = useMemo(
     () => (globeLiveAudienceFiltered ? globeLiveAudienceFiltered.lives : rawMapLivesForView),
@@ -742,11 +757,14 @@ export function HomePage({
     [mapEvents, eventFilterCriteria, user?.id]
   );
 
-  /** Pins carte : du jour par défaut ; filtre Évènement = autres dates / critères. */
+  /** Pins carte : du jour par défaut ; globe overview = aujourd'hui + demain ; filtre Évènement = critères. */
   const mapEventsForPins = useMemo(() => {
     if (eventsFilterOn) return filteredMapEvents;
+    if (mapDetailMapStyle === 'globe' && mapDetailTier === 'overview') {
+      return filterMapEventsOccurringTodayOrTomorrow(mapEvents);
+    }
     return filterMapEventsOccurringToday(mapEvents);
-  }, [eventsFilterOn, filteredMapEvents, mapEvents]);
+  }, [eventsFilterOn, filteredMapEvents, mapEvents, mapDetailMapStyle, mapDetailTier]);
 
   const mapEventAuthorIds = useMemo(() => {
     const ids = new Set<string>();
@@ -783,7 +801,15 @@ export function HomePage({
   const mapEventClustersForMap = useMemo(() => {
     if (mapDetailTier === 'overview') return mapEventClusters;
     if (mapDetailMapStyle !== 'flat' || !mapDetailBounds) return mapEventClusters;
-    return filterEventClustersInViewport(mapEventClusters, mapDetailBounds, mapDetailTier);
+    const clipped = filterEventClustersInViewport(
+      mapEventClusters,
+      mapDetailBounds,
+      mapDetailTier
+    );
+    // Même garde-fou que clipLivesForMapView : évite un blackout transitoire
+    // quand le viewport est très serré (zoom max) ou que les bounds bougent.
+    if (clipped.length === 0 && mapEventClusters.length > 0) return mapEventClusters;
+    return clipped;
   }, [mapEventClusters, mapDetailMapStyle, mapDetailBounds, mapDetailTier]);
 
   /** Panneau ville : événements filtrés par viewport au zoom ville / rue. */
@@ -805,8 +831,8 @@ export function HomePage({
         // Pass only the fields the function actually reads; flatZoom and
         // globeAltitude are unused so placeholder values keep types happy.
         detail: { tier: mapDetailTier, mapStyle: mapDetailMapStyle, bounds: mapDetailBounds, flatZoom: 0, globeAltitude: null },
-        eventsFilterOn,
-        livesFilterOn,
+        eventsFilterOn: sidebarEventsFilterOn,
+        livesFilterOn: sidebarLivesFilterOn,
         salonFilterOn,
         eventsOnly: mapEventsOnly,
         showAllSalonsAtCityZoom,
@@ -824,8 +850,8 @@ export function HomePage({
       mapDetailTier,
       mapDetailMapStyle,
       mapDetailBounds,
-      eventsFilterOn,
-      livesFilterOn,
+      sidebarEventsFilterOn,
+      sidebarLivesFilterOn,
       salonFilterOn,
       showAllSalonsAtCityZoom,
       mapEventsOnly,
@@ -1407,6 +1433,12 @@ export function HomePage({
     mapViewRef.current?.setZoomSliderDragging(false);
   }, []);
 
+  const handleGlobePlaceSearch = useCallback((hit: PlaceSearchHit) => {
+    noteMapExplored();
+    const altitude = hit.kind === 'country' ? 1.8 : 0.45;
+    mapViewRef.current?.flyToGlobe(hit.latitude, hit.longitude, altitude);
+  }, [noteMapExplored]);
+
   // Ref holding the debounce timer for settings-triggered reloads.
   const nearbyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Debounce salon_playback socket events (fires ~every second) to limit re-renders.
@@ -1495,6 +1527,15 @@ export function HomePage({
       loadNearbyAt(getNearbyQueryCenter(userPos, mapCenter));
     }, 500);
   }, [loadNearbyAt]);
+
+  // Sans ce cleanup, un timer en attente au démontage de HomePage (changement
+  // d'onglet) déclenche loadNearbyAt/setState après que le composant ait
+  // quitté l'arbre React.
+  useEffect(() => {
+    return () => {
+      if (nearbyDebounceRef.current) clearTimeout(nearbyDebounceRef.current);
+    };
+  }, []);
 
   useHomeGeoRefresh({
     isActive,
@@ -2420,8 +2461,8 @@ export function HomePage({
             onHide={() => setNearbyPeopleVisible(false)}
             onEventClick={handleCityEventClick}
             onEventClusterClick={handleMapEventClusterClick}
-            eventsFilterOn={eventsFilterOn}
-            livesFilterOn={livesFilterOn}
+            eventsFilterOn={sidebarEventsFilterOn}
+            livesFilterOn={sidebarLivesFilterOn}
             salonFilterOn={salonFilterOn}
           />
         )
@@ -2535,7 +2576,8 @@ export function HomePage({
           showAllSalonsAtCityZoom={showAllSalonsAtCityZoom}
           center={center}
           recenterToken={mapRecenterToken}
-          userPosition={mapUserPosition ?? undefined}
+          userPosition={mapUserDisplay?.coords}
+          userPositionKind={mapUserDisplay?.kind}
           onSelectSalon={handleMapSalonClick}
           onSelectLive={handleMapLiveClick}
           onSelectPerson={handleMapPersonClick}
@@ -2649,13 +2691,18 @@ export function HomePage({
               {locating ? (
                 <span className="w-5 h-5 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin" />
               ) : (
-                <svg viewBox="0 0 24 24" className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M12 2v3M12 19v3M2 12h3M19 12h3" strokeLinecap="round" />
+                <svg viewBox="0 0 24 24" className="w-5 h-5 sm:w-6 sm:h-6" fill="none" aria-hidden="true">
+                  <circle cx="12" cy="12" r="3.25" fill="currentColor" fillOpacity="0.92" />
+                  <circle cx="12" cy="12" r="7" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.35" />
+                  <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
               )}
             </button>
           </div>
+        )}
+
+        {mapStyle === 'globe' && !mapLivesBrowseOpen && !mapProfileOpen && (
+          <MapGlobePlaceSearch onSelectPlace={handleGlobePlaceSearch} />
         )}
 
         <div className="ms-map-filter-stack absolute top-3 left-3 z-30 inline-flex flex-col gap-2 pointer-events-auto">
@@ -2829,7 +2876,7 @@ export function HomePage({
                 </svg>
               )}
             </button>
-            {!mapLivesBrowseOpen && (
+            {!mapLivesBrowseOpen && canUseGlobeView() && (
             <button
               type="button"
               onClick={toggleMapStyle}
@@ -2904,8 +2951,8 @@ export function HomePage({
                 onHide={() => setNearbyPeopleVisible(false)}
                 onEventClick={handleCityEventClick}
                 onEventClusterClick={handleMapEventClusterClick}
-                eventsFilterOn={eventsFilterOn}
-                livesFilterOn={livesFilterOn}
+                eventsFilterOn={sidebarEventsFilterOn}
+                livesFilterOn={sidebarLivesFilterOn}
                 salonFilterOn={salonFilterOn}
               />
             )

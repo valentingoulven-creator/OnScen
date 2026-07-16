@@ -54,8 +54,6 @@ export const INTEREST_CATEGORIES: readonly InterestCategory[] = [
 
       'Podcasts musicaux',
 
-      'Sessions live',
-
       'Open mic',
 
       'Techno',

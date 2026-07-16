@@ -52,7 +52,7 @@ Format : Libellé → action
 • Étendre fiche salon → grand lecteur sur la carte (sans quitter l'onglet)
 
 Modal Créer un salon :
-• YouTube / Spotify → choix plateforme
+• YouTube → plateforme salon (écoute synchronisée)
 • Public / Sur invitation → mode d'accès
 • Créer le salon → crée et ouvre le salon
 • Annuler / × → ferme le modal
@@ -76,16 +76,12 @@ Lecture (YouTube) :
 • Morceau dans la file → lance ce morceau
 • Changer de morceau (recherche hôte) → change immédiatement
 • Lire (résultat recherche) → idem
-• Ajouter (Spotify hôte) → ajoute à la file sans couper le morceau
-• Lancer la playlist → lance une playlist Spotify
+• Ajouter à la file → ajoute sans couper le morceau
+• Lancer la playlist → lance une playlist YouTube
 • Vidéo on / off (si applicable) → affiche ou masque la vidéo YouTube
 
-Lecture (Spotify — chrono partagé) :
-• Contrôles play/pause/stop/suivant → pilote l'app Spotify de l'hôte
-• Ouvrir Spotify → deep link vers le morceau
-
 Auditeur (MODIF 458) :
-• Proposer un morceau (recherche YouTube/Spotify) → envoie au panneau PROPOSITIONS de l'hôte, pas de lecture directe
+• Proposer un morceau (recherche YouTube) → envoie au panneau PROPOSITIONS de l'hôte, pas de lecture directe
 • Proposer (bouton) → confirme la proposition
 • Formulaire Proposer un morceau (titre/artiste/liens) → proposition manuelle
 
@@ -156,7 +152,7 @@ Chat live : mêmes actions mod que salon + VIP live
 • Conversation → ouvre le fil
 • ← Retour → liste conversations
 • Envoyer → envoie le message
-• Créer un salon YouTube/Spotify privé (dans conversation) → salon privé avec le contact
+• Créer un salon YouTube privé (dans conversation) → salon privé avec le contact
 • Bloquer (sélection multiple) → bloque les utilisateurs cochés
 • Débloquer → sur une ligne ou sélection
 • Tout / Tout désélect. → sélection masse (bloqués)
@@ -183,7 +179,7 @@ Chat live : mêmes actions mod que salon + VIP live
 • Abonnements (stats) → liste des personnes suivies
 • Onglets Publications / Reels / Salons → contenu du profil
 • Enregistrer un reel → ouvre le recorder
-• Plateformes (Spotify/YouTube/Instagram) → connecter / déconnecter
+• Plateformes (YouTube/Instagram) → connecter / déconnecter
 • Déconnexion → logout (avec confirmation)
 
 Profil public (autre utilisateur) :

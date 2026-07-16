@@ -18,10 +18,13 @@
 #   SCW_ACCESS_KEY / SCW_SECRET_KEY    # optionnel — ou AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
 set -euo pipefail
 
-# Racine app réelle = /opt/soundly (audit DB/infra §6 — cohérent avec backup-db.sh).
-BACKUP_DIR="${BACKUP_DIR:-/opt/soundly/backups}"
-UPLOADS_BACKUP_DIR="${UPLOADS_BACKUP_DIR:-/opt/soundly/backups/uploads}"
-OFFSITE_DIR="${BACKUP_OFFSITE_DIR:-/opt/soundly/backups-offsite}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/soundy-root.sh
+source "${SCRIPT_DIR}/lib/soundy-root.sh"
+
+BACKUP_DIR="${BACKUP_DIR:-${ROOT}/backups}"
+UPLOADS_BACKUP_DIR="${UPLOADS_BACKUP_DIR:-${ROOT}/backups/uploads}"
+OFFSITE_DIR="${BACKUP_OFFSITE_DIR:-${ROOT}/backups-offsite}"
 RETENTION_DAYS="${OFFSITE_RETENTION_DAYS:-14}"
 TIMESTAMP="$(date '+%Y%m%d-%H%M%S')"
 LOG="${OFFSITE_DIR}/offsite.log"

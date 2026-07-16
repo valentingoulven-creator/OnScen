@@ -140,12 +140,13 @@ livesRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
         return {
           live: l,
           host,
+          coords,
           distanceKm: getDistanceKm(lat, lon, coords.latitude, coords.longitude),
         };
       })
       .filter(
-        ({ distanceKm, live: l }) =>
-          withinRadius(distanceKm) && isValidLatLng(l.latitude, l.longitude)
+        ({ distanceKm, coords }) =>
+          withinRadius(distanceKm) && isValidLatLng(coords.latitude, coords.longitude)
       )
       .sort((a, b) => a.distanceKm - b.distanceKm);
 

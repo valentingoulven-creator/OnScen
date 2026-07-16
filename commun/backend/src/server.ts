@@ -36,6 +36,7 @@ import { msdevRouter } from './routes/msdev';
 import { legalRouter } from './routes/legal';
 import { analyticsRouter } from './routes/analytics';
 import { accessRouter } from './routes/access';
+import { adminAccountSnapshotsRouter } from './routes/adminAccountSnapshots';
 import { adminContentRouter } from './routes/adminContent';
 import { adminSponsorsRouter } from './routes/adminSponsors';
 import { adminCloudflareRouter } from './routes/adminCloudflare';
@@ -50,6 +51,7 @@ import { tilesRouter } from './routes/tiles';
 import { getPublicDir, getMsdevConfigPath } from './paths';
 import { REEL_UPLOAD_JSON_BODY_LIMIT } from './lib/reelUploadLimits';
 import { COMPOSITION_UPLOAD_JSON_BODY_LIMIT } from './lib/compositionUploadLimits';
+import { mediaUploadLimiter } from './lib/uploadRateLimits';
 import { startTileCacheEviction } from './lib/tileCacheEviction';
 import { resolveCorsOrigin } from './lib/corsConfig';
 import { isMsdevRuntime } from './lib/msdevGuard';
@@ -377,7 +379,10 @@ app.post(
   express.raw({ type: 'application/json' }),
   (req, res) => void handleStripeSubscriptionWebhook(req, res)
 );
+app.use('/api/reels', mediaUploadLimiter);
 app.use('/api/reels', express.json({ limit: REEL_UPLOAD_JSON_BODY_LIMIT }));
+app.use('/api/compositions', mediaUploadLimiter);
+app.use('/api/stories', mediaUploadLimiter);
 app.use('/api/compositions', express.json({ limit: COMPOSITION_UPLOAD_JSON_BODY_LIMIT }));
 app.use(
   '/api/users/me/albums',
@@ -536,6 +541,7 @@ app.use('/api/auth', oauthRouter);
 app.use('/api/auth/webauthn', webauthnRouter);
 app.use('/api/auth/2fa', twoFactorRouter);
 app.use('/api/access', accessRouter);
+app.use('/api/access', adminAccountSnapshotsRouter);
 app.use('/api/access/admin/support', supportAdminRouter);
 app.use('/api/access/admin/content', adminContentRouter);
 app.use('/api/access/admin/sponsors', adminSponsorsRouter);

@@ -112,13 +112,6 @@ export default defineConfig({
   base: isCapacitorBuild ? './' : '/tel/',
   resolve: {
     dedupe: ['react', 'react-dom'],
-    ...(isCapacitorBuild
-      ? {
-          alias: {
-            'react-globe.gl': path.resolve(__dirname, 'src/stubs/react-globe.gl.tsx'),
-          },
-        }
-      : {}),
   },
   define: {
     'import.meta.env.VITE_APP_ENV': JSON.stringify(process.env.VITE_APP_ENV || 'msdev'),
@@ -283,10 +276,14 @@ export default defineConfig({
           if (id.includes('socket.io-client')) return 'vendor-socketio';
           if (id.includes('livekit-client') || id.includes('@livekit/')) return 'vendor-livekit';
           if (id.includes('leaflet') || id.includes('react-leaflet')) return 'vendor-map';
-          if (isCapacitorBuild && (id.includes('react-globe.gl') || id.includes('three'))) {
+          // Globe 3D (Three.js/R3F) : chunk isolé, jamais chargé sur natif
+          // (canUseGlobeView() exclut ios/android) — atteint uniquement via
+          // le dynamic-import de GlobeView côté PWA/web mobile. Résolu via
+          // web/app/node_modules (pas de dépendance @react-three/* propre à
+          // apptel — cf. apptelSrcFallback qui overlay web/app/src).
+          if (id.includes('/three/') || id.includes('/three-') || id.includes('@react-three')) {
             return 'vendor-globe';
           }
-          if (id.includes('react-globe.gl') || id.includes('three')) return 'vendor-globe';
           return 'vendor-misc';
         },
       },

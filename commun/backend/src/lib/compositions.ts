@@ -19,6 +19,7 @@ import {
 } from './pgCompositions';
 import { schedulePersistAlbumToPg } from './pgAlbums';
 import { deleteCompositionUpvotes } from './compositionUpvotes';
+import { removeCompositionPlays } from './compositionPlays';
 import { schedulePersist } from './persist';
 
 export type PublicComposition = {
@@ -156,6 +157,7 @@ export function deleteUserComposition(compositionId: string, userId: string): bo
   if (index < 0) return false;
   const [removed] = db.compositions.splice(index, 1);
   deleteCompositionUpvotes(compositionId);
+  removeCompositionPlays(compositionId);
   deleteCompositionFileIfLocal(removed.fileUrl);
   scheduleDeleteCompositionFromPg(compositionId);
   if (removed.albumId) {

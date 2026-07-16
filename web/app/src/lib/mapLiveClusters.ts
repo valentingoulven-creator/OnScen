@@ -1,8 +1,8 @@
 import { isValidLatLng } from './mapCoords';
+import { buildEventLocationKey } from './mapEventClusters';
 import type { Live, Salon } from '../types';
 
-/** ~2 km à la latitude de Paris — regroupe les lives trop proches sur le globe. */
-export const LIVE_CLUSTER_GRID_DEG = 0.018;
+/** Précision regroupement lieu (~11 m) — même clé que les événements. */
 
 export interface MapLiveLocationCluster {
   id: string;
@@ -14,8 +14,7 @@ export interface MapLiveLocationCluster {
 }
 
 function gridKey(lat: number, lng: number): string {
-  const g = LIVE_CLUSTER_GRID_DEG;
-  return `${Math.round(lat / g)}:${Math.round(lng / g)}`;
+  return buildEventLocationKey(lat, lng);
 }
 
 function clusterCentroid(items: { lat: number; lng: number }[]): { lat: number; lng: number } {
@@ -26,7 +25,7 @@ function clusterCentroid(items: { lat: number; lng: number }[]): { lat: number; 
   return { lat: sum.lat / items.length, lng: sum.lng / items.length };
 }
 
-/** Regroupe salons live + lives standalone par proximité (vue globe overview). */
+/** Regroupe salons live + lives standalone par lieu (coords arrondies ~11 m). */
 export function clusterLiveMapMarkers(
   liveSalons: Salon[],
   lives: Live[],

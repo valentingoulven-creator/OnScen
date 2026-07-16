@@ -77,12 +77,14 @@ function rankMedal(rank: number): string {
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
-function PhotoIcon({ className }: { className?: string }) {
+function MediaAttachIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="8.5" cy="8.5" r="1.5" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="m21 15-5-5L5 21" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
+      />
     </svg>
   );
 }
@@ -380,7 +382,7 @@ export function ActualiteTabPage({ onOpenProfile, isActive }: ActualiteTabPagePr
   const [draft, setDraft] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [imageAttaching, setImageAttaching] = useState(false);
-  const imageFileInputRef = useRef<HTMLInputElement>(null);
+  const mediaFileInputRef = useRef<HTMLInputElement>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<FeedUserPrefs>(() => readFeedUserPrefs());
@@ -509,6 +511,18 @@ export function ActualiteTabPage({ onOpenProfile, isActive }: ActualiteTabPagePr
     } finally {
       setImageAttaching(false);
     }
+  };
+
+  const isVideoMediaFile = (file: File) =>
+    file.type.startsWith('video/') ||
+    ['mp4', 'mov', 'webm', 'm4v', 'mkv'].includes(file.name.split('.').pop()?.toLowerCase() ?? '');
+
+  const attachMediaFromFile = async (file: File) => {
+    if (isVideoMediaFile(file)) {
+      setError('Les vidéos ne sont pas encore prises en charge dans cette version.');
+      return;
+    }
+    await attachImageFromFile(file);
   };
 
   const handleComposePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -742,14 +756,14 @@ export function ActualiteTabPage({ onOpenProfile, isActive }: ActualiteTabPagePr
             <div className="shrink-0 border-b border-[#1e1e2f] p-3 space-y-2 bg-[#12121a]">
               <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Publier</p>
               <input
-                ref={imageFileInputRef}
+                ref={mediaFileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,video/*"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   e.target.value = '';
-                  if (file) void attachImageFromFile(file);
+                  if (file) void attachMediaFromFile(file);
                 }}
               />
               <textarea
@@ -789,32 +803,29 @@ export function ActualiteTabPage({ onOpenProfile, isActive }: ActualiteTabPagePr
                   </div>
                 </div>
               )}
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] text-gray-600">{draft.length}/2000</span>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    disabled={imageAttaching}
-                    onClick={() => imageFileInputRef.current?.click()}
-                    title="Choisir une image"
-                    aria-label="Choisir une image"
-                    className={`p-1.5 rounded-lg transition disabled:opacity-40 ${
-                      imageUrl.trim()
-                        ? 'text-purple-300 bg-purple-900/40'
-                        : 'text-gray-500 hover:text-gray-300 hover:bg-[#1e1e2f]'
-                    }`}
-                  >
-                    <PhotoIcon className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!canPublish || publishing || imageAttaching}
-                    onClick={() => void publish()}
-                    className="rounded-lg bg-purple-600 hover:bg-purple-500 px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
-                  >
-                    {publishing ? 'Envoi…' : 'Publier'}
-                  </button>
-                </div>
+              <div className="flex items-center justify-end gap-1.5">
+                <button
+                  type="button"
+                  disabled={imageAttaching || Boolean(imageUrl.trim())}
+                  onClick={() => mediaFileInputRef.current?.click()}
+                  title="Ajouter un média"
+                  aria-label="Ajouter un média"
+                  className={`min-w-11 min-h-11 flex items-center justify-center p-1.5 rounded-lg transition disabled:opacity-40 ${
+                    imageUrl.trim()
+                      ? 'text-purple-300 bg-purple-900/40'
+                      : 'text-gray-500 hover:text-gray-300 hover:bg-[#1e1e2f]'
+                  }`}
+                >
+                  <MediaAttachIcon className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  disabled={!canPublish || publishing || imageAttaching}
+                  onClick={() => void publish()}
+                  className="min-h-11 rounded-lg bg-purple-600 hover:bg-purple-500 px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
+                >
+                  {publishing ? 'Envoi…' : 'Publier'}
+                </button>
               </div>
               {error && <p className="text-xs text-red-400">{error}</p>}
             </div>

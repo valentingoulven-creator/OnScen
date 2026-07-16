@@ -5,6 +5,9 @@ const MAX_IMAGE_DIMENSION = PROFILE_PHOTO_MAX_DIMENSION;
 const JPEG_QUALITY = PROFILE_PHOTO_JPEG_QUALITY;
 const MAX_PROFILE_PHOTOS = 5;
 
+/** UI edit/save model: one profile photo (backend array may still hold legacy slots). */
+export const UI_MAX_PROFILE_PHOTOS = 1;
+
 /** Session-only preview URLs — never persist or treat as saved photos. */
 export function isEphemeralProfilePhotoUrl(url: string): boolean {
   return url.trim().startsWith('blob:');
@@ -64,6 +67,13 @@ export function assertPreparedProfilePhotos(intent: string[], prepared: string[]
       'Certaines photos n\'ont pas pu être enregistrées. Réessayez ou utilisez des images plus légères.'
     );
   }
+}
+
+/** Collapse legacy multi-slot data to a single primary photo for the edit form. */
+export function toSingleProfilePhotoSlots(photos: string[]): string[] {
+  const normalized = normalizeProfilePhotoSlots(photos);
+  const primary = normalized.find((url) => url.trim());
+  return primary ? [primary] : [];
 }
 
 /** Preserve [avatar, g1…g4] slots; index 0 may be '' when only gallery photos exist. */

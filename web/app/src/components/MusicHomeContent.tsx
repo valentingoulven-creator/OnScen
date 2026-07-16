@@ -1,5 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FeedTrendingUsersSection } from './FeedTrendingUsersSection';
+import { useAuth } from '../context/AuthContext';
+import { useEventsCountry } from '../hooks/useEventsCountry';
+import { useTrendingUsers } from '../hooks/useTrendingUsers';
 import { dicebearAdventurerAvatar } from '../lib/avatarUrl';
 import { formatCompactCount } from '../lib/formatCount';
 import { formatDurationSec } from '../lib/compositionUpload';
@@ -92,10 +96,13 @@ export function MusicTrackRow({
   track,
   onOpenProfile,
   rank,
+  statKind = 'likes',
 }: {
   track: MusicTrackItem;
   onOpenProfile?: (userId: string) => void;
   rank?: number;
+  /** Affiche écoutes (Populaire) ou likes (Tendance). */
+  statKind?: 'likes' | 'plays';
 }) {
   const subtitle = [
     track.creatorName,
@@ -129,12 +136,21 @@ export function MusicTrackRow({
         <p className="text-sm font-semibold text-gray-100 truncate">{track.title}</p>
         <p className="text-xs text-gray-500 truncate">{subtitle}</p>
       </div>
-      {track.upvoteCount != null && track.upvoteCount > 0 ? (
-        <span className="shrink-0 flex items-center gap-1 text-[11px] font-semibold text-gray-400 tabular-nums">
-          <HeartGlyph className="w-3 h-3 text-rose-400/80" />
-          {formatCompactCount(track.upvoteCount)}
-        </span>
-      ) : null}
+      {(() => {
+        const count =
+          statKind === 'plays' ? track.weeklyPlayCount : track.upvoteCount;
+        if (count == null || count <= 0) return null;
+        return (
+          <span className="shrink-0 flex items-center gap-1 text-[11px] font-semibold text-gray-400 tabular-nums">
+            {statKind === 'plays' ? (
+              <PlayGlyph className="w-3 h-3 text-amber-400/90" />
+            ) : (
+              <HeartGlyph className="w-3 h-3 text-rose-400/80" />
+            )}
+            {formatCompactCount(count)}
+          </span>
+        );
+      })()}
     </button>
   );
 }
@@ -444,11 +460,13 @@ function MusicSectionContent({
   emptyMessage,
   onOpenProfile,
   rankedTracks = false,
+  trackStatKind = 'likes',
 }: {
   section: MusicHomeSection | MusicHomeWeeklySection;
   emptyMessage: string;
   onOpenProfile: (userId: string) => void;
   rankedTracks?: boolean;
+  trackStatKind?: 'likes' | 'plays';
 }) {
   const { t } = useTranslation();
   const reels = 'reels' in section ? section.reels : [];
@@ -499,6 +517,7 @@ function MusicSectionContent({
                 track={track}
                 onOpenProfile={onOpenProfile}
                 rank={rankedTracks ? i + 1 : undefined}
+                statKind={trackStatKind}
               />
             ))}
           </div>
@@ -516,13 +535,25 @@ export function MusicHomeSections({
   data,
   loading,
   onOpenProfile,
+  isActive = true,
 }: {
   data: MusicHomePayload | null;
   loading: boolean;
   onOpenProfile: (userId: string) => void;
+  isActive?: boolean;
 }) {
   const { t } = useTranslation();
+  const { token, user } = useAuth();
   const [libraryTab, setLibraryTab] = useState<LibraryTab | null>(null);
+  const { countryCode, countryName } = useEventsCountry({
+    enabled: isActive,
+    profileCity: user?.city,
+  });
+  const { users: trendingUsers, loading: trendingLoading } = useTrendingUsers({
+    enabled: isActive,
+    token,
+    countryCode,
+  });
 
   const segments = useMemo(
     () =>
@@ -566,7 +597,8 @@ export function MusicHomeSections({
       defaultValue: 'Ajoute des morceaux ou crée une playlist depuis l’onglet Discographie de ton profil.',
     }),
     popular: t('music.emptyPopular', {
-      defaultValue: 'Les morceaux les plus likés apparaîtront ici.',
+      defaultValue:
+        'Les morceaux les plus écoutés cette semaine apparaîtront ici. Écoute une discographie pour alimenter le classement.',
     }),
   };
 
@@ -590,6 +622,16 @@ export function MusicHomeSections({
 
   return (
     <div className="space-y-6">
+      {!libraryTab ? (
+        <FeedTrendingUsersSection
+          users={trendingUsers}
+          loading={trendingLoading}
+          countryCode={countryCode}
+          countryName={countryName}
+          onOpenProfile={onOpenProfile}
+        />
+      ) : null}
+
       <div
         className="flex gap-1 p-1 rounded-full bg-[#12121a] border border-[#1e1e2f]"
         role="tablist"
@@ -669,7 +711,8 @@ export function MusicHomeSections({
                       })
                     : sectionId === 'popular'
                       ? t('music.popularSubtitle', {
-                          defaultValue: 'Le classement des morceaux les plus aimés',
+                          defaultValue:
+                            'Les morceaux les plus écoutés cette semaine · reset lundi',
                         })
                       : undefined
                 }
@@ -679,6 +722,7 @@ export function MusicHomeSections({
                 emptyMessage={emptyBySection[sectionId]}
                 onOpenProfile={onOpenProfile}
                 rankedTracks={sectionId === 'popular' || sectionId === 'weeklyTrend'}
+                trackStatKind={sectionId === 'popular' ? 'plays' : 'likes'}
               />
             </section>
           ))}
