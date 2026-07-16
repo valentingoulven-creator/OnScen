@@ -91,11 +91,14 @@ describe('assertProductionStartup', () => {
     expect(() => assertProductionStartup()).toThrow(/REDIS_URL/);
   });
 
-  it('throws when ACRCloud is missing in production', () => {
+  it('warns when ACRCloud is missing in production', () => {
     setProductionEnv();
     delete process.env.ACRCLOUD_ACCESS_KEY;
     delete process.env.ACRCLOUD_ACCESS_SECRET;
-    expect(() => assertProductionStartup()).toThrow(/ACRCLOUD/);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(() => assertProductionStartup()).not.toThrow();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('ACRCloud'));
+    warn.mockRestore();
   });
 
   it('throws when SENTRY_DSN is missing in production', () => {
