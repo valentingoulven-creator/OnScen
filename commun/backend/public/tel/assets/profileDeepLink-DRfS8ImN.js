@@ -1,0 +1,1 @@
+function e(o){return`/profile/${encodeURIComponent(o)}`}function t(o=window.location){const n=o.pathname.match(/^\/profile\/([^/]+)\/?$/i);return n?decodeURIComponent(n[1]):null}function r(o=window.location){return new URLSearchParams(o.search).get("tab")}export{t as n,r,e as t};

@@ -1,0 +1,1 @@
+import{J as e}from"./index-2LowlvTQ.js";var u=[...e];function n(r){return typeof r=="number"&&Number.isFinite(r)}function s(r,i){return n(r)&&n(i)&&r>=-90&&r<=90&&i>=-180&&i<=180}function f(r,i,t=u){return s(r,i)?[r,i]:t}export{f as n,s as t};
