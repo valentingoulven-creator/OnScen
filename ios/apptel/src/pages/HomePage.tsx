@@ -759,7 +759,8 @@ export const HomePage = forwardRef<HomePageHandle, HomePageProps>(function HomeP
           lives={mapLives}
           people={mapPeople}
           center={center}
-          userPosition={mapUserPosition ?? undefined}
+          userPosition={mapUserPosition?.coords}
+          userPositionKind={mapUserPosition?.kind}
           onSelectSalon={(s) => handleMapSalonClick(s)}
           onSelectLive={(l) => onOpenLive(l.id)}
           onSelectPerson={handleMapPersonClick}
