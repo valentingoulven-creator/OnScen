@@ -23,6 +23,7 @@ function isUnreadGroupMessage(
   m: GroupMessage,
   opts?: { includeMuted?: boolean }
 ): boolean {
+  if (m.kind === 'system') return false;
   if (m.senderId === userId) return false;
   if (!isGroupMessageVisibleToUser(m, userId)) return false;
   if (!isGroupMember(m.groupId, userId)) return false;

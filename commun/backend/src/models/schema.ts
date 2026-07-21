@@ -448,6 +448,16 @@ export interface MessageGroup {
   createdAt: number;
 }
 
+export type GroupMessageKind = 'user' | 'system';
+
+export type GroupSystemEvent =
+  | 'group_created'
+  | 'group_renamed'
+  | 'member_added'
+  | 'member_removed'
+  | 'member_left'
+  | 'admin_transferred';
+
 export interface GroupMessage {
   id: string;
   groupId: string;
@@ -456,6 +466,15 @@ export interface GroupMessage {
   timestamp: number;
   /** Utilisateurs pour lesquels ce message est masqué (suppression locale). */
   hiddenFor?: string[];
+  /** Message utilisateur (défaut) ou notification système (renommage, membres, admin). */
+  kind?: GroupMessageKind;
+  systemEvent?: GroupSystemEvent;
+  systemMeta?: {
+    actorName: string;
+    targetName?: string;
+    oldName?: string;
+    newName?: string;
+  };
 }
 
 export interface Gift {
