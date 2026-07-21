@@ -11,10 +11,11 @@ describe('mapEventDayColors', () => {
   const dayKeys = getNextCalendarDayKeys(MAP_EVENTS_BROWSE_DAY_COUNT, from);
 
   it('assigns browse day index from calendar day key', () => {
+    expect(dayKeys).toHaveLength(MAP_EVENTS_BROWSE_DAY_COUNT);
     expect(getMapEventBrowseDayIndex(dayKeys[0]!, from)).toBe(0);
     expect(getMapEventBrowseDayIndex(dayKeys[1]!, from)).toBe(1);
     expect(getMapEventBrowseDayIndex(dayKeys[2]!, from)).toBe(2);
-    expect(getMapEventBrowseDayIndex(dayKeys[3]!, from)).toBe(3);
+    expect(getMapEventBrowseDayIndex('2026-07-24', from)).toBe(-1);
   });
 
   it('maps day index to green blue orange black', () => {

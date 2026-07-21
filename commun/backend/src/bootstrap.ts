@@ -31,7 +31,7 @@ import {
   ensureMsdevListenerFollowersCount,
 } from './lib/msdevDemoAccounts';
 import { ensureAccessAdmins, isAccessControlEnabled, loadAccessControlFromPersist } from './lib/accessControl';
-import { ensureDefaultSponsors, migrateSponsorMapVisibility, syncDefaultSponsorFields, syncDefaultSponsorScopes } from './lib/sponsors';
+import { ensureDefaultMapSidebarEventSponsors, ensureDefaultSponsors, migrateSponsorMapVisibility, syncDefaultSponsorFields, syncDefaultSponsorScopes } from './lib/sponsors';
 import { ensureProductionSponsorContent } from './seed-production-sponsors';
 import { ensureDefaultSponsorPlatformConfig } from './lib/sponsorPlatformConfig';
 import { repairInvalidGeoInDb } from './lib/mapCoords';
@@ -422,6 +422,13 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
 
   if (APP_ENV === 'production' || APP_ENV === 'preproduction') {
     ensureProductionSponsorContent();
+  }
+  const sidebarSponsorsAdded = ensureDefaultMapSidebarEventSponsors();
+  if (sidebarSponsorsAdded > 0) {
+    console.log(
+      `[melosong] Sponsors sidebar carte ajoutés : ${sidebarSponsorsAdded} entrée(s)`
+    );
+    schedulePersist();
   }
 
   seedBotsAtStartup();

@@ -104,6 +104,30 @@ export const sponsorsApi = {
   getSalonSponsors: () =>
     request<{ items: import('../../types').MapAdItem[] }>('/sponsors/salon', { cache: 'no-store' }),
 
+  getMapSidebarEventSponsors: (token: string) =>
+    request<{ posts: import('../../types').FeedPost[] }>(
+      '/sponsors/map-sidebar-events',
+      { cache: 'no-store' },
+      token
+    ),
+
+  getDevMapSidebarEventSponsorIds: (token: string) =>
+    request<{ postIds: string[] }>('/access/dev/map-sidebar-event-sponsors', { cache: 'no-store' }, token),
+
+  getDevMapSidebarEventSponsor: (token: string, postId: string) =>
+    request<{ sponsor: import('../../types').Sponsor | null }>(
+      `/access/dev/map-sidebar-event-sponsor/${encodeURIComponent(postId)}`,
+      { cache: 'no-store' },
+      token
+    ),
+
+  setDevMapSidebarEventSponsor: (token: string, postId: string, sponsored: boolean) =>
+    request<{ sponsor: import('../../types').Sponsor | null; sponsored: boolean }>(
+      '/access/dev/map-sidebar-event-sponsor',
+      { method: 'POST', body: JSON.stringify({ postId, sponsored }) },
+      token
+    ),
+
   getAdminSponsorsConfig: (token: string) =>
     request<{ config: import('../../types').SponsorPlatformConfig }>(
       '/access/admin/sponsors/config',
@@ -119,5 +143,20 @@ export const sponsorsApi = {
       '/access/admin/sponsors/config',
       { method: 'PATCH', body: JSON.stringify(body) },
       token
-    )
+    ),
+
+  estimateAdminSponsorAudience: (
+    token: string,
+    body: {
+      placement?: import('../../types').SponsorPlacement;
+      mapVisibilityScope?: import('../../types').SponsorMapVisibilityScope;
+      mapTargetLat?: number | null;
+      mapTargetLng?: number | null;
+    }
+  ) =>
+    request<{ estimate: import('../../types').SponsorAudienceEstimate }>(
+      '/access/admin/sponsors/estimate-audience',
+      { method: 'POST', body: JSON.stringify(body) },
+      token
+    ),
 } as const;

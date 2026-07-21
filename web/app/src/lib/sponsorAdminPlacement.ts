@@ -1,23 +1,27 @@
 import type { Sponsor, SponsorPlacement } from '../types';
 
-export type SponsorPlacementTab = SponsorPlacement | 'all';
+export type SponsorPlacementTab = SponsorPlacement | 'all' | 'pricing';
 
 export const SPONSOR_PLACEMENT_TABS: SponsorPlacementTab[] = [
   'all',
   'map_banner',
+  'map_sidebar_events',
   'feed_inline',
   'stories_banner',
   'stories_sponsored',
   'reels_sponsored',
   'salon_theater',
+  'pricing',
 ];
 
 export function placementTabToApiPlacement(tab: SponsorPlacementTab): SponsorPlacement | undefined {
-  return tab === 'all' ? undefined : tab;
+  if (tab === 'all' || tab === 'pricing') return undefined;
+  return tab;
 }
 
 export function defaultPlacementForTab(tab: SponsorPlacementTab): SponsorPlacement {
-  return tab === 'all' ? 'map_banner' : tab;
+  if (tab === 'all' || tab === 'pricing') return 'map_banner';
+  return tab;
 }
 
 /** Réordonne les ids complets en ne permutant que le groupe du placement donné. */

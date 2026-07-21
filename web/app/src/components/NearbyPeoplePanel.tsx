@@ -17,6 +17,7 @@ import { UsernameDisplay } from './UsernameDisplay';
 import { formatCompactCount } from '../lib/formatCount';
 import type { FeedPost, Live, MapEventMarker, NearbyPerson, Salon } from '../types';
 import { MapEventRow } from './MapCityEventsPanel';
+import { EventsCarousel } from './EventsCarousel';
 import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
 
 export interface MapSidebarEventsBrowseConfig {
@@ -40,6 +41,54 @@ export interface MapSidebarEventsBrowseConfig {
   onMapEventDayKeySelect?: (dayKey: string) => void;
 }
 
+function SponsoBadge() {
+  const { t } = useTranslation();
+  return (
+    <span className="inline-flex items-center rounded-full bg-amber-500/15 border border-amber-500/35 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-300">
+      {t('map.sidebarSponsoBadge', { defaultValue: 'Sponsorisé' })}
+    </span>
+  );
+}
+
+function MapSidebarSponsoSection({
+  posts,
+  onOpen,
+  onPostChange,
+  retracted,
+  onToggleRetracted,
+}: {
+  posts: FeedPost[];
+  onOpen?: (post: FeedPost) => void;
+  onPostChange?: (postId: string, patch: Partial<FeedPost>) => void;
+  retracted: boolean;
+  onToggleRetracted: () => void;
+}) {
+  const { t } = useTranslation();
+  if (posts.length === 0) return null;
+
+  return (
+    <li className="border-b border-[var(--ms-border)]/80 list-none">
+      <CollapsibleSectionHeader
+        label={t('map.sidebarSponsoCategory', { defaultValue: 'Sponso' })}
+        count={posts.length}
+        retracted={retracted}
+        onToggle={onToggleRetracted}
+      />
+      {!retracted ? (
+        <div className="px-1.5 sm:px-2 pb-2 min-w-0">
+          <EventsCarousel
+            posts={posts}
+            size="sidebar"
+            onOpen={(post) => onOpen?.(post)}
+            onPostChange={onPostChange}
+            getExtraBadges={() => <SponsoBadge />}
+          />
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
 interface NearbyPeoplePanelProps {
   content: MapSidebarContent;
   detail: MapViewDetailState;
@@ -58,6 +107,10 @@ interface NearbyPeoplePanelProps {
   /** Filtre Événement actif — même liste que la popup browse. */
   eventsBrowseMode?: boolean;
   eventsBrowse?: MapSidebarEventsBrowseConfig;
+  /** Événements sponsorisés (carrousel Sponso). */
+  sponsoredEventPosts?: FeedPost[];
+  onSponsoredEventOpen?: (post: FeedPost) => void;
+  onSponsoredEventPostChange?: (postId: string, patch: Partial<FeedPost>) => void;
 }
 
 function CollapsibleSectionHeader({
@@ -393,6 +446,9 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
   salonFilterOn = false,
   eventsBrowseMode = false,
   eventsBrowse,
+  sponsoredEventPosts = [],
+  onSponsoredEventOpen,
+  onSponsoredEventPostChange,
 }: NearbyPeoplePanelProps) {
   const { t } = useTranslation();
   const isBottom = layout === 'bottom';
@@ -561,6 +617,15 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
 
       <div className="flex-1 min-h-0 flex flex-col min-w-0">
         <ul className="flex-1 min-h-0 overflow-y-auto py-1">
+          {!showEventsBrowseList && sponsoredEventPosts.length > 0 ? (
+            <MapSidebarSponsoSection
+              posts={sponsoredEventPosts}
+              onOpen={onSponsoredEventOpen}
+              onPostChange={onSponsoredEventPostChange}
+              retracted={isSectionRetracted('sponso')}
+              onToggleRetracted={() => toggleSectionRetracted('sponso')}
+            />
+          ) : null}
           {showEventsBrowseList ? (
             <li className="list-none min-w-0">
               <MapEventsBrowseList
@@ -591,6 +656,7 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
                 onPostChange={handleBrowsePostChange}
                 selectedMapEventDayKey={eventsBrowse?.selectedMapEventDayKey}
                 onMapEventDayKeySelect={eventsBrowse?.onMapEventDayKeySelect}
+                sponsoredEventPosts={sponsoredEventPosts}
               />
             </li>
           ) : null}

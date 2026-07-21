@@ -27,6 +27,7 @@ export interface MapEventsBrowseSheetProps {
   onPostChange?: (postId: string, patch: Partial<FeedPost>) => void;
   selectedMapEventDayKey?: string | null;
   onMapEventDayKeySelect?: (dayKey: string) => void;
+  sponsoredEventPosts?: FeedPost[];
 }
 
 function MapViewIcon({ className }: { className?: string }) {
@@ -56,6 +57,7 @@ export function MapEventsBrowseSheet({
   onPostChange,
   selectedMapEventDayKey,
   onMapEventDayKeySelect,
+  sponsoredEventPosts = [],
 }: MapEventsBrowseSheetProps) {
   const { t } = useTranslation();
   const [detailPost, setDetailPost] = useState<FeedPost | null>(null);
@@ -188,6 +190,7 @@ export function MapEventsBrowseSheet({
             onPostChange={browse.handlePostChange}
             selectedMapEventDayKey={selectedMapEventDayKey}
             onMapEventDayKeySelect={onMapEventDayKeySelect}
+            sponsoredEventPosts={sponsoredEventPosts}
           />
         </div>
       </div>

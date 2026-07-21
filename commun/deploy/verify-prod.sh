@@ -47,13 +47,24 @@ else
   fi
 fi
 
-# legal-publisher.json
-# NB : détection insensible à la casse et sur plusieurs formes de placeholder,
-# car le champ brut du JSON contient typiquement "à renseigner" / "acompleter"
-# (valeur non résolue), pas seulement le gabarit "[À compléter : ...]" généré
-# à l'affichage par legalPublisher.ts quand un champ est vide.
+# legal-publisher.json — adresse effective : JSON ou LEGAL_PUBLISHER_ADDRESS (.env)
+is_placeholder_line() {
+  echo "$1" | grep -qiE '\[à compléter|à compléter|à renseigner|acompleter|@gmail\.com|@yahoo\.|@hotmail\.|@outlook\.'
+}
+
+legal_address_ok=0
+legal_addr_env=""
+if [[ -f "$ENV_FILE" ]]; then
+  legal_addr_env="$(grep -E '^[[:space:]]*LEGAL_PUBLISHER_ADDRESS=' "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s/^"//;s/"$//')"
+  if [[ -n "$legal_addr_env" ]] && ! is_placeholder_line "$legal_addr_env"; then
+    legal_address_ok=1
+  fi
+fi
+
 if [[ ! -f "$LEGAL_FILE" ]]; then
   fail "legal-publisher.json absent : $LEGAL_FILE (copier depuis commun/msdev/legal-publisher.example.json)"
+elif [[ "$legal_address_ok" -eq 1 ]]; then
+  ok "legal-publisher : adresse via LEGAL_PUBLISHER_ADDRESS (.env)"
 elif grep -qiE '\[à compléter|à compléter|à renseigner|acompleter|@gmail\.com|@yahoo\.|@hotmail\.|@outlook\.' "$LEGAL_FILE" 2>/dev/null; then
   fail "legal-publisher.json contient des placeholders non résolus ou une adresse e-mail personnelle (voir commun/docs/audit/AUDIT-legal-youtube-copyright.md RGPD-1)"
 else

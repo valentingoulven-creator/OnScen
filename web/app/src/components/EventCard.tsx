@@ -20,6 +20,7 @@ import { OpenLocationMenu } from './OpenLocationMenu';
 import { EventTaggedUsersRow } from './EventTaggedUsersRow';
 import { EventUpvoteButton } from './EventUpvoteButton';
 import { EventCardMapSidebar } from './EventCardMapSidebar';
+import { EventDevSponsoButton } from './EventDevSponsoButton';
 
 function CalendarIcon({ className }: { className?: string }) {
   return (
@@ -462,6 +463,7 @@ export function EventCard({
           <ShareIcon className="w-3.5 h-3.5" />
         </button>
       ) : null}
+      {post.isEvent && !embedded ? <EventDevSponsoButton post={post} /> : null}
       {onOpenAuthor ? (
         <>
           <div className="w-full">{heroVisual}</div>

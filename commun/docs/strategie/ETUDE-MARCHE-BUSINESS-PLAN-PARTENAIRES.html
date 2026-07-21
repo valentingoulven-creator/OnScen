@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Soundy — Étude de marché & business plan</title>
+  <style>/* Soundy — documents stratégie & commercial */
+
+:root {
+  --soundy-bg: #0b0b0f;
+  --soundy-card: #12121a;
+  --soundy-border: #1e1e2f;
+  --soundy-purple: #7c3aed;
+  --soundy-purple-light: #a78bfa;
+  --soundy-purple-soft: #ede9fe;
+  --soundy-text: #111827;
+  --soundy-muted: #6b7280;
+  --soundy-white: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.55;
+  color: var(--soundy-text);
+  background: var(--soundy-white);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ─── Page de garde (étude) ─── */
+
+.cover {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 22mm 20mm 18mm;
+  background:
+    radial-gradient(ellipse 80% 60% at 100% 0%, rgba(124, 58, 237, 0.35) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 0% 100%, rgba(167, 139, 250, 0.15) 0%, transparent 50%),
+    linear-gradient(160deg, #0b0b0f 0%, #151520 45%, #1a1030 100%);
+  color: var(--soundy-white);
+  page-break-after: always;
+}
+
+.cover-mark {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.cover-mark svg {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(124, 58, 237, 0.45);
+}
+
+.cover-brand {
+  font-size: 13pt;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--soundy-purple-light);
+}
+
+.cover h1 {
+  font-size: 28pt;
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0 0 14px;
+  max-width: 16ch;
+  border: none;
+  color: var(--soundy-white);
+  padding: 0;
+}
+
+.cover-sub {
+  font-size: 13pt;
+  color: rgba(255, 255, 255, 0.72);
+  max-width: 34ch;
+  margin: 0 0 36px;
+  line-height: 1.5;
+}
+
+.cover-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  font-size: 9.5pt;
+  color: rgba(255, 255, 255, 0.55);
+  border-top: 1px solid rgba(167, 139, 250, 0.25);
+  padding-top: 18px;
+  width: 100%;
+}
+
+.cover-meta strong {
+  color: var(--soundy-purple-light);
+  font-weight: 600;
+}
+
+.cover-badge {
+  margin-top: auto;
+  padding-top: 40px;
+  font-size: 8.5pt;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* ─── Contenu étude ─── */
+
+.doc-study .content {
+  padding: 0 18mm 20mm;
+}
+
+.doc-study .running-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10mm 18mm 4mm;
+  border-bottom: 1px solid var(--soundy-border);
+  font-size: 8pt;
+  color: var(--soundy-muted);
+  letter-spacing: 0.04em;
+}
+
+.doc-study .running-head span.brand {
+  font-weight: 700;
+  color: var(--soundy-purple);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.doc-study h2 {
+  font-size: 15pt;
+  color: #312e81;
+  border: none;
+  margin: 28px 0 12px;
+  padding: 0 0 8px;
+  border-bottom: 2px solid var(--soundy-purple-soft);
+  page-break-after: avoid;
+}
+
+.doc-study h3 {
+  font-size: 11.5pt;
+  color: var(--soundy-purple);
+  margin: 20px 0 8px;
+  page-break-after: avoid;
+}
+
+.doc-study hr {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 22px 0;
+}
+
+.doc-study p {
+  margin: 8px 0;
+}
+
+.doc-study strong {
+  color: #111;
+}
+
+.doc-study em {
+  color: var(--soundy-muted);
+}
+
+.doc-study ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.doc-study li {
+  margin: 4px 0;
+}
+
+.doc-study table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0 18px;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 0 #e5e7eb;
+}
+
+.doc-study th {
+  background: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%);
+  color: #4c1d95;
+  font-weight: 600;
+  text-align: left;
+  padding: 9px 12px;
+  border: 1px solid #ddd6fe;
+}
+
+.doc-study td {
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  vertical-align: top;
+}
+
+.doc-study tr:nth-child(even) td {
+  background: #fafafa;
+}
+
+.doc-study blockquote {
+  border: none;
+  border-left: 4px solid var(--soundy-purple);
+  margin: 14px 0;
+  padding: 12px 16px;
+  background: linear-gradient(90deg, #faf5ff 0%, #fff 100%);
+  color: #4c1d95;
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+}
+
+.doc-study .footer-note {
+  margin-top: 32px;
+  padding-top: 14px;
+  border-top: 1px solid #e5e7eb;
+  font-size: 8.5pt;
+  color: var(--soundy-muted);
+  text-align: center;
+}
+
+.doc-study .footer-note em {
+  font-style: normal;
+}
+
+/* ─── One-pager commercial ─── */
+
+.doc-onepager {
+  background: var(--soundy-white);
+}
+
+.onepager-hero {
+  background:
+    radial-gradient(ellipse 90% 80% at 80% -20%, rgba(167, 139, 250, 0.5) 0%, transparent 50%),
+    linear-gradient(135deg, #4c1d95 0%, #7c3aed 50%, #5b21b6 100%);
+  color: var(--soundy-white);
+  padding: 14mm 16mm 12mm;
+  page-break-after: avoid;
+}
+
+.onepager-hero-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10mm;
+}
+
+.onepager-hero-top svg {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+
+.onepager-hero-brand {
+  font-size: 10pt;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.onepager-hero-url {
+  font-size: 9pt;
+  opacity: 0.75;
+}
+
+.onepager-hero h1 {
+  font-size: 22pt;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 8px;
+  border: none;
+  color: var(--soundy-white);
+  padding: 0;
+  max-width: 20ch;
+}
+
+.onepager-hero-lead {
+  font-size: 11pt;
+  line-height: 1.5;
+  opacity: 0.92;
+  max-width: 52ch;
+  margin: 0;
+}
+
+.doc-onepager .content {
+  padding: 8mm 16mm 14mm;
+}
+
+.doc-onepager h2 {
+  font-size: 10.5pt;
+  font-weight: 700;
+  color: #4c1d95;
+  margin: 14px 0 8px;
+  padding: 0 0 4px;
+  border-bottom: 2px solid var(--soundy-purple-soft);
+  page-break-after: avoid;
+}
+
+.doc-onepager h2:first-child {
+  margin-top: 0;
+}
+
+.doc-onepager hr {
+  display: none;
+}
+
+.doc-onepager p {
+  margin: 6px 0;
+  font-size: 9.5pt;
+}
+
+.doc-onepager table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 12px;
+  font-size: 8.5pt;
+  page-break-inside: avoid;
+}
+
+.doc-onepager th {
+  background: #f5f3ff;
+  color: #4c1d95;
+  font-weight: 600;
+  padding: 6px 8px;
+  border: 1px solid #ddd6fe;
+  text-align: left;
+}
+
+.doc-onepager td {
+  padding: 5px 8px;
+  border: 1px solid #e5e7eb;
+  vertical-align: top;
+}
+
+.doc-onepager tr:nth-child(even) td {
+  background: #fafafa;
+}
+
+.doc-onepager ul {
+  margin: 6px 0;
+  padding-left: 18px;
+  font-size: 9pt;
+}
+
+.doc-onepager li {
+  margin: 3px 0;
+}
+
+.doc-onepager blockquote {
+  border: none;
+  margin: 10px 0;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+  border: 1px solid #ddd6fe;
+  border-radius: 10px;
+  color: #4c1d95;
+  font-size: 10pt;
+  font-weight: 600;
+  page-break-inside: avoid;
+}
+
+.doc-onepager blockquote p {
+  margin: 0;
+}
+
+.doc-onepager .contact-grid table {
+  margin: 8px 0 0;
+}
+
+.doc-onepager .footer-note {
+  margin-top: 10px;
+  font-size: 7.5pt;
+  color: var(--soundy-muted);
+  text-align: center;
+}
+
+.doc-onepager em {
+  color: var(--soundy-muted);
+  font-size: 8.5pt;
+}
+
+@page {
+  size: A4;
+  margin: 12mm 14mm 16mm;
+}
+
+@media print {
+  h2, h3, blockquote, table {
+    page-break-inside: avoid;
+  }
+}
+</style>
+</head>
+<body class="doc-study">
+<div class="cover">
+  <div class="cover-mark">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#7c3aed"/>
+  <text x="256" y="300" font-size="200" text-anchor="middle" fill="white">j</text>
+</svg>
+
+    <span class="cover-brand">Soundy</span>
+  </div>
+  <h1>Étude de marché,<br>business plan<br>&amp; partenaires</h1>
+  <p class="cover-sub">Analyse stratégique du réseau social musique live — opportunités sponsors, projections et plan commercial.</p>
+  <div class="cover-meta">
+    <span><strong>Site</strong> getsoundy.com</span>
+    <span><strong>Date</strong> Juillet 2026</span>
+    <span><strong>Statut</strong> Confidentiel</span>
+  </div>
+  <div class="cover-badge">Document stratégique · Soundy</div>
+</div>
+<div class="running-head">
+  <span class="brand">Soundy</span>
+  <span>Étude de marché &amp; business plan · getsoundy.com</span>
+</div>
+<div class="content"><h2>Résumé exécutif</h2>
+<p>Soundy est le <strong>réseau social de la musique live et de l&#39;écoute partagée</strong> (application mobile-first, <a href="https://getsoundy.com">getsoundy.com</a>). Le modèle économique priorise les <strong>sponsors natifs</strong> (45 à 55 % du revenu cible à 24 mois), complétés par les commissions créateurs (pourboires live, abonnements) et l&#39;offre Soundy+.</p>
+<p><strong>Opportunité</strong> : les annonceurs musique et nightlife cherchent des alternatives aux CPM Meta et Instagram (6 à 18 € en France). Soundy propose un inventaire vertical et géolocalisé, dès <strong>~150 € pour 7 jours</strong> (Carte · Sponso, palier 50 000 inscrits).</p>
+<p><strong>Objectifs à 12 mois</strong> : 15 000 utilisateurs actifs mensuels · 40 k€ de revenus annuels sponsors · 5 à 8 contrats récurrents · 30 créateurs monétisés.</p>
+<hr>
+<h2>1. Étude de marché</h2>
+<h3>1.1 Problème et positionnement</h3>
+<p>Les fans dispersent leur attention entre TikTok (découverte), Instagram (social), Shotgun et Resident Advisor (sorties), Spotify et YouTube (écoute). Aucun acteur ne combine <strong>social, carte géolocalisée, écoute partagée, live et monétisation créateur</strong> dans une application verticale pensée pour le mobile.</p>
+<p><strong>Proposition Soundy</strong> : unifier découverte → écoute ensemble → live → sortie sur le terrain, avec des formats sponsorisés natifs et non intrusifs.</p>
+<h3>1.2 Taille de marché (France)</h3>
+<table>
+<thead>
+<tr>
+<th>Niveau</th>
+<th>Définition</th>
+<th>Estimation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>TAM</strong></td>
+<td>Dépenses publicitaires digitales France (display, social, vidéo)</td>
+<td>~8 à 10 Md€ / an</td>
+</tr>
+<tr>
+<td><strong>SAM</strong></td>
+<td>Publicité musique, événementiel et lifestyle 16–35 ans</td>
+<td>~400 à 600 M€ / an</td>
+</tr>
+<tr>
+<td><strong>SOM</strong> (3 ans)</td>
+<td>Part capturable par l&#39;inventaire natif Soundy</td>
+<td><strong>0,5 à 2 M€ ARR</strong></td>
+</tr>
+</tbody></table>
+<p><strong>Marché adressable utilisateurs</strong> : 8 à 12 millions de personnes de 16 à 35 ans sensibles à la musique, aux réseaux sociaux et aux sorties en France ; 500 000 à 1 million d&#39;early adopters visés à 24 mois.</p>
+<h3>1.3 Segments annonceurs</h3>
+<table>
+<thead>
+<tr>
+<th>Segment</th>
+<th>Exemples</th>
+<th>Emplacement privilégié</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Lieux et nightlife</td>
+<td>Bars, clubs, salles 50–500 places</td>
+<td>Carte · Sponso + fil</td>
+</tr>
+<tr>
+<td>Festivals et billetterie</td>
+<td>Shotgun, Dice, billetteries locales</td>
+<td>Reels + takeover</td>
+</tr>
+<tr>
+<td>Labels indie</td>
+<td>Maisons de disques indépendantes</td>
+<td>Reels + stories</td>
+</tr>
+<tr>
+<td>Marques lifestyle</td>
+<td>Boissons, audio, mode 16–35 ans</td>
+<td>Reels + stories</td>
+</tr>
+<tr>
+<td>Streaming et retail</td>
+<td>Deezer, Fnac, disquaires</td>
+<td>Carte + fil</td>
+</tr>
+<tr>
+<td>Équipement créateurs</td>
+<td>Pioneer DJ, JBL, Native Instruments</td>
+<td>Reels + live</td>
+</tr>
+</tbody></table>
+<h3>1.4 Concurrence</h3>
+<table>
+<thead>
+<tr>
+<th>Acteur</th>
+<th>Force</th>
+<th>Limite face à Soundy</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Instagram / TikTok</td>
+<td>Portée, algorithme</td>
+<td>Pas de carte événements musique, pas d&#39;écoute synchronisée</td>
+</tr>
+<tr>
+<td>Shotgun / RA / Dice</td>
+<td>Billetterie</td>
+<td>Peu social, pas de live intégré</td>
+</tr>
+<tr>
+<td>Discord</td>
+<td>Communautés</td>
+<td>Friction, pas orienté grand public mobile</td>
+</tr>
+<tr>
+<td>Spotify</td>
+<td>Écoute</td>
+<td>Social limité, pas de sorties sur le terrain</td>
+</tr>
+<tr>
+<td>Bandsintown</td>
+<td>Alertes concerts</td>
+<td>Pas de réseau social</td>
+</tr>
+</tbody></table>
+<p><strong>Atouts différenciants Soundy</strong> : salons d&#39;écoute YouTube synchronisés · carte géolocalisée et salons actifs · live vidéo · sponsors natifs · pourboires et abonnements créateurs intégrés.</p>
+<h3>1.5 Tendances 2026–2028</h3>
+<ul>
+<li><strong>Hyper-local</strong> : campagnes par ville ou région, avec estimation d&#39;audience par zone.</li>
+<li><strong>Formats courts</strong> : Reels sponsorisés comme entrée de gamme (~150 € / 7 jours).</li>
+<li><strong>Mesure de performance</strong> : les annonceurs exigent une preuve d&#39;exposition (reporting campagne).</li>
+<li><strong>Économie des créateurs</strong> : pourboires live comme revenu complémentaire indépendant des marques.</li>
+</ul>
+<h3>1.6 Grille tarifaire de référence</h3>
+<p><strong>Formule</strong> : prix = utilisateurs exposés × jours × CPM ÷ 1 000</p>
+<table>
+<thead>
+<tr>
+<th>Palier inscrits</th>
+<th>Actifs 30 j (estim.)</th>
+<th>Carte · Sponso · 7 j</th>
+<th>Positionnement</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>50 K</strong></td>
+<td>~20 K (40 %)</td>
+<td><strong>~150 €</strong></td>
+<td>Lancement</td>
+</tr>
+<tr>
+<td><strong>100 K</strong></td>
+<td>~38 K (38 %)</td>
+<td><strong>~360 €</strong></td>
+<td>PME, festivals locaux</td>
+</tr>
+<tr>
+<td><strong>500 K</strong></td>
+<td>~175 K (35 %)</td>
+<td><strong>~1 840 €</strong></td>
+<td>Régional</td>
+</tr>
+<tr>
+<td><strong>1 M</strong></td>
+<td>~320 K (32 %)</td>
+<td><strong>~3 700 €</strong></td>
+<td>National de niche</td>
+</tr>
+</tbody></table>
+<p><em>Pénétration Carte · Sponso : ~30 % des actifs sur 30 jours. CPM palier 50 K : 3,50 €.</em></p>
+<p><strong>Packages mensuels</strong></p>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Emplacements</th>
+<th>Prix / mois HT</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Starter Local</td>
+<td>Carte ou fil</td>
+<td>800 €</td>
+</tr>
+<tr>
+<td>Pro Ville</td>
+<td>Carte + fil + stories</td>
+<td>2 400 €</td>
+</tr>
+<tr>
+<td>Premium Musique</td>
+<td>Tous + 2 reels / mois</td>
+<td>4 800 €</td>
+</tr>
+<tr>
+<td>Takeover Ville</td>
+<td>Tous emplacements, 7 jours</td>
+<td>8 000 € / semaine</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>2. Business plan (36 mois)</h2>
+<h3>2.1 Sources de revenus</h3>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Part cible M24</th>
+<th>Statut</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Sponsors natifs</td>
+<td>45–55 %</td>
+<td>7 emplacements en production</td>
+</tr>
+<tr>
+<td>Commissions créateurs</td>
+<td>25–35 %</td>
+<td>Stripe Connect opérationnel</td>
+</tr>
+<tr>
+<td>Soundy+</td>
+<td>10–15 %</td>
+<td>Roadmap</td>
+</tr>
+<tr>
+<td>B2B lieux (Pro Lieu)</td>
+<td>5–15 %</td>
+<td>Roadmap M4–M6</td>
+</tr>
+</tbody></table>
+<h3>2.2 Phase 0 — Lancement (M0–M6)</h3>
+<table>
+<thead>
+<tr>
+<th>Indicateur</th>
+<th>Cible</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Utilisateurs actifs mensuels</td>
+<td>5 000 → 15 000</td>
+</tr>
+<tr>
+<td>Inscrits</td>
+<td>~50 000</td>
+</tr>
+<tr>
+<td>Revenus annuels sponsors</td>
+<td>15–40 k€</td>
+</tr>
+<tr>
+<td>Créateurs monétisés</td>
+<td>10–30</td>
+</tr>
+<tr>
+<td>Contrats sponsors payants</td>
+<td>3–5</td>
+</tr>
+</tbody></table>
+<p><strong>Offre commerciale</strong> : pack Starter Sponso 7 j + 1 Reel = <strong>199 €</strong> · entrée de gamme à partir de <strong>99 €</strong>.</p>
+<p><strong>Villes pilotes</strong> : Paris · Lyon · Toulouse / Montpellier.</p>
+<h3>2.3 Phase 1 — Traction (M7–M12)</h3>
+<table>
+<thead>
+<tr>
+<th>Indicateur</th>
+<th>Cible</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Utilisateurs actifs mensuels</td>
+<td>15 000</td>
+</tr>
+<tr>
+<td>Revenus annuels sponsors</td>
+<td><strong>40 k€</strong></td>
+</tr>
+<tr>
+<td>Contrats récurrents</td>
+<td>5–8</td>
+</tr>
+<tr>
+<td>Créateurs monétisés</td>
+<td>30</td>
+</tr>
+</tbody></table>
+<p>Répartition revenus M12 : sponsors 60 % · pourboires et abos 30 % · Soundy+ 10 %.</p>
+<h3>2.4 Phase 2 — Croissance (M13–M24)</h3>
+<table>
+<thead>
+<tr>
+<th>Indicateur</th>
+<th>Cible</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Inscrits</td>
+<td>100 K → 500 K</td>
+</tr>
+<tr>
+<td>Revenus annuels totaux</td>
+<td><strong>250–500 k€</strong></td>
+</tr>
+<tr>
+<td>Sponsors récurrents</td>
+<td>25–40</td>
+</tr>
+<tr>
+<td>Comptes B2B lieux</td>
+<td>50–100</td>
+</tr>
+</tbody></table>
+<h3>2.5 Phase 3 — Maturité (M25–M36)</h3>
+<table>
+<thead>
+<tr>
+<th>Indicateur</th>
+<th>Cible</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Inscrits</td>
+<td>500 K → 1 M</td>
+</tr>
+<tr>
+<td>Revenus annuels totaux</td>
+<td><strong>0,8–2 M€</strong></td>
+</tr>
+<tr>
+<td>Expansion</td>
+<td>Benelux, Espagne, Allemagne</td>
+</tr>
+</tbody></table>
+<h3>2.6 Structure de coûts (M12)</h3>
+<table>
+<thead>
+<tr>
+<th>Poste</th>
+<th>Estimation annuelle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Infrastructure (serveurs, base de données, streaming)</td>
+<td>3–8 k€</td>
+</tr>
+<tr>
+<td>Modération et support</td>
+<td>5–15 k€</td>
+</tr>
+<tr>
+<td>Acquisition marketing</td>
+<td>10–30 k€</td>
+</tr>
+<tr>
+<td>Juridique et comptabilité</td>
+<td>2–5 k€</td>
+</tr>
+<tr>
+<td><strong>Total charges d&#39;exploitation</strong></td>
+<td><strong>20–58 k€</strong></td>
+</tr>
+</tbody></table>
+<p>Coût fixe infrastructure MVP : ~24–28 € / mois. Marge brute sur les sponsors : supérieure à 90 %.</p>
+<p><strong>Seuil de rentabilité opérationnelle</strong> : ~40–60 k€ de revenus annuels récurrents.</p>
+<h3>2.7 Besoins de financement (optionnel)</h3>
+<table>
+<thead>
+<tr>
+<th>Scénario</th>
+<th>Montant</th>
+<th>Usage</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Bootstrap</td>
+<td>0 €</td>
+<td>Croissance organique et sponsors locaux</td>
+</tr>
+<tr>
+<td>Amorçage / BPI</td>
+<td>50–150 k€</td>
+<td>Commercial, 3 villes, reporting campagnes</td>
+</tr>
+<tr>
+<td>Seed</td>
+<td>300–800 k€</td>
+<td>Expansion européenne, équipe commerciale</td>
+</tr>
+</tbody></table>
+<p><strong>Recommandation</strong> : autofinancement jusqu&#39;à 5 contrats récurrents, puis BPI French Tech Emergence.</p>
+<h3>2.8 Économie unitaire (exemple Carte · Sponso · 50 K)</h3>
+<table>
+<thead>
+<tr>
+<th>Métrique</th>
+<th>Valeur</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Prix campagne 7 j</td>
+<td>~150 € HT</td>
+</tr>
+<tr>
+<td>Coût marginal</td>
+<td>~0 €</td>
+</tr>
+<tr>
+<td>Coût d&#39;acquisition commercial</td>
+<td>50–150 €</td>
+</tr>
+<tr>
+<td>Valeur vie client (3 campagnes / an)</td>
+<td>450–1 200 €</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>3. Partenaires à démarcher</h2>
+<h3>3.1 Priorité 1 — Démarrage rapide (0–3 mois)</h3>
+<p>Budget campagne : 150–800 €</p>
+<table>
+<thead>
+<tr>
+<th>Catégorie</th>
+<th>Exemples</th>
+<th>Offre type</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Clubs et salles</td>
+<td>Rex Club, Badaboum, Ninkasi, Le Bikini</td>
+<td>Sponso 7 j + événement sur la carte</td>
+</tr>
+<tr>
+<td>Bars concerts</td>
+<td>Le Superson, Le Petit Salon, Le Moloco</td>
+<td>Sponso + Reel</td>
+</tr>
+<tr>
+<td>Festivals locaux</td>
+<td>Rio Loco, Marsatac, Dour</td>
+<td>Pack Sponso + fil</td>
+</tr>
+<tr>
+<td>Labels indie</td>
+<td>Microqlima, Ed Banger, Born Bad</td>
+<td>Reel sortie + fil</td>
+</tr>
+<tr>
+<td>Disquaires</td>
+<td>Dizon, Balades Sonores</td>
+<td>Carte + story</td>
+</tr>
+</tbody></table>
+<p><strong>Message clé</strong> : <em>« Votre prochaine date visible sur la carte Soundy, devant des fans musique actifs — avec une estimation d&#39;audience transparente. »</em></p>
+<h3>3.2 Priorité 2 — Croissance (3–9 mois)</h3>
+<p>Budget : 800–5 000 € / mois</p>
+<table>
+<thead>
+<tr>
+<th>Catégorie</th>
+<th>Exemples</th>
+<th>Angle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Billetterie</td>
+<td>Shotgun, Weezevent, Dice</td>
+<td>Co-sponsoring + flux événements</td>
+</tr>
+<tr>
+<td>Agences</td>
+<td>Ubi Bene, We Are Social</td>
+<td>Package Pro Ville</td>
+</tr>
+<tr>
+<td>Médias</td>
+<td>Trax, Tsugi, Froggytown</td>
+<td>Takeover fil + Reels</td>
+</tr>
+<tr>
+<td>Marques</td>
+<td>Red Bull, Heineken Music</td>
+<td>Reels + live</td>
+</tr>
+<tr>
+<td>Audio</td>
+<td>Pioneer DJ, JBL</td>
+<td>Reels + salons</td>
+</tr>
+<tr>
+<td>Streaming</td>
+<td>Deezer, Qobuz</td>
+<td>Co-campagne découverte</td>
+</tr>
+</tbody></table>
+<h3>3.3 Priorité 3 — Stratégiques (9–24 mois)</h3>
+<p>Budget : 5 000–50 000 €+</p>
+<table>
+<thead>
+<tr>
+<th>Partenaire</th>
+<th>Format</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Believe / Tunecore</td>
+<td>Pack labels clients</td>
+</tr>
+<tr>
+<td>Live Nation / AEG</td>
+<td>Takeover ville festivals</td>
+</tr>
+<tr>
+<td>Majors et desks indie</td>
+<td>Fil + stories + listening party</td>
+</tr>
+<tr>
+<td>Offices de tourisme / CRT</td>
+<td>Tourisme culturel régional</td>
+</tr>
+<tr>
+<td>SNAC / UPFI</td>
+<td>Partenaire écosystème musique</td>
+</tr>
+</tbody></table>
+<h3>3.4 Partenaires techniques et institutionnels</h3>
+<table>
+<thead>
+<tr>
+<th>Partenaire</th>
+<th>Statut</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Stripe Connect</td>
+<td>En production</td>
+</tr>
+<tr>
+<td>LiveKit / Cloudflare</td>
+<td>En production</td>
+</tr>
+<tr>
+<td>BPI France / French Tech</td>
+<td>À contacter M6</td>
+</tr>
+<tr>
+<td>INPI / e-Soleau</td>
+<td>Dossier déposé</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>4. Plan commercial 90 jours</h2>
+<h3>Semaines 1–2 — Préparation</h3>
+<ul>
+<li>One-pager et grille tarifaire finalisés.</li>
+<li>3 cas pilotes (1 club, 1 festival, 1 label) pour témoignages.</li>
+<li>Suivi prospects (CRM).</li>
+</ul>
+<h3>Semaines 3–6 — Prospection</h3>
+<ul>
+<li>30 contacts ciblés Occitanie et Paris.</li>
+<li>Offre lancement : <strong>Sponso 7 j à 99 €</strong> (10 premiers partenaires).</li>
+<li>Présence sur 2 à 3 soirées partenaires.</li>
+</ul>
+<h3>Semaines 7–12 — Conversion</h3>
+<ul>
+<li>Montée en gamme Pro Ville (399 € / mois early bird).</li>
+<li>Approche billetterie (Shotgun, Weezevent).</li>
+<li>Mesure des impressions réelles vs estimations.</li>
+</ul>
+<hr>
+<h2>5. Risques et parades</h2>
+<table>
+<thead>
+<tr>
+<th>Risque</th>
+<th>Parade</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Base utilisateurs limitée</td>
+<td>Packs accessibles et cas clients locaux</td>
+</tr>
+<tr>
+<td>Écart estimation / exposition réelle</td>
+<td>Estimation pré-campagne + reporting</td>
+</tr>
+<tr>
+<td>Concurrence des grands réseaux</td>
+<td>Verticalisation musique, géo et salons</td>
+</tr>
+<tr>
+<td>Réglementation publicité et RGPD</td>
+<td>Badge « Sponsorisé », conformité données</td>
+</tr>
+<tr>
+<td>Dépendance YouTube (salons)</td>
+<td>Live natif et uploads compositions</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>6. Priorités immédiates</h2>
+<table>
+<thead>
+<tr>
+<th>Priorité</th>
+<th>Action</th>
+<th>Responsable</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>P0</strong></td>
+<td>Signer 3 sponsors payants locaux</td>
+<td>Direction</td>
+</tr>
+<tr>
+<td><strong>P0</strong></td>
+<td>Reporting impressions campagnes</td>
+<td>Produit</td>
+</tr>
+<tr>
+<td><strong>P1</strong></td>
+<td>CGV et modèle de devis sponsor</td>
+<td>Direction + juriste</td>
+</tr>
+<tr>
+<td><strong>P1</strong></td>
+<td>Partenariat billetterie</td>
+<td>Direction</td>
+</tr>
+<tr>
+<td><strong>P2</strong></td>
+<td>Lancement Soundy+</td>
+<td>Produit</td>
+</tr>
+</tbody></table>
+<hr>
+<p><em>Document confidentiel · Soundy · Juillet 2026 · <a href="https://getsoundy.com">getsoundy.com</a></em></p>
+</div></body>
+</html>

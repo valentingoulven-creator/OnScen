@@ -27,6 +27,19 @@ export function resolveStaffRole(user: {
   return null;
 }
 
+/** Compte Dev (panel complet) — exclut les admins opérationnels staffRole=admin. */
+export function isDevStaff(user: {
+  staffRole?: StaffRole | null;
+  isAdmin?: boolean;
+  isDev?: boolean;
+} | null | undefined): boolean {
+  if (!user) return false;
+  if (user.staffRole === 'dev') return true;
+  if (user.isDev) return true;
+  if (user.isAdmin && user.staffRole !== 'admin') return true;
+  return false;
+}
+
 export function isAdminTabAllowed(tab: AdminPrimaryTabId, role: StaffRole | null | undefined): boolean {
   if (role === 'dev') return true;
   if (role === 'admin') return ADMIN_OPERATIONAL_TAB_IDS.includes(tab);

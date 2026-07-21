@@ -331,6 +331,17 @@ export function SponsorAdPreview({
           posterUrl={posterUrl || videoUrl}
         />
       )}
+      {placement === 'salon_theater' && (
+        <FeedInlinePreview
+          name={name}
+          title={title}
+          subtitle={subtitle}
+          cta={cta}
+          accent={accent}
+          kind={kind}
+          logoUrl={logoUrl}
+        />
+      )}
       <p className="text-[10px] text-gray-500 mt-2 text-center">
         {t('admin.sponsors.previewDurationNote', {
           sec: displayDurationSec,
@@ -343,7 +354,9 @@ export function SponsorAdPreview({
                   ? t('admin.sponsors.previewDurationStories')
                   : placement === 'stories_sponsored'
                     ? t('admin.sponsors.previewDurationStoriesViewer')
-                    : t('admin.sponsors.previewDurationReels'),
+                    : placement === 'salon_theater'
+                      ? t('admin.sponsors.previewDurationSalon')
+                      : t('admin.sponsors.previewDurationReels'),
         })}
       </p>
     </div>

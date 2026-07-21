@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Soundy Sponsors — One-pager commercial</title>
+  <style>/* Soundy — documents stratégie & commercial */
+
+:root {
+  --soundy-bg: #0b0b0f;
+  --soundy-card: #12121a;
+  --soundy-border: #1e1e2f;
+  --soundy-purple: #7c3aed;
+  --soundy-purple-light: #a78bfa;
+  --soundy-purple-soft: #ede9fe;
+  --soundy-text: #111827;
+  --soundy-muted: #6b7280;
+  --soundy-white: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.55;
+  color: var(--soundy-text);
+  background: var(--soundy-white);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ─── Page de garde (étude) ─── */
+
+.cover {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 22mm 20mm 18mm;
+  background:
+    radial-gradient(ellipse 80% 60% at 100% 0%, rgba(124, 58, 237, 0.35) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 0% 100%, rgba(167, 139, 250, 0.15) 0%, transparent 50%),
+    linear-gradient(160deg, #0b0b0f 0%, #151520 45%, #1a1030 100%);
+  color: var(--soundy-white);
+  page-break-after: always;
+}
+
+.cover-mark {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.cover-mark svg {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(124, 58, 237, 0.45);
+}
+
+.cover-brand {
+  font-size: 13pt;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--soundy-purple-light);
+}
+
+.cover h1 {
+  font-size: 28pt;
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0 0 14px;
+  max-width: 16ch;
+  border: none;
+  color: var(--soundy-white);
+  padding: 0;
+}
+
+.cover-sub {
+  font-size: 13pt;
+  color: rgba(255, 255, 255, 0.72);
+  max-width: 34ch;
+  margin: 0 0 36px;
+  line-height: 1.5;
+}
+
+.cover-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  font-size: 9.5pt;
+  color: rgba(255, 255, 255, 0.55);
+  border-top: 1px solid rgba(167, 139, 250, 0.25);
+  padding-top: 18px;
+  width: 100%;
+}
+
+.cover-meta strong {
+  color: var(--soundy-purple-light);
+  font-weight: 600;
+}
+
+.cover-badge {
+  margin-top: auto;
+  padding-top: 40px;
+  font-size: 8.5pt;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* ─── Contenu étude ─── */
+
+.doc-study .content {
+  padding: 0 18mm 20mm;
+}
+
+.doc-study .running-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10mm 18mm 4mm;
+  border-bottom: 1px solid var(--soundy-border);
+  font-size: 8pt;
+  color: var(--soundy-muted);
+  letter-spacing: 0.04em;
+}
+
+.doc-study .running-head span.brand {
+  font-weight: 700;
+  color: var(--soundy-purple);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.doc-study h2 {
+  font-size: 15pt;
+  color: #312e81;
+  border: none;
+  margin: 28px 0 12px;
+  padding: 0 0 8px;
+  border-bottom: 2px solid var(--soundy-purple-soft);
+  page-break-after: avoid;
+}
+
+.doc-study h3 {
+  font-size: 11.5pt;
+  color: var(--soundy-purple);
+  margin: 20px 0 8px;
+  page-break-after: avoid;
+}
+
+.doc-study hr {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 22px 0;
+}
+
+.doc-study p {
+  margin: 8px 0;
+}
+
+.doc-study strong {
+  color: #111;
+}
+
+.doc-study em {
+  color: var(--soundy-muted);
+}
+
+.doc-study ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.doc-study li {
+  margin: 4px 0;
+}
+
+.doc-study table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0 18px;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 0 #e5e7eb;
+}
+
+.doc-study th {
+  background: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%);
+  color: #4c1d95;
+  font-weight: 600;
+  text-align: left;
+  padding: 9px 12px;
+  border: 1px solid #ddd6fe;
+}
+
+.doc-study td {
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  vertical-align: top;
+}
+
+.doc-study tr:nth-child(even) td {
+  background: #fafafa;
+}
+
+.doc-study blockquote {
+  border: none;
+  border-left: 4px solid var(--soundy-purple);
+  margin: 14px 0;
+  padding: 12px 16px;
+  background: linear-gradient(90deg, #faf5ff 0%, #fff 100%);
+  color: #4c1d95;
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+}
+
+.doc-study .footer-note {
+  margin-top: 32px;
+  padding-top: 14px;
+  border-top: 1px solid #e5e7eb;
+  font-size: 8.5pt;
+  color: var(--soundy-muted);
+  text-align: center;
+}
+
+.doc-study .footer-note em {
+  font-style: normal;
+}
+
+/* ─── One-pager commercial ─── */
+
+.doc-onepager {
+  background: var(--soundy-white);
+}
+
+.onepager-hero {
+  background:
+    radial-gradient(ellipse 90% 80% at 80% -20%, rgba(167, 139, 250, 0.5) 0%, transparent 50%),
+    linear-gradient(135deg, #4c1d95 0%, #7c3aed 50%, #5b21b6 100%);
+  color: var(--soundy-white);
+  padding: 14mm 16mm 12mm;
+  page-break-after: avoid;
+}
+
+.onepager-hero-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10mm;
+}
+
+.onepager-hero-top svg {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+
+.onepager-hero-brand {
+  font-size: 10pt;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.onepager-hero-url {
+  font-size: 9pt;
+  opacity: 0.75;
+}
+
+.onepager-hero h1 {
+  font-size: 22pt;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 8px;
+  border: none;
+  color: var(--soundy-white);
+  padding: 0;
+  max-width: 20ch;
+}
+
+.onepager-hero-lead {
+  font-size: 11pt;
+  line-height: 1.5;
+  opacity: 0.92;
+  max-width: 52ch;
+  margin: 0;
+}
+
+.doc-onepager .content {
+  padding: 8mm 16mm 14mm;
+}
+
+.doc-onepager h2 {
+  font-size: 10.5pt;
+  font-weight: 700;
+  color: #4c1d95;
+  margin: 14px 0 8px;
+  padding: 0 0 4px;
+  border-bottom: 2px solid var(--soundy-purple-soft);
+  page-break-after: avoid;
+}
+
+.doc-onepager h2:first-child {
+  margin-top: 0;
+}
+
+.doc-onepager hr {
+  display: none;
+}
+
+.doc-onepager p {
+  margin: 6px 0;
+  font-size: 9.5pt;
+}
+
+.doc-onepager table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 12px;
+  font-size: 8.5pt;
+  page-break-inside: avoid;
+}
+
+.doc-onepager th {
+  background: #f5f3ff;
+  color: #4c1d95;
+  font-weight: 600;
+  padding: 6px 8px;
+  border: 1px solid #ddd6fe;
+  text-align: left;
+}
+
+.doc-onepager td {
+  padding: 5px 8px;
+  border: 1px solid #e5e7eb;
+  vertical-align: top;
+}
+
+.doc-onepager tr:nth-child(even) td {
+  background: #fafafa;
+}
+
+.doc-onepager ul {
+  margin: 6px 0;
+  padding-left: 18px;
+  font-size: 9pt;
+}
+
+.doc-onepager li {
+  margin: 3px 0;
+}
+
+.doc-onepager blockquote {
+  border: none;
+  margin: 10px 0;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+  border: 1px solid #ddd6fe;
+  border-radius: 10px;
+  color: #4c1d95;
+  font-size: 10pt;
+  font-weight: 600;
+  page-break-inside: avoid;
+}
+
+.doc-onepager blockquote p {
+  margin: 0;
+}
+
+.doc-onepager .contact-grid table {
+  margin: 8px 0 0;
+}
+
+.doc-onepager .footer-note {
+  margin-top: 10px;
+  font-size: 7.5pt;
+  color: var(--soundy-muted);
+  text-align: center;
+}
+
+.doc-onepager em {
+  color: var(--soundy-muted);
+  font-size: 8.5pt;
+}
+
+@page {
+  size: A4;
+  margin: 12mm 14mm 16mm;
+}
+
+@media print {
+  h2, h3, blockquote, table {
+    page-break-inside: avoid;
+  }
+}
+</style>
+</head>
+<body class="doc-onepager">
+<div class="onepager-hero">
+  <div class="onepager-hero-top">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#7c3aed"/>
+  <text x="256" y="300" font-size="200" text-anchor="middle" fill="white">j</text>
+</svg>
+
+      <span class="onepager-hero-brand">Soundy</span>
+    </div>
+    <span class="onepager-hero-url">getsoundy.com</span>
+  </div>
+  <h1>Sponsoring<br>natif musique</h1>
+  <p class="onepager-hero-lead">Visibilité sur la carte, le fil, les stories et les Reels — audience qualifiée, tarifs transparents.</p>
+</div>
+<div class="content"><h2>Pourquoi Soundy</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Instagram / TikTok</th>
+<th><strong>Soundy</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Audience</td>
+<td>Généraliste</td>
+<td><strong>Musique live et sorties</strong></td>
+</tr>
+<tr>
+<td>Contexte</td>
+<td>Scroll passif</td>
+<td><strong>Carte, événements, salons d&#39;écoute</strong></td>
+</tr>
+<tr>
+<td>CPM France</td>
+<td>6–18 €</td>
+<td><strong>Dès 3 €</strong> (lancement)</td>
+</tr>
+<tr>
+<td>Formats</td>
+<td>Publicités interstitielles</td>
+<td><strong>Natifs</strong> (badge « Sponsorisé »)</td>
+</tr>
+<tr>
+<td>Géolocalisation</td>
+<td>Approximative</td>
+<td><strong>Ville et région</strong></td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Emplacements disponibles</h2>
+<table>
+<thead>
+<tr>
+<th>Emplacement</th>
+<th>Surface</th>
+<th>Idéal pour</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Carte · Sponso</strong></td>
+<td>Carrousel événements sponsorisés</td>
+<td>Soirées, festivals, dates</td>
+</tr>
+<tr>
+<td><strong>Bandeau carte</strong></td>
+<td>Carrousel en tête de carte</td>
+<td>Notoriété locale</td>
+</tr>
+<tr>
+<td><strong>Fil d&#39;actualité</strong></td>
+<td>Carte native entre les posts</td>
+<td>Annonces, sorties d&#39;albums</td>
+</tr>
+<tr>
+<td><strong>Stories</strong></td>
+<td>Bandeau ou plein écran</td>
+<td>Promotion visuelle</td>
+</tr>
+<tr>
+<td><strong>Reels</strong></td>
+<td>Plein écran 9:16</td>
+<td>Clips, aftermovies, line-up</td>
+</tr>
+</tbody></table>
+<p><em>7 emplacements opérationnels · planification et dates de campagne configurables.</em></p>
+<hr>
+<h2>Tarifs indicatifs (France · 2026)</h2>
+<p><strong>Formule transparente</strong> : utilisateurs exposés × jours × CPM ÷ 1 000</p>
+<table>
+<thead>
+<tr>
+<th>Offre</th>
+<th>Durée</th>
+<th>À partir de</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Carte · Sponso</strong></td>
+<td>7 jours</td>
+<td><strong>~150 € HT</strong></td>
+</tr>
+<tr>
+<td><strong>Reel sponsorisé</strong></td>
+<td>7 jours</td>
+<td><strong>~150 € HT</strong></td>
+</tr>
+<tr>
+<td><strong>Bandeau carte</strong></td>
+<td>7 jours</td>
+<td><strong>~250 € HT</strong></td>
+</tr>
+<tr>
+<td><strong>Fil d&#39;actualité</strong></td>
+<td>7 jours</td>
+<td><strong>~525 € HT</strong></td>
+</tr>
+<tr>
+<td><strong>Pack Starter</strong></td>
+<td>7 jours</td>
+<td>Sponso + 1 Reel · <strong>199 € HT</strong></td>
+</tr>
+</tbody></table>
+<p><em>Les tarifs évoluent avec la croissance de la base utilisateurs. Devis sur mesure pour les packages Pro Ville, Premium Musique et Takeover.</em></p>
+<hr>
+<h2>Ce que comprend une campagne</h2>
+<ol>
+<li><strong>Visibilité</strong> devant des fans actifs musique — estimation d&#39;audience fournie avant lancement.</li>
+<li><strong>Transparence</strong> : badge « Sponsorisé » visible par les utilisateurs.</li>
+<li><strong>Planification</strong> : dates de début et fin, durée d&#39;affichage configurable.</li>
+<li><strong>Ciblage géographique</strong> : France entière ou zone régionale.</li>
+<li><strong>Accompagnement</strong> : validation des visuels (logo, bannière, vidéo Reel).</li>
+</ol>
+<hr>
+<h2>Pour qui ?</h2>
+<ul>
+<li>Bars, clubs et salles <strong>50 à 500 places</strong></li>
+<li><strong>Festivals</strong> et billetteries (early bird, line-up)</li>
+<li><strong>Labels indépendants</strong> (sorties, clips)</li>
+<li>Marques <strong>boisson, audio, mode</strong> (16–35 ans)</li>
+<li><strong>Disquaires</strong> et retail musique</li>
+</ul>
+<hr>
+<h2>La plateforme</h2>
+<ul>
+<li>Application <strong>en production</strong> sur <a href="https://getsoundy.com">getsoundy.com</a></li>
+<li>5 espaces : Actualités · Carte · Direct · Messages · Reels</li>
+<li>Salons d&#39;écoute synchronisés · Lives · Pourboires créateurs</li>
+<li>Hébergement <strong>France</strong> (Scaleway) · Conformité <strong>RGPD</strong></li>
+</ul>
+<hr>
+<h2>Offre de lancement</h2>
+<blockquote>
+<p><strong>Carte · Sponso — 7 jours à 99 € HT</strong> au lieu de ~150 €<br>Estimation d&#39;audience personnalisée · création validée sous 48 h</p>
+</blockquote>
+<p><em>10 places · Occitanie, Paris et Lyon en priorité.</em></p>
+<hr>
+<h2>Contact</h2>
+<p><strong>Demandez votre devis</strong> : précisez l&#39;emplacement souhaité, les dates et la zone géographique.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Site</strong></td>
+<td><a href="https://getsoundy.com">getsoundy.com</a></td>
+</tr>
+<tr>
+<td><strong>Email</strong></td>
+<td><a href="mailto:contact@getsoundy.com">contact@getsoundy.com</a></td>
+</tr>
+<tr>
+<td><strong>Étapes</strong></td>
+<td>Échange 15 min → estimation audience → devis → lancement sous 72 h</td>
+</tr>
+</tbody></table>
+<hr>
+<p><em>Soundy · Document commercial · Juillet 2026 · Tarifs indicatifs, devis définitif sur demande</em></p>
+</div></body>
+</html>

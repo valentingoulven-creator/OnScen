@@ -20,7 +20,11 @@ import {
 } from '../lib/sponsorPlatformConfig';
 import { saveSponsorBannerFromDataUrl } from '../lib/sponsorBannerAssets';
 import { saveSponsorLogoFromDataUrl } from '../lib/sponsorLogoAssets';
-import type { SponsorPlacement } from '../models/schema';
+import {
+  estimateSponsorAudience,
+  estimateSponsorAudienceFromRecord,
+} from '../lib/sponsorAudienceEstimate';
+import type { SponsorPlacement, SponsorMapVisibilityScope } from '../models/schema';
 
 export const adminSponsorsRouter = Router();
 
@@ -36,6 +40,7 @@ function parsePlacement(raw: unknown): SponsorPlacement | undefined {
   const v = String(raw || '').trim();
   if (
     v === 'map_banner' ||
+    v === 'map_sidebar_events' ||
     v === 'feed_inline' ||
     v === 'stories_banner' ||
     v === 'stories_sponsored' ||
@@ -121,6 +126,12 @@ function parseBodyInput(body: Record<string, unknown>): SponsorInput {
         : body.mapTargetLng != null
           ? Number(body.mapTargetLng)
           : undefined,
+    linkedEventPostId:
+      body.linkedEventPostId === null
+        ? null
+        : body.linkedEventPostId != null
+          ? String(body.linkedEventPostId)
+          : undefined,
   };
 }
 
@@ -159,7 +170,39 @@ adminSponsorsRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
   if (filter === 'active') items = items.filter((s) => isSponsorActiveAt(s));
   if (filter === 'inactive') items = items.filter((s) => !isSponsorActiveAt(s));
   const counts = sponsorCounts();
-  res.json({ items, total: items.length, counts });
+  const itemsWithAudience = items.map((sponsor) => ({
+    ...sponsor,
+    audienceEstimate: estimateSponsorAudienceFromRecord(sponsor),
+  }));
+  res.json({ items: itemsWithAudience, total: items.length, counts });
+});
+
+adminSponsorsRouter.post('/estimate-audience', authenticateJWT, (req: Request, res: Response) => {
+  if (requireAdmin(req, res) == null) return;
+  const body = req.body ?? {};
+  const mapVisibilityScope =
+    body.mapVisibilityScope === 'france' || body.mapVisibilityScope === 'region'
+      ? (body.mapVisibilityScope as SponsorMapVisibilityScope)
+      : undefined;
+  const mapTargetLat =
+    body.mapTargetLat === null || body.mapTargetLat === ''
+      ? null
+      : body.mapTargetLat != null
+        ? Number(body.mapTargetLat)
+        : undefined;
+  const mapTargetLng =
+    body.mapTargetLng === null || body.mapTargetLng === ''
+      ? null
+      : body.mapTargetLng != null
+        ? Number(body.mapTargetLng)
+        : undefined;
+  const estimate = estimateSponsorAudience({
+    placement: parsePlacement(body.placement),
+    mapVisibilityScope,
+    mapTargetLat,
+    mapTargetLng,
+  });
+  res.json({ estimate });
 });
 
 adminSponsorsRouter.post('/reorder', authenticateJWT, (req: Request, res: Response) => {

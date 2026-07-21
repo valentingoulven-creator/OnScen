@@ -8,12 +8,14 @@ import {
   isSponsorVisibleOnMap,
   listActiveFeedAds,
   listActiveMapAds,
+  listActiveMapSidebarEventPostIds,
   listActiveReelsAds,
   listActiveStoriesAds,
   listSponsors,
   MAP_REGION_MIN_ZOOM,
   migrateSponsorMapVisibility,
   reorderSponsors,
+  setDevMapSidebarEventSponsorship,
   toggleSponsorActive,
   updateSponsor,
   type MapViewportQuery,
@@ -476,5 +478,27 @@ describe('sponsors', () => {
         mapVisibilityScope: 'france',
       })
     ).toThrow(/Lien ou action/);
+  });
+
+  it('setDevMapSidebarEventSponsorship active puis désactive un événement', () => {
+    db.feedPosts.length = 0;
+    db.feedPosts.push({
+      id: 'evt-dev-sponso-test',
+      userId: 'u1',
+      content: 'Concert test\nDescription',
+      createdAt: Date.now(),
+      isEvent: true,
+      eventLocation: 'Montpellier',
+    });
+
+    const promoted = setDevMapSidebarEventSponsorship('evt-dev-sponso-test', true);
+    expect(promoted.sponsored).toBe(true);
+    expect(promoted.sponsor?.placement).toBe('map_sidebar_events');
+    expect(promoted.sponsor?.linkedEventPostId).toBe('evt-dev-sponso-test');
+    expect(listActiveMapSidebarEventPostIds()).toContain('evt-dev-sponso-test');
+
+    const demoted = setDevMapSidebarEventSponsorship('evt-dev-sponso-test', false);
+    expect(demoted.sponsored).toBe(false);
+    expect(listActiveMapSidebarEventPostIds()).not.toContain('evt-dev-sponso-test');
   });
 });

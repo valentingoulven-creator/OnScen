@@ -1,0 +1,11 @@
+{
+  "name": "soundy-strategie-pdf",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "pdf": "node generate-pdfs.mjs"
+  },
+  "dependencies": {
+    "marked": "^15.0.6"
+  }
+}

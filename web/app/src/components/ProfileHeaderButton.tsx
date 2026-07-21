@@ -27,7 +27,7 @@ export function ProfileHeaderButton({
         defaultValue: 'Ouvrir mon profil',
       })}
       aria-current={active ? 'page' : undefined}
-      className={`group flex items-center shrink-0 rounded-full border transition-colors min-h-11 min-w-11 cursor-pointer bg-transparent p-0.5 sm:pl-0.5 sm:pr-2.5 sm:gap-1.5 ${
+      className={`group flex items-center justify-center shrink-0 rounded-full border transition-colors min-h-11 min-w-11 w-11 h-11 cursor-pointer p-0.5 ${
         active
           ? 'border-purple-500/50 bg-purple-500/10 ring-1 ring-purple-500/30'
           : 'border-[#2d2d3d] bg-[#1a1a26] hover:border-purple-500/35 hover:bg-[#1e1e2a]'
@@ -44,9 +44,6 @@ export function ProfileHeaderButton({
           avatarUrl={avatarUrl}
           size="xs"
         />
-      </span>
-      <span className="hidden sm:inline max-w-[5.5rem] lg:max-w-[7rem] text-xs font-semibold text-white/90 truncate pr-0.5">
-        {username}
       </span>
     </button>
   );

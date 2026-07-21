@@ -579,7 +579,14 @@ export interface SupportThreadMessage {
 }
 
 /** Emplacement d'affichage d'un sponsor dans l'application. */
-export type SponsorPlacement = 'map_banner' | 'feed_inline' | 'stories_banner' | 'stories_sponsored' | 'reels_sponsored' | 'salon_theater';
+export type SponsorPlacement =
+  | 'map_banner'
+  | 'map_sidebar_events'
+  | 'feed_inline'
+  | 'stories_banner'
+  | 'stories_sponsored'
+  | 'reels_sponsored'
+  | 'salon_theater';
 
 /** Configuration globale des sponsors (admin). */
 export interface SponsorPlatformConfig {
@@ -636,6 +643,8 @@ export interface Sponsor {
   /** Coordonnées cible pour le filtrage régional (scope region). */
   mapTargetLat?: number;
   mapTargetLng?: number;
+  /** Sidebar carte : publication événement (map_sidebar_events). */
+  linkedEventPostId?: string;
   createdAt: number;
   updatedAt: number;
 }

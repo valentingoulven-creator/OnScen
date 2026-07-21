@@ -226,13 +226,13 @@ describe('filterFeedPostsByEventCriteria', () => {
 describe('getBrowseSheetCalendarDayKeys', () => {
   const fixedNow = new Date('2026-07-16T10:00:00');
 
-  it('returns 4 days from today when filter is off', () => {
+  it('returns 3 days from today when filter is off', () => {
     expect(
       getBrowseSheetCalendarDayKeys(undefined, false, fixedNow)
-    ).toEqual(['2026-07-16', '2026-07-17', '2026-07-18', '2026-07-19']);
+    ).toEqual(['2026-07-16', '2026-07-17', '2026-07-18']);
   });
 
-  it('returns only dateFrom when range is within 4 days', () => {
+  it('returns only dateFrom when range is within 3 days', () => {
     expect(
       getBrowseSheetCalendarDayKeys(
         { ...EMPTY_EVENT_FILTER, dateFrom: '2026-07-16', dateTo: '2026-07-17' },

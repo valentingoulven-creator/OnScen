@@ -12,6 +12,15 @@ dist/
 *.log
 .DS_Store
 
+# Personal / local-only (hors repo produit)
+docs/cv/
+
+# Playwright E2E artifacts
+web/app/test-results/
+
+# Build mobile export (regénéré par npm run apptel:build / mobile:export)
+commun/backend/public/tel/
+
 # msdev secrets (keep .env.example)
 **/msdev/.env
 # msdev local DB file (see msdev/data/README.md — do not iCloud-sync)

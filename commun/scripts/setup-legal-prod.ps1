@@ -12,29 +12,48 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-if ($Address -match 'à compléter|acompleter|à renseigner') {
-  throw "Adresse invalide — fournissez une adresse postale réelle (LCEN art. 6)."
+if ($Address -match 'acompleter|renseigner|completer|\[A') {
+  throw "Adresse invalide - fournissez une adresse postale reelle (LCEN art. 6)."
 }
 
 $sshHost = if ($Staging) { "soundy-staging" } else { "soundy-prod" }
 $pm2App = if ($Staging) { "melosong-backend-staging" } else { "melosong-backend" }
-$envFile = "/opt/soundly/.env"
+$remoteScript = "/tmp/soundy-setup-legal.sh"
+$localScript = Join-Path $env:TEMP "soundy-setup-legal.sh"
 
-Write-Host "Mise à jour LEGAL_PUBLISHER_ADDRESS sur $sshHost ..."
-
-$remoteCmd = @"
+$escaped = $Address.Replace('\', '\\').Replace('"', '\"')
+$bash = @"
+#!/usr/bin/env bash
 set -euo pipefail
-ENV_FILE='$envFile'
-ADDR='$($Address.Replace("'", "'\"'\"'"))'
-if grep -q '^LEGAL_PUBLISHER_ADDRESS=' `"`$ENV_FILE`" 2>/dev/null; then
-  sed -i "s/^LEGAL_PUBLISHER_ADDRESS=.*/LEGAL_PUBLISHER_ADDRESS=`$ADDR/" `"`$ENV_FILE`"
+ADDR="$escaped"
+ENV_FILE="/opt/soundly/.env"
+if grep -q '^LEGAL_PUBLISHER_ADDRESS=' "`$ENV_FILE" 2>/dev/null; then
+  sed -i "s|^LEGAL_PUBLISHER_ADDRESS=.*|LEGAL_PUBLISHER_ADDRESS=`$ADDR|" "`$ENV_FILE"
 else
-  printf '%s\n' "LEGAL_PUBLISHER_ADDRESS=`$ADDR" >> `"`$ENV_FILE`"
+  printf '%s\n' "LEGAL_PUBLISHER_ADDRESS=`$ADDR" >> "`$ENV_FILE"
 fi
+python3 - <<PY
+import json
+addr = "$escaped"
+path = "/opt/soundly/legal-publisher.json"
+with open(path, encoding="utf-8") as f:
+    data = json.load(f)
+data["address"] = addr
+with open(path, "w", encoding="utf-8") as f:
+    json.dump(data, f, ensure_ascii=False, indent=2)
+    f.write("\n")
+PY
 pm2 reload $pm2App --update-env
-curl -sf http://127.0.0.1:3000/health && echo ' Health OK'
+curl -sf http://127.0.0.1:3000/health && echo " Health OK"
 "@
 
-ssh $sshHost $remoteCmd
+Set-Content -Path $localScript -Value $bash -Encoding UTF8NoBOM
+Write-Host "Mise a jour LEGAL_PUBLISHER_ADDRESS + legal-publisher.json sur $sshHost ..."
 
-Write-Host "OK — vérifiez Mentions légales sur le site."
+& scp $localScript "${sshHost}:${remoteScript}"
+if ($LASTEXITCODE -ne 0) { throw "scp echoue" }
+
+ssh $sshHost "sed -i 's/\r$//' $remoteScript; chmod +x $remoteScript; bash $remoteScript; rm -f $remoteScript"
+Remove-Item $localScript -Force -ErrorAction SilentlyContinue
+
+Write-Host "OK - verifiez Mentions legales sur le site."

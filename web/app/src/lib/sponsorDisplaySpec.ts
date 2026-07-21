@@ -54,6 +54,11 @@ export const SPONSOR_IMAGE_SPECS: Record<SponsorPlacement, SponsorImageSpec> = {
     ratio: `${MAP_BANNER_ASPECT_RATIO} (pleine largeur · coque 90 px mobile, 96 px desktop, max. 105 px)`,
     noteKey: 'admin.sponsors.helpImageMapBanner',
   },
+  map_sidebar_events: {
+    logoPx: '— (carte événement)',
+    bannerPx: '— (image de la publication événement)',
+    noteKey: 'admin.sponsors.helpImageMapSidebarEvents',
+  },
   feed_inline: {
     logoPx: '48 × 48 px',
     bannerPx: '343 × 120 px',

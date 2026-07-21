@@ -22,8 +22,14 @@ import {
 } from '../components/MapSalonFilterSheet';
 import { MapSalonListenSheet } from '../components/MapSalonListenSheet';
 import { CreateSalonModal } from '../components/CreateSalonModal';
+import {
+  CreateFeedEventModal,
+  buildFeedEventContent,
+  type FeedEventDraft,
+} from '../components/CreateFeedEventModal';
 import { StartLiveFlowModals } from '../components/StartLiveFlowModals';
 import { useStartLiveFlow } from '../hooks/useStartLiveFlow';
+import { useMapSidebarSponsoredEvents } from '../hooks/useMapSidebarSponsoredEvents';
 import { useHomeGeoRefresh } from '../hooks/useHomeGeoRefresh';
 import { useMapUserDisplayPosition, resolveMapCameraFallbackCenter } from '../lib/mapUserPosition';
 import { canJoinSalonAsParticipant, ensureYoutubeLinkedToJoinSalon } from '../lib/platformConnect';
@@ -39,7 +45,13 @@ import {
   uniqueSalonCountFromContent,
 } from '../components/MapSidebarBrowseSheet';
 import { FilterIcon } from '../components/FilterIcon';
-import { MAP_EVENTS_REFRESH_EVENT, MAP_OPEN_CREATE_SALON_EVENT } from '../lib/mapUiEvents';
+import {
+  dispatchMapEventsRefresh,
+  MAP_EVENTS_REFRESH_EVENT,
+  MAP_OPEN_CREATE_SALON_EVENT,
+} from '../lib/mapUiEvents';
+import { writeSavedEventLocation } from '../lib/savedEventLocation';
+import { validateStoryLinkUrl } from '../lib/storyLink';
 import { isAppa2Layout, type AppLayoutId } from '../lib/appLayout';
 import { useCompactMapViewport } from '../hooks/usePhoneWebViewport';
 import {
@@ -334,6 +346,8 @@ export function HomePage({
   }, []);
   const [userPosition, setUserPosition] = useState<[number, number] | null>(null);
   const [showCreateSalon, setShowCreateSalon] = useState(false);
+  const [eventModalOpen, setEventModalOpen] = useState(false);
+  const [eventPublishing, setEventPublishing] = useState(false);
   /** Vue grille lives à la place de la carte (toggle logo). */
   const [mapFilterPopupOpen, setMapFilterPopupOpen] = useState(false);
   const [showEventsBrowseSheet, setShowEventsBrowseSheet] = useState(false);
@@ -1086,6 +1100,8 @@ export function HomePage({
     initialGeo: mapLiveStartGeo,
   });
   const { startError: liveStartError, dismissStartError: dismissLiveStartError } = liveStartFlow;
+
+  const sidebarSponsoredEvents = useMapSidebarSponsoredEvents(token);
 
   useEffect(() => {
     if (!liveStartError) return;
@@ -2837,6 +2853,72 @@ export function HomePage({
     setSelected(null);
   }, [loadNearby, onOpenSalon, setSafeCenter]);
 
+  const publishMapEvent = useCallback(
+    async (draft: FeedEventDraft) => {
+      if (!token || eventPublishing) return;
+      setEventPublishing(true);
+      try {
+        const eventTypeLabel =
+          draft.eventType === 'dance'
+            ? t('feed.eventTypeDance')
+            : draft.eventType === 'chant'
+              ? t('feed.eventTypeChant')
+              : t('feed.eventTypeAutre');
+        const textContent = buildFeedEventContent(draft.title, draft.description, eventTypeLabel);
+        const eventDatesIso = draft.confirmedEventDates.map((e) => new Date(e.start).toISOString());
+        const body: Parameters<typeof api.createFeedPost>[1] = {
+          content: textContent,
+          isEvent: true,
+          eventDates: eventDatesIso,
+          eventDate: eventDatesIso[0],
+          eventLocation: draft.eventLocation.trim(),
+          eventType: draft.eventType,
+        };
+        const img = draft.imageUrl.trim();
+        if (img) body.imageUrl = img;
+        const linkRaw = draft.eventLinkUrl.trim();
+        if (linkRaw) {
+          const validated = validateStoryLinkUrl(linkRaw);
+          if (!validated.ok) {
+            setToastMsg(validated.error);
+            return;
+          }
+          body.eventLinkUrl = validated.url;
+        }
+        const endTimesIso = draft.confirmedEventDates.map((e) =>
+          e.end ? new Date(e.end).toISOString() : null
+        );
+        if (endTimesIso.some(Boolean)) body.eventEndTimes = endTimesIso;
+        if (draft.eventTaggedUsers.length > 0) {
+          body.eventTaggedUserIds = draft.eventTaggedUsers.map((u) => u.id);
+        }
+        await api.createFeedPost(token, body);
+        if (draft.saveEventLocation && draft.eventLocation.trim()) {
+          writeSavedEventLocation(draft.eventLocation);
+        }
+        setEventModalOpen(false);
+        dispatchMapEventsRefresh();
+        setToastMsg(t('map.createEventSuccess', { defaultValue: 'Événement publié sur la carte' }));
+        const coords = await resolveEventCoords(draft.eventLocation.trim());
+        if (coords) {
+          mapViewRef.current?.jumpTo(coords.latitude, coords.longitude, 14);
+          setMapStyle('flat');
+          localStorage.setItem(MAP_STYLE_KEY, 'flat');
+          setMapViewportCenter(sanitizeLatLngTuple(coords.latitude, coords.longitude, DEFAULT_CENTER));
+        }
+      } catch (e) {
+        setToastMsg(
+          e instanceof Error
+            ? e.message
+            : t('map.createEventError', { defaultValue: 'Publication impossible.' })
+        );
+      } finally {
+        setEventPublishing(false);
+      }
+    },
+    [token, eventPublishing, t]
+  );
+
   const openExistingHostedSalon = useCallback(
     (salonId: string) => {
       setShowCreateSalon(false);
@@ -3045,6 +3127,7 @@ export function HomePage({
           onPostChange={handleBrowseEventPostChange}
           selectedMapEventDayKey={mapEventDayPinFilter}
           onMapEventDayKeySelect={handleMapEventDayPinFilter}
+          sponsoredEventPosts={sidebarSponsoredEvents.posts}
         />
       )}
 
@@ -3137,6 +3220,20 @@ export function HomePage({
         />
       )}
 
+      {token && user && (
+        <CreateFeedEventModal
+          open={eventModalOpen}
+          onClose={() => {
+            if (!eventPublishing) setEventModalOpen(false);
+          }}
+          onConfirm={(draft) => {
+            void publishMapEvent(draft);
+          }}
+          token={token}
+          profileCity={user.city}
+        />
+      )}
+
       {token && user && <StartLiveFlowModals flow={liveStartFlow} />}
 
       {!bottomMapList && showNearbyPeople ? (
@@ -3168,6 +3265,9 @@ export function HomePage({
             salonFilterOn={salonFilterOn}
             eventsBrowseMode={sidebarEventsFilterOn}
             eventsBrowse={mapEventsBrowseConfig}
+            sponsoredEventPosts={sidebarSponsoredEvents.posts}
+            onSponsoredEventOpen={handleBrowseEventZoomOnMap}
+            onSponsoredEventPostChange={sidebarSponsoredEvents.patchPost}
           />
         )
       ) : !bottomMapList ? (
@@ -3378,7 +3478,14 @@ export function HomePage({
             </button>
             <button
               type="button"
-              onClick={() => setShowCreateSalon(true)}
+              onClick={() => setEventModalOpen(true)}
+              disabled={eventPublishing}
+              aria-label={t('map.createEventFabAria', { defaultValue: 'Créer un événement' })}
+              className={`${MAP_CREATE_FAB_BTN} disabled:opacity-50`}
+            >
+              <span className={USERNAME_WAVE_CLASS}>+ Event</span>
+            </button>
+            <button
               aria-label={t('home.createSalon', { defaultValue: 'Créer un salon musical' })}
               className={MAP_CREATE_FAB_BTN}
             >
@@ -3621,6 +3728,9 @@ export function HomePage({
                 salonFilterOn={salonFilterOn}
                 eventsBrowseMode={sidebarEventsFilterOn}
                 eventsBrowse={mapEventsBrowseConfig}
+                sponsoredEventPosts={sidebarSponsoredEvents.posts}
+                onSponsoredEventOpen={handleBrowseEventZoomOnMap}
+                onSponsoredEventPostChange={sidebarSponsoredEvents.patchPost}
               />
             )
           ) : (
