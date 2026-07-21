@@ -143,6 +143,27 @@ export const dmApi = {
       token
     ),
 
+  renameMessageGroup: (token: string, groupId: string, name: string) =>
+    request<{ group: import('../../types').MessageGroupDetail }>(
+      `/dm/groups/${groupId}`,
+      { method: 'PATCH', body: JSON.stringify({ name }) },
+      token
+    ),
+
+  deleteMessageGroup: (token: string, groupId: string) =>
+    request<{ ok: boolean; groupId: string }>(
+      `/dm/groups/${groupId}`,
+      { method: 'DELETE' },
+      token
+    ),
+
+  transferGroupCreator: (token: string, groupId: string, userId: string) =>
+    request<{ group: import('../../types').MessageGroupDetail }>(
+      `/dm/groups/${groupId}/transfer-creator`,
+      { method: 'POST', body: JSON.stringify({ userId }) },
+      token
+    ),
+
   deleteChatMessage: (
     token: string,
     roomType: 'salon' | 'live',

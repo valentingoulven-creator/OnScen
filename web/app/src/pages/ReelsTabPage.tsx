@@ -1262,13 +1262,15 @@ export function ReelsTabPage({
                 e.stopPropagation();
                 setCreateReelOpen(true);
               }}
-              className={`absolute top-4 z-20 w-11 h-11 rounded-full bg-pink-600/90 border-2 border-pink-400/80 backdrop-blur-sm flex items-center justify-center text-xl font-light text-white hover:bg-pink-500 transition-colors shadow-lg shadow-pink-900/40 ${
+              className={`absolute top-4 z-20 w-11 h-11 rounded-full bg-pink-600/90 border-2 border-pink-400/80 backdrop-blur-sm flex items-center justify-center text-white hover:bg-pink-500 transition-colors shadow-lg shadow-pink-900/40 ${
                 activeReel ? 'right-14' : 'right-3'
               }`}
               aria-label={t('reels.createButton', { defaultValue: 'Ajouter un reel' })}
               title={t('reels.createButton', { defaultValue: 'Ajouter un reel' })}
             >
-              +
+              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+                <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+              </svg>
             </button>
           )}
 

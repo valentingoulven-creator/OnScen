@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useAuth } from '../context/AuthContext';
 import { useDmUnread } from '../context/DmUnreadContext';
 import { api } from '../lib/api';
@@ -19,6 +20,7 @@ import { UserAvatarOnline } from '../components/UserAvatarOnline';
 import { UsernameDisplay } from '../components/UsernameDisplay';
 import { LinkifiedText } from '../components/LinkifiedText';
 import { verifyInternalLink } from '../lib/internalLinkCheck';
+import { formatGroupConversationPreview, formatGroupSystemMessage } from '../lib/groupSystemMessage';
 import type { InternalLinkTarget } from '../lib/linkifyText';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { VirtualList } from '../components/VirtualList';
@@ -79,6 +81,21 @@ function formatTime(ts: number): string {
     return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   }
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+}
+
+function groupConversationPreview(c: Conversation, t: TFunction): string {
+  const text = formatGroupConversationPreview(c, t);
+  return text || `${c.memberCount ?? 0} membres`;
+}
+
+function conversationListPrefix(c: Conversation, isGroup: boolean): string {
+  if (isGroup) {
+    if (c.lastMessageKind === 'system') return '';
+    if (!c.isFromMe && c.lastSenderName) return `${c.lastSenderName} : `;
+    if (c.isFromMe) return 'Vous : ';
+    return '';
+  }
+  return c.isFromMe ? 'Vous : ' : '';
 }
 
 type View = 'list' | 'thread' | 'groupThread' | 'supportThread' | 'new' | 'createGroup' | 'blocked';
@@ -311,6 +328,13 @@ export function DmPage({
   const [conversationMenuOpen, setConversationMenuOpen] = useState<string | null>(null);
   const [groupMenuOpen, setGroupMenuOpen] = useState(false);
   const [groupManageOpen, setGroupManageOpen] = useState(false);
+  const [groupRenameOpen, setGroupRenameOpen] = useState(false);
+  const [groupRenameDraft, setGroupRenameDraft] = useState('');
+  const [groupRenaming, setGroupRenaming] = useState(false);
+  const [transferringCreatorId, setTransferringCreatorId] = useState<string | null>(null);
+  const [showGroupDeleteModal, setShowGroupDeleteModal] = useState(false);
+  const [groupDeleteTransferTargetId, setGroupDeleteTransferTargetId] = useState<string | null>(null);
+  const [groupDeleting, setGroupDeleting] = useState(false);
   const [addMemberSearch, setAddMemberSearch] = useState('');
   const [addMemberResults, setAddMemberResults] = useState<UserSearchHit[]>([]);
   const [addMemberLoading, setAddMemberLoading] = useState(false);
@@ -329,6 +353,9 @@ export function DmPage({
   const [newDmQuery, setNewDmQuery] = useState('');
   const [newDmResults, setNewDmResults] = useState<UserSearchHit[]>([]);
   const [newDmSearching, setNewDmSearching] = useState(false);
+  const [newDmSelectedUsers, setNewDmSelectedUsers] = useState<NewDmPick[]>([]);
+  const [newDmGroupName, setNewDmGroupName] = useState('');
+  const [newDmCreating, setNewDmCreating] = useState(false);
   const [followingFriends, setFollowingFriends] = useState<NewDmPick[]>([]);
   const [createSalonOpen, setCreateSalonOpen] = useState(false);
   const [createSalonPreset, setCreateSalonPreset] = useState<CreateSalonModalPreset | null>(null);
@@ -998,6 +1025,16 @@ export function DmPage({
       }
       loadConversations();
     };
+    const onGroupDeleted = ({ groupId }: { groupId: string }) => {
+      if (activeGroup?.id === groupId) {
+        setGroupManageOpen(false);
+        setGroupMenuOpen(false);
+        setView('list');
+        setActiveGroupState(null);
+        setActiveGroup(null);
+      }
+      loadConversations();
+    };
     const onDmRequest = (req: DmRequest) => {
       setPendingRequests((prev) =>
         prev.some((r) => r.senderId === req.senderId) ? prev : [req, ...prev]
@@ -1024,6 +1061,7 @@ export function DmPage({
     socket.on('group_message_hidden', onGroupMessageHidden);
     socket.on('group_members_changed', onGroupMembersChanged);
     socket.on('group_member_removed', onGroupMemberRemoved);
+    socket.on('group_deleted', onGroupDeleted);
     socket.on('group_member_added', onGroupMembersChanged);
     socket.on('dm_request', onDmRequest);
     socket.on('dm_request_accepted', onDmRequestAccepted);
@@ -1039,6 +1077,7 @@ export function DmPage({
       socket.off('group_message_hidden', onGroupMessageHidden);
       socket.off('group_members_changed', onGroupMembersChanged);
       socket.off('group_member_removed', onGroupMemberRemoved);
+      socket.off('group_deleted', onGroupDeleted);
       socket.off('group_member_added', onGroupMembersChanged);
       socket.off('dm_request', onDmRequest);
       socket.off('dm_request_accepted', onDmRequestAccepted);
@@ -1279,6 +1318,195 @@ export function DmPage({
     );
   };
 
+  const renderGroupRenameModal = () => {
+    if (!groupRenameOpen || !activeGroup) return null;
+    return (
+      <div
+        className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="group-rename-title"
+        onClick={(e) => {
+          if (e.target === e.currentTarget && !groupRenaming) setGroupRenameOpen(false);
+        }}
+      >
+        <div className="w-full max-w-md bg-[#12121a] rounded-t-2xl sm:rounded-2xl border border-[#2d2d3d] shadow-2xl safe-area-pb">
+          <div className="shrink-0 flex items-center justify-between p-4 border-b border-[#1e1e2f]">
+            <h2 id="group-rename-title" className="font-bold text-white text-base">
+              {t('dm.renameGroup', { defaultValue: 'Renommer le groupe' })}
+            </h2>
+            <button
+              type="button"
+              onClick={() => setGroupRenameOpen(false)}
+              disabled={groupRenaming}
+              className="text-sm text-gray-400 hover:text-white px-2 py-1 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50"
+            >
+              {t('common.cancel', { defaultValue: 'Annuler' })}
+            </button>
+          </div>
+          <form
+            className="p-4 space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void renameActiveGroup();
+            }}
+          >
+            <input
+              type="text"
+              value={groupRenameDraft}
+              onChange={(e) => setGroupRenameDraft(e.target.value)}
+              maxLength={60}
+              autoFocus
+              placeholder={t('dm.groupNameOptional', { defaultValue: 'Nom du groupe (optionnel)' })}
+              className="w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-gray-500 outline-none focus:border-purple-500/60"
+            />
+            <button
+              type="submit"
+              disabled={groupRenaming || !groupRenameDraft.trim()}
+              className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 rounded-xl text-sm font-bold text-white"
+            >
+              {groupRenaming
+                ? t('common.loading', { defaultValue: 'Chargement…' })
+                : t('common.save', { defaultValue: 'Enregistrer' })}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
+  const renderGroupDeleteModal = () => {
+    if (!showGroupDeleteModal || !activeGroup || !user) return null;
+    const otherMembers = activeGroup.members.filter((m) => m.id !== user.id);
+    const busy = groupDeleting || transferringCreatorId != null;
+
+    return (
+      <div
+        className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="group-delete-choice-title"
+        onClick={(e) => {
+          if (e.target === e.currentTarget && !busy) setShowGroupDeleteModal(false);
+        }}
+      >
+        <div className="w-full max-w-md bg-[#12121a] rounded-t-2xl sm:rounded-2xl border border-[#2d2d3d] shadow-2xl safe-area-pb max-h-[90dvh] flex flex-col overflow-hidden">
+          <div className="shrink-0 p-5 border-b border-[#1e1e2f]">
+            <h2 id="group-delete-choice-title" className="text-lg font-bold text-white">
+              {t('dm.deleteGroupChoiceTitle', { defaultValue: 'Supprimer ce groupe ?' })}
+            </h2>
+            <p className="mt-2 text-sm text-gray-400">
+              {t('dm.deleteGroupChoiceDesc', {
+                defaultValue:
+                  'Transférez l\'administration à un autre membre ou supprimez le groupe et tous ses messages pour tout le monde.',
+              })}
+            </p>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+            <section>
+              <h3 className="text-xs font-semibold text-purple-300 uppercase tracking-wide mb-2">
+                {t('dm.transferAdminInstead', { defaultValue: 'Changer d\'administrateur' })}
+              </h3>
+              <ul className="space-y-1">
+                {otherMembers.map((m) => {
+                  const selected = groupDeleteTransferTargetId === m.id;
+                  return (
+                    <li key={m.id}>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => setGroupDeleteTransferTargetId(m.id)}
+                        className={`w-full flex items-center gap-3 p-2.5 rounded-xl border text-left transition-colors ${
+                          selected
+                            ? 'bg-purple-900/25 border-purple-500/50'
+                            : 'bg-[#1a1a26] border-[#2d2d3d] hover:border-purple-500/30'
+                        } disabled:opacity-50`}
+                      >
+                        <UserAvatarOnline
+                          userId={m.id}
+                          avatarUrl={m.avatarUrl}
+                          size="sm"
+                          isOnline={isOnline(m.id)}
+                          isLive={isLive(m.id)}
+                          liveViewersCount={liveViewersFor(m.id)}
+                        />
+                        <UsernameDisplay
+                          username={m.username}
+                          usernameColor={m.usernameColor}
+                          usernameWaveFrom={m.usernameWaveFrom}
+                          usernameWaveTo={m.usernameWaveTo}
+                          className="font-semibold text-white text-sm truncate flex-1"
+                        />
+                        <span
+                          className={`shrink-0 w-4 h-4 rounded-full border-2 ${
+                            selected ? 'border-purple-400 bg-purple-500' : 'border-gray-500'
+                          }`}
+                          aria-hidden
+                        />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              <button
+                type="button"
+                disabled={busy || !groupDeleteTransferTargetId}
+                onClick={() => {
+                  if (groupDeleteTransferTargetId) {
+                    void executeTransferGroupAdmin(groupDeleteTransferTargetId);
+                  }
+                }}
+                className="mt-3 w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-sm font-bold text-white"
+              >
+                {transferringCreatorId
+                  ? t('common.loading', { defaultValue: 'Chargement…' })
+                  : t('dm.transferGroupAdmin', { defaultValue: 'Transférer le rôle' })}
+              </button>
+            </section>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-[#2d2d3d]" />
+              <span className="text-[10px] text-gray-500 uppercase tracking-wide">
+                {t('common.or', { defaultValue: 'ou' })}
+              </span>
+              <div className="flex-1 h-px bg-[#2d2d3d]" />
+            </div>
+
+            <section>
+              <p className="text-xs text-gray-500 mb-2">
+                {t('dm.deleteGroupForeverHint', {
+                  defaultValue: 'Cette action est définitive pour tous les membres.',
+                })}
+              </p>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void executeDeleteGroup()}
+                className="w-full py-2.5 rounded-xl bg-red-600/90 hover:bg-red-500 disabled:opacity-40 text-sm font-bold text-white"
+              >
+                {groupDeleting
+                  ? t('common.loading', { defaultValue: 'Chargement…' })
+                  : t('dm.deleteGroupForever', { defaultValue: 'Supprimer définitivement' })}
+              </button>
+            </section>
+          </div>
+
+          <div className="shrink-0 p-4 border-t border-[#1e1e2f] bg-[#0b0b0f]/50">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setShowGroupDeleteModal(false)}
+              className="w-full py-3 rounded-xl border border-[#2d2d3d] text-gray-300 text-sm font-semibold hover:text-white disabled:opacity-50"
+            >
+              {t('common.cancel', { defaultValue: 'Annuler' })}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderConfirmModal = () => (
     <>
       <ConfirmModal
@@ -1376,6 +1604,9 @@ export function DmPage({
       setNewDmResults([]);
       setNewDmSearching(false);
       setFollowingFriends([]);
+      setNewDmSelectedUsers([]);
+      setNewDmGroupName('');
+      setNewDmCreating(false);
     }
   }, [showNewDmSheet, token]);
 
@@ -1487,13 +1718,117 @@ export function DmPage({
     newDmFriendUsers,
   ]);
 
-  const openNewDmPick = useCallback(
-    (user: NewDmPick) => {
-      setShowNewDmSheet(false);
-      void openThread({ ...user, isOnline: isOnline(user.id) });
-    },
-    [isOnline]
+  const newDmSelectedCount = newDmSelectedUsers.length;
+
+  const isNewDmUserSelected = useCallback(
+    (userId: string) => newDmSelectedUsers.some((u) => u.id === userId),
+    [newDmSelectedUsers]
   );
+
+  const toggleNewDmUser = useCallback((user: NewDmPick) => {
+    setNewDmSelectedUsers((prev) => {
+      if (prev.some((u) => u.id === user.id)) {
+        return prev.filter((u) => u.id !== user.id);
+      }
+      return [...prev, user];
+    });
+  }, []);
+
+  const confirmNewDmSelection = useCallback(async () => {
+    if (!token || newDmCreating || newDmSelectedUsers.length === 0) return;
+
+    if (newDmSelectedUsers.length === 1) {
+      const pick = newDmSelectedUsers[0]!;
+      setShowNewDmSheet(false);
+      setNewDmSelectedUsers([]);
+      setNewDmGroupName('');
+      void openThread({ ...pick, isOnline: isOnline(pick.id) });
+      return;
+    }
+
+    const memberIds = newDmSelectedUsers.map((u) => u.id);
+    let name = newDmGroupName.trim();
+    if (!name) {
+      const preview = newDmSelectedUsers.slice(0, 3).map((u) => u.username).join(', ');
+      name =
+        newDmSelectedUsers.length > 3
+          ? `${preview} +${newDmSelectedUsers.length - 3}`
+          : preview;
+    }
+
+    setNewDmCreating(true);
+    try {
+      const { group } = await api.createMessageGroup(token, name, memberIds);
+      setShowNewDmSheet(false);
+      setNewDmSelectedUsers([]);
+      setNewDmGroupName('');
+      loadConversations();
+      await openGroupThread(group.id);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Impossible de créer le groupe');
+    } finally {
+      setNewDmCreating(false);
+    }
+  }, [
+    token,
+    newDmCreating,
+    newDmSelectedUsers,
+    newDmGroupName,
+    isOnline,
+    loadConversations,
+    openGroupThread,
+  ]);
+
+  const renderNewDmUserRow = (user: NewDmPick, keyPrefix: string, showHeart = false) => {
+    const selected = isNewDmUserSelected(user.id);
+    return (
+      <li key={`${keyPrefix}-${user.id}`}>
+        <div
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+            selected ? 'bg-purple-900/25 border border-purple-500/40' : 'hover:bg-[#1a1a26]'
+          }`}
+        >
+          <UserCheckbox checked={selected} onChange={() => toggleNewDmUser(user)} />
+          <button
+            type="button"
+            onClick={() => toggleNewDmUser(user)}
+            className="flex-1 flex items-center gap-3 text-left min-w-0"
+          >
+            <UserAvatarOnline
+              userId={user.id}
+              avatarUrl={user.avatarUrl}
+              size="md"
+              isOnline={isOnline(user.id)}
+              isLive={isLive(user.id)}
+              liveViewersCount={liveViewersFor(user.id)}
+            />
+            {showHeart ? (
+              <span className="font-semibold text-white text-sm truncate flex-1 inline-flex items-center gap-1 min-w-0">
+                <UsernameDisplay
+                  username={user.username}
+                  usernameColor={user.usernameColor}
+                  usernameWaveFrom={user.usernameWaveFrom}
+                  usernameWaveTo={user.usernameWaveTo}
+                  className="truncate"
+                />
+                <span className="shrink-0 text-pink-400 text-sm" aria-hidden>
+                  ♥
+                </span>
+              </span>
+            ) : (
+              <UsernameDisplay
+                username={user.username}
+                usernameColor={user.usernameColor}
+                usernameWaveFrom={user.usernameWaveFrom}
+                usernameWaveTo={user.usernameWaveTo}
+                className="font-semibold text-white text-sm truncate flex-1"
+              />
+            )}
+          </button>
+        </div>
+      </li>
+    );
+  };
 
   const addMemberToGroup = async (userId: string, username: string) => {
     if (!token || !activeGroup || addingMemberId) return;
@@ -1514,6 +1849,13 @@ export function DmPage({
   const removeMemberFromGroup = (memberId: string, username: string) => {
     if (!token || !activeGroup || removingMemberId) return;
     const isSelf = memberId === user?.id;
+    if (isSelf && isGroupCreator && activeGroup.memberCount > 1) {
+      setGroupDeleteTransferTargetId(
+        activeGroup.members.find((m) => m.id !== user?.id)?.id ?? null
+      );
+      setShowGroupDeleteModal(true);
+      return;
+    }
     setPendingConfirm({
       title: isSelf ? 'Quitter ce groupe ?' : `Retirer ${username} du groupe ?`,
       description: isSelf
@@ -1543,6 +1885,130 @@ export function DmPage({
           setRemovingMemberId(null);
         }
       },
+    });
+  };
+
+  const openGroupRename = () => {
+    if (!activeGroup) return;
+    setGroupRenameDraft(activeGroup.name);
+    setGroupRenameOpen(true);
+    setGroupMenuOpen(false);
+  };
+
+  const renameActiveGroup = async () => {
+    if (!token || !activeGroup || groupRenaming) return;
+    const name = groupRenameDraft.trim();
+    if (!name) {
+      alert(t('dm.groupNameRequired', { defaultValue: 'Donnez un nom au groupe' }));
+      return;
+    }
+    if (name === activeGroup.name) {
+      setGroupRenameOpen(false);
+      return;
+    }
+    setGroupRenaming(true);
+    try {
+      const { group } = await api.renameMessageGroup(token, activeGroup.id, name);
+      setActiveGroupState(group);
+      setGroupRenameOpen(false);
+      setGroupMenuOpen(false);
+      setConversations((prev) =>
+        prev.map((c) => (c.groupId === group.id ? { ...c, username: group.name } : c))
+      );
+      loadConversations();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : t('dm.renameGroupFailed', { defaultValue: 'Impossible de renommer le groupe' }));
+    } finally {
+      setGroupRenaming(false);
+    }
+  };
+
+  const leaveActiveGroup = () => {
+    if (!user || !activeGroup) return;
+    setGroupMenuOpen(false);
+    removeMemberFromGroup(user.id, user.username);
+  };
+
+  const deleteActiveGroup = () => {
+    if (!token || !activeGroup || !isGroupCreator) return;
+    setGroupMenuOpen(false);
+    const otherMembers = activeGroup.members.filter((m) => m.id !== user?.id);
+    if (otherMembers.length === 0) {
+      setPendingConfirm({
+        title: t('dm.deleteGroupConfirmTitle', { defaultValue: 'Supprimer ce groupe ?' }),
+        description: t('dm.deleteGroupConfirmDesc', {
+          defaultValue:
+            'Le groupe et tous ses messages seront supprimés pour tous les membres. Cette action est définitive.',
+        }),
+        confirmLabel: t('dm.deleteGroupForever', { defaultValue: 'Supprimer définitivement' }),
+        onConfirm: () => void executeDeleteGroup(),
+      });
+      return;
+    }
+    setGroupDeleteTransferTargetId(otherMembers[0]?.id ?? null);
+    setShowGroupDeleteModal(true);
+  };
+
+  const executeDeleteGroup = async () => {
+    if (!token || !activeGroup || groupDeleting) return;
+    setGroupDeleting(true);
+    try {
+      await api.deleteMessageGroup(token, activeGroup.id);
+      setShowGroupDeleteModal(false);
+      setGroupManageOpen(false);
+      setView('list');
+      setActiveGroupState(null);
+      setActiveGroup(null);
+      setPendingConfirm(null);
+      loadConversations();
+    } catch (err) {
+      alert(
+        err instanceof Error
+          ? err.message
+          : t('dm.deleteGroupFailed', { defaultValue: 'Impossible de supprimer le groupe' })
+      );
+    } finally {
+      setGroupDeleting(false);
+    }
+  };
+
+  const executeTransferGroupAdmin = async (memberId: string) => {
+    if (!token || !activeGroup || transferringCreatorId) return;
+    setTransferringCreatorId(memberId);
+    try {
+      const { group } = await api.transferGroupCreator(token, activeGroup.id, memberId);
+      setActiveGroupState(group);
+      setShowGroupDeleteModal(false);
+      setPendingConfirm(null);
+      loadConversations();
+    } catch (err) {
+      alert(
+        err instanceof Error
+          ? err.message
+          : t('dm.transferGroupAdminFailed', {
+              defaultValue: 'Impossible de transférer le rôle',
+            })
+      );
+    } finally {
+      setTransferringCreatorId(null);
+    }
+  };
+
+  const transferGroupAdmin = (memberId: string, username: string) => {
+    if (!token || !activeGroup || !isGroupCreator || transferringCreatorId) return;
+    if (memberId === user?.id) return;
+    setPendingConfirm({
+      title: t('dm.transferGroupAdminConfirmTitle', {
+        defaultValue: 'Nommer {{name}} administrateur ?',
+        name: username,
+      }),
+      description: t('dm.transferGroupAdminConfirmDesc', {
+        defaultValue:
+          '{{name}} pourra gérer les membres, renommer et supprimer le groupe. Vous resterez membre mais ne serez plus administrateur.',
+        name: username,
+      }),
+      confirmLabel: t('dm.transferGroupAdmin', { defaultValue: 'Transférer le rôle' }),
+      onConfirm: () => void executeTransferGroupAdmin(memberId),
     });
   };
 
@@ -2060,13 +2526,15 @@ export function DmPage({
     );
   }
 
+  let threadPanel: ReactNode = null;
+
   if (view === 'supportThread' && activeSupportTicket) {
     const supportThread = getSupportThread(activeSupportTicket);
     const canReplySupport = activeSupportTicket.status === 'replied';
     const isWaitingSupport = activeSupportTicket.status === 'open';
     const isResolvedSupport = activeSupportTicket.status === 'resolved';
 
-    return (
+    threadPanel = (
       <div className="dm-thread-root relative flex flex-col flex-1 min-h-0 bg-[#0b0b0f] overflow-hidden">
         <header className="shrink-0 flex items-center gap-3 p-3 border-b border-[#1e1e2f] bg-[#12121a] relative z-10">
           <button
@@ -2075,7 +2543,7 @@ export function DmPage({
               setView('list');
               void loadActiveSupport();
             }}
-            className="text-gray-400 hover:text-white text-3xl w-10 h-10 flex items-center justify-center shrink-0"
+            className="lg:hidden text-gray-400 hover:text-white text-3xl w-10 h-10 flex items-center justify-center shrink-0"
           >
             ←
           </button>
@@ -2182,9 +2650,7 @@ export function DmPage({
         )}
       </div>
     );
-  }
-
-  if (view === 'thread' && activeUser) {
+  } else if (view === 'thread' && activeUser) {
     const online = isOnline(activeUser.id);
     const live = isLive(activeUser.id);
     const isPendingReceived = conversations.find((c) => c.userId === activeUser.id)?.isPendingRequest ?? false;
@@ -2192,7 +2658,7 @@ export function DmPage({
       (conversations.find((c) => c.userId === activeUser.id)?.isPendingSent ?? false);
     const canSendDm = activeUser.acceptsPrivateMessages !== false;
     const iBlockedThem = blockedUsers.some((b) => b.id === activeUser.id);
-    return (
+    threadPanel = (
       <div className="dm-thread-root relative flex flex-col flex-1 min-h-0 bg-[#0b0b0f] overflow-hidden">
         <header className="shrink-0 flex items-center gap-3 p-3 border-b border-[#1e1e2f] bg-[#12121a] relative z-10">
           <button
@@ -2202,7 +2668,7 @@ export function DmPage({
               setMenuOpen(false);
               loadConversations();
             }}
-            className="text-gray-400 hover:text-white text-3xl w-10 h-10 flex items-center justify-center shrink-0"
+            className="lg:hidden text-gray-400 hover:text-white text-3xl w-10 h-10 flex items-center justify-center shrink-0"
           >
             ←
           </button>
@@ -2533,13 +2999,9 @@ export function DmPage({
             </form>
           )}
         </div>
-        {renderCreateSalonModal()}
-        {renderConfirmModal()}
       </div>
     );
-  }
-
-  if (view === 'groupThread' && activeGroup) {
+  } else if (view === 'groupThread' && activeGroup) {
     const memberLabel = activeGroup.members.map((m) => m.username).join(', ');
     const senderNames = new Map(activeGroup.members.map((m) => [m.id, m.username]));
     const senderColors = new Map(
@@ -2581,12 +3043,58 @@ export function DmPage({
           <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-6">
             <section>
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                {t('dm.renameGroup', { defaultValue: 'Renommer le groupe' })}
+              </h3>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  value={groupRenameDraft}
+                  onChange={(e) => setGroupRenameDraft(e.target.value)}
+                  maxLength={60}
+                  placeholder={t('dm.groupNameOptional', { defaultValue: 'Nom du groupe (optionnel)' })}
+                  className="flex-1 min-w-0 bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-gray-500 outline-none focus:border-purple-500/60"
+                />
+                <button
+                  type="button"
+                  onClick={() => void renameActiveGroup()}
+                  disabled={
+                    groupRenaming ||
+                    !groupRenameDraft.trim() ||
+                    groupRenameDraft.trim() === activeGroup.name
+                  }
+                  className="shrink-0 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-sm font-bold text-white"
+                >
+                  {groupRenaming
+                    ? t('common.loading', { defaultValue: 'Chargement…' })
+                    : t('common.save', { defaultValue: 'Enregistrer' })}
+                </button>
+              </div>
+            </section>
+
+            {isGroupCreator && (
+              <section>
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                  {t('dm.groupAdminSection', { defaultValue: 'Administrateur du groupe' })}
+                </h3>
+                <p className="text-xs text-gray-500 mb-2">
+                  {t('dm.groupAdminHint', {
+                    defaultValue:
+                      'Transférez le rôle à un autre membre pour lui confier la gestion du groupe.',
+                  })}
+                </p>
+              </section>
+            )}
+
+            <section>
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
                 Membres ({activeGroup.memberCount})
               </h3>
               <ul className="space-y-1">
                 {activeGroup.members.map((m) => {
                   const isMe = m.id === user?.id;
+                  const isAdmin = m.id === activeGroup.creatorId;
                   const canRemove = isMe || isGroupCreator;
+                  const canTransferAdmin = isGroupCreator && !isMe && !isAdmin;
                   return (
                     <li
                       key={m.id}
@@ -2609,32 +3117,52 @@ export function DmPage({
                           className="font-semibold text-white truncate block"
                         />
                         <p className="text-[10px] text-gray-500">
-                          {m.id === activeGroup.creatorId
-                            ? 'Créateur'
+                          {isAdmin
+                            ? t('dm.groupAdmin', { defaultValue: 'Administrateur' })
                             : isMe
-                              ? 'Vous'
+                              ? t('dm.you', { defaultValue: 'Vous' })
                               : m.isOnline
-                                ? 'En ligne'
-                                : 'Hors ligne'}
+                                ? t('dm.online', { defaultValue: 'En ligne' })
+                                : t('dm.offline', { defaultValue: 'Hors ligne' })}
                         </p>
                       </div>
-                      {canRemove && (
-                        <button
-                          type="button"
-                          onClick={() => void removeMemberFromGroup(m.id, m.username)}
-                          disabled={removingMemberId === m.id}
-                          className="shrink-0 text-xs font-semibold text-red-400 hover:text-red-300 disabled:opacity-50 px-2 py-1"
-                        >
-                          {removingMemberId === m.id ? '...' : isMe ? 'Quitter' : 'Retirer'}
-                        </button>
-                      )}
+                      <div className="flex shrink-0 items-center gap-1">
+                        {canTransferAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => transferGroupAdmin(m.id, m.username)}
+                            disabled={transferringCreatorId === m.id}
+                            className="text-xs font-semibold text-purple-400 hover:text-purple-300 disabled:opacity-50 px-2 py-1 whitespace-nowrap"
+                          >
+                            {transferringCreatorId === m.id
+                              ? '...'
+                              : t('dm.makeGroupAdmin', { defaultValue: 'Nommer admin' })}
+                          </button>
+                        )}
+                        {canRemove && (
+                          <button
+                            type="button"
+                            onClick={() => void removeMemberFromGroup(m.id, m.username)}
+                            disabled={removingMemberId === m.id}
+                            className="text-xs font-semibold text-red-400 hover:text-red-300 disabled:opacity-50 px-2 py-1 whitespace-nowrap"
+                          >
+                            {removingMemberId === m.id
+                              ? '...'
+                              : isMe
+                                ? t('dm.leaveGroup', { defaultValue: 'Quitter' })
+                                : t('dm.removeMember', { defaultValue: 'Retirer' })}
+                          </button>
+                        )}
+                      </div>
                     </li>
                   );
                 })}
               </ul>
               {!isGroupCreator && (
                 <p className="text-[10px] text-gray-500 mt-2">
-                  Seul le créateur peut retirer les autres membres.
+                  {t('dm.groupAdminOnlyHint', {
+                    defaultValue: 'Seul l\'administrateur peut retirer les autres membres.',
+                  })}
                 </p>
               )}
             </section>
@@ -2687,11 +3215,14 @@ export function DmPage({
               </div>
             </section>
           </div>
+          {renderGroupRenameModal()}
+          {renderGroupDeleteModal()}
+          {renderConfirmModal()}
         </div>
       );
     }
 
-    return (
+    threadPanel = (
       <div className="dm-thread-root relative flex flex-col flex-1 min-h-0 bg-[#0b0b0f] overflow-hidden">
         <header className="shrink-0 flex items-center gap-3 p-3 border-b border-[#1e1e2f] bg-[#12121a] relative z-10">
           <button
@@ -2702,13 +3233,20 @@ export function DmPage({
               setGroupMenuOpen(false);
               loadConversations();
             }}
-            className="text-gray-400 hover:text-white text-xl"
+            className="lg:hidden text-gray-400 hover:text-white text-xl"
           >
             ←
           </button>
           <GroupAvatar name={activeGroup.name} size="sm" />
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-white truncate">{activeGroup.name}</p>
+            <button
+              type="button"
+              onClick={openGroupRename}
+              className="font-bold text-white truncate text-left max-w-full hover:text-purple-300 transition-colors"
+              title={t('dm.renameGroup', { defaultValue: 'Renommer le groupe' })}
+            >
+              {activeGroup.name}
+            </button>
             <p className="text-xs text-gray-400 truncate" title={memberLabel}>
               {activeGroup.memberCount} membres · {memberLabel}
             </p>
@@ -2725,8 +3263,15 @@ export function DmPage({
             <div className="absolute right-3 top-full mt-1 z-30 bg-[#1a1a26] border border-[#2d2d3d] rounded-xl shadow-xl overflow-hidden min-w-[12rem]">
               <button
                 type="button"
-                onClick={() => openPrivateSalonModal()}
+                onClick={openGroupRename}
                 className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#2d2d3d]"
+              >
+                {t('dm.renameGroup', { defaultValue: 'Renommer le groupe' })}
+              </button>
+              <button
+                type="button"
+                onClick={() => openPrivateSalonModal()}
+                className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#2d2d3d] border-t border-[#2d2d3d]"
               >
                 {t('dm.createPrivateYoutubeSalon')}
               </button>
@@ -2734,12 +3279,30 @@ export function DmPage({
                 type="button"
                 onClick={() => {
                   setGroupMenuOpen(false);
+                  setGroupRenameDraft(activeGroup.name);
                   setGroupManageOpen(true);
                 }}
                 className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#2d2d3d] border-t border-[#2d2d3d]"
               >
                 Gérer le groupe
               </button>
+              {isGroupCreator ? (
+                <button
+                  type="button"
+                  onClick={deleteActiveGroup}
+                  className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-red-500/10 border-t border-[#2d2d3d]"
+                >
+                  {t('dm.deleteGroup', { defaultValue: 'Supprimer le groupe' })}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={leaveActiveGroup}
+                  className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-red-500/10 border-t border-[#2d2d3d]"
+                >
+                  {t('dm.leaveGroup', { defaultValue: 'Quitter le groupe' })}
+                </button>
+              )}
             </div>
           )}
         </header>
@@ -2757,6 +3320,15 @@ export function DmPage({
                 </p>
               )}
               {groupMessages.map((m) => {
+                if (m.kind === 'system') {
+                  return (
+                    <div key={m.id} className="flex justify-center py-0.5">
+                      <p className="text-[11px] leading-snug text-gray-500 text-center px-3 py-1.5 rounded-full bg-[#1a1a26]/80 border border-[#2d2d3d]/60 max-w-[min(100%,20rem)]">
+                        {formatGroupSystemMessage(m, t)}
+                      </p>
+                    </div>
+                  );
+                }
                 const isMe = m.senderId === user?.id;
                 const menuOpen = openMsgMenuId === m.id;
                 const senderLabel = m.senderName ?? senderNames.get(m.senderId) ?? 'Membre';
@@ -2847,136 +3419,87 @@ export function DmPage({
             </button>
           </form>
         </div>
-        {renderCreateSalonModal()}
-        {renderConfirmModal()}
       </div>
     );
   }
 
-  return (
-    <div className="flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f]">
-      <header className="shrink-0 border-b border-[#1e1e2f] min-w-0 overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 sm:p-4 min-w-0">
-          <div className="flex items-center justify-between gap-2 min-w-0 sm:contents">
-            <h2 className="text-base sm:text-lg font-bold text-white truncate min-w-0">
-              {t('dm.title')}
-            </h2>
-            <div className="flex items-center gap-1.5 shrink-0 sm:hidden">
-              <button
-                type="button"
-                onClick={() => {
-                  loadContacts();
-                  clearSelection();
-                  setView('createGroup');
-                }}
-                className="flex items-center justify-center w-11 h-11 text-purple-300 border border-purple-500/40 rounded-full hover:bg-purple-900/20"
-                title={t('dm.newGroup')}
-                aria-label={t('dm.newGroup')}
-              >
-                <svg
-                  className="w-5 h-5 shrink-0"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M19 8v6" />
-                  <path d="M22 11h-6" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowNewDmSheet(true)}
-                className="flex items-center justify-center w-11 h-11 bg-purple-600 hover:bg-purple-500 rounded-full text-white"
-                title={t('dm.newMessage')}
-                aria-label={t('dm.newMessage')}
-              >
-                <svg
-                  className="w-5 h-5 shrink-0"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <path d="M12 5v14" />
-                  <path d="M5 12h14" />
-                </svg>
-              </button>
-            </div>
-          </div>
+  const showThreadPane = threadPanel != null;
 
-          <div className="flex items-center gap-2 min-w-0 sm:shrink-0">
-            <div className="flex-1 min-w-0 overflow-x-auto scrollbar-none -mx-1 px-1 sm:overflow-visible sm:mx-0 sm:px-0 sm:flex-initial">
-              <div className="flex gap-2 w-max sm:w-auto flex-nowrap">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (showMatchesOnly) toggleMatchesOnly();
-                  }}
-                  className={`sm:hidden flex items-center px-3 py-2.5 min-h-[44px] text-xs rounded-full border font-semibold whitespace-nowrap shrink-0 ${
-                    !showMatchesOnly
-                      ? 'bg-purple-600/20 border-purple-500/50 text-purple-200'
-                      : 'border-[#2d2d3d] text-gray-400 hover:text-white'
-                  }`}
-                  aria-pressed={!showMatchesOnly}
-                >
-                  {t('dm.title')}
-                </button>
-                <button
-                  type="button"
-                  onClick={toggleMatchesOnly}
-                  className={`flex items-center px-3 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 text-xs sm:text-sm rounded-full border font-semibold whitespace-nowrap shrink-0 ${
-                    showMatchesOnly
-                      ? 'bg-pink-600/20 border-pink-500/50 text-pink-300'
-                      : 'border-[#2d2d3d] text-gray-400 hover:text-white'
-                  }`}
-                  aria-pressed={showMatchesOnly}
-                >
-                  ♥ Matchs
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    loadBlocked();
-                    setBlockedSearch('');
-                    setView('blocked');
-                  }}
-                  className="flex items-center px-3 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 text-xs sm:text-sm text-gray-400 border border-[#2d2d3d] rounded-full hover:text-white whitespace-nowrap shrink-0"
-                  title={t('dm.blocked')}
-                >
-                  Bloqués
-                </button>
-              </div>
-            </div>
-            <div className="hidden sm:flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  loadContacts();
-                  clearSelection();
-                  setView('createGroup');
-                }}
-                className="px-3 py-2 text-xs text-purple-300 border border-purple-500/40 rounded-full hover:bg-purple-900/20 font-semibold whitespace-nowrap"
-              >
-                + Groupe
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowNewDmSheet(true)}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-full text-sm font-bold text-white whitespace-nowrap"
-              >
-                + Nouveau
-              </button>
-            </div>
-          </div>
+  return (
+    <div className="flex flex-1 min-h-0 h-full flex-col lg:flex-row bg-[#0b0b0f]">
+      <aside
+        className={`flex flex-col min-h-0 min-w-0 w-full lg:w-80 lg:max-w-[min(100%,22rem)] lg:shrink-0 lg:border-r border-[#1e1e2f] ${
+          showThreadPane ? 'hidden lg:flex' : 'flex'
+        }`}
+      >
+      <header className="shrink-0 border-b border-[#1e1e2f] min-w-0 overflow-hidden">
+        <div className="flex items-center justify-between gap-2 px-3 pt-3 pb-2 min-w-0">
+          <h2 className="text-base font-bold text-white truncate min-w-0">
+            {t('dm.title')}
+          </h2>
+          <button
+            type="button"
+            onClick={() => setShowNewDmSheet(true)}
+            className="flex items-center justify-center w-11 h-11 bg-purple-600 hover:bg-purple-500 rounded-full text-white shrink-0"
+            title={t('dm.newMessage')}
+            aria-label={t('dm.newMessage')}
+            aria-haspopup="dialog"
+          >
+            <svg
+              className="w-5 h-5 shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M12 5v14" />
+              <path d="M5 12h14" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 px-3 pb-3 min-w-0">
+          <button
+            type="button"
+            onClick={() => {
+              if (showMatchesOnly) toggleMatchesOnly();
+            }}
+            className={`flex items-center px-2.5 py-1.5 min-h-[36px] text-[11px] rounded-full border font-semibold whitespace-nowrap shrink-0 ${
+              !showMatchesOnly
+                ? 'bg-purple-600/20 border-purple-500/50 text-purple-200'
+                : 'border-[#2d2d3d] text-gray-400 hover:text-white hover:border-[#3d3d4d]'
+            }`}
+            aria-pressed={!showMatchesOnly}
+          >
+            {t('dm.allConversations', { defaultValue: 'Tous' })}
+          </button>
+          <button
+            type="button"
+            onClick={toggleMatchesOnly}
+            className={`flex items-center px-2.5 py-1.5 min-h-[36px] text-[11px] rounded-full border font-semibold whitespace-nowrap shrink-0 ${
+              showMatchesOnly
+                ? 'bg-pink-600/20 border-pink-500/50 text-pink-300'
+                : 'border-[#2d2d3d] text-gray-400 hover:text-white hover:border-[#3d3d4d]'
+            }`}
+            aria-pressed={showMatchesOnly}
+          >
+            ♥ Matchs
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              loadBlocked();
+              setBlockedSearch('');
+              setView('blocked');
+            }}
+            className="flex items-center px-2.5 py-1.5 min-h-[36px] text-[11px] text-gray-400 border border-[#2d2d3d] rounded-full hover:text-white hover:border-[#3d3d4d] whitespace-nowrap shrink-0"
+            title={t('dm.blocked')}
+          >
+            Bloqués
+          </button>
         </div>
       </header>
 
@@ -3063,7 +3586,11 @@ export function DmPage({
             <button
               type="button"
               onClick={() => openSupportThread(activeSupportTicket)}
-              className="w-full flex items-center gap-3 p-4 border-b border-[#1e1e2f]/50 hover:bg-[#12121a] text-left"
+              className={`w-full flex items-center gap-3 p-4 border-b border-[#1e1e2f]/50 text-left transition-colors ${
+                view === 'supportThread'
+                  ? 'bg-purple-900/20 border-l-2 border-l-purple-500'
+                  : 'hover:bg-[#12121a]'
+              }`}
             >
               <SupportAvatar size="lg" />
               <div className="flex-1 min-w-0">
@@ -3093,9 +3620,18 @@ export function DmPage({
           const rowKey = isGroup ? c.groupId! : c.userId!;
           const isConvMenuOpen = !isGroup && c.userId ? conversationMenuOpen === c.userId : false;
           const isMuted = !isGroup && c.isMuted;
+          const isActiveRow =
+            (view === 'thread' && !isGroup && c.userId === activeUser?.id) ||
+            (view === 'groupThread' && isGroup && c.groupId === activeGroup?.id);
           return (
             <li key={rowKey}>
-              <div className="relative flex items-center gap-3 p-4 border-b border-[#1e1e2f]/50 hover:bg-[#12121a]">
+              <div
+                className={`relative flex items-center gap-3 p-4 border-b border-[#1e1e2f]/50 transition-colors ${
+                  isActiveRow
+                    ? 'bg-purple-900/20 border-l-2 border-l-purple-500'
+                    : 'hover:bg-[#12121a]'
+                }`}
+              >
                 {!isGroup && c.userId && onOpenProfile ? (
                   <button
                     type="button"
@@ -3206,8 +3742,8 @@ export function DmPage({
                       </span>
                     </div>
                     <p className="text-sm text-gray-400 truncate mt-0.5">
-                      {isGroup && !c.isFromMe && c.lastSenderName ? `${c.lastSenderName} : ` : c.isFromMe ? 'Vous : ' : ''}
-                      {c.lastMessage || (isGroup ? `${c.memberCount ?? 0} membres` : '')}
+                      {conversationListPrefix(c, isGroup)}
+                      {isGroup ? groupConversationPreview(c, t) : c.lastMessage}
                     </p>
                   </div>
                 </button>
@@ -3287,25 +3823,58 @@ export function DmPage({
 
       {showNewDmSheet && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="new-dm-sheet-title"
           onClick={(e) => { if (e.target === e.currentTarget) setShowNewDmSheet(false); }}
         >
-          <div className="w-full max-w-md bg-[#12121a] rounded-2xl border border-[#2d2d3d] max-h-[85dvh] flex flex-col shadow-2xl">
+          <div className="w-full max-w-md bg-[#12121a] rounded-t-2xl sm:rounded-2xl border border-[#2d2d3d] max-h-[90dvh] flex flex-col shadow-2xl safe-area-pb">
             <div className="shrink-0 flex items-center justify-between p-4 border-b border-[#1e1e2f]">
-              <h2 id="new-dm-sheet-title" className="font-bold text-white text-base">
-                Nouvelle conversation
-              </h2>
+              <div className="min-w-0">
+                <h2 id="new-dm-sheet-title" className="font-bold text-white text-base">
+                  {t('dm.newConversation', { defaultValue: 'Nouvelle conversation' })}
+                </h2>
+                <p className="text-[11px] text-gray-500 mt-0.5">
+                  {t('dm.newConversationHint', {
+                    defaultValue: 'Sélectionnez un ou plusieurs utilisateurs',
+                  })}
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setShowNewDmSheet(false)}
-                className="text-sm text-gray-400 hover:text-white px-2 py-1 rounded-lg hover:bg-white/10 transition-colors"
+                className="text-sm text-gray-400 hover:text-white px-2 py-1 rounded-lg hover:bg-white/10 transition-colors shrink-0"
               >
-                Annuler
+                {t('common.cancel', { defaultValue: 'Annuler' })}
               </button>
             </div>
+
+            {newDmSelectedCount > 0 && (
+              <div className="shrink-0 px-4 py-2.5 border-b border-[#1e1e2f]/50">
+                <div className="flex flex-wrap gap-1.5">
+                  {newDmSelectedUsers.map((user) => (
+                    <span
+                      key={user.id}
+                      className="inline-flex items-center gap-1 max-w-full pl-2.5 pr-1 py-1 rounded-full bg-purple-900/30 border border-purple-500/40 text-xs text-purple-100"
+                    >
+                      <span className="truncate">{user.username}</span>
+                      <button
+                        type="button"
+                        onClick={() => toggleNewDmUser(user)}
+                        className="shrink-0 w-5 h-5 flex items-center justify-center rounded-full hover:bg-white/10 text-purple-200"
+                        aria-label={t('dm.removeSelectedUser', {
+                          defaultValue: 'Retirer {{name}}',
+                          name: user.username,
+                        })}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="shrink-0 px-4 py-3 border-b border-[#1e1e2f]/50">
               <div className="flex items-center gap-2 bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 focus-within:border-purple-500/60">
                 <svg
@@ -3326,7 +3895,7 @@ export function DmPage({
                   type="search"
                   value={newDmQuery}
                   onChange={(e) => setNewDmQuery(e.target.value)}
-                  placeholder="Rechercher par nom d'utilisateur…"
+                  placeholder={t('dm.searchUsernamePlaceholder')}
                   autoComplete="off"
                   className="flex-1 bg-transparent text-sm text-white placeholder:text-gray-500 outline-none [&::-webkit-search-cancel-button]:hidden"
                 />
@@ -3353,31 +3922,7 @@ export function DmPage({
                     Conversations récentes
                   </p>
                   <ul>
-                    {newDmRecentUsers.map((user) => (
-                      <li key={`recent-${user.id}`}>
-                        <button
-                          type="button"
-                          onClick={() => openNewDmPick(user)}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#1a1a26] text-left transition-colors"
-                        >
-                          <UserAvatarOnline
-                            userId={user.id}
-                            avatarUrl={user.avatarUrl}
-                            size="md"
-                            isOnline={isOnline(user.id)}
-                            isLive={isLive(user.id)}
-                            liveViewersCount={liveViewersFor(user.id)}
-                          />
-                          <UsernameDisplay
-                            username={user.username}
-                            usernameColor={user.usernameColor}
-                            usernameWaveFrom={user.usernameWaveFrom}
-                            usernameWaveTo={user.usernameWaveTo}
-                            className="font-semibold text-white text-sm truncate flex-1"
-                          />
-                        </button>
-                      </li>
-                    ))}
+                    {newDmRecentUsers.map((user) => renderNewDmUserRow(user, 'recent'))}
                   </ul>
                 </div>
               )}
@@ -3388,36 +3933,7 @@ export function DmPage({
                     Matchs musicaux
                   </p>
                   <ul>
-                    {newDmMatchUsers.map((user) => (
-                      <li key={`match-${user.id}`}>
-                        <button
-                          type="button"
-                          onClick={() => openNewDmPick(user)}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#1a1a26] text-left transition-colors"
-                        >
-                          <UserAvatarOnline
-                            userId={user.id}
-                            avatarUrl={user.avatarUrl}
-                            size="md"
-                            isOnline={isOnline(user.id)}
-                            isLive={isLive(user.id)}
-                            liveViewersCount={liveViewersFor(user.id)}
-                          />
-                          <span className="font-semibold text-white text-sm truncate flex-1 inline-flex items-center gap-1 min-w-0">
-                            <UsernameDisplay
-                              username={user.username}
-                              usernameColor={user.usernameColor}
-                              usernameWaveFrom={user.usernameWaveFrom}
-                              usernameWaveTo={user.usernameWaveTo}
-                              className="truncate"
-                            />
-                            <span className="shrink-0 text-pink-400 text-sm" aria-hidden>
-                              ♥
-                            </span>
-                          </span>
-                        </button>
-                      </li>
-                    ))}
+                    {newDmMatchUsers.map((user) => renderNewDmUserRow(user, 'match', true))}
                   </ul>
                 </div>
               )}
@@ -3428,31 +3944,7 @@ export function DmPage({
                     Amis
                   </p>
                   <ul>
-                    {newDmFriendUsers.map((user) => (
-                      <li key={`contact-${user.id}`}>
-                        <button
-                          type="button"
-                          onClick={() => openNewDmPick(user)}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#1a1a26] text-left transition-colors"
-                        >
-                          <UserAvatarOnline
-                            userId={user.id}
-                            avatarUrl={user.avatarUrl}
-                            size="md"
-                            isOnline={isOnline(user.id)}
-                            isLive={isLive(user.id)}
-                            liveViewersCount={liveViewersFor(user.id)}
-                          />
-                          <UsernameDisplay
-                            username={user.username}
-                            usernameColor={user.usernameColor}
-                            usernameWaveFrom={user.usernameWaveFrom}
-                            usernameWaveTo={user.usernameWaveTo}
-                            className="font-semibold text-white text-sm truncate flex-1"
-                          />
-                        </button>
-                      </li>
-                    ))}
+                    {newDmFriendUsers.map((user) => renderNewDmUserRow(user, 'contact'))}
                   </ul>
                 </div>
               )}
@@ -3463,31 +3955,7 @@ export function DmPage({
                     Résultats
                   </p>
                   <ul>
-                    {newDmSearchUsers.map((user) => (
-                      <li key={`search-${user.id}`}>
-                        <button
-                          type="button"
-                          onClick={() => openNewDmPick(user)}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#1a1a26] text-left transition-colors"
-                        >
-                          <UserAvatarOnline
-                            userId={user.id}
-                            avatarUrl={user.avatarUrl}
-                            size="md"
-                            isOnline={isOnline(user.id)}
-                            isLive={isLive(user.id)}
-                            liveViewersCount={liveViewersFor(user.id)}
-                          />
-                          <UsernameDisplay
-                            username={user.username}
-                            usernameColor={user.usernameColor}
-                            usernameWaveFrom={user.usernameWaveFrom}
-                            usernameWaveTo={user.usernameWaveTo}
-                            className="font-semibold text-white text-sm truncate flex-1"
-                          />
-                        </button>
-                      </li>
-                    ))}
+                    {newDmSearchUsers.map((user) => renderNewDmUserRow(user, 'search'))}
                   </ul>
                 </div>
               )}
@@ -3504,10 +3972,66 @@ export function DmPage({
                   </p>
                 )}
             </div>
+
+            <div className="shrink-0 border-t border-[#1e1e2f] p-3 space-y-2 bg-[#12121a] safe-area-pb">
+              {newDmSelectedCount >= 2 && (
+                <input
+                  type="text"
+                  value={newDmGroupName}
+                  onChange={(e) => setNewDmGroupName(e.target.value)}
+                  placeholder={t('dm.groupNameOptional', {
+                    defaultValue: 'Nom du groupe (optionnel)',
+                  })}
+                  maxLength={60}
+                  className="w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-gray-500 outline-none focus:border-purple-500/60"
+                />
+              )}
+              <button
+                type="button"
+                onClick={() => void confirmNewDmSelection()}
+                disabled={newDmSelectedCount === 0 || newDmCreating}
+                className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 rounded-xl text-sm font-bold text-white"
+              >
+                {newDmCreating
+                  ? t('common.loading', { defaultValue: 'Chargement…' })
+                  : newDmSelectedCount === 0
+                    ? t('dm.selectUsersToContinue', {
+                        defaultValue: 'Sélectionnez des utilisateurs',
+                      })
+                    : newDmSelectedCount === 1
+                      ? t('dm.startPrivateMessage', { defaultValue: 'Message privé' })
+                      : t('dm.createGroupWithCount', {
+                          defaultValue: 'Créer le groupe ({{count}})',
+                          count: newDmSelectedCount,
+                        })}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
+      </aside>
+
+      <section
+        className={`flex flex-col flex-1 min-h-0 min-w-0 ${
+          showThreadPane ? 'flex' : 'hidden lg:flex'
+        }`}
+      >
+        {threadPanel ?? (
+          <div className="flex flex-1 flex-col items-center justify-center p-8 text-center bg-[#0b0b0f]">
+            <div className="w-16 h-16 rounded-full bg-[#1a1a26] border border-[#2d2d3d] flex items-center justify-center text-2xl mb-4" aria-hidden>
+              💬
+            </div>
+            <p className="text-gray-400 text-sm max-w-xs">
+              {t('dm.selectConversation', { defaultValue: 'Sélectionnez une conversation pour afficher les messages' })}
+            </p>
+          </div>
+        )}
+      </section>
+
+      {renderCreateSalonModal()}
+      {renderGroupRenameModal()}
+      {renderGroupDeleteModal()}
       {renderConfirmModal()}
     </div>
   );

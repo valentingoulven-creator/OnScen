@@ -28,6 +28,11 @@ import {
   schedulePersistReelView,
 } from './pgReels';
 import { schedulePersist } from './persist';
+import {
+  getCachedReelsFeed,
+  invalidateReelsFeedCache,
+  setCachedReelsFeed,
+} from './reelFeedCache';
 import { recordReelWeeklyVote } from './weeklyVotes';
 import { checkUploadedAudioCopyright } from './acrCloud';
 import { getAcrCloudMaxSampleBytes } from './acrCloudConfig';
@@ -353,8 +358,40 @@ export function getAccessibleUserReel(
   };
 }
 
-/** Flux public : reels utilisateur publiés + démos, triés selon l’algorithme choisi. */
+function reelsFeedCacheKey(
+  viewerId: string | undefined,
+  algoPrefs: ReelFeedAlgorithmPreferences | null | undefined
+): string {
+  const viewerKey = viewerId ?? 'anon';
+  if (!algoPrefs || algoPrefs.useBuiltInAlgorithm) return `${viewerKey}:built-in`;
+  return `${viewerKey}:${JSON.stringify(algoPrefs.weights)}`;
+}
+
+/** Flux public : reels utilisateur publiés + démos, triés selon l’algorithme choisi.
+ *  Le classement complet est mis en cache court (REELS_FEED_CACHE_TTL_MS) par
+ *  clé viewer+algo — voir reelFeedCache.ts. `pagination` découpe le résultat
+ *  mis en cache sans jamais réduire l'ensemble classé (le score de chaque reel
+ *  dépend du lot complet, cf. normalisation logarithmique dans reelFeedRanking). */
 export function buildReelsFeed(
+  viewerId?: string,
+  algoPrefs?: ReelFeedAlgorithmPreferences | null,
+  pagination?: { limit?: number; offset?: number }
+): PublicReel[] {
+  const cacheKey = reelsFeedCacheKey(viewerId, algoPrefs);
+  let feed = getCachedReelsFeed<PublicReel[]>(cacheKey);
+  if (!feed) {
+    feed = computeReelsFeed(viewerId, algoPrefs);
+    setCachedReelsFeed(cacheKey, feed);
+  }
+  if (pagination?.limit != null) {
+    const offset = Math.max(0, pagination.offset ?? 0);
+    const limit = Math.max(0, pagination.limit);
+    return feed.slice(offset, offset + limit);
+  }
+  return feed;
+}
+
+function computeReelsFeed(
   viewerId?: string,
   algoPrefs?: ReelFeedAlgorithmPreferences | null
 ): PublicReel[] {
@@ -652,6 +689,7 @@ export async function createUserReel(
   db.userReels.push(reel);
   schedulePersistReelToPg(reel);
   schedulePersist();
+  invalidateReelsFeedCache();
   return reel;
 }
 
@@ -685,6 +723,7 @@ export function publishUserReel(reelId: string, userId: string): UserReel | { er
   reel.visibility = 'public';
   schedulePersistReelToPg(reel);
   schedulePersist();
+  invalidateReelsFeedCache();
   return reel;
 }
 
@@ -699,6 +738,7 @@ export function purgeReelById(reelId: string): boolean {
   db.reelViews.delete(reelId);
   scheduleDeleteReelFromPg(reelId);
   schedulePersist();
+  invalidateReelsFeedCache();
   return true;
 }
 

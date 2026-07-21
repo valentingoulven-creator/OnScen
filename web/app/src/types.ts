@@ -1234,6 +1234,36 @@ export interface DirectMessage {
   attachmentMimeType?: string;
 }
 
+export type GroupMessageKind = 'user' | 'system';
+
+export type GroupSystemEvent =
+  | 'group_created'
+  | 'group_renamed'
+  | 'member_added'
+  | 'member_removed'
+  | 'member_left'
+  | 'admin_transferred';
+
+export interface GroupMessage {
+  id: string;
+  groupId: string;
+  senderId: string;
+  content: string;
+  timestamp: number;
+  hiddenFor?: string[];
+  senderName?: string;
+  senderAvatarUrl?: string;
+  groupName?: string;
+  kind?: GroupMessageKind;
+  systemEvent?: GroupSystemEvent;
+  systemMeta?: {
+    actorName: string;
+    targetName?: string;
+    oldName?: string;
+    newName?: string;
+  };
+}
+
 export interface Conversation {
   kind?: 'dm' | 'group';
   userId?: string;
@@ -1248,6 +1278,10 @@ export interface Conversation {
   lastMessage: string;
   lastTimestamp: number;
   isFromMe: boolean;
+  /** Dernier message groupe : kind / event pour preview i18n côté client. */
+  lastMessageKind?: GroupMessageKind;
+  lastSystemEvent?: GroupSystemEvent;
+  lastSystemMeta?: GroupMessage['systemMeta'];
   isOnline?: boolean;
   isMatch?: boolean;
   isMuted?: boolean;
@@ -1288,18 +1322,6 @@ export interface MessageGroupDetail {
   createdAt: number;
   members: GroupMember[];
   unreadCount?: number;
-}
-
-export interface GroupMessage {
-  id: string;
-  groupId: string;
-  senderId: string;
-  content: string;
-  timestamp: number;
-  hiddenFor?: string[];
-  senderName?: string;
-  senderAvatarUrl?: string;
-  groupName?: string;
 }
 
 export interface LegalPublisherConfig {

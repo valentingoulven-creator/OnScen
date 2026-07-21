@@ -4,6 +4,8 @@ Rapports produits par `@soundy-dev-agent` à chaque session de développement si
 
 | Date | Rapport | Mission | Statut |
 |------|---------|---------|--------|
+| 2026-07-21 | [dm-group-system-cto-recos](./rapports/2026-07-21-dm-group-system-cto-recos.md) | Messages groupe : recommandations CTO P0–P3 (sécurité, i18n, tests, création) | ✅ |
+| 2026-07-21 | [reels-feed-cache-pagination](./rapports/2026-07-21-reels-feed-cache-pagination.md) | Reels : cache court du classement feed + pagination additive (suite audit CTO) | ✅ |
 | 2026-07-21 | [map-event-preview-ux](./rapports/2026-07-21-map-event-preview-ux.md) | Refonte UX aperçu événement carte (MapEventPreviewCard, Phase 1 CTO) | ✅ |
 | 2026-07-16 | [restore-compte-admin](./rapports/2026-07-16-restore-compte-admin.md) | Restauration de compte unique depuis l'admin (snapshot, dev only) | ✅ |
 | 2026-07-16 | [ux-core-journey-nav-shell](./rapports/2026-07-16-ux-core-journey-nav-shell.md) | UX Core Journey : dock 4 onglets + FAB Créer (coquille nav, dev) | ✅ |

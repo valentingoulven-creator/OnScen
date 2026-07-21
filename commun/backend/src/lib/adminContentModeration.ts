@@ -5,6 +5,7 @@ import { clearSalonPlaybackData } from './salonPlaybackOps';
 import { endLiveSession, broadcastLiveEnded } from './liveArchive';
 import { schedulePersist } from './persist';
 import { schedulePersistReelToPg } from './pgReels';
+import { invalidateReelsFeedCache } from './reelFeedCache';
 import { scheduleDeleteFeedPostFromPg, schedulePersistFeedPostToPg } from './pgFeedPosts';
 import {
   deleteLiveFromPgAsync,
@@ -421,6 +422,7 @@ export function adminBlockReel(reelId: string): UserReel | null {
   reel.adminBlocked = true;
   reel.adminBlockedAt = Date.now();
   schedulePersistReelToPg(reel);
+  invalidateReelsFeedCache();
   return reel;
 }
 
@@ -430,6 +432,7 @@ export function adminUnblockReel(reelId: string): UserReel | null {
   reel.adminBlocked = false;
   reel.adminBlockedAt = undefined;
   schedulePersistReelToPg(reel);
+  invalidateReelsFeedCache();
   return reel;
 }
 

@@ -1,4 +1,39 @@
 ﻿================================================================================
+MODIF 746 — Deploy production (preprod validé → getsoundy.com)
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Mise en production du lot audit CTO + UX carte événements après validation
+ staging (smoke Playwright 12/12) et push GitHub branche fix/dm-history-postgres-data-loss.
+
+CHANGEMENTS / FIX
+-----
+ commun/deploy/deploy_zero_downtime.ps1
+ ─────────────────
+ • Deploy prod @ d00b7ddd (~5 min) : build backend+frontend, dist/ + public/ fusionnés,
+   migrations OK, PM2 reload melosong-backend, Caddy sync.
+
+ getsoundy.com
+ ─────────────────
+ • Health 200 (db/redis/stripe/smtp/livekit OK).
+ • UserIndexMap présent dans dist/models/schema.js.
+ • verify-prod : alerte préexistante legal-publisher.json (non bloquant deploy).
+
+FICHIERS MODIFIÉS
+-----
+ VPS prod /opt/soundly (dist/, public/, PM2) — sources déjà commitées d00b7ddd
+
+BUILD (si vérifié)
+-----
+ commun/deploy/deploy_zero_downtime.ps1 -Environment prod -VerifyProd → ✅
+
+================================================================================
+Fin — 2026-07-21
+================================================================================
+
+================================================================================
 MODIF 745 — Sidebar EventCard : zoom seul (fix fallback ?? ouvrait le modal)
 Date : 2026-07-20
 ================================================================================
@@ -28228,4 +28263,494 @@ BUILD / TESTS
 
 ================================================================================
 Fin MODIF 1078 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1079 — Reels : cache court du classement feed + pagination additive
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suite audit @soundy-cto (onglet Reels) : GET /api/reels/ recalculait le
+ classement (likes/comments/views/shares normalisés + recency) sur tout le
+ flux à chaque requête, y compris les rappels silencieux du client à chaque
+ retour sur l'onglet (refreshFeedWithStart({ silent: true })). Pas de risque
+ de panne au volume actuel, mais coût qui croît linéairement sans plafond ni
+ pagination — dette identifiée comme prioritaire dans l'audit.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/reelFeedCache.ts (nouveau)
+ ─────────────────
+ • Cache en mémoire (Map) du classement calculé, clé viewer+algo, TTL 8s.
+ • getCachedReelsFeed / setCachedReelsFeed / invalidateReelsFeedCache.
+ • Sûr par construction : les compteurs (likes/comments/...) affichés dans
+   l'app ne viennent pas de cette liste mais de GET /:reelId/stats (rafraîchi
+   séparément) — la fraîcheur du classement n'a pas besoin d'être immédiate.
+
+ commun/backend/src/lib/reels.ts
+ ─────────────────
+ • buildReelsFeed() : renommage de l'ancien corps en computeReelsFeed()
+   (privée) ; buildReelsFeed() sert désormais le cache et applique un
+   découpage optionnel { limit, offset } sur le résultat classé complet
+   (le score de chaque reel dépend du lot entier — jamais recalculé sur
+   une tranche).
+ • invalidateReelsFeedCache() appelé après createUserReel, publishUserReel,
+   purgeReelById (couvre delete + adminDeleteReel qui l'appelle déjà).
+
+ commun/backend/src/lib/adminContentModeration.ts
+ ─────────────────
+ • invalidateReelsFeedCache() ajouté dans adminBlockReel / adminUnblockReel
+   (change la visibilité dans le flux public).
+
+ commun/backend/src/routes/reels.ts
+ ─────────────────
+ • GET /api/reels/ accepte désormais ?limit=&offset= (optionnels, additifs).
+   Absence de ces params = comportement historique inchangé (flux complet),
+   donc zéro risque pour le client actuel qui ne les envoie pas encore.
+   limit plafonné à 200.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/reelFeedCache.ts → nouveau module cache
+ commun/backend/src/lib/reelFeedCache.test.ts → nouveau (5 tests)
+ commun/backend/src/lib/reelsFeedPagination.test.ts → nouveau (4 tests)
+ commun/backend/src/lib/reels.ts → cache + pagination + invalidation
+ commun/backend/src/lib/adminContentModeration.ts → invalidation block/unblock
+ commun/backend/src/routes/reels.ts → query params limit/offset
+
+BUILD / TESTS
+-----
+ commun/backend → npm test → ✅ 374/374 (81 fichiers) · npm run build → ✅
+ Frontend non touché (changement additif, backward-compatible) — pas de build requis.
+
+PROCHAINES ÉTAPES (hors scope de cette session)
+-----
+ • Adopter limit/offset côté client (ReelsTabPage.tsx) avec infinite-scroll —
+   nécessite un refactor plus large de la logique de shuffle/interleave
+   sponsors qui suppose aujourd'hui un flux complet en mémoire.
+ • Étudier l'exploitation côté serveur de l'index PG existant sur le genre
+   (user_reels_genre_idx) — actuellement le filtre genre est appliqué côté
+   client uniquement.
+
+================================================================================
+Fin MODIF 1079 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1080 — Messages : liste conversations à gauche (desktop) — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur desktop, l’onglet Messages n’affichait que le fil actif (avec retour ←) :
+ la liste des conversations disparaissait dès qu’une discussion était ouverte.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/DmPage.tsx
+ ─────────────────────────────
+ • Layout split-pane à partir de lg (1024px) : sidebar conversations (≈20rem)
+   + panneau fil à droite.
+ • Mobile inchangé : liste OU fil plein écran, bouton ← conservé (lg:hidden).
+ • Surbrillance de la conversation active dans la liste.
+ • Placeholder « Sélectionnez une conversation » sur le panneau droit vide.
+
+ web/app/src/locales/fr.json · en.json
+ ─────────────────────────────────────
+ • Clé dm.selectConversation.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/DmPage.tsx → split layout desktop
+ web/app/src/locales/fr.json · en.json → i18n
+
+================================================================================
+Fin MODIF 1080 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1081 — Messages sidebar : header compact — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Header de la liste DM trop serré dans la sidebar (~320px) : les breakpoints sm:
+ forçaient titre, filtres et « + Groupe / + Nouveau » sur une seule ligne.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/DmPage.tsx
+ ─────────────────────────────
+ • Header en 2 lignes : titre + icônes actions, puis puces Tous / Matchs / Bloqués.
+ • Puces compactes (flex-wrap), icônes groupe et nouveau message unifiées.
+ • Clé i18n dm.allConversations.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/DmPage.tsx · locales fr/en.json
+
+================================================================================
+Fin MODIF 1081 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1082 — Messages : bouton + fusionné — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Deux boutons d’action (groupe + message) encombraient le header sidebar.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/DmPage.tsx
+ ─────────────────────────────
+ • Un seul bouton « + » ouvrant un menu : Nouveau message / Nouveau groupe.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/DmPage.tsx · locales fr/en.json
+
+================================================================================
+Fin MODIF 1082 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1083 — Nouveau message : multi-sélection — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La feuille « Nouvelle conversation » n’autorisait qu’un seul utilisateur à la fois.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/DmPage.tsx
+ ─────────────────────────────
+ • Cases à cocher + puces des utilisateurs sélectionnés.
+ • 1 utilisateur → message privé ; 2+ → création de groupe (nom optionnel).
+ • Bouton d’action adaptatif en bas de la feuille.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/DmPage.tsx · locales fr/en.json
+
+================================================================================
+Fin MODIF 1083 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1084 — Messages : popup « Nouveau » — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le menu déroulant du bouton + était peu visible et peu adapté au touch.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/DmPage.tsx
+ ─────────────────────────────
+ • Remplacement du dropdown par un popup modal (bottom-sheet mobile, centré desktop).
+ • Deux cartes d’action : Nouveau message / Nouveau groupe.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/DmPage.tsx · locales fr/en.json
+
+================================================================================
+Fin MODIF 1084 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1085 — Messages : + ouvre directement la feuille — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton + passait par un popup intermédiaire avant la feuille « Nouvelle conversation ».
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/DmPage.tsx
+ ─────────────────────────────
+ • + ouvre directement showNewDmSheet (multi-sélection).
+ • Suppression du popup intermédiaire Nouveau message / Nouveau groupe.
+ • Feuille en bottom-sheet mobile, centrée desktop.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/DmPage.tsx
+
+================================================================================
+Fin MODIF 1085 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1086 — Messages : renommer un groupe — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Impossible de modifier le nom d’un groupe de discussion après création.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/routes/groups.ts
+ ────────────────────────────────────
+ • PATCH /api/dm/groups/:groupId { name } — tout membre peut renommer.
+ • Broadcast group_members_changed aux membres.
+
+ commun/backend/src/lib/groupMembers.ts
+ ──────────────────────────────────────
+ • canRenameGroup().
+
+ web/app/src/lib/api/dm.ts · DmPage.tsx
+ ─────────────────────────────────────
+ • renameMessageGroup() · modal + menu + écran Gérer le groupe.
+ • Clic sur le nom dans l’en-tête du fil groupe.
+
+FICHIERS MODIFIÉS
+-----
+ backend groups.ts · groupMembers.ts · web api/dm.ts · DmPage.tsx · locales
+
+================================================================================
+Fin MODIF 1086 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1087 — Messages : quitter / supprimer groupe — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Menu ⋮ du fil groupe : pas d’action pour quitter (membre) ou supprimer (créateur).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/routes/groups.ts
+ ────────────────────────────────────
+ • DELETE /api/dm/groups/:groupId — créateur uniquement, supprime groupe + messages.
+ • Event socket group_deleted pour tous les membres.
+
+ commun/backend/src/lib/groupMembers.ts
+ ──────────────────────────────────────
+ • canDeleteGroup().
+
+ web/app/src/pages/DmPage.tsx
+ ─────────────────────────────
+ • Menu ⋮ : « Supprimer le groupe » (créateur) ou « Quitter le groupe » (membre).
+ • Confirmation avant suppression ; quitter réutilise removeGroupMember.
+
+FICHIERS MODIFIÉS
+-----
+ backend groups.ts · groupMembers.ts · groupMembers.test.ts · api/dm.ts · DmPage.tsx · locales
+
+================================================================================
+Fin MODIF 1087 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1088 — Messages : transfert administrateur groupe — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Impossible de changer l'administrateur (créateur) d'un groupe de discussion.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/routes/groups.ts
+ ────────────────────────────────────
+ • POST /api/dm/groups/:groupId/transfer-creator { userId } — admin actuel uniquement.
+
+ commun/backend/src/lib/groupMembers.ts
+ ──────────────────────────────────────
+ • canTransferGroupCreator().
+
+ web/app/src/pages/DmPage.tsx
+ ─────────────────────────────
+ • Écran Gérer le groupe : bouton « Nommer admin » sur chaque autre membre.
+ • Libellé « Administrateur » · confirmation avant transfert.
+
+FICHIERS MODIFIÉS
+-----
+ backend groups.ts · groupMembers.ts · groupMembers.test.ts · api/dm.ts · DmPage.tsx · locales
+
+================================================================================
+Fin MODIF 1088 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1089 — Messages : modal supprimer ou transférer admin — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La confirmation « Supprimer le groupe » ne proposait pas l'alternative transfert d'admin.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/DmPage.tsx
+ ─────────────────────────────
+ • Modal dédié si d'autres membres : choix membre + « Transférer le rôle » ou « Supprimer définitivement ».
+ • Groupe seul (1 membre) : confirmation simple de suppression.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/DmPage.tsx · locales fr/en.json
+
+================================================================================
+Fin MODIF 1089 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1090 — Fix quitter groupe (modal + admin) — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ « Quitter le groupe » dans Gérer le groupe ne faisait rien : ConfirmModal absent
+ du early-return groupManageOpen. L'admin ne peut plus quitter sans transférer.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/DmPage.tsx
+ ─────────────────────────────
+ • renderConfirmModal (+ rename/delete) dans l'écran Gérer le groupe.
+ • Admin + autres membres → modal transfert/suppression au lieu de quitter direct.
+
+ commun/backend/src/lib/groupMembers.ts
+ ──────────────────────────────────────
+ • canRemoveGroupMember : admin doit transférer avant de quitter si membres restants.
+
+FICHIERS MODIFIÉS
+-----
+ DmPage.tsx · groupMembers.ts · groupMembers.test.ts
+
+================================================================================
+Fin MODIF 1090 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1091 — Messages groupe : notifications système dans le fil — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Lors d'un renommage, ajout/retrait de membre ou changement d'admin, aucune trace
+ n'apparaissait dans le fil de discussion du groupe.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/groupSystemMessages.ts
+ ──────────────────────────────────────────────
+ • appendGroupSystemMessage() — message kind=system + socket à tous les membres.
+
+ commun/backend/src/routes/groups.ts
+ ────────────────────────────────────
+ • Notifications système sur PATCH rename, POST members, DELETE members, POST transfer-creator.
+ • Suppression interdite des messages système.
+
+ commun/backend/src/lib/groupRead.ts
+ ───────────────────────────────────
+ • Messages système exclus du compteur non-lu.
+
+ web/app/src/pages/DmPage.tsx
+ ─────────────────────────────
+ • Rendu centré (pill grise) pour kind=system · i18n fr/en.
+
+FICHIERS MODIFIÉS
+-----
+ groupSystemMessages.ts · groups.ts · groupRead.ts · schema.ts · types.ts · DmPage.tsx · locales
+
+================================================================================
+Fin MODIF 1091 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1092 — Messages groupe : recommandations CTO (P0–P3) — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suite revue CTO : sécuriser POST messages, i18n preview sidebar, tests unitaires,
+ message système à la création du groupe.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/groupMessageValidation.ts
+ ────────────────────────────────────────────────
+ • clientTriedForgedSystemMessage() — refuse kind/systemEvent/systemMeta client.
+
+ commun/backend/src/routes/groups.ts
+ ────────────────────────────────────
+ • POST messages : 400 si champs système forgés.
+ • POST / : appendGroupSystemMessage group_created.
+
+ commun/backend/src/routes/dm.ts
+ ───────────────────────────────
+ • Conversations groupe : lastMessageKind, lastSystemEvent, lastSystemMeta.
+
+ web/app/src/lib/groupSystemMessage.ts
+ ─────────────────────────────────────
+ • formatGroupSystemMessage / formatGroupConversationPreview (i18n fil + liste).
+
+ web/app/src/pages/DmPage.tsx
+ ─────────────────────────────
+ • Preview liste sans préfixe « Vous : » sur messages système.
+
+ commun/backend/src/lib/groupSystemMessages.test.ts · groupMessageValidation.test.ts
+ ──────────────────────────────────────────────────────────────────────────────────
+ • Tests unitaires append + validation + format FR.
+
+FICHIERS MODIFIÉS
+-----
+ groupMessageValidation.ts · groupSystemMessages.ts · groups.ts · dm.ts ·
+ groupSystemMessage.ts · DmPage.tsx · types.ts · schema.ts · locales fr/en
+
+================================================================================
+Fin MODIF 1092 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1093 — GO prod : fix lint CI e2e staging-smoke — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Audit CTO : 2 erreurs ESLint bloquaient la CI (beforeEach pattern vide).
+
+CHANGEMENTS / FIX
+-----
+ web/app/e2e/staging-smoke.spec.ts
+ ───────────────────────────────────
+ • beforeEach sans paramètres inutilisés (no-empty-pattern, no-unused-vars).
+
+FICHIERS MODIFIÉS
+-----
+ staging-smoke.spec.ts
+
+BUILD (si vérifié)
+-----
+ backend → npm test → ✅ 389/389 · frontend → npm test → ✅ 433/433 · lint → ✅ 0 erreur
+
+================================================================================
+Fin MODIF 1093 — 2026-07-21
 ================================================================================

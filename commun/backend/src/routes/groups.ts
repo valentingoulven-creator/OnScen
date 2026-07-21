@@ -16,8 +16,16 @@ import { isGroupMessageVisibleToUser, hideGroupMessageForUser } from '../lib/gro
 import { countDmUnreadForUser } from '../lib/dmRead';
 import { notifyGroupMessageReceived } from '../lib/notifications';
 import { hasMuted } from '../lib/mutes';
-import { canAddGroupMember, canRemoveGroupMember } from '../lib/groupMembers';
+import {
+  canAddGroupMember,
+  canRemoveGroupMember,
+  canRenameGroup,
+  canDeleteGroup,
+  canTransferGroupCreator,
+} from '../lib/groupMembers';
 import { checkChatRateLimit } from '../lib/chatRateLimit';
+import { appendGroupSystemMessage, usernameOf } from '../lib/groupSystemMessages';
+import { clientTriedForgedSystemMessage } from '../lib/groupMessageValidation';
 
 export const groupsRouter = Router();
 
@@ -105,6 +113,11 @@ groupsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
   db.messageGroups.push(group);
   schedulePersist();
 
+  appendGroupSystemMessage(group.id, me, 'group_created', {
+    actorName: usernameOf(me),
+    newName: trimmedName,
+  });
+
   res.status(201).json({ group: groupDetailDto(group.id, me) });
 });
 
@@ -159,6 +172,11 @@ groupsRouter.post('/:groupId/members', authenticateJWT, (req: Request, res: Resp
   group.memberIds.push(userId);
   schedulePersist();
 
+  appendGroupSystemMessage(groupId, me, 'member_added', {
+    actorName: usernameOf(me),
+    targetName: usernameOf(userId),
+  });
+
   const detail = groupDetailDto(groupId, me);
   emitGroupMembersChanged(groupId);
   getIo()?.to(`user_${userId}`).emit('group_member_added', { groupId, group: groupDetailDto(groupId, userId) });
@@ -186,6 +204,16 @@ groupsRouter.delete('/:groupId/members/:userId', authenticateJWT, (req: Request,
   group.memberIds = group.memberIds.filter((id) => id !== targetUserId);
   schedulePersist();
 
+  const isSelfLeave = me === targetUserId;
+  appendGroupSystemMessage(
+    groupId,
+    me,
+    isSelfLeave ? 'member_left' : 'member_removed',
+    isSelfLeave
+      ? { actorName: usernameOf(me), targetName: usernameOf(targetUserId) }
+      : { actorName: usernameOf(me), targetName: usernameOf(targetUserId) }
+  );
+
   const detail = groupDetailDto(groupId, me);
   getIo()?.to(`user_${targetUserId}`).emit('group_member_removed', { groupId, userId: targetUserId });
   emitGroupMembersChanged(groupId);
@@ -205,6 +233,11 @@ groupsRouter.delete('/messages/:messageId', authenticateJWT, (req: Request, res:
   const msg = db.groupMessages[idx];
   if (!isGroupMember(msg.groupId, me)) {
     res.status(403).json({ error: 'Accès refusé' });
+    return;
+  }
+
+  if (msg.kind === 'system') {
+    res.status(403).json({ error: 'Message système non supprimable' });
     return;
   }
 
@@ -230,6 +263,127 @@ groupsRouter.delete('/messages/:messageId', authenticateJWT, (req: Request, res:
   getIo()?.to(`user_${me}`).emit('group_message_hidden', { messageId: msg.id, groupId: msg.groupId });
   schedulePersist();
   res.json({ ok: true, messageId: msg.id, scope: 'hidden' });
+});
+
+groupsRouter.patch('/:groupId', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const { groupId } = req.params;
+  const { name } = req.body as { name?: string };
+
+  const group = db.messageGroups.find((g) => g.id === groupId);
+  if (!group) {
+    res.status(404).json({ error: 'Groupe introuvable' });
+    return;
+  }
+
+  const allowed = canRenameGroup(group, me);
+  if (!allowed.ok) {
+    res.status(403).json({ error: allowed.error });
+    return;
+  }
+
+  const trimmedName = name?.trim();
+  if (!trimmedName) {
+    res.status(400).json({ error: 'Nom du groupe requis' });
+    return;
+  }
+  if (trimmedName.length > 60) {
+    res.status(400).json({ error: 'Nom du groupe trop long (60 caractères max)' });
+    return;
+  }
+
+  const oldName = group.name;
+  if (oldName !== trimmedName) {
+    group.name = trimmedName;
+    schedulePersist();
+    appendGroupSystemMessage(groupId, me, 'group_renamed', {
+      actorName: usernameOf(me),
+      oldName,
+      newName: trimmedName,
+    });
+  }
+
+  emitGroupMembersChanged(groupId);
+
+  const detail = groupDetailDto(groupId, me);
+  res.json({ group: detail });
+});
+
+groupsRouter.post('/:groupId/transfer-creator', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const { groupId } = req.params;
+  const { userId } = req.body as { userId?: string };
+
+  if (!userId || typeof userId !== 'string') {
+    res.status(400).json({ error: 'Utilisateur requis' });
+    return;
+  }
+
+  const group = db.messageGroups.find((g) => g.id === groupId);
+  if (!group) {
+    res.status(404).json({ error: 'Groupe introuvable' });
+    return;
+  }
+
+  const allowed = canTransferGroupCreator(group, me, userId);
+  if (!allowed.ok) {
+    res.status(allowed.error === 'Accès refusé' || allowed.error.includes('administrateur') ? 403 : 400).json({
+      error: allowed.error,
+    });
+    return;
+  }
+
+  group.creatorId = userId;
+  schedulePersist();
+
+  appendGroupSystemMessage(groupId, me, 'admin_transferred', {
+    actorName: usernameOf(me),
+    targetName: usernameOf(userId),
+  });
+
+  emitGroupMembersChanged(groupId);
+
+  res.json({ group: groupDetailDto(groupId, me) });
+});
+
+function deleteGroupCompletely(groupId: string): string[] {
+  const group = db.messageGroups.find((g) => g.id === groupId);
+  if (!group) return [];
+  const memberIds = [...group.memberIds];
+
+  db.messageGroups = db.messageGroups.filter((g) => g.id !== groupId);
+  db.groupMessages = db.groupMessages.filter((m) => m.groupId !== groupId);
+  for (const cursors of db.groupReadCursors.values()) {
+    cursors.delete(groupId);
+  }
+  schedulePersist();
+
+  for (const memberId of memberIds) {
+    getIo()?.to(`user_${memberId}`).emit('group_deleted', { groupId });
+    emitMessagesUnreadToUser(memberId);
+  }
+
+  return memberIds;
+}
+
+groupsRouter.delete('/:groupId', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const { groupId } = req.params;
+
+  const group = db.messageGroups.find((g) => g.id === groupId);
+  if (!group) {
+    res.status(404).json({ error: 'Groupe introuvable' });
+    return;
+  }
+
+  const allowed = canDeleteGroup(group, me);
+  if (!allowed.ok) {
+    res.status(403).json({ error: allowed.error });
+    return;
+  }
+
+  deleteGroupCompletely(groupId);
+  res.json({ ok: true, groupId });
 });
 
 groupsRouter.get('/:groupId', authenticateJWT, (req: Request, res: Response) => {
@@ -302,7 +456,13 @@ groupsRouter.post('/:groupId/messages', authenticateJWT, asyncHandler(async (req
   }
 
   const { groupId } = req.params;
-  const { content } = req.body;
+
+  if (clientTriedForgedSystemMessage(req.body)) {
+    res.status(400).json({ error: 'Champs message système non autorisés' });
+    return;
+  }
+
+  const { content } = req.body as { content?: string };
 
   if (!isGroupMember(groupId, me)) {
     res.status(403).json({ error: 'Accès refusé' });

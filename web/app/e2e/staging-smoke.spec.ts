@@ -127,7 +127,7 @@ async function prepareMapTab(page: import('@playwright/test').Page) {
 }
 
 test.describe('Staging smoke — session authentifiée', () => {
-  test.beforeEach(({ }, testInfo) => {
+  test.beforeEach(() => {
     test.skip(!STAGING_PASSWORD, 'E2E_STAGING_PASSWORD requis pour les tests authentifiés');
   });
 

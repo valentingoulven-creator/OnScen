@@ -38,10 +38,26 @@ function requireReel(reelId: string, res: Response): boolean {
   return true;
 }
 
+const REELS_FEED_MAX_LIMIT = 200;
+
+/** `limit`/`offset` optionnels — absents = comportement historique (flux complet).
+ *  Additif : ne change rien pour les clients existants qui n'envoient pas ces params. */
+function parseReelsFeedPagination(
+  query: Record<string, unknown>
+): { limit?: number; offset?: number } | undefined {
+  const rawLimit = query.limit;
+  if (rawLimit == null) return undefined;
+  const limit = Math.max(1, Math.min(REELS_FEED_MAX_LIMIT, Math.floor(Number(rawLimit)) || 0));
+  const rawOffset = query.offset;
+  const offset = rawOffset != null ? Math.max(0, Math.floor(Number(rawOffset)) || 0) : 0;
+  return { limit, offset };
+}
+
 reelsRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const algoPrefs = parseFeedAlgoQuery(req.query as Record<string, unknown>);
-  res.json({ reels: buildReelsFeed(me, algoPrefs ?? undefined) });
+  const pagination = parseReelsFeedPagination(req.query as Record<string, unknown>);
+  res.json({ reels: buildReelsFeed(me, algoPrefs ?? undefined, pagination) });
 });
 
 reelsRouter.get('/private/me', authenticateJWT, (req: Request, res: Response) => {

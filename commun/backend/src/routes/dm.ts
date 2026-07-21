@@ -281,9 +281,12 @@ dmRouter.get('/conversations/list', authenticateJWT, (req: Request, res: Respons
         username: g.name,
         memberCount: g.memberIds.length,
         lastMessage: last?.content ?? '',
+        lastMessageKind: last?.kind,
+        lastSystemEvent: last?.systemEvent,
+        lastSystemMeta: last?.systemMeta,
         lastTimestamp: last?.timestamp ?? g.createdAt,
-        isFromMe: last?.senderId === me,
-        lastSenderName: lastSender?.username,
+        isFromMe: last?.kind === 'system' ? false : last?.senderId === me,
+        lastSenderName: last?.kind === 'system' ? undefined : lastSender?.username,
         unreadCount: countGroupUnreadInGroup(me, g.id),
       };
     });

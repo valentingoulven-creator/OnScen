@@ -19,7 +19,7 @@ interface MainTabNavProps {
   className?: string;
 }
 
-const TAB_IDS: readonly Tab[] = ['actualite', 'map', 'dm', 'music', 'reels'];
+const TAB_IDS: readonly Tab[] = ['actualite', 'music', 'map', 'dm', 'reels'];
 
 function tabLabelKey(id: Tab): string {
   switch (id) {
