@@ -184,7 +184,6 @@ export function UserEventsSection({ userId, onOpenPost, onOpenProfile }: UserEve
                 post={post}
                 layout="vertical"
                 compact
-                showUpcomingBadge
                 onOpen={handleOpen}
                 onOpenAuthor={isGuest && onOpenProfile ? () => onOpenProfile(post.userId) : undefined}
                 onOpenTaggedUser={onOpenProfile}

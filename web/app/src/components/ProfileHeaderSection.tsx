@@ -282,6 +282,10 @@ export const ProfileHeaderSection = memo(function ProfileHeaderSection({
         ) : null}
 
         <div className="relative px-4 pb-4 -mt-[3.25rem] sm:-mt-14 flex flex-col items-center text-center overflow-visible">
+          {action ? (
+            <div className="absolute right-4 top-0 z-20">{action}</div>
+          ) : null}
+
           {onAvatarClick ? (
             <button
               type="button"
@@ -334,8 +338,6 @@ export const ProfileHeaderSection = memo(function ProfileHeaderSection({
               <div className="text-sm text-gray-300 leading-relaxed line-clamp-4">{bio}</div>
             </div>
           ) : null}
-
-          {action ? <div className="mt-3.5 w-full max-w-xs">{action}</div> : null}
 
           {extraMeta}
         </div>

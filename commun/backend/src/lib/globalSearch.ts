@@ -40,6 +40,20 @@ function searchRank(text: string, q: string): number {
   return 99;
 }
 
+function queryMatchesAnyText(q: string, ...texts: (string | undefined)[]): boolean {
+  return texts.some((text) => {
+    const hay = normalizeGlobalSearchQuery(text ?? '');
+    return hay.length > 0 && hay.includes(q);
+  });
+}
+
+function bestSearchRank(q: string, ...texts: (string | undefined)[]): number {
+  const ranks = texts
+    .map((text) => searchRank(text ?? '', q))
+    .filter((rank) => rank < 99);
+  return ranks.length > 0 ? Math.min(...ranks) : 99;
+}
+
 function usernameForUserId(userId: string): string {
   return db.users.get(userId)?.username ?? 'Utilisateur';
 }
@@ -111,51 +125,68 @@ export function globalSearch(viewerId: string, rawQuery: string): GlobalSearchRe
     return { users: [], events: [], albums: [], songs: [] };
   }
 
-  const indexedHits = searchUsernamesInIndex(viewerId, q, PER_SECTION);
-  const users: GlobalSearchUserHit[] = indexedHits
-    .sort((a, b) => {
-      const ra = searchRank(a.username, q);
-      const rb = searchRank(b.username, q);
-      if (ra !== rb) return ra - rb;
-      return a.username.localeCompare(b.username, 'fr');
-    })
-    .flatMap((row) => {
-      const u = db.users.get(row.id);
-      if (!u) return [];
-      const salon = getActiveSalonForHost(u.id);
-      const live = isUserHostingLive(u.id);
-      return [
-        {
-          kind: 'user' as const,
-          id: u.id,
-          username: u.username,
-          usernameColor: u.usernameColor,
-          usernameWaveFrom: u.usernameWaveFrom,
-          usernameWaveTo: u.usernameWaveTo,
-          avatarUrl: u.avatarUrl,
-          city: u.city || undefined,
-          listeningRole: u.listeningRole,
-          isLive: live,
-          liveId: live ? getActiveLiveIdForHost(u.id) : undefined,
-          liveViewersCount: live ? getLiveViewersCountForHost(u.id) : undefined,
-          salonId: salon && isSalonPublic(salon) ? salon.id : undefined,
-          salonTitle:
-            salon && isSalonPublic(salon)
-              ? salon.title || salon.playbackState?.title || undefined
-              : undefined,
-        },
-      ];
+  type RankedUser = { rank: number; hit: GlobalSearchUserHit };
+  const userCandidates: RankedUser[] = [];
+  const seenUserIds = new Set<string>();
+
+  const pushUserHit = (userId: string, rankTexts: (string | undefined)[]) => {
+    if (userId === viewerId || seenUserIds.has(userId)) return;
+    const u = db.users.get(userId);
+    if (!u || u.isGhostMode) return;
+    seenUserIds.add(userId);
+    const salon = getActiveSalonForHost(u.id);
+    const live = isUserHostingLive(u.id);
+    userCandidates.push({
+      rank: bestSearchRank(q, ...rankTexts, u.username, u.city),
+      hit: {
+        kind: 'user' as const,
+        id: u.id,
+        username: u.username,
+        usernameColor: u.usernameColor,
+        usernameWaveFrom: u.usernameWaveFrom,
+        usernameWaveTo: u.usernameWaveTo,
+        avatarUrl: u.avatarUrl,
+        city: u.city || undefined,
+        listeningRole: u.listeningRole,
+        isLive: live,
+        liveId: live ? getActiveLiveIdForHost(u.id) : undefined,
+        liveViewersCount: live ? getLiveViewersCountForHost(u.id) : undefined,
+        salonId: salon && isSalonPublic(salon) ? salon.id : undefined,
+        salonTitle:
+          salon && isSalonPublic(salon)
+            ? salon.title || salon.playbackState?.title || undefined
+            : undefined,
+      },
     });
+  };
+
+  for (const row of searchUsernamesInIndex(viewerId, q, PER_SECTION * 3)) {
+    pushUserHit(row.id, [row.username]);
+  }
+
+  const users: GlobalSearchUserHit[] = userCandidates
+    .sort((a, b) => {
+      if (a.rank !== b.rank) return a.rank - b.rank;
+      return a.hit.username.localeCompare(b.hit.username, 'fr');
+    })
+    .slice(0, PER_SECTION)
+    .map((row) => row.hit);
 
   const events: GlobalSearchEventHit[] = [...db.feedPosts.values()]
-    .filter(
-      (p) =>
-        p.isEvent &&
-        hasUpcomingEventDate(p) &&
-        (normalizeGlobalSearchQuery(p.content).includes(q) ||
-          normalizeGlobalSearchQuery(p.eventLocation ?? '').includes(q))
-    )
+    .filter((p) => {
+      if (!p.isEvent || p.adminBlocked || !hasUpcomingEventDate(p)) return false;
+      const authorUsername = usernameForUserId(p.userId);
+      if (queryMatchesAnyText(q, p.content, p.eventLocation, authorUsername)) return true;
+      for (const tagId of p.eventTaggedUserIds ?? []) {
+        const tagged = db.users.get(tagId);
+        if (tagged && queryMatchesAnyText(q, tagged.username)) return true;
+      }
+      return false;
+    })
     .sort((a, b) => {
+      const ra = bestSearchRank(q, a.content, a.eventLocation, usernameForUserId(a.userId));
+      const rb = bestSearchRank(q, b.content, b.eventLocation, usernameForUserId(b.userId));
+      if (ra !== rb) return ra - rb;
       const ta = getPrimaryEventDate(a) ?? '';
       const tb = getPrimaryEventDate(b) ?? '';
       return ta.localeCompare(tb);
@@ -172,8 +203,16 @@ export function globalSearch(viewerId: string, rawQuery: string): GlobalSearchRe
     }));
 
   const albums: GlobalSearchAlbumHit[] = db.albums
-    .filter((a) => normalizeGlobalSearchQuery(a.title).includes(q))
-    .sort((a, b) => searchRank(a.title, q) - searchRank(b.title, q) || b.updatedAt - a.updatedAt)
+    .filter((a) => {
+      const authorUsername = usernameForUserId(a.userId);
+      return queryMatchesAnyText(q, a.title, a.description, authorUsername);
+    })
+    .sort(
+      (a, b) =>
+        bestSearchRank(q, a.title, a.description, usernameForUserId(a.userId)) -
+          bestSearchRank(q, b.title, b.description, usernameForUserId(b.userId)) ||
+        b.updatedAt - a.updatedAt
+    )
     .slice(0, PER_SECTION)
     .map((a) => ({
       kind: 'album' as const,
@@ -186,13 +225,37 @@ export function globalSearch(viewerId: string, rawQuery: string): GlobalSearchRe
 
   const songs: GlobalSearchSongHit[] = db.compositions
     .filter((c) => {
-      const title = normalizeGlobalSearchQuery(c.title);
-      const artist = normalizeGlobalSearchQuery(c.artist ?? '');
-      return title.includes(q) || (artist && artist.includes(q));
+      const authorUsername = usernameForUserId(c.userId);
+      const album = c.albumId
+        ? db.albums.find((a) => a.id === c.albumId && a.userId === c.userId)
+        : undefined;
+      return queryMatchesAnyText(q, c.title, c.artist, authorUsername, album?.title);
     })
     .sort(
-      (a, b) =>
-        searchRank(a.title, q) - searchRank(b.title, q) || b.createdAt - a.createdAt
+      (a, b) => {
+        const albumA = a.albumId
+          ? db.albums.find((x) => x.id === a.albumId && x.userId === a.userId)
+          : undefined;
+        const albumB = b.albumId
+          ? db.albums.find((x) => x.id === b.albumId && x.userId === b.userId)
+          : undefined;
+        const ra = bestSearchRank(
+          q,
+          a.title,
+          a.artist,
+          usernameForUserId(a.userId),
+          albumA?.title
+        );
+        const rb = bestSearchRank(
+          q,
+          b.title,
+          b.artist,
+          usernameForUserId(b.userId),
+          albumB?.title
+        );
+        if (ra !== rb) return ra - rb;
+        return b.createdAt - a.createdAt;
+      }
     )
     .slice(0, PER_SECTION)
     .map((c) => ({

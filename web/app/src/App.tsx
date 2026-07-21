@@ -39,12 +39,13 @@ const LivePipPreviewFloat = lazy(() =>
 );
 import { NotificationBell } from './components/NotificationBell';
 import { AdminHeaderButton } from './components/AdminHeaderButton';
+import { SettingsHeaderButton } from './components/SettingsHeaderButton';
+import { ProfileHeaderButton } from './components/ProfileHeaderButton';
 import { useDmUnread } from './context/DmUnreadContext';
 import { ProfileSearchBar } from './components/ProfileSearchBar';
 import type { GlobalSearchResultItem } from './lib/globalSearch';
 import { nearbyPreviewFromSearchItem } from './components/ProfileSearchBar';
 import { requestMapFlyToPlace } from './lib/mapSearchIntent';
-import { SoundyLogoButton } from './components/SoundyLogo';
 import { MainTabNav } from './components/MainTabNav';
 import { PlatformConnectPrompt } from './components/PlatformConnectPrompt';
 import { ActiveSalonSessionBanner } from './components/ActiveSalonSessionBanner';
@@ -52,7 +53,6 @@ import { SalonYoutubeJoinModal } from './components/SalonYoutubeJoinModal';
 import { ensureYoutubeLinkedToJoinSalon } from './lib/platformConnect';
 import { ActiveLiveBanner } from './components/ActiveLiveBanner';
 import { APP_LAYOUT_CHANGED_EVENT, getAppLayout, isAppa2Layout } from './lib/appLayout';
-import { UserAvatarOnline } from './components/UserAvatarOnline';
 import { resolveAvatarUrl } from './lib/profilePhotos';
 import { isMsdevEnvironment } from './lib/liveCameraSupport';
 import { api } from './lib/api';
@@ -108,6 +108,7 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ defa
 const ReelsTabPage = lazy(() => import('./pages/ReelsTabPage').then((m) => ({ default: m.ReelsTabPage })));
 const MusicTabPage = lazy(() => import('./pages/MusicTabPage').then((m) => ({ default: m.MusicTabPage })));
 const AdminPage = lazy(() => import('./pages/AdminPage').then((m) => ({ default: m.AdminPage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 
 function PageFallback() {
   return (
@@ -139,6 +140,7 @@ export default function App() {
   const viewRef = useSyncRef(view);
   const [profileOpen, setProfileOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [adminInitialTab, setAdminInitialTab] = useState<
     'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support' | 'sponsors' | 'reports'
   >('accounts');
@@ -451,6 +453,15 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [adminOpen]);
 
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSettingsOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [settingsOpen]);
+
   const openOwnProfileRecorder = useCallback(() => {
     setProfileOpenRecorder(true);
     setProfileOpen(true);
@@ -689,10 +700,24 @@ export default function App() {
       }
       setAdminInitialTab(options?.tab ?? 'accounts');
       setAdminHighlightSupportMessageId(options?.supportMessageId);
+      setSettingsOpen(false);
       setAdminOpen(true);
     },
     []
   );
+
+  const openSettingsPanel = useCallback(() => {
+    const session = activeSalonSessionRef.current;
+    if (session?.viewMode === 'full') {
+      dispatchSalonBeforeMinimize();
+      setActiveSalonSession((prev) => (prev ? { ...prev, viewMode: 'minimized' } : prev));
+    }
+    if (tabRef.current === 'reels') pauseAllReelsMediaInDom({ resetPosition: true });
+    pauseMediaElements();
+    setProfileOpen(false);
+    setAdminOpen(false);
+    setSettingsOpen(true);
+  }, []);
 
   /** Titre chargé — ne pas forcer viewMode (évite de ré-ouvrir le plein écran après réduction). */
   const handleSalonTitleLoaded = useCallback((title?: string) => {
@@ -884,6 +909,7 @@ export default function App() {
     if (id !== 'reels' && tabRef.current === 'reels') pauseAllReelsMediaInDom({ resetPosition: true });
     setProfileOpen(false);
     setAdminOpen(false);
+    setSettingsOpen(false);
     const liveSession = activeLiveViewerSessionRef.current;
     const liveFullScreenActive = liveSession?.viewMode === 'full';
     if (liveFullScreenActive && liveSession) {
@@ -1080,7 +1106,7 @@ export default function App() {
   const showLivePageShell = Boolean(activeLiveViewerSession);
   /** Onglets montés sous le grand salon (overlay) ou en navigation normale. */
   const tabContentBase = view.type === 'home' || salonFullScreen;
-  const reelsActive = tab === 'reels' && !profileOpen && !adminOpen && tabContentBase;
+  const reelsActive = tab === 'reels' && !profileOpen && !adminOpen && !settingsOpen && tabContentBase;
   const musicTabMounted = tab === 'music' && tabContentBase && !profileOpen;
   /** Carte visible : lecture petit salon même si overlay « Mon profil » ouvert. */
   const mapPlaybackActive = tab === 'map' && view.type === 'home' && !salonFullScreen;
@@ -1095,7 +1121,7 @@ export default function App() {
   const liveViewActive = view.type === 'live';
   const dmTabMounted = tab === 'dm' && tabContentBase && !profileOpen;
   const reelsTabMounted = tab === 'reels' && tabContentBase;
-  const reelsTabHiddenUnderOverlay = profileOpen || adminOpen;
+  const reelsTabHiddenUnderOverlay = profileOpen || adminOpen || settingsOpen;
   const appa2 = isAppa2Layout(appLayout);
   const showHeaderSessionBanner = showActiveSalonBannerInHeader || showActiveLiveBannerInHeader;
 
@@ -1161,7 +1187,13 @@ export default function App() {
           <div className="px-3 sm:px-4 pb-2 ms-safe-area-top">
           <div className="grid grid-cols-[auto_minmax(0,11rem)_auto] sm:grid-cols-[minmax(0,1fr)_minmax(0,15rem)_minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)_minmax(0,1fr)] items-center gap-x-1 sm:gap-x-2 min-w-0">
             <div className="flex items-center gap-1 sm:gap-2 justify-self-start min-w-0 overflow-hidden">
-              <SoundyLogoButton onClick={() => selectTab('actualite')} />
+              <ProfileHeaderButton
+                userId={user.id}
+                username={user.username}
+                avatarUrl={resolveAvatarUrl(user)}
+                onClick={openOwnProfile}
+                active={profileOpen}
+              />
               {isMsdevEnvironment() && (
                 <button
                   type="button"
@@ -1197,20 +1229,7 @@ export default function App() {
                   openSupportChat(supportMessageId);
                 }}
               />
-              <button
-                type="button"
-                onClick={openOwnProfile}
-                className="rounded-full ring-1 sm:ring-2 ring-purple-500/40 hover:ring-purple-400 active:scale-95 transition shrink-0"
-                title="Mon profil"
-                aria-label="Ouvrir mon profil"
-              >
-                <UserAvatarOnline
-                  userId={user.id}
-                  username={user.username}
-                  avatarUrl={resolveAvatarUrl(user)}
-                  size="xs"
-                />
-              </button>
+              <SettingsHeaderButton onClick={openSettingsPanel} active={settingsOpen} />
             </div>
           </div>
         </div>
@@ -1533,6 +1552,14 @@ export default function App() {
                   openSalonPage(salonId, salonTitle);
                 }}
               />
+            </Suspense>
+          </div>
+        )}
+
+        {settingsOpen && (
+          <div className="ms-app-profile-overlay flex flex-col min-h-0 bg-[#0b0b0f]">
+            <Suspense fallback={<PageFallback />}>
+              <SettingsPage onBack={() => setSettingsOpen(false)} />
             </Suspense>
           </div>
         )}

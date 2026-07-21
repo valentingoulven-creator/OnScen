@@ -64,7 +64,13 @@ export function mapSidebarDetailEqual(
   a: MapViewDetailState,
   b: MapViewDetailState
 ): boolean {
-  return a.tier === b.tier && a.mapStyle === b.mapStyle && mapBoundsEqual(a.bounds, b.bounds);
+  if (a.tier !== b.tier || a.mapStyle !== b.mapStyle) return false;
+  if (a.mapStyle === 'globe') {
+    const altA = a.globeAltitude ?? 0;
+    const altB = b.globeAltitude ?? 0;
+    return Math.abs(altA - altB) < 0.002;
+  }
+  return mapBoundsEqual(a.bounds, b.bounds);
 }
 
 /** Centre géographique d'une bounding box carte plate. */
@@ -164,6 +170,32 @@ export function filterEventClustersInViewport(
       count: eventsInView.length,
     });
   }
+  return result;
+}
+
+/** Clusters événement dans le rayon visible autour du centre globe (altitude caméra). */
+export function filterEventClustersInGlobeRegion(
+  clusters: MapEventCityCluster[],
+  centerLat: number,
+  centerLng: number,
+  radiusKm: number
+): MapEventCityCluster[] {
+  if (!isValidLatLng(centerLat, centerLng) || radiusKm <= 0) return clusters;
+  const result: MapEventCityCluster[] = [];
+  for (const cluster of clusters) {
+    const eventsInView = cluster.events.filter(
+      (event) =>
+        isValidLatLng(event.latitude, event.longitude) &&
+        getDistanceKm(centerLat, centerLng, event.latitude, event.longitude) <= radiusKm
+    );
+    if (eventsInView.length === 0) continue;
+    result.push({
+      ...cluster,
+      events: eventsInView,
+      count: eventsInView.length,
+    });
+  }
+  if (result.length === 0 && clusters.length > 0) return clusters;
   return result;
 }
 

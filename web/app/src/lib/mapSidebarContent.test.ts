@@ -15,9 +15,9 @@ const detail = (tier: MapViewDetailState['tier'], flatZoom = 14): MapViewDetailS
   mapStyle: 'flat',
 });
 
-const salon = (id: string, isLive = false, isPublic = true): Salon => ({
+const salon = (id: string, isLive = false, hostId = `host-${id}`, isPublic = true): Salon => ({
   id,
-  hostId: `host-${id}`,
+  hostId,
   hostName: `Host ${id}`,
   title: `Salon ${id}`,
   platform: 'youtube',
@@ -39,9 +39,9 @@ const salon = (id: string, isLive = false, isPublic = true): Salon => ({
   isPublic,
 });
 
-const live = (id: string): Live => ({
+const live = (id: string, hostId = `live-host-${id}`): Live => ({
   id,
-  hostId: `live-host-${id}`,
+  hostId,
   hostName: `Live ${id}`,
   title: `Live ${id}`,
   platform: 'youtube',
@@ -60,14 +60,14 @@ const live = (id: string): Live => ({
   isActive: true,
 });
 
-const eventMarker = (id: string): MapEventMarker => ({
+const eventMarker = (id: string, authorId = 'a1'): MapEventMarker => ({
   id,
   latitude: 48.87,
   longitude: 2.37,
   title: `Event ${id}`,
   eventDate: '2026-06-10',
   eventLocation: 'Paris',
-  authorId: 'a1',
+  authorId,
   authorUsername: 'author',
 });
 
@@ -81,6 +81,33 @@ const eventCluster = (): MapEventCityCluster => ({
 });
 
 describe('buildMapSidebarContent', () => {
+  it('sans filtre carte : sections Suivi lives / salons / événements', () => {
+    const following = new Set(['host-a', 'host-b']);
+    const saved = new Set(['ev-saved']);
+    const content = buildMapSidebarContent({
+      detail: detail('street'),
+      eventsFilterOn: false,
+      livesFilterOn: false,
+      salonFilterOn: false,
+      eventsOnly: false,
+      showAllSalonsAtCityZoom: false,
+      mapEvents: [],
+      allMapEvents: [eventMarker('ev-saved', 'host-x'), eventMarker('ev-other', 'host-y')],
+      eventClusters: [],
+      lives: [live('l1', 'host-a'), live('l2', 'host-z')],
+      salons: [salon('s1', false, 'host-b'), salon('s2', false, 'host-z')],
+      people: [],
+      favoriteIds: new Set(),
+      followingIds: following,
+      savedEventPostIds: saved,
+    });
+    expect(content.noFilters).toBe(true);
+    expect(content.livesFollowing.map((l) => l.id)).toEqual(['l1']);
+    expect(content.salonsFollowing.map((s) => s.id)).toEqual(['s1']);
+    expect(content.eventsFollowing.map((e) => e.id)).toEqual(['ev-saved']);
+    expect(countMapSidebarItems(content)).toBe(3);
+  });
+
   it('returns empty sections when no map filter is active', () => {
     const content = buildMapSidebarContent({
       detail: detail('street'),
@@ -169,7 +196,7 @@ describe('buildMapSidebarContent', () => {
       mapEvents: [],
       eventClusters: [],
       lives: [],
-      salons: [salon('pub', false, true), salon('priv', false, false)],
+      salons: [salon('pub', false, 'host-pub', true), salon('priv', false, 'host-priv', false)],
       people: [],
       favoriteIds: new Set(),
     });

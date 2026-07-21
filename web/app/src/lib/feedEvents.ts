@@ -95,7 +95,7 @@ export function isUserCreatedEvent(post: Pick<FeedPost, 'id' | 'isEvent'>): bool
 
 export function getUpcomingUserEvents(
   posts: FeedPost[],
-  opts?: { limit?: number; favoriteAuthorIds?: Set<string> }
+  opts?: { limit?: number; favoriteAuthorIds?: ReadonlySet<string> }
 ): FeedPost[] {
   const limit = opts?.limit ?? 20;
   const fav = opts?.favoriteAuthorIds;
@@ -113,6 +113,143 @@ export function getUpcomingUserEvents(
       return new Date(aDate!).getTime() - new Date(bDate!).getTime();
     })
     .slice(0, limit);
+}
+
+/** Nombre de jours affichés dans le sheet événements carte (aujourd'hui inclus). */
+export const MAP_EVENTS_BROWSE_DAY_COUNT = 4;
+
+/** Plafond de sections jour si le filtre couvre une longue période. */
+export const MAP_EVENTS_BROWSE_MAX_DAY_COUNT = 31;
+
+/** Clé jour calendaire locale (yyyy-MM-dd). */
+export function getCalendarDayKey(iso: string): string | null {
+  const ref = new Date(iso);
+  const t = ref.getTime();
+  if (Number.isNaN(t)) return null;
+  return ref.toLocaleDateString('en-CA');
+}
+
+/** `count` prochains jours calendaires à partir de `from` (jour 0 = aujourd'hui par défaut). */
+export function getNextCalendarDayKeys(count: number, from = new Date()): string[] {
+  const keys: string[] = [];
+  const d = new Date(from);
+  d.setHours(12, 0, 0, 0);
+  for (let i = 0; i < count; i++) {
+    keys.push(d.toLocaleDateString('en-CA'));
+    d.setDate(d.getDate() + 1);
+  }
+  return keys;
+}
+
+export function getPostCalendarDayKey(
+  post: Pick<FeedPost, 'eventDate' | 'eventDates'>
+): string | null {
+  const primary = getPrimaryEventDate(post);
+  if (!primary) return null;
+  return getCalendarDayKey(primary);
+}
+
+export interface ResolvePostBrowseDayKeyOptions {
+  /** Si aucune occurrence dans la fenêtre : rattacher au jour le plus proche (liste viewport carte). */
+  fallbackNearestDay?: boolean;
+}
+
+function nearestAllowedDayKey(occurrenceDayKey: string, dayKeys: string[]): string | null {
+  if (dayKeys.length === 0) return null;
+  if (dayKeys.includes(occurrenceDayKey)) return occurrenceDayKey;
+  for (const dk of dayKeys) {
+    if (dk >= occurrenceDayKey) return dk;
+  }
+  return dayKeys[dayKeys.length - 1] ?? null;
+}
+
+/** Jour de section browse : première occurrence à venir dans `dayKeys` (pas seulement la date primaire). */
+export function resolvePostBrowseDayKey(
+  post: Pick<FeedPost, 'eventDate' | 'eventDates'>,
+  dayKeys: string[],
+  opts?: ResolvePostBrowseDayKeyOptions
+): string | null {
+  const allowed = new Set(dayKeys);
+  for (const iso of getEventDates(post)) {
+    if (!isUpcomingEvent(iso)) continue;
+    const key = getCalendarDayKey(iso);
+    if (key && allowed.has(key)) return key;
+  }
+  if (!opts?.fallbackNearestDay) return null;
+  for (const iso of getEventDates(post)) {
+    if (!isUpcomingEvent(iso)) continue;
+    const key = getCalendarDayKey(iso);
+    if (!key) continue;
+    const nearest = nearestAllowedDayKey(key, dayKeys);
+    if (nearest) return nearest;
+  }
+  return null;
+}
+
+export type GroupFeedPostsByCalendarDaysOptions = ResolvePostBrowseDayKeyOptions;
+
+export interface FeedPostsByDayGroup {
+  dayKey: string;
+  posts: FeedPost[];
+}
+
+/** Tri décroissant par upvotes ; à égalité, date la plus proche en premier. */
+export function sortEventPostsByUpvotes(posts: FeedPost[]): FeedPost[] {
+  return [...posts].sort((a, b) => {
+    const upvoteDiff = (b.upvoteCount ?? 0) - (a.upvoteCount ?? 0);
+    if (upvoteDiff !== 0) return upvoteDiff;
+    const aDate = getPrimaryEventDate(a);
+    const bDate = getPrimaryEventDate(b);
+    if (aDate && bDate) {
+      return new Date(aDate).getTime() - new Date(bDate).getTime();
+    }
+    return 0;
+  });
+}
+
+/** Répartit les posts dans les buckets `dayKeys` (ordre conservé, jours vides inclus). */
+export function groupFeedPostsByCalendarDays(
+  posts: FeedPost[],
+  dayKeys: string[],
+  opts?: GroupFeedPostsByCalendarDaysOptions
+): FeedPostsByDayGroup[] {
+  const buckets = new Map<string, FeedPost[]>();
+  for (const key of dayKeys) buckets.set(key, []);
+
+  for (const post of posts) {
+    const key = resolvePostBrowseDayKey(post, dayKeys, opts);
+    if (!key) continue;
+    buckets.get(key)!.push(post);
+  }
+
+  return dayKeys.map((dayKey) => ({
+    dayKey,
+    posts: sortEventPostsByUpvotes(buckets.get(dayKey) ?? []),
+  }));
+}
+
+/** Nombre de posts dont une occurrence tombe dans les `dayKeys` affichés (badges browse). */
+export function countFeedPostsInCalendarDays(
+  posts: FeedPost[],
+  dayKeys: string[],
+  opts?: GroupFeedPostsByCalendarDaysOptions
+): number {
+  let count = 0;
+  for (const post of posts) {
+    if (resolvePostBrowseDayKey(post, dayKeys, opts)) count++;
+  }
+  return count;
+}
+
+/** Heure seule (ex. « 20:30 ») — cartes sidebar carte. */
+export function formatEventTimeShort(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '';
+  }
 }
 
 /** Date courte pour overlay hero (ex. « sam. 7 juin »). */
@@ -214,4 +351,28 @@ export function getEventDateEntries(
   const starts = getEventDates(post);
   const ends = post.eventEndTimes ?? [];
   return starts.map((start, i) => ({ start, end: ends[i] ?? null }));
+}
+
+/** Titre court événement (bandeau création + aperçu carte). */
+export const FEED_EVENT_TITLE_MAX_LEN = 80;
+
+export function splitFeedEventContent(content: string): { title: string; description: string } {
+  const trimmed = content.trim();
+  if (!trimmed) return { title: '', description: '' };
+  const parts = trimmed.split(/\n\n+/);
+  return {
+    title: parts[0]?.trim() ?? '',
+    description: parts.slice(1).join('\n\n').trim(),
+  };
+}
+
+/** Titre affiché sur la fiche carte (titre court, pas la description longue). */
+export function getFeedEventDisplayTitle(
+  content: string,
+  maxLen = FEED_EVENT_TITLE_MAX_LEN
+): string {
+  const { title } = splitFeedEventContent(content);
+  const base = title || content.trim();
+  if (base.length <= maxLen) return base;
+  return `${base.slice(0, Math.max(0, maxLen - 1)).trimEnd()}…`;
 }

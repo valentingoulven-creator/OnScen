@@ -13,6 +13,11 @@ import {
   type CSSProperties,
 } from 'react';
 import { formatEventDateShort } from '../lib/feedEvents';
+import {
+  getClusterEventDayIndex,
+  getMapEventDayColor,
+  getMapEventMarkerDayIndex,
+} from '../lib/mapEventDayColors';
 import { getEventTypeIcon } from '../lib/eventType';
 import { isValidLatLng } from '../lib/mapCoords';
 import { isWebGLError } from '../lib/webglSupport';
@@ -53,6 +58,8 @@ interface GlobePoint {
   entity?: Salon | Live | NearbyPerson | MapEventCityCluster | MapLiveLocationCluster | MapEventMarker;
   /** Emoji affiché sur le badge événement (globe uniquement). */
   icon?: string;
+  /** Index jour browse (0–3) pour la couleur du pin événement. */
+  dayIndex?: number;
   /** Nombre d'événements regroupés — affiché en badge sur l'icône (globe). */
   count?: number;
 }
@@ -656,13 +663,15 @@ export const GlobeView = memo(
             const lat = Number(ev.latitude);
             const lng = Number(ev.longitude);
             if (!isValidLatLng(lat, lng)) return;
+            const dayIndex = getMapEventMarkerDayIndex(ev);
             pts.push({
               lat,
               lng,
               type: 'event',
-              color: '#f59e0b',
+              color: getMapEventDayColor(dayIndex),
               radius: 0.52,
               label: buildIndividualEventGlobeLabel(ev),
+              dayIndex,
               // `entity` = l'événement précis (pas le cluster ville) : le clic
               // sur ce pin doit ouvrir le détail de CET événement, pas la
               // liste de la ville — cf. handlePointClick.
@@ -675,14 +684,16 @@ export const GlobeView = memo(
           const lat = Number(cluster.latitude);
           const lng = Number(cluster.longitude);
           if (!isValidLatLng(lat, lng)) return;
+          const dayIndex = getClusterEventDayIndex(cluster);
           pts.push({
             lat,
             lng,
             type: 'event',
-            color: '#f59e0b',
+            color: getMapEventDayColor(dayIndex),
             radius: cluster.count > 1 ? 0.78 : 0.68,
             label: buildEventClusterGlobeLabel(cluster),
             entity: cluster,
+            dayIndex,
             count: cluster.count > 1 ? cluster.count : undefined,
           });
         });

@@ -4,13 +4,35 @@ import {
   createDefaultEventFilter,
   DEFAULT_EVENT_FILTER_RADIUS_KM,
   EMPTY_EVENT_FILTER,
+  filterFeedPostsByEventCriteria,
   filterMapEventsByCriteria,
+  filterMapEventsOnCalendarDay,
+  getBrowseSheetCalendarDayKeys,
   getTodayDateInputValue,
   hasActiveEventFilterCriteria,
   isEventDateInRange,
   resolveDefaultUserCityLabel,
 } from './mapEventFilter';
-import type { MapEventMarker } from '../types';
+import type { FeedPost, MapEventMarker } from '../types';
+
+function post(
+  partial: Partial<FeedPost> & Pick<FeedPost, 'id' | 'author'>
+): FeedPost {
+  return {
+    userId: partial.author.id,
+    content: 'Jam',
+    createdAt: 0,
+    likeCount: 0,
+    likedByMe: false,
+    commentCount: 0,
+    favoriteByMe: false,
+    recentComments: [],
+    isEvent: true,
+    eventDate: '2026-06-15T20:00:00.000Z',
+    eventLocation: 'Paris',
+    ...partial,
+  };
+}
 
 function marker(
   partial: Partial<MapEventMarker> & Pick<MapEventMarker, 'id' | 'latitude' | 'longitude'>
@@ -175,5 +197,76 @@ describe('hasActiveEventFilterCriteria', () => {
     expect(
       hasActiveEventFilterCriteria({ ...EMPTY_EVENT_FILTER, eventType: 'dance' })
     ).toBe(true);
+  });
+});
+
+describe('filterFeedPostsByEventCriteria', () => {
+  const parisPost = post({
+    id: 'p',
+    author: { id: 'u1', username: 'paris' },
+    eventDate: '2026-06-15T20:00:00.000Z',
+    eventLocation: 'Paris',
+  });
+  const lyonPost = post({
+    id: 'l',
+    author: { id: 'u2', username: 'lyon' },
+    eventDate: '2026-06-16T20:00:00.000Z',
+    eventLocation: 'Lyon',
+  });
+
+  it('filters feed posts by dateFrom like map markers', () => {
+    const filtered = filterFeedPostsByEventCriteria([parisPost, lyonPost], {
+      ...EMPTY_EVENT_FILTER,
+      dateFrom: '2026-06-16',
+    });
+    expect(filtered.map((p) => p.id)).toEqual(['l']);
+  });
+});
+
+describe('getBrowseSheetCalendarDayKeys', () => {
+  const fixedNow = new Date('2026-07-16T10:00:00');
+
+  it('returns 4 days from today when filter is off', () => {
+    expect(
+      getBrowseSheetCalendarDayKeys(undefined, false, fixedNow)
+    ).toEqual(['2026-07-16', '2026-07-17', '2026-07-18', '2026-07-19']);
+  });
+
+  it('returns only dateFrom when range is within 4 days', () => {
+    expect(
+      getBrowseSheetCalendarDayKeys(
+        { ...EMPTY_EVENT_FILTER, dateFrom: '2026-07-16', dateTo: '2026-07-17' },
+        true,
+        fixedNow
+      )
+    ).toEqual(['2026-07-16', '2026-07-17']);
+  });
+
+  it('expands beyond 4 days when filter range is longer', () => {
+    expect(
+      getBrowseSheetCalendarDayKeys(
+        { ...EMPTY_EVENT_FILTER, dateFrom: '2026-07-16', dateTo: '2026-07-22' },
+        true,
+        fixedNow
+      )
+    ).toEqual([
+      '2026-07-16',
+      '2026-07-17',
+      '2026-07-18',
+      '2026-07-19',
+      '2026-07-20',
+      '2026-07-21',
+      '2026-07-22',
+    ]);
+  });
+});
+
+describe('filterMapEventsOnCalendarDay', () => {
+  it('keeps only events with an occurrence on the given day', () => {
+    const events = [
+      marker({ id: 'a', latitude: 48.8, longitude: 2.3, eventDate: '2026-07-20T18:00:00.000Z' }),
+      marker({ id: 'b', latitude: 48.9, longitude: 2.4, eventDate: '2026-07-21T18:00:00.000Z' }),
+    ];
+    expect(filterMapEventsOnCalendarDay(events, '2026-07-20').map((e) => e.id)).toEqual(['a']);
   });
 });

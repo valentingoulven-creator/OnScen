@@ -7,9 +7,14 @@ import { dicebearAdventurerAvatar } from '../lib/avatarUrl';
 import { formatEventDateShort } from '../lib/feedEvents';
 import type { Salon, Live, NearbyPerson, MapEventCityCluster, MapEventMarker } from '../types';
 import { buildEventClusterKey, buildSalonLivePeopleKey } from '../lib/mapMarkersKey';
-import { buildEventClusterPopupHtml } from '../lib/mapEventPopupHtml';
+import {
+  buildEventDayPinHtml,
+  getClusterEventDayIndex,
+  getMapEventMarkerDayIndex,
+} from '../lib/mapEventDayColors';
 import { isValidLatLng, sanitizeLatLngTuple } from '../lib/mapCoords';
 import { DEFAULT_CENTER } from '../lib/livesGeo';
+import { DEFAULT_EVENT_FILTER_RADIUS_KM } from '../lib/mapEventFilter';
 import { WORLD_CAPITALS } from '../lib/worldCapitals';
 import { escapeHtmlAttr, getUsernameStyle, usernameMapLabelHtml } from '../lib/usernameColor';
 import {
@@ -87,6 +92,13 @@ export interface MapViewHandle {
     radiusKm: number,
     opts?: { durationSec?: number }
   ) => void;
+  /** Recentrage explicite — force le cadrage (ex. FAB « ma position », rayon km). */
+  recenterToBounds: (
+    lat: number,
+    lng: number,
+    radiusKm: number,
+    opts?: { durationSec?: number }
+  ) => void;
   /** Pré-positionne la carte plate (cachée) et lance le chargement tuiles avant le crossfade. */
   prepareFlatAt: (lat: number, lng: number, zoom?: number, radiusKm?: number) => void;
   /** Slider zoom vertical — 0 dézoom, 1 zoom max. */
@@ -102,6 +114,51 @@ const MAP_CROSSFADE_MS = 300;
 
 /** Vol carte vers une ville (filtre événement, etc.) — plus lisible que le crossfade. */
 export const MAP_CITY_FLY_DURATION_S = 1.15;
+
+const MAP_BOUNDS_PADDING: L.PointExpression = [48, 48];
+
+function circleBounds(lat: number, lng: number, radiusKm: number): L.LatLngBounds {
+  const [safeLat, safeLng] = sanitizeLatLngTuple(lat, lng);
+  const radiusM = radiusKm * 1000;
+  // Approximation suffisante pour fitBounds — L.circle().getBounds() exige une map montée.
+  const latDelta = radiusM / 111_320;
+  const lngDelta = radiusM / (111_320 * Math.max(Math.cos((safeLat * Math.PI) / 180), 0.01));
+  return L.latLngBounds(
+    [safeLat - latDelta, safeLng - lngDelta],
+    [safeLat + latDelta, safeLng + lngDelta]
+  );
+}
+
+/** Cadre une zone circulaire — flyToBounds avec repli fitBounds animé. */
+function flyMapToCircleBounds(
+  map: L.Map,
+  lat: number,
+  lng: number,
+  radiusKm: number,
+  opts?: { durationSec?: number; animate?: boolean }
+): void {
+  const duration = opts?.durationSec ?? MAP_CITY_FLY_DURATION_S;
+  const bounds = circleBounds(lat, lng, radiusKm);
+  const fitOpts = { padding: MAP_BOUNDS_PADDING, maxZoom: 14 as number };
+
+  if (opts?.animate === false) {
+    map.fitBounds(bounds, { ...fitOpts, animate: false });
+    return;
+  }
+
+  try {
+    map.flyToBounds(bounds, { ...fitOpts, duration });
+    return;
+  } catch (err) {
+    console.warn('[MapView] flyToBounds failed, fallback fitBounds', err);
+  }
+
+  try {
+    map.fitBounds(bounds, { ...fitOpts, animate: true, duration });
+  } catch (err) {
+    console.error('[MapView] fitBounds failed', err);
+  }
+}
 
 /** Min wait before crossfade (ms) — laisse le globe amorcer le zoom. */
 const TILE_WARMUP_MIN_MS = 60;
@@ -216,6 +273,8 @@ interface MapViewProps {
   livesFilterOn?: boolean;
   salonFilterOn?: boolean;
   eventsFilterOn?: boolean;
+  /** Pin événement mis en avant (clic sidebar) — sans ouvrir le modal. */
+  highlightedMapEventId?: string | null;
 }
 
 function escapeHtml(value: string): string {
@@ -224,6 +283,19 @@ function escapeHtml(value: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function applyEventMarkerHighlights(
+  markersById: Map<string, L.Marker>,
+  highlightedId: string | null | undefined
+): void {
+  markersById.forEach((marker, id) => {
+    const el = marker.getElement()?.querySelector('.map-marker.event');
+    if (!(el instanceof HTMLElement)) return;
+    const active = !!highlightedId && id === highlightedId;
+    el.classList.toggle('map-marker--highlighted', active);
+    marker.setZIndexOffset(active ? 450 : 200);
+  });
 }
 
 /** Retourne des coords toujours valides — jamais NaN. */
@@ -266,6 +338,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   livesFilterOn = false,
   salonFilterOn = false,
   eventsFilterOn = false,
+  highlightedMapEventId = null,
 }: MapViewProps, ref) {
   const mapRef = useRef<HTMLDivElement>(null);
   const globeViewRef = useRef<GlobeViewHandle | null>(null);
@@ -293,6 +366,10 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   centerRef.current = center;
   const skipCenterFlyRef = useRef(false);
   const programmaticMapMoveUntilRef = useRef(0);
+  /** Cadrage en attente pendant crossfade globe → flat (évite écrasement zoom 12). */
+  const pendingRecenterBoundsRef = useRef<{ lat: number; lng: number; radiusKm: number } | null>(
+    null
+  );
   const onMapDetailStateChangeRef = useRef(onMapDetailStateChange);
   onMapDetailStateChangeRef.current = onMapDetailStateChange;
 
@@ -330,6 +407,9 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   const detailEmitRafRef = useRef<number | null>(null);
   const salonLivePeopleKeyRef = useRef<string | null>(null);
   const eventClusterKeyRef = useRef<string | null>(null);
+  const eventMarkersByIdRef = useRef<Map<string, L.Marker>>(new Map());
+  const highlightedMapEventIdRef = useRef(highlightedMapEventId);
+  highlightedMapEventIdRef.current = highlightedMapEventId;
   const lastRecenterTokenRef = useRef(recenterToken);
   const onFlatMapViewportCenterRef = useRef(onFlatMapViewportCenter);
   onFlatMapViewportCenterRef.current = onFlatMapViewportCenter;
@@ -591,9 +671,10 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       skipCenterFlyRef.current = true;
       try {
         if (radiusKm != null && radiusKm > 0) {
-          const bounds = L.circle(sanitizeLatLngTuple(lat, lng), { radius: radiusKm * 1000 }).getBounds();
-          mapInstance.current.fitBounds(bounds, { animate: false, padding: [48, 48], maxZoom: 14 });
+          pendingRecenterBoundsRef.current = { lat, lng, radiusKm };
+          flyMapToCircleBounds(mapInstance.current, lat, lng, radiusKm, { animate: false });
         } else {
+          pendingRecenterBoundsRef.current = null;
           mapInstance.current.setView(sanitizeLatLngTuple(lat, lng), zoom, { animate: false });
         }
         mapInstance.current.invalidateSize();
@@ -629,8 +710,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       if (!mapInstance.current || !isValidLatLng(lat, lng) || radiusKm <= 0) return;
       skipCenterFlyRef.current = true;
       try {
-        const bounds = L.circle(sanitizeLatLngTuple(lat, lng), { radius: radiusKm * 1000 }).getBounds();
-        mapInstance.current.fitBounds(bounds, { animate: false, padding: [48, 48], maxZoom: 14 });
+        flyMapToCircleBounds(mapInstance.current, lat, lng, radiusKm, { animate: false });
         refreshFlatTileLayer();
       } catch {
         // Map may not be ready
@@ -639,18 +719,39 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     flyToCityBounds(lat: number, lng: number, radiusKm: number, opts?: { durationSec?: number }) {
       if (!mapInstance.current || !isValidLatLng(lat, lng) || radiusKm <= 0) return;
       const duration = opts?.durationSec ?? MAP_CITY_FLY_DURATION_S;
-      programmaticMapMoveUntilRef.current = Date.now() + Math.ceil(duration * 1000) + 500;
+      programmaticMapMoveUntilRef.current = Date.now() + Math.ceil(duration * 1000) + 800;
       skipCenterFlyRef.current = true;
+      if (mapStyleRef.current === 'globe') {
+        pendingRecenterBoundsRef.current = { lat, lng, radiusKm };
+      }
       try {
         mapInstance.current.invalidateSize();
-        const bounds = L.circle(sanitizeLatLngTuple(lat, lng), { radius: radiusKm * 1000 }).getBounds();
-        mapInstance.current.flyToBounds(bounds, {
-          padding: [48, 48],
-          duration,
-          maxZoom: 14,
-        });
-      } catch {
-        // Map may not be ready
+        flyMapToCircleBounds(mapInstance.current, lat, lng, radiusKm, { durationSec: duration });
+      } catch (err) {
+        console.error('[MapView] flyToCityBounds error:', err);
+      }
+    },
+    /** Recentrage explicite — force le cadrage même si le centre est inchangé. */
+    recenterToBounds(lat: number, lng: number, radiusKm: number, opts?: { durationSec?: number }) {
+      if (!mapInstance.current || !isValidLatLng(lat, lng) || radiusKm <= 0) return;
+      const duration = opts?.durationSec ?? MAP_CITY_FLY_DURATION_S;
+      programmaticMapMoveUntilRef.current = Date.now() + Math.ceil(duration * 1000) + 800;
+      skipCenterFlyRef.current = true;
+      userMapPanRef.current = false;
+      if (mapStyleRef.current === 'globe') {
+        pendingRecenterBoundsRef.current = { lat, lng, radiusKm };
+      }
+      try {
+        mapInstance.current.invalidateSize();
+        flyMapToCircleBounds(mapInstance.current, lat, lng, radiusKm, { durationSec: duration });
+      } catch (err) {
+        console.warn('[MapView] recenterToBounds fly failed, fallback jump', err);
+        try {
+          flyMapToCircleBounds(mapInstance.current, lat, lng, radiusKm, { animate: false });
+          refreshFlatTileLayer();
+        } catch (jumpErr) {
+          console.error('[MapView] recenterToBounds jump failed', jumpErr);
+        }
       }
     },
     setZoomControlNorm(norm: number) {
@@ -721,16 +822,26 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
 
     // Sync hidden flat map to current center before crossfade (globe POV / bootstrap geo).
     if (mapInstance.current) {
-      const [lat, lng] = centerRef.current;
+      const pending = pendingRecenterBoundsRef.current;
       try {
-        if (isValidLatLng(lat, lng)) {
-          const current = mapInstance.current.getCenter();
-          if (getDistanceKm(current.lat, current.lng, lat, lng) >= 0.01) {
-            skipCenterFlyRef.current = true;
-            programmaticMapMoveUntilRef.current = Date.now() + MAP_CROSSFADE_MS + 200;
-            mapInstance.current.flyTo(sanitizeLatLngTuple(lat, lng), MAP_DEFAULT_CITY_ZOOM, {
-              duration: MAP_CROSSFADE_MS / 1000,
-            });
+        if (pending && isValidLatLng(pending.lat, pending.lng)) {
+          skipCenterFlyRef.current = true;
+          programmaticMapMoveUntilRef.current = Date.now() + MAP_CROSSFADE_MS + 500;
+          flyMapToCircleBounds(mapInstance.current, pending.lat, pending.lng, pending.radiusKm, {
+            animate: false,
+          });
+          pendingRecenterBoundsRef.current = null;
+        } else {
+          const [lat, lng] = centerRef.current;
+          if (isValidLatLng(lat, lng)) {
+            const current = mapInstance.current.getCenter();
+            if (getDistanceKm(current.lat, current.lng, lat, lng) >= 0.01) {
+              skipCenterFlyRef.current = true;
+              programmaticMapMoveUntilRef.current = Date.now() + MAP_CROSSFADE_MS + 200;
+              mapInstance.current.flyTo(sanitizeLatLngTuple(lat, lng), MAP_DEFAULT_CITY_ZOOM, {
+                duration: MAP_CROSSFADE_MS / 1000,
+              });
+            }
           }
         }
         if (mapInstance.current.getZoom() < 3) {
@@ -981,7 +1092,10 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     lastFlatZoomRef.current = map.getZoom();
     setFlatMapZoom(map.getZoom());
 
-    const rafId = requestAnimationFrame(() => map.invalidateSize());
+    const rafId = requestAnimationFrame(() => {
+      map.invalidateSize();
+      tileLayer.redraw();
+    });
     let resizeDebounce: ReturnType<typeof setTimeout> | null = null;
     let lastObservedW = 0;
     let lastObservedH = 0;
@@ -1050,10 +1164,10 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     if (!map) return;
     if (recenterToken === 0) return;
     if (recenterToken === lastRecenterTokenRef.current) return;
+    if (Date.now() < programmaticMapMoveUntilRef.current) return;
     lastRecenterTokenRef.current = recenterToken;
     const [lat, lng] = centerRef.current;
     if (!isValidLatLng(lat, lng)) return;
-    if (Date.now() < programmaticMapMoveUntilRef.current) return;
 
     const skipFromProgrammaticMove = skipCenterFlyRef.current;
     skipCenterFlyRef.current = false;
@@ -1062,19 +1176,20 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
         const current = map.getCenter();
         if (getDistanceKm(current.lat, current.lng, lat, lng) < 0.01) return;
       } catch {
-        /* map may not be ready — fall through to flyTo */
+        /* map may not be ready — fall through to flyToCityBounds */
       }
     }
 
     userMapPanRef.current = false;
     try {
       skipCenterFlyRef.current = true;
-      programmaticMapMoveUntilRef.current = Date.now() + 1100;
-      map.flyTo(sanitizeLatLngTuple(lat, lng), MAP_DEFAULT_CITY_ZOOM, {
-        duration: 0.6,
+      programmaticMapMoveUntilRef.current = Date.now() + Math.ceil(MAP_CITY_FLY_DURATION_S * 1000) + 800;
+      map.invalidateSize();
+      flyMapToCircleBounds(map, lat, lng, DEFAULT_EVENT_FILTER_RADIUS_KM, {
+        durationSec: MAP_CITY_FLY_DURATION_S,
       });
     } catch (err) {
-      console.error('[MapView] flyTo error:', err);
+      console.error('[MapView] recenter flyToBounds error:', err);
     }
   }, [recenterToken]);
 
@@ -1592,48 +1707,54 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     const visibleEventClusters = visibleEventClustersRef.current;
 
     layer.clearLayers();
+    eventMarkersByIdRef.current.clear();
 
-    const attachEventPopupHandlers = (marker: L.Marker, cluster: MapEventCityCluster) => {
-      const popupEl = marker.getPopup()?.getElement();
-      if (!popupEl) return;
-      popupEl.querySelectorAll<HTMLButtonElement>('[data-event-id]').forEach((btn) => {
-        const eventId = btn.getAttribute('data-event-id');
-        if (!eventId) return;
-        const ev = cluster.events.find((e) => e.id === eventId);
-        if (!ev) return;
-        L.DomEvent.off(btn);
-        L.DomEvent.on(btn, 'click', (domEv) => {
-          L.DomEvent.stopPropagation(domEv);
-          marker.closePopup();
-          onSelectMapEventRef.current?.(ev);
-          onSelectEventClusterRef.current?.(cluster);
-        });
-      });
+    const registerEventMarker = (eventId: string, marker: L.Marker) => {
+      eventMarkersByIdRef.current.set(eventId, marker);
     };
 
-    const addClusterMarker = (cluster: MapEventCityCluster) => {
-      if (!isValidLatLng(cluster.latitude, cluster.longitude)) return;
-      const cityLabel = cluster.cityLabel.trim() || 'Ville';
-      const shortLabel = cityLabel.length > 22 ? `${cityLabel.slice(0, 20)}…` : cityLabel;
+    const addEventMapMarker = (
+      cluster: MapEventCityCluster,
+      opts: {
+        lat: number;
+        lon: number;
+        dayIndex: number;
+        label: string;
+        tooltipTitle: string;
+        count?: number;
+        /** Pin individuel (tier rue) — ouvre le détail sans popup Leaflet. */
+        primaryEvent?: MapEventMarker;
+      }
+    ) => {
+      const { lat, lon, dayIndex, label, tooltipTitle, count, primaryEvent } = opts;
+      if (!isValidLatLng(lat, lon)) return;
       const countBadge =
-        cluster.count > 1
-          ? `<span class="event-cluster-badge">${escapeHtml(String(cluster.count))}</span>`
+        count && count > 1
+          ? `<span class="event-cluster-badge">${escapeHtml(String(count))}</span>`
           : '';
+      const dayPinHtml = buildEventDayPinHtml(dayIndex);
       const icon = L.divIcon({
-        className: '',
-        html: `<div class="map-marker event"><span class="event-marker-icon" aria-hidden="true">📍</span>${countBadge}<span class="map-marker-label">${escapeHtml(shortLabel)}</span></div>`,
+        className: 'event-day-leaflet-icon',
+        html: `<div class="map-marker event"><span class="event-marker-icon" aria-hidden="true">${dayPinHtml}</span>${countBadge}<span class="map-marker-label">${escapeHtml(label)}</span></div>`,
         iconSize: [48, 52],
         iconAnchor: [24, 26],
       });
-      const lat = Number(cluster.latitude);
-      const lon = Number(cluster.longitude);
-      if (!isValidLatLng(lat, lon)) return;
       const m = L.marker([lat, lon], { icon, zIndexOffset: 200 }).addTo(layer);
-      const tooltipParts = [escapeHtml(cityLabel)];
-      if (cluster.count > 1) {
-        tooltipParts.push(`${cluster.count} événements`);
-      } else if (cluster.events[0]) {
-        const ev = cluster.events[0];
+      if (primaryEvent) {
+        registerEventMarker(primaryEvent.id, m);
+      } else {
+        for (const ev of cluster.events) {
+          registerEventMarker(ev.id, m);
+        }
+      }
+      const tooltipParts = [escapeHtml(tooltipTitle)];
+      if (count && count > 1) {
+        tooltipParts.push(`${count} événements`);
+      } else if (primaryEvent) {
+        if (primaryEvent.title) tooltipParts.push(escapeHtml(primaryEvent.title.trim() || 'Événement'));
+        if (primaryEvent.eventDate) tooltipParts.push(escapeHtml(formatEventDateShort(primaryEvent.eventDate)));
+      } else if (cluster.events.length === 1) {
+        const ev = cluster.events[0]!;
         if (ev.title) tooltipParts.push(escapeHtml(ev.title.trim() || 'Événement'));
         if (ev.eventDate) tooltipParts.push(escapeHtml(formatEventDateShort(ev.eventDate)));
       }
@@ -1642,26 +1763,67 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
         offset: [0, -8],
         className: 'map-event-tooltip',
       });
-      m.bindPopup(buildEventClusterPopupHtml(cluster), {
-        className: 'map-event-popup-wrap',
-        maxWidth: 300,
-        minWidth: 220,
-      });
-      m.on('popupopen', () => attachEventPopupHandlers(m, cluster));
       m.on('click', (clickEv) => {
         L.DomEvent.stopPropagation(clickEv.originalEvent);
-        m.openPopup();
+        m.closeTooltip();
+        mapInstance.current?.closePopup();
+        if (primaryEvent) {
+          onSelectMapEventRef.current?.(primaryEvent);
+          return;
+        }
+        if (cluster.events.length === 1) {
+          onSelectMapEventRef.current?.(cluster.events[0]!);
+          return;
+        }
         onSelectEventClusterRef.current?.(cluster);
       });
     };
 
+    const addClusterMarker = (cluster: MapEventCityCluster) => {
+      const cityLabel = cluster.cityLabel.trim() || 'Ville';
+      const shortLabel = cityLabel.length > 22 ? `${cityLabel.slice(0, 20)}…` : cityLabel;
+
+      if (flatDetailTier === 'overview') {
+        addEventMapMarker(cluster, {
+          lat: Number(cluster.latitude),
+          lon: Number(cluster.longitude),
+          dayIndex: getClusterEventDayIndex(cluster),
+          label: shortLabel,
+          tooltipTitle: cityLabel,
+          count: cluster.count > 1 ? cluster.count : undefined,
+        });
+        return;
+      }
+
+      for (const ev of cluster.events) {
+        const lat = Number(ev.latitude);
+        const lon = Number(ev.longitude);
+        const venueLabel = ev.eventLocation?.trim() || ev.title?.trim() || cityLabel;
+        const pinLabel =
+          venueLabel.length > 22 ? `${venueLabel.slice(0, 20)}…` : venueLabel;
+        addEventMapMarker(cluster, {
+          lat,
+          lon,
+          dayIndex: getMapEventMarkerDayIndex(ev),
+          label: pinLabel,
+          tooltipTitle: venueLabel,
+          primaryEvent: ev,
+        });
+      }
+    };
+
     try {
       visibleEventClusters.forEach((cluster) => addClusterMarker(cluster));
+      applyEventMarkerHighlights(eventMarkersByIdRef.current, highlightedMapEventIdRef.current);
     } catch (err) {
       console.error('[MapView] event marker error:', err);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventClusterKey, flatDetailTier]); // visibleEventClusters read via stable ref
+
+  useEffect(() => {
+    applyEventMarkerHighlights(eventMarkersByIdRef.current, highlightedMapEventId);
+  }, [highlightedMapEventId]);
 
   return (
     <div className="absolute inset-0 z-0">

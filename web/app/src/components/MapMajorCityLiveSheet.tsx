@@ -84,7 +84,6 @@ export function MapMajorCityLiveSheet({
   const { t } = useTranslation();
   const anchoredCount =
     cluster.cityAnchoredSalons.length + cluster.cityAnchoredLives.length;
-  const geoCount = cluster.geolocatedSalons.length + cluster.geolocatedLives.length;
 
   return (
     <div
@@ -158,41 +157,9 @@ export function MapMajorCityLiveSheet({
                 />
               ))}
             </Section>
-          ) : null}
-
-          {geoCount > 0 ? (
-            <Section
-              title={t('map.majorCityGeoSection')}
-              hint={t('map.majorCityGeoHint')}
-            >
-              {cluster.geolocatedSalons.map((salon) => (
-                <SessionRow
-                  key={`gs-${salon.id}`}
-                  hostId={salon.hostId}
-                  hostName={salon.hostName}
-                  label={salon.title}
-                  subtitle={`Salon · ${Math.max(0, salon.listenersCount ?? 0)} spectateurs`}
-                  isLive={salon.isLive === true}
-                  onSelect={() => onSalonClick(salon)}
-                />
-              ))}
-              {cluster.geolocatedLives.map((live) => (
-                <SessionRow
-                  key={`gl-${live.id}`}
-                  hostId={live.hostId}
-                  hostName={live.hostName}
-                  label={live.title.trim() || live.playbackState.title}
-                  subtitle={`Live · ${Math.max(0, live.viewersCount ?? 0)} spectateurs`}
-                  isLive
-                  onSelect={() => onLiveClick(live)}
-                />
-              ))}
-            </Section>
-          ) : null}
-
-          {anchoredCount === 0 && geoCount === 0 ? (
+          ) : (
             <p className="px-4 py-8 text-center text-sm text-gray-500">{t('map.majorCityEmpty')}</p>
-          ) : null}
+          )}
         </div>
       </div>
     </div>

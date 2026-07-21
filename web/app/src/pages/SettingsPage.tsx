@@ -112,31 +112,71 @@ export function SettingsGearButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+function SettingsSectionHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="px-4 pt-5 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider first:pt-4">
+      {children}
+    </p>
+  );
+}
+
+function SettingsSubGroupHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="px-4 pt-2 pb-1 text-[9px] font-semibold text-gray-600 uppercase tracking-wide">
+      {children}
+    </p>
+  );
+}
+
+function SettingsGroup({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mx-4 rounded-xl border border-[#1e1e2f] bg-[#12121a]/60 overflow-hidden divide-y divide-[#1e1e2f]/70">
+      {children}
+    </div>
+  );
+}
+
+function SettingsInfoCallout({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mx-4 mt-2 mb-3 px-3 py-2.5 rounded-xl bg-[#12121a]/40 border border-[#1e1e2f]/80 text-[11px] text-gray-500 leading-relaxed">
+      {children}
+    </p>
+  );
+}
+
 function SettingsRow({
   label,
   hint,
   onClick,
   children,
+  destructive,
 }: {
   label: string;
   hint?: string;
   onClick?: () => void;
   children?: React.ReactNode;
+  destructive?: boolean;
 }) {
   const Tag = onClick ? 'button' : 'div';
   return (
     <Tag
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      className={`w-full flex items-center justify-between gap-3 p-4 text-left ${
-        onClick ? 'hover:bg-[#1a1a26] active:bg-[#1a1a26]' : ''
+      className={`w-full flex items-center justify-between gap-3 p-4 min-h-[44px] text-left ${
+        onClick
+          ? destructive
+            ? 'hover:bg-red-500/5 active:bg-red-500/10'
+            : 'hover:bg-[#1a1a26] active:bg-[#1a1a26]'
+          : ''
       }`}
     >
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-white">{label}</p>
+        <p className={`text-sm font-semibold ${destructive ? 'text-red-400' : 'text-white'}`}>{label}</p>
         {hint && <p className="text-xs text-gray-500 mt-0.5">{hint}</p>}
       </div>
-      {children ?? (onClick && <span className="text-gray-500 shrink-0">›</span>)}
+      {children ?? (onClick && (
+        <span className={`shrink-0 ${destructive ? 'text-red-400/70' : 'text-gray-500'}`}>›</span>
+      ))}
     </Tag>
   );
 }
@@ -480,7 +520,7 @@ export function SettingsPage({
         )}
       </header>
 
-      <div className="flex-1 overflow-y-auto pb-8 min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
         {showContact ? (
           <ContactSoundyPage
             embedded
@@ -490,29 +530,26 @@ export function SettingsPage({
         ) : legal ? (
           <LegalDocumentView docKey={legal} embedded />
         ) : (
-          <>
-        {/* ── Mon compte ── */}
-        <section className="border-b border-[#1e1e2f]">
-          <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-            {t('profile.sectionAccount')}
-          </p>
-
-          <SettingsRow
-            label={t('profile.connectedAccounts')}
-            onClick={() => setStreamingExpanded((v) => !v)}
-          >
-            <span
-              className={`text-gray-500 shrink-0 transition-transform ${streamingExpanded ? 'rotate-90' : ''}`}
-              aria-hidden
+          <div className="flex flex-col flex-1 min-h-full pb-[max(2rem,env(safe-area-inset-bottom))]">
+        {/* ── 1. Plateformes connectées ── */}
+        <section>
+          <SettingsSectionHeader>{t('settings.platformsSection')}</SettingsSectionHeader>
+          <p className="px-4 pb-2 text-[11px] text-gray-500">{t('settings.platformsSectionHint')}</p>
+          <SettingsGroup>
+            <SettingsRow
+              label={t('profile.connectedAccounts')}
+              onClick={() => setStreamingExpanded((v) => !v)}
             >
-              ›
-            </span>
-          </SettingsRow>
+              <span
+                className={`text-gray-500 shrink-0 transition-transform ${streamingExpanded ? 'rotate-90' : ''}`}
+                aria-hidden
+              >
+                ›
+              </span>
+            </SettingsRow>
+          </SettingsGroup>
           {streamingExpanded && token && user && (
-            <div className="px-4 pb-4 space-y-2">
-              <p className="text-[10px] text-gray-500">
-                Obligatoire pour créer ou animer un salon sur la plateforme choisie.
-              </p>
+            <div className="px-4 pb-2 pt-3 space-y-2">
               {(['youtube'] as const).map((p) => (
                 <PlatformConnectCard
                   key={p}
@@ -525,14 +562,20 @@ export function SettingsPage({
               ))}
             </div>
           )}
+        </section>
 
-          <SettingsRow
-            label={t('profile.subscription')}
-            onClick={() => setShowSubscription(true)}
-          />
+        {/* ── 2. Abonnement & créateur ── */}
+        <section>
+          <SettingsSectionHeader>{t('settings.monetizationSection')}</SettingsSectionHeader>
+          <SettingsGroup>
+            <SettingsRow
+              label={t('profile.subscription')}
+              onClick={() => setShowSubscription(true)}
+            />
+          </SettingsGroup>
 
           {token && user && (
-            <div className="px-4 py-2">
+            <div className="px-4 py-3">
               <CreatorStripeConnectCard
                 token={token}
                 user={user}
@@ -541,35 +584,104 @@ export function SettingsPage({
             </div>
           )}
 
-          <div className="px-4 py-2">
+          <div className="px-4 pb-2">
             <SupportMeloSongTeaser onOpen={() => setShowDonationSheet(true)} />
           </div>
-
-          <SettingsRow
-            label={t('profile.contactSoundy')}
-            onClick={() => setShowContact(true)}
-          />
-
-          <SettingsRow
-            label={t('profile.logout')}
-            onClick={() => setShowLogoutConfirm(true)}
-          >
-            <span className="text-red-400/70 shrink-0">›</span>
-          </SettingsRow>
         </section>
 
-        {/* ── Sécurité ── */}
-        <section className="border-b border-[#1e1e2f]">
-          <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('settings.security')}</p>
+        {/* ── 3. Confidentialité ── */}
+        <section>
+          <SettingsSectionHeader>{t('settings.privacySection')}</SettingsSectionHeader>
+          <p className="px-4 pb-2 text-[11px] text-gray-500">{t('settings.privacySectionHint')}</p>
+          <SettingsGroup>
+            <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-white">{t('settings.disablePrivateMessages')}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{t('settings.disablePrivateMessagesHint')}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleTogglePrivateMessages()}
+                disabled={dmSaving || !token}
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${dmDisabled ? 'bg-purple-600' : 'bg-gray-600'}`}
+                aria-label={t('settings.disablePrivateMessagesToggleAria')}
+              >
+                <span
+                  className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${dmDisabled ? 'translate-x-6' : 'translate-x-1'}`}
+                />
+              </button>
+            </label>
 
-          <SettingsRow
-            label={t('settings.changePassword')}
-            hint={t('settings.currentPasswordHint')}
-            onClick={() => { setPwSection((s) => !s); setPwError(''); }}
-          />
+            <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-white">{t('settings.disableExternalEventTags')}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{t('settings.disableExternalEventTagsHint')}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleToggleExternalEventTags()}
+                disabled={externalEventTagsSaving || !token}
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${externalEventTagsDisabled ? 'bg-purple-600' : 'bg-gray-600'}`}
+                aria-label={t('settings.disableExternalEventTagsToggleAria')}
+              >
+                <span
+                  className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${externalEventTagsDisabled ? 'translate-x-6' : 'translate-x-1'}`}
+                />
+              </button>
+            </label>
+          </SettingsGroup>
+          <SettingsInfoCallout>{t('settings.privacyMapCallout')}</SettingsInfoCallout>
+        </section>
+
+        {/* ── 4. Notifications ── */}
+        {pushSupported && (
+          <section>
+            <SettingsSectionHeader>{t('settings.notificationsSection')}</SettingsSectionHeader>
+            <SettingsGroup>
+              <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white">{t('settings.pushNotifications')}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {pushPermission === 'granted'
+                      ? t('settings.pushEnabledHint')
+                      : pushPermission === 'denied'
+                        ? t('settings.pushDeniedHint')
+                        : t('settings.pushDefaultHint')}
+                  </p>
+                </div>
+                {pushPermission === 'denied' ? (
+                  <span className="text-xs text-gray-600 shrink-0">{t('settings.pushBlocked')}</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleTogglePush}
+                    disabled={pushLoading}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${pushPermission === 'granted' ? 'bg-purple-600' : 'bg-gray-600'}`}
+                    aria-label={t('settings.pushToggleAria')}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${pushPermission === 'granted' ? 'translate-x-6' : 'translate-x-1'}`}
+                    />
+                  </button>
+                )}
+              </label>
+            </SettingsGroup>
+          </section>
+        )}
+
+        {/* ── 5. Sécurité et accès ── */}
+        <section>
+          <SettingsSectionHeader>{t('settings.securityAccessSection')}</SettingsSectionHeader>
+          <SettingsGroup>
+            <SettingsRow
+              label={t('settings.changePassword')}
+              hint={t('settings.currentPasswordHint')}
+              onClick={() => { setPwSection((s) => !s); setPwError(''); }}
+            />
+          </SettingsGroup>
 
           {pwSection && (
-            <form onSubmit={handleChangePassword} className="px-4 pb-4 space-y-3">
+            <form onSubmit={handleChangePassword} className="px-4 pb-4 pt-3 space-y-3">
               <input
                 type="password"
                 placeholder={t('settings.currentPassword')}
@@ -625,40 +737,41 @@ export function SettingsPage({
             </form>
           )}
 
-          {/* ── Double authentification (2FA) ── */}
-          <SettingsRow
-            label="Double authentification (2FA)"
-            hint={twoFAEnabled
-              ? 'Activée — votre compte est protégé par TOTP'
-              : 'Ajoutez une couche de sécurité avec Google Authenticator'}
-            onClick={twoFAEnabled
-              ? () => { setTwoFAModal('disable'); setTwoFAError(''); setTwoFADisableCode(''); }
-              : () => void openTwoFASetup()}
-          >
-            {twoFALoading && twoFAModal === 'closed'
-              ? <span className="w-4 h-4 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin shrink-0" />
-              : (
-                <span className={`text-xs font-semibold shrink-0 ${twoFAEnabled ? 'text-green-400' : 'text-gray-500'}`}>
-                  {twoFAEnabled ? 'Activée' : 'Désactivée'}
-                </span>
-              )}
-          </SettingsRow>
+          <SettingsGroup>
+            <SettingsRow
+              label="Double authentification (2FA)"
+              hint={twoFAEnabled
+                ? 'Activée — votre compte est protégé par TOTP'
+                : 'Ajoutez une couche de sécurité avec Google Authenticator'}
+              onClick={twoFAEnabled
+                ? () => { setTwoFAModal('disable'); setTwoFAError(''); setTwoFADisableCode(''); }
+                : () => void openTwoFASetup()}
+            >
+              {twoFALoading && twoFAModal === 'closed'
+                ? <span className="w-4 h-4 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin shrink-0" />
+                : (
+                  <span className={`text-xs font-semibold shrink-0 ${twoFAEnabled ? 'text-green-400' : 'text-gray-500'}`}>
+                    {twoFAEnabled ? 'Activée' : 'Désactivée'}
+                  </span>
+                )}
+            </SettingsRow>
+          </SettingsGroup>
 
-          {/* ── Biométrie / passkeys (Face ID, Touch ID, empreinte) ── */}
-          <div className="px-4 pb-4 pt-2">
+          <div className="px-4 py-3">
             <BiometricSetup />
           </div>
 
-          <SettingsRow
-            label={t('settings.deleteAccount')}
-            hint={t('settings.deleteAccountHint')}
-            onClick={() => { setDeleteModal(true); setDeleteError(''); setDeletePwd(''); setDeleteConfirmText(''); }}
-          >
-            <span className="text-red-400/70 shrink-0">›</span>
-          </SettingsRow>
+          <SettingsGroup>
+            <SettingsRow
+              label={t('settings.deleteAccount')}
+              hint={t('settings.deleteAccountHint')}
+              onClick={() => { setDeleteModal(true); setDeleteError(''); setDeletePwd(''); setDeleteConfirmText(''); }}
+              destructive
+            />
+          </SettingsGroup>
         </section>
 
-        {/* ── Modal 2FA : scan QR code ── */}
+        {/* ── Modals 2FA / suppression (overlays) ── */}
         {twoFAModal === 'setup_qr' && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
             <div className="w-full max-w-sm bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
@@ -835,113 +948,57 @@ export function SettingsPage({
           </div>
         )}
 
-        <section className="border-b border-[#1e1e2f]">
-          <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-            Application
-          </p>
-          <SettingsRow label={t('settings.language')}>
-            <select
-              value={language}
-              onChange={(e) => applyLanguage(e.target.value as AppLanguage)}
-              className="bg-[#1a1a26] border border-[#2d2d3d] rounded-lg px-2 py-1 text-sm text-white"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <option value="fr">Français</option>
-              <option value="en">English</option>
-            </select>
-          </SettingsRow>
-          <SettingsRow label={t('settings.theme')}>
-            <select
-              value={theme}
-              onChange={(e) => applyTheme(e.target.value as AppTheme)}
-              className="bg-[#1a1a26] border border-[#2d2d3d] rounded-lg px-2 py-1 text-sm text-white"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <option value="dark">{t('settings.themeDark')}</option>
-              <option value="light">{t('settings.themeLight')}</option>
-              <option value="system">{t('settings.themeSystem')}</option>
-            </select>
-          </SettingsRow>
+        {/* ── 6. Application ── */}
+        <section>
+          <SettingsSectionHeader>{t('settings.applicationSection')}</SettingsSectionHeader>
+          <SettingsGroup>
+            <SettingsRow label={t('settings.language')}>
+              <select
+                value={language}
+                onChange={(e) => applyLanguage(e.target.value as AppLanguage)}
+                className="bg-[#1a1a26] border border-[#2d2d3d] rounded-lg px-2 py-1 text-sm text-white"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <option value="fr">Français</option>
+                <option value="en">English</option>
+              </select>
+            </SettingsRow>
+            <SettingsRow label={t('settings.theme')}>
+              <select
+                value={theme}
+                onChange={(e) => applyTheme(e.target.value as AppTheme)}
+                className="bg-[#1a1a26] border border-[#2d2d3d] rounded-lg px-2 py-1 text-sm text-white"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <option value="dark">{t('settings.themeDark')}</option>
+                <option value="light">{t('settings.themeLight')}</option>
+                <option value="system">{t('settings.themeSystem')}</option>
+              </select>
+            </SettingsRow>
+          </SettingsGroup>
         </section>
 
-        <section className="border-b border-[#1e1e2f]">
-          <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-            Confidentialité
-          </p>
-          <p className="px-4 py-3 text-[10px] text-gray-500">
-            Visibilité sur la carte : icône œil barré en haut de l&apos;écran.
-          </p>
-
-          <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-white">{t('settings.disablePrivateMessages')}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{t('settings.disablePrivateMessagesHint')}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => void handleTogglePrivateMessages()}
-              disabled={dmSaving || !token}
-              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${dmDisabled ? 'bg-purple-600' : 'bg-gray-600'}`}
-              aria-label={t('settings.disablePrivateMessagesToggleAria')}
-            >
-              <span
-                className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${dmDisabled ? 'translate-x-6' : 'translate-x-1'}`}
-              />
-            </button>
-          </label>
-
-          <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-white">{t('settings.disableExternalEventTags')}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{t('settings.disableExternalEventTagsHint')}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => void handleToggleExternalEventTags()}
-              disabled={externalEventTagsSaving || !token}
-              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${externalEventTagsDisabled ? 'bg-purple-600' : 'bg-gray-600'}`}
-              aria-label={t('settings.disableExternalEventTagsToggleAria')}
-            >
-              <span
-                className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${externalEventTagsDisabled ? 'translate-x-6' : 'translate-x-1'}`}
-              />
-            </button>
-          </label>
-
-          {pushSupported && (
-            <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-white">{t('settings.pushNotifications')}</p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {pushPermission === 'granted'
-                    ? t('settings.pushEnabledHint')
-                    : pushPermission === 'denied'
-                      ? t('settings.pushDeniedHint')
-                      : t('settings.pushDefaultHint')}
-                </p>
-              </div>
-              {pushPermission === 'denied' ? (
-                <span className="text-xs text-gray-600 shrink-0">{t('settings.pushBlocked')}</span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleTogglePush}
-                  disabled={pushLoading}
-                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${pushPermission === 'granted' ? 'bg-purple-600' : 'bg-gray-600'}`}
-                  aria-label={t('settings.pushToggleAria')}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${pushPermission === 'granted' ? 'translate-x-6' : 'translate-x-1'}`}
-                  />
-                </button>
-              )}
-            </label>
-          )}        </section>
-
+        {/* ── 7. Assistance ── */}
         <section>
-          <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('settings.legalSection')}</p>
+          <SettingsSectionHeader>{t('settings.assistanceSection')}</SettingsSectionHeader>
+          <SettingsGroup>
+            <SettingsRow
+              label={t('profile.contactSoundy')}
+              onClick={() => setShowContact(true)}
+            />
+            <SettingsRow
+              label={t('settings.dsaReportContent')}
+              hint={t('settings.dsaReportContentHint')}
+              onClick={() => setShowContact(true)}
+            />
+          </SettingsGroup>
+        </section>
+
+        {/* ── 8. Légal & données ── */}
+        <section>
+          <SettingsSectionHeader>{t('settings.legalSection')}</SettingsSectionHeader>
           {legalIncomplete && (
-            <div className="mx-4 mb-2 flex items-start gap-2 bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2.5">
+            <div className="mx-4 mb-3 flex items-start gap-2 bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2.5">
               <span className="text-amber-400 text-sm shrink-0 mt-px">⚠</span>
               <p className="text-[11px] text-amber-200/80 leading-relaxed">
                 Les <span className="font-semibold text-amber-300">Mentions légales</span> contiennent des champs non renseignés.{' '}
@@ -949,57 +1006,54 @@ export function SettingsPage({
               </p>
             </div>
           )}
-          <SettingsRow
-            label={t('settings.legalMentions')}
-            onClick={() => setLegal('mentions')}
-          >
-            {legalIncomplete ? (
-              <span className="text-[10px] font-bold text-amber-400 bg-amber-500/15 border border-amber-500/30 rounded-full px-2 py-0.5 shrink-0">
-                À compléter
+          <SettingsSubGroupHeader>{t('settings.legalDocumentsGroup')}</SettingsSubGroupHeader>
+          <SettingsGroup>
+            <SettingsRow
+              label={t('settings.legalMentions')}
+              onClick={() => setLegal('mentions')}
+            >
+              {legalIncomplete ? (
+                <span className="text-[10px] font-bold text-amber-400 bg-amber-500/15 border border-amber-500/30 rounded-full px-2 py-0.5 shrink-0">
+                  À compléter
+                </span>
+              ) : (
+                <span className="text-gray-500 shrink-0">›</span>
+              )}
+            </SettingsRow>
+            <SettingsRow label={t('settings.legalTerms')} onClick={() => setLegal('terms')} />
+            <SettingsRow label={t('settings.legalPrivacy')} onClick={() => setLegal('privacy')} />
+            <SettingsRow label={t('settings.legalCookies')} onClick={() => setLegal('cookies')} />
+            <SettingsRow label={t('settings.legalRgpd')} onClick={() => setLegal('rgpd')} />
+            <SettingsRow
+              label={t('settings.legalApiPlatforms')}
+              hint={t('settings.legalApiPlatformsHint')}
+              onClick={() => setLegal('apiPlatforms')}
+            />
+            <SettingsRow
+              label={t('settings.legalMonetization')}
+              onClick={() => setLegal('creatorMonetization')}
+            />
+            <SettingsRow label={t('settings.legalLicenses')} onClick={() => setLegal('licenses')} />
+          </SettingsGroup>
+
+          <SettingsSubGroupHeader>{t('settings.legalDataGroup')}</SettingsSubGroupHeader>
+          <SettingsGroup>
+            <SettingsRow
+              label={t('settings.legalCookiePrefs')}
+              hint={t('settings.legalCookiePrefsHint')}
+              onClick={() => resetCookieConsent()}
+            />
+            <SettingsRow
+              label={t('settings.exportData')}
+              hint={t('settings.exportDataHint')}
+              onClick={handleExportData}
+            >
+              <span className="text-xs text-purple-400 shrink-0 font-medium">
+                {exportLoading ? '…' : t('settings.exportJson')}
               </span>
-            ) : (
-              <span className="text-gray-500 shrink-0">›</span>
-            )}
-          </SettingsRow>
-          <SettingsRow label={t('settings.legalTerms')} onClick={() => setLegal('terms')} />
-          <SettingsRow label={t('settings.legalPrivacy')} onClick={() => setLegal('privacy')} />
-          <SettingsRow label={t('settings.legalCookies')} onClick={() => setLegal('cookies')} />
-          <SettingsRow label={t('settings.legalRgpd')} onClick={() => setLegal('rgpd')} />
-          <SettingsRow
-            label={t('settings.legalApiPlatforms')}
-            hint={t('settings.legalApiPlatformsHint')}
-            onClick={() => setLegal('apiPlatforms')}
-          />
-          <SettingsRow
-            label={t('settings.legalCookiePrefs')}
-            hint={t('settings.legalCookiePrefsHint')}
-            onClick={() => resetCookieConsent()}
-          />
-          <SettingsRow
-            label={t('settings.legalMonetization')}
-            onClick={() => setLegal('creatorMonetization')}
-          />
-          <SettingsRow label={t('settings.legalLicenses')} onClick={() => setLegal('licenses')} />
-          <SettingsRow
-            label={t('settings.dsaReportContent')}
-            hint={t('settings.dsaReportContentHint')}
-            onClick={() => setShowContact(true)}
-          />
-          <SettingsRow
-            label={t('settings.contactSupport')}
-            hint="Envoie un message à l'équipe Soundy"
-            onClick={() => setShowContact(true)}
-          />
-          <SettingsRow
-            label={t('settings.exportData')}
-            hint={t('settings.exportDataHint')}
-            onClick={handleExportData}
-          >
-            <span className="text-xs text-purple-400 shrink-0 font-medium">
-              {exportLoading ? '…' : t('settings.exportJson')}
-            </span>
-          </SettingsRow>
-          <div className="px-4 py-3 border-t border-[#1e1e2f]">
+            </SettingsRow>
+          </SettingsGroup>
+          <div className="mx-4 mt-3 mb-2 px-3 py-3 rounded-xl bg-[#12121a]/40 border border-[#1e1e2f]/80">
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">{t('settings.dataRightsSection')}</p>
             <p className="text-[11px] text-gray-400 leading-relaxed">
               {t('settings.dataRightsHint')} :{' '}
@@ -1013,10 +1067,24 @@ export function SettingsPage({
           </div>
         </section>
 
+        <div className="flex-1 min-h-6" aria-hidden />
+
+        {/* ── 9. Session (déconnexion en bas) ── */}
+        <section>
+          <SettingsSectionHeader>{t('settings.sessionSection')}</SettingsSectionHeader>
+          <SettingsGroup>
+            <SettingsRow
+              label={t('profile.logout')}
+              onClick={() => setShowLogoutConfirm(true)}
+              destructive
+            />
+          </SettingsGroup>
+        </section>
+
         <p className="px-4 pt-6 text-center text-[10px] text-gray-600">
           {t('app.versionFooter', { version: '2.0.0' })}
         </p>
-          </>
+          </div>
         )}
       </div>
 

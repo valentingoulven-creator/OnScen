@@ -179,7 +179,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     });
     return;
   }
-  const exists = [...db.users.values()].some((u) => u.email === email || u.username === username);
+  const exists = Boolean(db.users.findByEmailExact(email) || db.users.findByUsernameExact(username));
   if (exists) {
     res.status(400).json({
       error: 'Impossible de créer le compte avec ces identifiants. Vérifiez le pseudo et l’e-mail.',
@@ -286,7 +286,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     });
     return;
   }
-  const user = [...db.users.values()].find((u) => u.email === email);
+  const user = db.users.findByEmailExact(email);
   if (!user) {
     await recordLoginFailure(email);
     res.status(401).json({ error: 'Email ou mot de passe incorrect.' });
@@ -479,7 +479,8 @@ authRouter.patch('/profile', authenticateJWT, profilePhotoUploadLimiter, async (
       res.status(400).json({ error: 'Le pseudo doit faire au moins 2 caractères' });
       return;
     }
-    const taken = [...db.users.values()].some((u) => u.id !== userId && u.username === name);
+    const existingWithName = db.users.findByUsernameExact(name);
+    const taken = Boolean(existingWithName && existingWithName.id !== userId);
     if (taken) {
       res.status(400).json({ error: 'Ce pseudo est déjà pris' });
       return;
@@ -707,9 +708,7 @@ authRouter.get('/check-username', (req: Request, res: Response) => {
     res.json({ available: false, reason: 'Caractères non autorisés dans le pseudo' });
     return;
   }
-  const taken = [...db.users.values()].some(
-    (u) => u.username.toLowerCase() === username.toLowerCase()
-  );
+  const taken = Boolean(db.users.findByUsernameLower(username));
   res.json({ available: !taken, reason: taken ? 'Ce pseudo n\'est pas disponible' : null });
 });
 
@@ -851,9 +850,7 @@ authRouter.post('/forgot-password', async (req: Request, res: Response) => {
     return;
   }
   // Always return 200 to avoid email enumeration
-  const user = [...db.users.values()].find(
-    (u) => u.email?.toLowerCase() === email.toLowerCase()
-  );
+  const user = db.users.findByEmailLower(email);
   if (!user) {
     res.json({ ok: true });
     return;

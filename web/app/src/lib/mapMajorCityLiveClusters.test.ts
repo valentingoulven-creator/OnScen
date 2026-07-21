@@ -46,7 +46,7 @@ describe('classifyMapMarkerCoords', () => {
 });
 
 describe('clusterSalonsLivesByMajorCity', () => {
-  it('groups city-anchored and geolocated markers under the same city cluster', () => {
+  it('keeps geolocated-in-metro markers out of city clusters', () => {
     const salons = [baseSalon('anchored', parisCenter.lat, parisCenter.lon)];
     const lives = [baseLive('geo', parisGeo.lat, parisGeo.lon)];
     const { cityClusters, geolocatedRemoteLives } = clusterSalonsLivesByMajorCity(
@@ -57,8 +57,8 @@ describe('clusterSalonsLivesByMajorCity', () => {
     expect(cityClusters).toHaveLength(1);
     expect(cityClusters[0]!.cityId).toBe('paris');
     expect(cityClusters[0]!.cityAnchoredSalons).toHaveLength(1);
-    expect(cityClusters[0]!.geolocatedLives).toHaveLength(1);
-    expect(geolocatedRemoteLives).toHaveLength(0);
+    expect(cityClusters[0]!.cityAnchoredLives).toHaveLength(0);
+    expect(geolocatedRemoteLives).toHaveLength(1);
   });
 
   it('keeps remote geolocated markers outside city clusters', () => {

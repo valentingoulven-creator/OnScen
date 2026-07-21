@@ -64,6 +64,15 @@ describe('globalSearch', () => {
       createdAt: Date.now(),
     });
 
+    db.users.set('lyonfan', {
+      id: 'lyonfan',
+      username: 'FanLyon',
+      email: 'fan@test.com',
+      passwordHash: 'x',
+      createdAt: Date.now(),
+      city: 'Lyon',
+    });
+
     const users = globalSearch('viewer', 'djval');
     expect(users.users).toHaveLength(1);
     expect(users.users[0]?.username).toBe('DJValou');
@@ -71,8 +80,14 @@ describe('globalSearch', () => {
     const events = globalSearch('viewer', 'lyon');
     expect(events.events.some((e) => e.id === 'evt-1')).toBe(true);
 
+    const eventsByOrganizer = globalSearch('viewer', 'djvalou');
+    expect(eventsByOrganizer.events.some((e) => e.id === 'evt-1')).toBe(true);
+
     const albums = globalSearch('viewer', 'summer');
     expect(albums.albums.some((a) => a.title === 'Summer Vibes')).toBe(true);
+
+    const albumsByCreator = globalSearch('viewer', 'djval');
+    expect(albumsByCreator.albums.some((a) => a.title === 'Summer Vibes')).toBe(true);
 
     const songs = globalSearch('viewer', 'midnight');
     expect(songs.songs.some((s) => s.title === 'Midnight Run')).toBe(true);

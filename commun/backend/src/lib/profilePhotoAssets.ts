@@ -22,10 +22,6 @@ function extForMime(mime: string): string {
   return 'jpg';
 }
 
-function uploadsDir(): string {
-  return path.join(getPublicDir(), 'uploads', 'profile-photos');
-}
-
 export function isProfilePhotoFileUrl(url: string): boolean {
   return UPLOADS_PROFILE_PHOTO_RE.test(url.trim());
 }

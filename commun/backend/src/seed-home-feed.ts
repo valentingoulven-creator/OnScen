@@ -72,7 +72,9 @@ export function seedHomeFeed(options?: {
   const events = seedFeedEvents({
     force: force || (repair && needsFeedEventsRepair()),
   });
-  const userEvents = seedUserEvents();
+  const userEvents = seedUserEvents({
+    force: force || (repair && needsUserEventsRepair()),
+  });
 
   if (repair) {
     const stats = getHomeFeedSeedStats();
