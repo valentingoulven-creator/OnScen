@@ -564,6 +564,31 @@ export function listFavoritedFeedPosts(userId: string): PublicFeedPost[] {
   return out.sort((a, b) => b.createdAt - a.createdAt);
 }
 
+/** Résout des publications événement par id (ordre des ids conservé, doublons ignorés). */
+export function getPublicFeedEventPostsByIds(
+  viewerId: string,
+  postIds: readonly string[]
+): PublicFeedPost[] {
+  const seen = new Set<string>();
+  const myReshares = new Set<string>();
+  for (const p of db.feedPosts) {
+    if (p.userId === viewerId && p.resharedFromId) myReshares.add(p.resharedFromId);
+  }
+  const out: PublicFeedPost[] = [];
+  for (const rawId of postIds) {
+    const id = rawId.trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const post = db.feedPosts.find((p) => p.id === id);
+    if (!post?.isEvent || post.adminBlocked) continue;
+    if (!isVisibleToViewer(viewerId, post.userId)) continue;
+    const author = db.users.get(post.userId);
+    if (!author) continue;
+    out.push(toPublicPost(post, author, viewerId, 0, myReshares));
+  }
+  return out;
+}
+
 /**
  * @param reshareCtx  Optionally pre-built Set of original post IDs that viewerId has already
  *   reshared.  When provided, avoids an O(n) full-scan of db.feedPosts per post (hot path in

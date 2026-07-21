@@ -1,5 +1,15 @@
 import { Router, Request, Response } from 'express';
-import { listActiveFeedAds, listActiveMapAds, listActiveReelsAds, listActiveSalonAds, listActiveStoriesAds, listActiveStoriesSponsoredAds, type MapViewportQuery } from '../lib/sponsors';
+import { authenticateJWT } from '../middleware/auth';
+import {
+  listActiveFeedAds,
+  listActiveMapAds,
+  listActiveMapSidebarEventPosts,
+  listActiveReelsAds,
+  listActiveSalonAds,
+  listActiveStoriesAds,
+  listActiveStoriesSponsoredAds,
+  type MapViewportQuery,
+} from '../lib/sponsors';
 import { getPublicReelsSponsorConfig, getPublicStoriesSponsorConfig } from '../lib/sponsorPlatformConfig';
 
 export const sponsorsRouter = Router();
@@ -83,4 +93,11 @@ sponsorsRouter.get('/stories-viewer', (_req: Request, res: Response) => {
 /** Bandeaux actifs pour le salon théâtre (public, sans auth). */
 sponsorsRouter.get('/salon', (_req: Request, res: Response) => {
   sendActiveSponsors(res, listActiveSalonAds());
+});
+
+/** Événements sponsorisés sidebar carte (auth — état like/favori). */
+sponsorsRouter.get('/map-sidebar-events', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  res.setHeader('Cache-Control', 'private, max-age=15, must-revalidate');
+  res.json({ posts: listActiveMapSidebarEventPosts(me) });
 });

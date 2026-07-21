@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { FeedPost } from '../types';
 import { EventCardMapCompact } from './EventCardMapCompact';
+import { EventDevSponsoButton } from './EventDevSponsoButton';
 
 export interface EventCardMapSidebarProps {
   post: FeedPost;
@@ -23,6 +24,7 @@ export function EventCardMapSidebar({ post, onOpen, onPostChange }: EventCardMap
 
   return (
     <div className="group relative text-left overflow-hidden rounded-xl border border-purple-500/35 bg-[#12121a] shadow-[0_0_20px_rgba(168,85,247,0.1)] hover:border-purple-400/50 hover:shadow-[0_0_24px_rgba(168,85,247,0.18)] transition-all events-carousel-card snap-start snap-always">
+      <EventDevSponsoButton post={post} className="absolute top-1.5 left-1.5 z-10" />
       <EventCardMapCompact
         post={post}
         onPostChange={onPostChange}

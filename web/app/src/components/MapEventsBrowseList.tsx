@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { EventsCarousel } from './EventsCarousel';
@@ -138,6 +139,50 @@ export interface MapEventsBrowseListProps {
   /** Jour sélectionné pour filtrer carte/globe (pin cliquable). */
   selectedMapEventDayKey?: string | null;
   onMapEventDayKeySelect?: (dayKey: string) => void;
+  /** Événements sponsorisés (section Sponso en tête de liste). */
+  sponsoredEventPosts?: FeedPost[];
+}
+
+function SponsoBadge() {
+  const { t } = useTranslation();
+  return (
+    <span className="inline-flex items-center rounded-full bg-amber-500/15 border border-amber-500/35 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-300">
+      {t('map.sidebarSponsoBadge')}
+    </span>
+  );
+}
+
+function SponsoBrowseSection({
+  posts,
+  onOpenPost,
+  onPostChange,
+  compact,
+}: {
+  posts: FeedPost[];
+  onOpenPost: (post: FeedPost) => void;
+  onPostChange?: (postId: string, patch: Partial<FeedPost>) => void;
+  compact: boolean;
+}) {
+  const { t } = useTranslation();
+  if (posts.length === 0) return null;
+
+  return (
+    <div className="space-y-2 min-w-0">
+      <SectionHeader label={t('map.sidebarSponsoCategory')} emoji="✨" compact={compact} />
+      <EventsCarousel
+        posts={posts}
+        onOpen={onOpenPost}
+        onPostChange={onPostChange}
+        size={compact ? 'sidebar' : 'compact'}
+        getExtraBadges={() => <SponsoBadge />}
+      />
+    </div>
+  );
+}
+
+function excludePostsById(posts: FeedPost[], excludedIds: ReadonlySet<string>): FeedPost[] {
+  if (excludedIds.size === 0) return posts;
+  return posts.filter((post) => !excludedIds.has(post.id));
 }
 
 export function MapEventsBrowseList({
@@ -158,10 +203,31 @@ export function MapEventsBrowseList({
   onPostChange,
   selectedMapEventDayKey,
   onMapEventDayKeySelect,
+  sponsoredEventPosts = [],
 }: MapEventsBrowseListProps) {
   const { t, i18n } = useTranslation();
   const isSidebar = variant === 'sidebar';
   const activePosts = activeTab === 'around' ? communityEvents : countryUpcoming;
+  const sponsoredIds = useMemo(
+    () => new Set(sponsoredEventPosts.map((post) => post.id)),
+    [sponsoredEventPosts]
+  );
+  const filteredEventsByDay = useMemo(
+    () =>
+      eventsByDay.map(({ dayKey, posts }) => ({
+        dayKey,
+        posts: excludePostsById(posts, sponsoredIds),
+      })),
+    [eventsByDay, sponsoredIds]
+  );
+  const filteredCountryEventsByCategory = useMemo(
+    () =>
+      countryEventsByCategory.map(({ category, posts }) => ({
+        category,
+        posts: excludePostsById(posts, sponsoredIds),
+      })),
+    [countryEventsByCategory, sponsoredIds]
+  );
 
   const countryCategoryLabel = (category: FeedPostsByCategoryGroup['category']) => {
     switch (category) {
@@ -253,7 +319,13 @@ export function MapEventsBrowseList({
         </div>
       ) : activeTab === 'country' ? (
         <div className={`space-y-3 min-w-0 ${isSidebar ? 'px-2 py-2' : ''}`}>
-          {countryEventsByCategory.map(({ category, posts }) => (
+          <SponsoBrowseSection
+            posts={sponsoredEventPosts}
+            onOpenPost={onOpenPost}
+            onPostChange={onPostChange}
+            compact={isSidebar}
+          />
+          {filteredCountryEventsByCategory.map(({ category, posts }) => (
             <div key={category} className="space-y-2 min-w-0">
               <SectionHeader
                 label={countryCategoryLabel(category)}
@@ -275,7 +347,13 @@ export function MapEventsBrowseList({
         </div>
       ) : (
         <div className={`space-y-3 min-w-0 ${isSidebar ? 'px-2 py-2' : ''}`}>
-          {eventsByDay.map(({ dayKey, posts }, dayIndex) => {
+          <SponsoBrowseSection
+            posts={sponsoredEventPosts}
+            onOpenPost={onOpenPost}
+            onPostChange={onPostChange}
+            compact={isSidebar}
+          />
+          {filteredEventsByDay.map(({ dayKey, posts }, dayIndex) => {
             const { label, subtitle } = getDaySectionHeader(dayKey, i18n.language, t);
             const browseDayIndex = getMapEventBrowseDayIndex(dayKey);
             const resolvedDayIndex = browseDayIndex >= 0 ? browseDayIndex : dayIndex;

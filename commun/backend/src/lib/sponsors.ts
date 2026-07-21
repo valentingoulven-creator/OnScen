@@ -1,4 +1,5 @@
 import { db, type Sponsor, type SponsorAccent, type SponsorBannerDisplayMode, type SponsorKind, type SponsorMapVisibilityScope, type SponsorPlacement } from '../models/schema';
+import { getPublicFeedEventPostsByIds, type PublicFeedPost } from './feedPosts';
 import { assertValidSponsorBannerUrl } from './sponsorBannerAssets';
 import { assertValidSponsorLogoUrl } from './sponsorLogoAssets';
 
@@ -21,7 +22,15 @@ export type MapAdPublic = {
 };
 
 const ACCENTS: SponsorAccent[] = ['purple', 'pink', 'amber', 'cyan', 'rose'];
-const PLACEMENTS: SponsorPlacement[] = ['map_banner', 'feed_inline', 'stories_banner', 'stories_sponsored', 'reels_sponsored', 'salon_theater'];
+const PLACEMENTS: SponsorPlacement[] = [
+  'map_banner',
+  'map_sidebar_events',
+  'feed_inline',
+  'stories_banner',
+  'stories_sponsored',
+  'reels_sponsored',
+  'salon_theater',
+];
 const KINDS: SponsorKind[] = ['promo', 'sponsored'];
 const DEFAULT_DISPLAY_DURATION_SEC = 8;
 const DISPLAY_DURATION_MIN_SEC = 3;
@@ -433,6 +442,15 @@ export function listActiveSalonAds(at = now()): MapAdPublic[] {
   return listActiveAdsByPlacement('salon_theater', at);
 }
 
+/** Événements sponsorisés pour le carrousel sidebar carte (publications liées). */
+export function listActiveMapSidebarEventPosts(viewerId = '', at = now()): PublicFeedPost[] {
+  const sponsors = listSponsors({ placement: 'map_sidebar_events', activeOnly: true, at });
+  const postIds = sponsors
+    .map((s) => s.linkedEventPostId?.trim())
+    .filter((id): id is string => Boolean(id));
+  return getPublicFeedEventPostsByIds(viewerId, postIds);
+}
+
 /** Filtre les sponsors carte par viewport (France toujours + région si zoom/portée OK). */
 export function filterMapSponsorsByViewport(
   sponsors: Sponsor[],
@@ -562,6 +580,7 @@ export type SponsorInput = {
   mapTargetRegionName?: string | null;
   mapTargetLat?: number | null;
   mapTargetLng?: number | null;
+  linkedEventPostId?: string | null;
 };
 
 function normalizeInput(input: SponsorInput, existing?: Sponsor): Sponsor {
@@ -576,15 +595,35 @@ function normalizeInput(input: SponsorInput, existing?: Sponsor): Sponsor {
     placement
   );
   const isImageOnlyBanner = placement === 'map_banner' && bannerDisplayMode === 'image_only';
+  const isMapSidebarEvent = placement === 'map_sidebar_events';
 
   const title = String(input.title ?? existing?.title ?? '').trim();
   const subtitle = String(input.subtitle ?? existing?.subtitle ?? '').trim();
   const cta = String(input.cta ?? existing?.cta ?? '').trim();
-  if (!isImageOnlyBanner && (!title || !subtitle || !cta)) {
+  if (!isImageOnlyBanner && !isMapSidebarEvent && (!title || !subtitle || !cta)) {
     throw new Error('Titre, sous-titre et appel à l’action sont requis');
   }
   if (isImageOnlyBanner && !title) {
     throw new Error('Un titre est requis pour l’administration (non affiché sur la carte en mode image seule)');
+  }
+
+  const linkedEventPostIdRaw =
+    input.linkedEventPostId !== undefined ? input.linkedEventPostId : existing?.linkedEventPostId;
+  const linkedEventPostId = linkedEventPostIdRaw
+    ? String(linkedEventPostIdRaw).trim() || undefined
+    : undefined;
+
+  if (isMapSidebarEvent) {
+    if (!linkedEventPostId) {
+      throw new Error('Identifiant de publication événement requis pour la sidebar carte');
+    }
+    const linkedPost = db.feedPosts.find((p) => p.id === linkedEventPostId);
+    if (!linkedPost?.isEvent) {
+      throw new Error('Publication événement introuvable ou invalide');
+    }
+    if (linkedPost.adminBlocked) {
+      throw new Error('Cette publication événement est bloquée par la modération');
+    }
   }
 
   const actionRaw = input.actionId !== undefined ? input.actionId : existing?.actionId;
@@ -704,6 +743,7 @@ function normalizeInput(input: SponsorInput, existing?: Sponsor): Sponsor {
       placement === 'map_banner' && mapVisibilityScope === 'region' ? mapTargetLat : undefined,
     mapTargetLng:
       placement === 'map_banner' && mapVisibilityScope === 'region' ? mapTargetLng : undefined,
+    linkedEventPostId: isMapSidebarEvent ? linkedEventPostId : undefined,
     createdAt: existing?.createdAt ?? ts,
     updatedAt: ts,
   };
@@ -901,4 +941,127 @@ export function sponsorCounts(): { total: number; active: number; inactive: numb
   const total = db.sponsors.length;
   const active = db.sponsors.filter((s) => isSponsorActiveAt(s)).length;
   return { total, active, inactive: total - active };
+}
+
+const DEFAULT_MAP_SIDEBAR_EVENT_LINKS: { id: string; name: string; postId: string; priority: number }[] =
+  [
+    {
+      id: 'sidebar-solar-2026',
+      name: 'Solar Festival',
+      postId: 'prod-sponso-evt-solar-festival-2026',
+      priority: 0,
+    },
+    {
+      id: 'sidebar-deferlantes-2026',
+      name: 'Les Déferlantes',
+      postId: 'prod-sponso-evt-deferlantes-2026',
+      priority: 1,
+    },
+    {
+      id: 'sidebar-nuits-sonores-2026',
+      name: 'Nuits Sonores',
+      postId: 'prod-sponso-evt-nuits-sonores-2026',
+      priority: 2,
+    },
+  ];
+
+/** Insère des sponsors sidebar carte liés aux publications événement seed (idempotent). */
+export function ensureDefaultMapSidebarEventSponsors(): number {
+  const ts = now();
+  const existingIds = new Set(db.sponsors.map((s) => s.id));
+  let added = 0;
+  for (const seed of DEFAULT_MAP_SIDEBAR_EVENT_LINKS) {
+    if (existingIds.has(seed.id) || db.deletedDefaultSponsorIds.has(seed.id)) continue;
+    if (!db.feedPosts.some((p) => p.id === seed.postId && p.isEvent && !p.adminBlocked)) continue;
+    db.sponsors.push({
+      id: seed.id,
+      name: seed.name,
+      placement: 'map_sidebar_events',
+      linkedEventPostId: seed.postId,
+      active: true,
+      priority: seed.priority,
+      title: seed.name,
+      subtitle: 'Événement sponsorisé',
+      cta: 'Voir',
+      kind: 'sponsored',
+      createdAt: ts,
+      updatedAt: ts,
+    });
+    added += 1;
+  }
+  return added;
+}
+
+export function findMapSidebarSponsorForEventPost(postId: string): Sponsor | undefined {
+  const id = String(postId || '').trim();
+  if (!id) return undefined;
+  return db.sponsors.find(
+    (s) => s.placement === 'map_sidebar_events' && s.linkedEventPostId === id
+  );
+}
+
+export function listActiveMapSidebarEventPostIds(at = now()): string[] {
+  return listSponsors({ placement: 'map_sidebar_events', activeOnly: true, at })
+    .map((s) => s.linkedEventPostId?.trim())
+    .filter((id): id is string => Boolean(id));
+}
+
+function eventLabelFromFeedPost(post: { content?: string; eventLocation?: string }): string {
+  const line = String(post.content ?? '')
+    .trim()
+    .split('\n')[0]
+    ?.trim();
+  if (line) return line.length > 80 ? `${line.slice(0, 79)}…` : line;
+  const location = post.eventLocation?.trim();
+  if (location) return location.length > 80 ? `${location.slice(0, 79)}…` : location;
+  return 'Événement';
+}
+
+/** Active ou désactive le sponso sidebar carte pour une publication événement (Dev). */
+export function setDevMapSidebarEventSponsorship(
+  postId: string,
+  sponsored: boolean
+): { sponsor: Sponsor | null; sponsored: boolean } {
+  const id = String(postId || '').trim();
+  if (!id) throw new Error('Identifiant de publication requis');
+
+  const post = db.feedPosts.find((p) => p.id === id);
+  if (!post?.isEvent) {
+    throw new Error('Publication événement introuvable ou invalide');
+  }
+  if (post.adminBlocked) {
+    throw new Error('Cette publication événement est bloquée par la modération');
+  }
+
+  const existing = findMapSidebarSponsorForEventPost(id);
+  if (!sponsored) {
+    if (!existing) return { sponsor: null, sponsored: false };
+    const sponsor = updateSponsor(existing.id, { active: false });
+    return { sponsor, sponsored: false };
+  }
+
+  const label = eventLabelFromFeedPost(post);
+  if (existing) {
+    const sponsor = updateSponsor(existing.id, {
+      active: true,
+      placement: 'map_sidebar_events',
+      linkedEventPostId: id,
+      name: existing.name?.trim() ? existing.name : label,
+      title: existing.title?.trim() ? existing.title : label,
+    });
+    return { sponsor, sponsored: true };
+  }
+
+  const sponsor = createSponsor({
+    name: label,
+    placement: 'map_sidebar_events',
+    linkedEventPostId: id,
+    active: true,
+    title: label,
+    subtitle: 'Événement sponsorisé',
+    cta: 'Voir',
+    kind: 'sponsored',
+    priority: 0,
+  });
+  return { sponsor, sponsored: true };
 }

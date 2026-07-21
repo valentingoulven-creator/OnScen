@@ -36,6 +36,11 @@ import {
 } from '../lib/subscriptions';
 import { getPlatformPlanStatus, getUserPlatformPlan } from '../lib/platformPlans';
 import { logAdminAction } from '../lib/adminAuditLog';
+import {
+  findMapSidebarSponsorForEventPost,
+  listActiveMapSidebarEventPostIds,
+  setDevMapSidebarEventSponsorship,
+} from '../lib/sponsors';
 
 export const accessRouter = Router();
 
@@ -433,6 +438,41 @@ accessRouter.delete('/admin/invites/:id', authenticateJWT, (req: Request, res: R
   }
   schedulePersist();
   res.json({ ok: true });
+});
+
+/** Ids des événements actuellement sponsorisés (sidebar carte) — Dev uniquement. */
+accessRouter.get('/dev/map-sidebar-event-sponsors', authenticateJWT, (req: Request, res: Response) => {
+  if (requireDevStaff(req, res) == null) return;
+  res.json({ postIds: listActiveMapSidebarEventPostIds() });
+});
+
+/** Sponsor sidebar carte lié à une publication événement — Dev uniquement. */
+accessRouter.get('/dev/map-sidebar-event-sponsor/:postId', authenticateJWT, (req: Request, res: Response) => {
+  if (requireDevStaff(req, res) == null) return;
+  const sponsor = findMapSidebarSponsorForEventPost(req.params.postId);
+  res.json({ sponsor: sponsor ?? null });
+});
+
+/** Active ou retire le sponso sidebar carte pour une publication événement — Dev uniquement. */
+accessRouter.post('/dev/map-sidebar-event-sponsor', authenticateJWT, (req: Request, res: Response) => {
+  const adminId = requireDevStaff(req, res);
+  if (adminId == null) return;
+  try {
+    const postId = String(req.body?.postId ?? '').trim();
+    const sponsored = Boolean(req.body?.sponsored);
+    const result = setDevMapSidebarEventSponsorship(postId, sponsored);
+    schedulePersist();
+    logAdminAction({
+      adminId,
+      action: sponsored ? 'dev_sponsor_map_sidebar_event' : 'dev_unsponsor_map_sidebar_event',
+      targetType: 'feed_post',
+      targetId: postId,
+      details: { sponsored, sponsorId: result.sponsor?.id ?? null },
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : 'Données invalides' });
+  }
 });
 
 /** Vérifie si le contrôle d'accès est actif (admin). */

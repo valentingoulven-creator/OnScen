@@ -1,4 +1,47 @@
 ﻿================================================================================
+MODIF 747 — Nettoyage repo : doublons, artefacts build, docs perso
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Désordre local : dossier legacy app/src/, doublon apptel, hash assets en double,
+ tel/ et test-results non versionnés, CV perso dans docs/, notes dans .vscode/.
+
+CHANGEMENTS / FIX
+-----
+ app/src/ (legacy)
+ ─────────────────
+ • Supprimé — source de vérité = web/app/src/ uniquement.
+
+ ios/apptel/src/lib/geoPosition.ts
+ ─────────────────
+ • Supprimé (doublon inutile, npm run src:clean).
+
+ commun/backend/public/
+ ─────────────────
+ • Untracked assets + tel/ supprimés ; index restauré depuis Git.
+ • .gitignore : tel/, test-results/, docs/cv/.
+
+ docs/cv/
+ ─────────────────
+ • Déplacé hors repo → C:\Dev\personal\cv-valentin-goulven\
+
+ .vscode/Whats up.ini → docs/internal/notes-whats-up.ini
+
+ globe-3d-explorer/
+ ─────────────────
+ • node_modules + dist supprimés (~240 Mo, regénérables).
+
+FICHIERS MODIFIÉS
+-----
+ .gitignore · app/ (supprimé) · apptel geoPosition · docs/internal/
+
+================================================================================
+Fin — 2026-07-21
+================================================================================
+
+================================================================================
 MODIF 746 — Deploy production (preprod validé → getsoundy.com)
 Date : 2026-07-21
 ================================================================================
@@ -28753,4 +28796,407 @@ BUILD (si vérifié)
 
 ================================================================================
 Fin MODIF 1093 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1094 — LCEN : adresse editeur prod + verify-prod — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ verify-prod.sh echouait : legal-publisher.json contenait un placeholder d'adresse.
+
+CHANGEMENTS / FIX
+-----
+ /opt/soundly/.env + legal-publisher.json (prod)
+ ───────────────────────────────────────────────
+ • LEGAL_PUBLISHER_ADDRESS renseigné (adresse postale editeur).
+ • Champ address du JSON aligné.
+
+ commun/deploy/verify-prod.sh
+ ────────────────────────────
+ • Accepte une adresse valide via LEGAL_PUBLISHER_ADDRESS (.env), aligné runtime.
+
+ commun/scripts/setup-legal-prod.ps1
+ ────────────────────────────────────
+ • Met à jour .env + legal-publisher.json via script temporaire SSH.
+
+FICHIERS MODIFIÉS
+-----
+ verify-prod.sh · setup-legal-prod.ps1 · VPS prod (.env + legal-publisher.json)
+
+BUILD (si vérifié)
+-----
+ ssh prod → verify-prod.sh → ✅ Résultat OK
+
+================================================================================
+Fin MODIF 1094 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1095 — Carte : bouton FAB « + Event » — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Ajouter un accès rapide à la création d'événement depuis la carte (à côté de
+ « + Lives » et « + Salon »), avec publication directe et rafraîchissement des pins.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • FAB « + Event » → ouvre CreateFeedEventModal.
+ • publishMapEvent : api.createFeedPost (isEvent), dispatchMapEventsRefresh,
+   zoom sur le lieu, toast succès/erreur.
+
+ web/app/src/locales/fr.json · en.json
+ ─────────────────
+ • map.createEventFabAria, createEventSuccess, createEventError.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/HomePage.tsx → FAB + modal + publish
+ web/app/src/locales/fr.json · en.json → i18n
+
+================================================================================
+Fin MODIF 1095 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1096 — Paramètres : section Notifications repliable — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Ajouter un bouton de dépliement sur l'en-tête « Notifications » pour replier /
+ déplier le contenu (toggle push).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/SettingsPage.tsx
+ ─────────────────
+ • SettingsSectionHeader : mode optionnel bouton + chevron ›.
+ • Section Notifications : notificationsExpanded (dépliée par défaut).
+
+ web/app/src/locales/fr.json · en.json
+ ─────────────────
+ • notificationsSectionExpand / Collapse.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/SettingsPage.tsx · locales fr/en
+
+================================================================================
+Fin MODIF 1096 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1097 — Carte sidebar : catégorie Sponso + admin événements sponsorisés — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Ajouter une section « Sponso » dans la sidebar carte (carrousel d'événements) et
+ permettre à l'admin de lier des publications événement via l'onglet Sponsors.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend — placement map_sidebar_events, linkedEventPostId, GET /sponsors/map-sidebar-events
+ web/app — useMapSidebarSponsoredEvents, NearbyPeoplePanel carrousel Sponso
+ web/app — AdminSponsorsTab sous-onglet « Carte · Sponso » + champ id publication
+ ensureDefaultMapSidebarEventSponsors (prod-sponso-evt-*)
+
+FICHIERS MODIFIÉS
+-----
+ schema.ts · sponsors.ts · feedPosts.ts · routes · bootstrap
+ types.ts · sponsorAdmin* · AdminSponsorsTab · NearbyPeoplePanel · HomePage
+ locales fr/en · hooks/useMapSidebarSponsoredEvents.ts
+
+BUILD (si vérifié)
+-----
+ commun/backend → sponsors.test.ts 23/23 ✅
+
+================================================================================
+Fin MODIF 1097 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1098 — EventCard : sponso sidebar carte (Dev uniquement) — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Permettre à un compte Dev de sponsoriser une publication événement utilisateur
+ directement depuis EventCard (carrousel Sponso sidebar carte). Option invisible
+ pour les autres comptes (y compris admin opérationnel).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/sponsors.ts
+ ─────────────────
+ • findMapSidebarSponsorForEventPost · listActiveMapSidebarEventPostIds
+ • setDevMapSidebarEventSponsorship (création / activation / désactivation)
+
+ commun/backend/src/routes/access.ts
+ ─────────────────
+ • GET /access/dev/map-sidebar-event-sponsors (postIds actifs)
+ • POST /access/dev/map-sidebar-event-sponsor (requireDevStaff)
+
+ web/app/src/components/EventCard.tsx · EventCardMapSidebar.tsx
+ ─────────────────
+ • Bouton « Sponso » Dev (EventDevSponsoButton)
+
+ web/app/src/hooks/useDevMapSidebarEventSponso.ts
+ web/app/src/lib/adminStaffRoles.ts — isDevStaff()
+ web/app/src/lib/api/sponsors.ts · mapUiEvents.ts
+ locales fr/en · sponsors.test.ts
+
+FICHIERS MODIFIÉS
+-----
+ EventCard* · EventDevSponsoButton · hooks · access · sponsors · i18n
+
+BUILD (si vérifié)
+-----
+ commun/backend → sponsors.test.ts ✅
+
+================================================================================
+Fin MODIF 1098 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1099 — EventCard Sponso : modale formulaire admin (durée, dates) — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton Dev « Sponso » sur EventCard ouvrait une simple confirmation. L’utilisateur
+ souhaite le même formulaire que la création sponsor (début, durée d’affichage,
+ rotation carrousel, etc.).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/SponsorAdminFormFields.tsx — formulaire extrait (admin + Dev)
+ web/app/src/components/EventDevSponsoModal.tsx — bottom-sheet avec champs complets
+ EventDevSponsoButton → ouvre la modale (create/update via API admin sponsors)
+ AdminSponsorsTab — réutilise SponsorAdminFormFields (+ champ startsAt visible)
+ GET /access/dev/map-sidebar-event-sponsor/:postId — charge sponsor existant
+ Champ datetime « Début » ajouté au formulaire sponsor partagé
+
+FICHIERS MODIFIÉS
+-----
+ SponsorAdminFormFields · EventDevSponsoModal · EventDevSponsoButton
+ AdminSponsorsTab · access.ts · sponsors API · i18n fr/en
+
+================================================================================
+Fin MODIF 1099 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1100 — Browse événements carte : 3 jours + section Sponso en tête — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La sidebar browse événements affichait 4 jours par défaut et les événements
+ sponsorisés se mélangeaient aux sections jour (ex. sous « Demain »).
+
+CHANGEMENTS / FIX
+-----
+ MAP_EVENTS_BROWSE_DAY_COUNT : 4 → 3 (aujourd'hui + 2 jours)
+ MapEventsBrowseList — section « Sponso » en tête (Autour + Pays), hors doublon jour
+ NearbyPeoplePanel — carrousel Sponso séparé masqué en mode browse
+ MapEventsBrowseSheet + HomePage — prop sponsoredEventPosts
+
+FICHIERS MODIFIÉS
+-----
+ feedEvents.ts · mapEventFilter.ts · MapEventsBrowseList.tsx
+ NearbyPeoplePanel · MapEventsBrowseSheet · HomePage · tests
+
+================================================================================
+Fin MODIF 1100 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1101 — Admin Sponsors : estimation audience (utilisateurs) — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Afficher dans le formulaire admin sponsor le nombre d'utilisateurs susceptibles
+ de voir la campagne (selon emplacement et ciblage).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/sponsorAudienceEstimate.ts — actifs 30 j, zone régionale, rotation reels/stories
+ POST /access/admin/sponsors/estimate-audience + audienceEstimate sur liste admin
+ SponsorAudienceEstimatePanel dans SponsorAdminFormFields + badge liste admin
+ i18n fr/en
+
+FICHIERS MODIFIÉS
+-----
+ sponsorAudienceEstimate* · adminSponsors.ts · types.ts · sponsors API
+ SponsorAudienceEstimatePanel · SponsorAdminFormFields · AdminSponsorsTab
+
+BUILD (si vérifié)
+-----
+ commun/backend → sponsorAudienceEstimate.test.ts ✅
+
+================================================================================
+Fin MODIF 1101 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1102 — Admin Sponsors : onglet Prix (CPM Instagram / TikTok) — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Ajouter un onglet « Prix » dans l’admin Sponsors avec une grille tarifaire par
+ emplacement, calculée selon le nombre d’utilisateurs et calibrée sur les CPM
+ Instagram / TikTok / Meta (France 2026).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/sponsorPricing.ts — CPM benchmark + computeSponsorCampaignPriceEur
+ web/app/src/components/AdminSponsorsPricingTab.tsx — simulateur audience × jours
+ sponsorAdminPlacement.ts — onglet pricing
+ AdminSponsorsTab — affichage conditionnel
+ i18n fr/en · sponsorPricing.test.ts
+
+FICHIERS MODIFIÉS
+-----
+ sponsorPricing* · AdminSponsorsPricingTab · AdminSponsorsTab · sponsorAdminPlacement · locales
+
+BUILD (si vérifié)
+-----
+ web/app → sponsorPricing.test.ts ✅
+
+================================================================================
+Fin MODIF 1102 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1103 — Admin Sponsors : paliers 50K–1M dans l’onglet Prix — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Intégrer dans l’onglet « Prix » les scénarios de lancement 50 K / 100 K / 500 K /
+ 1 M inscrits (étude @soundy-cto) : utilisateurs exposés, CPM par palier, prix 7/14/30 j.
+
+CHANGEMENTS / FIX
+-----
+ sponsorPricing.ts — SPONSOR_SCALE_TIERS, pénétration, CPM par palier, computeTierPlacementQuotes
+ AdminSponsorsPricingTab.tsx — sélecteur de palier + tableau 7/14/30 j (simulateur libre conservé)
+ i18n fr/en · sponsorPricing.test.ts (Sponso 50 K · 7 j ≈ 147 €)
+
+FICHIERS MODIFIÉS
+-----
+ sponsorPricing* · AdminSponsorsPricingTab · locales
+
+BUILD (si vérifié)
+-----
+ web/app → sponsorPricing.test.ts ✅
+
+================================================================================
+Fin MODIF 1103 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1104 — Docs stratégie : étude marché PDF + one-pager CEO IA — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Formaliser en PDF l’étude de marché / business plan / partenaires (memo @soundy-cto)
+ et produire un one-pager commercial sponsors (@soundy-ceo-ia) pour prospection.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.md + .pdf
+ commun/docs/strategie/ONE-PAGER-SPONSOR-CEO-IA.md + .pdf
+ generate-pdfs.mjs · pdf-style.css · README.md
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/strategie/* (md, html, pdf, scripts)
+
+BUILD (si vérifié)
+-----
+ npm run pdf (strategie) → 2 PDF ✅
+
+================================================================================
+Fin MODIF 1104 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1105 — Docs stratégie : refonte PDF pro (sans mention IA) — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Refonte visuelle des PDF stratégie / one-pager sponsor : page de garde,
+ charte Soundy (violet), contenu nettoyé sans références agents IA.
+
+CHANGEMENTS / FIX
+-----
+ pdf-style.css — cover, hero, tableaux, typographie
+ generate-pdfs.mjs — template HTML + logo Soundy
+ ONE-PAGER-SPONSOR-COMMERCIAL.md/.pdf (remplace CEO-IA)
+ Contenu étude / one-pager — ton professionnel client
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/strategie/*
+
+BUILD (si vérifié)
+-----
+ npm run pdf → 2 PDF ✅
+
+================================================================================
+Fin MODIF 1105 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1106 — Pré-prod : corrections TS + test browse 3 j — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Build frontend en échec avant deploy prod (4 erreurs TS, 2 tests).
+
+CHANGEMENTS / FIX
+-----
+ useMapSidebarSponsoredEvents — api.getMapSidebarEventSponsors (API à plat)
+ SponsorAdminFormFields — type SponsorBannerDisplayMode explicite
+ AdminSponsorsTab — guard onglet pricing + placementTabToApiPlacement au reorder
+ sponsorAdminForm.test — logoUrl / linkedEventPostId dans baseForm
+ mapEventDayColors.test — aligné MAP_EVENTS_BROWSE_DAY_COUNT = 3
+
+FICHIERS MODIFIÉS
+-----
+ useMapSidebarSponsoredEvents · SponsorAdminFormFields · AdminSponsorsTab
+ sponsorAdminForm.test · mapEventDayColors.test
+
+BUILD (si vérifié)
+-----
+ web/app → npm run build ✅ · 437/437 tests ✅
+ commun/backend → 392/392 tests ✅
+
+================================================================================
+Fin MODIF 1106 — 2026-07-21
 ================================================================================

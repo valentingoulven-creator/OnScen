@@ -139,7 +139,14 @@ export interface AdminCreatorInfo {
 
 export type AdminContentFilter = 'all' | 'blocked' | 'active';
 
-export type SponsorPlacement = 'map_banner' | 'feed_inline' | 'stories_banner' | 'stories_sponsored' | 'reels_sponsored' | 'salon_theater';
+export type SponsorPlacement =
+  | 'map_banner'
+  | 'map_sidebar_events'
+  | 'feed_inline'
+  | 'stories_banner'
+  | 'stories_sponsored'
+  | 'reels_sponsored'
+  | 'salon_theater';
 export type SponsorAccent = 'purple' | 'pink' | 'amber' | 'cyan' | 'rose';
 export type SponsorKind = 'promo' | 'sponsored';
 export type SponsorFilter = 'all' | 'active' | 'inactive';
@@ -177,8 +184,22 @@ export interface Sponsor {
   mapTargetRegionName?: string;
   mapTargetLat?: number;
   mapTargetLng?: number;
+  /** Sidebar carte : id publication événement (map_sidebar_events). */
+  linkedEventPostId?: string;
   createdAt: number;
   updatedAt: number;
+  /** Estimation admin (liste / détail) — utilisateurs actifs 30 j susceptibles de voir le sponsor. */
+  audienceEstimate?: SponsorAudienceEstimate;
+}
+
+export type SponsorAudienceBasis = 'active_30d_all' | 'active_30d_region' | 'active_30d_rotation';
+
+export interface SponsorAudienceEstimate {
+  estimatedUsers: number;
+  eligibleUsers: number;
+  basis: SponsorAudienceBasis;
+  regionRadiusKm?: number;
+  rotationEveryN?: number;
 }
 
 export interface SponsorPlatformConfig {

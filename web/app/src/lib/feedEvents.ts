@@ -116,7 +116,7 @@ export function getUpcomingUserEvents(
 }
 
 /** Nombre de jours affichés dans le sheet événements carte (aujourd'hui inclus). */
-export const MAP_EVENTS_BROWSE_DAY_COUNT = 4;
+export const MAP_EVENTS_BROWSE_DAY_COUNT = 3;
 
 /** Plafond de sections jour si le filtre couvre une longue période. */
 export const MAP_EVENTS_BROWSE_MAX_DAY_COUNT = 31;

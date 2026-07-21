@@ -602,7 +602,8 @@ export function AdminAccountsTab() {
           const planLabel = resolvePlatformPlanLabel(detail, t);
           const blockDays = blockDaysById[u.id] ?? 7;
           const blockReason = blockReasonById[u.id] ?? '';
-          const isBlocked = detail.accountStatus === 'blocked';
+          const isBlocked =
+            detail.accountStatus === 'blocked' || u.accountStatus === 'blocked';
           const blockDaysLeft = blockDaysRemaining(detail.blockedUntil);
           const isBot = isBotEmail(u.email);
           return (
@@ -717,12 +718,16 @@ export function AdminAccountsTab() {
                   <button
                     type="button"
                     disabled={busy === u.id}
-                    className="px-2.5 py-1.5 min-h-[44px] rounded-lg text-[11px] font-semibold bg-purple-600/80 disabled:opacity-50"
-                    onClick={() => void actOnUser(u.id, 'unblock')}
+                    className="px-2.5 py-1.5 min-h-[44px] rounded-lg text-[11px] font-semibold bg-green-600/70 border border-green-500/40 disabled:opacity-50"
+                    onClick={() => {
+                      if (!window.confirm(t('admin.accounts.liftSuspensionConfirm'))) return;
+                      void actOnUser(u.id, 'unblock');
+                    }}
                   >
                     {t('admin.accounts.unblock')}
                   </button>
-                ) : (
+                ) : null}
+                {!isBlocked &&
                   !detail.isAdmin &&
                   detail.accountStatus !== 'pending' && (
                     <button
@@ -736,8 +741,7 @@ export function AdminAccountsTab() {
                     >
                       {t('admin.accounts.blockQuick7')}
                     </button>
-                  )
-                )}
+                  )}
                 {detail.adminFlag ? (
                   <button
                     type="button"
@@ -1004,8 +1008,11 @@ export function AdminAccountsTab() {
                           <button
                             type="button"
                             disabled={busy === u.id}
-                            className="w-full min-h-[44px] py-2 rounded-lg bg-purple-600/80 text-xs font-semibold disabled:opacity-50"
-                            onClick={() => void actOnUser(u.id, 'unblock')}
+                            className="w-full min-h-[44px] py-2 rounded-lg bg-green-600/70 border border-green-500/40 text-xs font-semibold disabled:opacity-50"
+                            onClick={() => {
+                              if (!window.confirm(t('admin.accounts.liftSuspensionConfirm'))) return;
+                              void actOnUser(u.id, 'unblock');
+                            }}
                           >
                             {t('admin.accounts.unblock')}
                           </button>

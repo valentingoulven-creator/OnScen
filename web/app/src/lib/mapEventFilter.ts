@@ -149,8 +149,8 @@ function parseCalendarDayInput(value: string): Date | null {
 }
 
 /**
- * Jours affichés dans le browse sheet : 4 jours par défaut ;
- * si le filtre définit une plage > 4 jours, toutes les dates de la plage (max 31).
+ * Jours affichés dans le browse sheet : 3 jours par défaut ;
+ * si le filtre définit une plage > 3 jours, toutes les dates de la plage (max 31).
  */
 export function getBrowseSheetCalendarDayKeys(
   criteria: MapEventFilterCriteria | undefined,

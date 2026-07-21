@@ -21,6 +21,7 @@ const MS_PER_DAY = 86_400_000;
 export type SponsorAdminFormState = {
   name: string;
   description: string;
+  logoUrl: string;
   bannerImageUrl: string;
   linkUrl: string;
   placement: SponsorPlacement;
@@ -34,6 +35,7 @@ export type SponsorAdminFormState = {
   startsAt: string;
   videoUrl: string;
   posterUrl: string;
+  linkedEventPostId: string;
 };
 
 export function parseDatetimeLocal(value: string): number | undefined {
@@ -77,6 +79,7 @@ export function emptySponsorAdminForm(placement: SponsorPlacement): SponsorAdmin
   return {
     name: '',
     description: '',
+    logoUrl: '',
     bannerImageUrl: '',
     linkUrl: '',
     placement,
@@ -89,6 +92,7 @@ export function emptySponsorAdminForm(placement: SponsorPlacement): SponsorAdmin
     startsAt: nowDatetimeLocal(),
     videoUrl: '',
     posterUrl: '',
+    linkedEventPostId: '',
   };
 }
 
@@ -96,6 +100,7 @@ export function sponsorToAdminForm(sponsor: Sponsor): SponsorAdminFormState {
   return {
     name: sponsor.name,
     description: sponsor.subtitle ?? '',
+    logoUrl: sponsor.logoUrl ?? '',
     bannerImageUrl: sponsor.bannerImageUrl ?? '',
     linkUrl: sponsor.linkUrl ?? '',
     placement: sponsor.placement,
@@ -110,6 +115,7 @@ export function sponsorToAdminForm(sponsor: Sponsor): SponsorAdminFormState {
     startsAt: toDatetimeLocal(sponsor.startsAt) || nowDatetimeLocal(),
     videoUrl: sponsor.videoUrl ?? '',
     posterUrl: sponsor.posterUrl ?? '',
+    linkedEventPostId: sponsor.linkedEventPostId ?? '',
   };
 }
 
@@ -128,6 +134,7 @@ export function buildSponsorPayloadFromAdminForm(form: SponsorAdminFormState): P
 
   const payload: Partial<Sponsor> = {
     name,
+    logoUrl: form.logoUrl.trim() || undefined,
     linkUrl: form.linkUrl.trim() || undefined,
     placement,
     title: name,
@@ -142,6 +149,11 @@ export function buildSponsorPayloadFromAdminForm(form: SponsorAdminFormState): P
     videoUrl: form.videoUrl.trim() || undefined,
     posterUrl: form.posterUrl.trim() || undefined,
   };
+
+  if (placement === 'map_sidebar_events') {
+    payload.linkedEventPostId = form.linkedEventPostId.trim() || undefined;
+    payload.kind = 'sponsored';
+  }
 
   if (isMap) {
     payload.mapVisibilityScope = form.mapVisibilityScope;
@@ -167,7 +179,11 @@ export function validateSponsorAdminForm(
   const name = form.name.trim();
   if (!name) return t('admin.sponsors.validationNameRequired');
 
-  if (!form.linkUrl.trim()) {
+  if (form.placement === 'map_sidebar_events') {
+    if (!form.linkedEventPostId.trim()) {
+      return t('admin.sponsors.validationLinkedEventRequired');
+    }
+  } else if (!form.linkUrl.trim()) {
     return t('admin.sponsors.validationLinkRequired');
   }
 

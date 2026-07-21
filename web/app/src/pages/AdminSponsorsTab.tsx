@@ -3,8 +3,9 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { AdminScrollTabBar } from '../components/AdminScrollTabBar';
-import { SponsorRegionAutocomplete } from '../components/SponsorRegionAutocomplete';
-import { SponsorBannerUploadField } from '../components/SponsorBannerUploadField';
+import { SponsorAdminFormFields } from '../components/SponsorAdminFormFields';
+import { formatSponsorAudienceEstimateLabel } from '../components/SponsorAudienceEstimatePanel';
+import { AdminSponsorsPricingTab } from '../components/AdminSponsorsPricingTab';
 
 import { useAuth } from '../context/AuthContext';
 
@@ -29,16 +30,10 @@ import {
 
 } from '../lib/sponsorAdminPlacement';
 
-import { SPONSOR_IMAGE_SPECS, DEFAULT_DISPLAY_DURATION_SEC, SPONSOR_DISPLAY_DURATION_MAX_SEC, SPONSOR_DISPLAY_DURATION_MIN_SEC } from '../lib/sponsorDisplaySpec';
-
-import { MAP_REGION_MIN_ZOOM } from '../lib/sponsorAds';
-
 import {
   buildSponsorPayloadFromAdminForm,
   computeDisplayDays,
   emptySponsorAdminForm,
-  SPONSOR_DISPLAY_DAYS_MAX,
-  SPONSOR_DISPLAY_DAYS_MIN,
   sponsorToAdminForm,
   validateSponsorAdminForm,
   type SponsorAdminFormState,
@@ -50,15 +45,6 @@ import type { Sponsor, SponsorFilter, SponsorPlacement, SponsorPlatformConfig } 
 
 const FILTER_OPTIONS: SponsorFilter[] = ['all', 'active', 'inactive'];
 
-const PLACEMENT_OPTIONS: SponsorPlacement[] = [
-  'map_banner',
-  'feed_inline',
-  'stories_banner',
-  'stories_sponsored',
-  'reels_sponsored',
-  'salon_theater',
-];
-
 /** Petit badge de métadonnée pour les cartes sponsor (liste). */
 function MetaTag({ children }: { children: ReactNode }) {
   return (
@@ -66,6 +52,17 @@ function MetaTag({ children }: { children: ReactNode }) {
       {children}
     </span>
   );
+}
+
+function formatSponsorAdminDate(ts: number | undefined, locale: string): string {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function SponsorsSubTabBar({
@@ -83,6 +80,8 @@ function SponsorsSubTabBar({
         return t('admin.sponsors.subTabAll');
       case 'map_banner':
         return t('admin.sponsors.subTabMap');
+      case 'map_sidebar_events':
+        return t('admin.sponsors.subTabMapSidebarEvents');
       case 'feed_inline':
         return t('admin.sponsors.subTabFeed');
       case 'stories_banner':
@@ -93,6 +92,8 @@ function SponsorsSubTabBar({
         return t('admin.sponsors.subTabReels');
       case 'salon_theater':
         return t('admin.sponsors.subTabSalonTheater');
+      case 'pricing':
+        return t('admin.sponsors.subTabPricing');
     }
   };
 
@@ -127,7 +128,7 @@ function SponsorsSubTabBar({
 
 export function AdminSponsorsTab() {
   const { token } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const [placementTab, setPlacementTab] = useState<SponsorPlacementTab>('map_banner');
 
@@ -186,7 +187,10 @@ export function AdminSponsorsTab() {
 
   const reload = useCallback(async () => {
 
-    if (!token) return;
+    if (!token || placementTab === 'pricing') {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
 
@@ -467,7 +471,7 @@ export function AdminSponsorsTab() {
 
   const moveSponsor = async (id: string, direction: 'up' | 'down') => {
 
-    if (!token) return;
+    if (!token || placementTab === 'pricing') return;
 
     const idx = items.findIndex((s) => s.id === id);
 
@@ -501,11 +505,15 @@ export function AdminSponsorsTab() {
 
         });
 
+        const placement = placementTabToApiPlacement(placementTab);
+
+        if (!placement) return;
+
         const reordered = reorderSponsorIdsWithinPlacement(
 
           allRes.items,
 
-          placementTab,
+          placement,
 
           id,
 
@@ -559,230 +567,26 @@ export function AdminSponsorsTab() {
 
 
 
-  const imageSpec = SPONSOR_IMAGE_SPECS[form.placement];
-
   const renderFormFields = (
     formId: string,
     opts: { mode: 'create' } | { mode: 'edit'; editId: string }
   ) => {
     const isSubmitBusy =
       opts.mode === 'create' ? busyId === 'create' : busyId === opts.editId;
-    const showMapBanner = form.placement === 'map_banner';
-    const showStoriesBanner = form.placement === 'stories_banner';
 
     return (
-      <form
-        id={formId}
-        noValidate
-        onSubmit={(e) => {
-          e.preventDefault();
+      <SponsorAdminFormFields
+        formId={formId}
+        form={form}
+        setForm={setForm}
+        formError={formError}
+        isSubmitBusy={isSubmitBusy}
+        submitLabel={opts.mode === 'edit' ? t('admin.sponsors.save') : t('admin.sponsors.create')}
+        onSubmit={() => {
           if (opts.mode === 'create') void handleCreate();
           else void handleSave(opts.editId);
         }}
-        className="space-y-4"
-      >
-        {formError ? (
-          <p
-            role="alert"
-            className="text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2"
-          >
-            {formError}
-          </p>
-        ) : null}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <label className="block text-xs text-gray-400">
-            {t('admin.sponsors.fieldName')}
-            <input
-              className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            />
-          </label>
-          <label className="block text-xs text-gray-400">
-            {t('admin.sponsors.fieldPlacement')}
-            <select
-              className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
-              value={form.placement}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, placement: e.target.value as SponsorPlacement }))
-              }
-            >
-              {PLACEMENT_OPTIONS.map((p) => (
-                <option key={p} value={p}>
-                  {placementLabel(p)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        {showMapBanner && (
-          <fieldset className="rounded-xl border border-[#1e1e2f] bg-[#0b0b0f] px-3 py-3 space-y-2">
-            <legend className="text-xs font-semibold text-gray-300 px-1">
-              {t('admin.sponsors.mapVisibilityTitle')}
-            </legend>
-            <label className="flex items-start gap-2 text-xs text-gray-300 cursor-pointer">
-              <input
-                type="radio"
-                name={`${formId}-map-scope`}
-                checked={form.mapVisibilityScope === 'france'}
-                onChange={() => setForm((f) => ({ ...f, mapVisibilityScope: 'france' }))}
-                className="mt-0.5"
-              />
-              <span>
-                <span className="font-semibold text-white block">{t('admin.sponsors.mapScopeFrance')}</span>
-                <span className="text-gray-500">{t('admin.sponsors.mapScopeFranceHint')}</span>
-              </span>
-            </label>
-            <label className="flex items-start gap-2 text-xs text-gray-300 cursor-pointer">
-              <input
-                type="radio"
-                name={`${formId}-map-scope`}
-                checked={form.mapVisibilityScope === 'region'}
-                onChange={() => setForm((f) => ({ ...f, mapVisibilityScope: 'region' }))}
-                className="mt-0.5"
-              />
-              <span>
-                <span className="font-semibold text-white block">{t('admin.sponsors.mapScopeRegion')}</span>
-                <span className="text-gray-500">
-                  {t('admin.sponsors.mapScopeRegionHint', { minZoom: MAP_REGION_MIN_ZOOM })}
-                </span>
-              </span>
-            </label>
-            {form.mapVisibilityScope === 'region' && (
-              <label className="block text-xs text-gray-400 pt-1">
-                {t('admin.sponsors.fieldMapTargetRegion')}
-                <SponsorRegionAutocomplete
-                  value={form.mapTargetRegionName}
-                  onChange={(name) => setForm((f) => ({ ...f, mapTargetRegionName: name }))}
-                  onSelect={(suggestion) =>
-                    setForm((f) => ({
-                      ...f,
-                      mapTargetRegionName: suggestion.value,
-                      mapTargetLat:
-                        suggestion.latitude != null ? String(suggestion.latitude) : f.mapTargetLat,
-                      mapTargetLng:
-                        suggestion.longitude != null ? String(suggestion.longitude) : f.mapTargetLng,
-                    }))
-                  }
-                  placeholder={t('admin.sponsors.fieldMapTargetRegionPlaceholder')}
-                />
-              </label>
-            )}
-          </fieldset>
-        )}
-
-        {(showMapBanner || showStoriesBanner) && (
-          <div className="space-y-1">
-            <SponsorBannerUploadField
-              bannerImageUrl={form.bannerImageUrl}
-              onBannerImageUrlChange={(url) => setForm((f) => ({ ...f, bannerImageUrl: url }))}
-              inputId={`${formId}-banner`}
-            />
-            <p className="text-[10px] text-gray-500 px-1">
-              {imageSpec.bannerPx && (
-                <>
-                  {t('admin.sponsors.imageHelpBanner')}: {imageSpec.bannerPx}
-                  {imageSpec.ratio ? ` · ${imageSpec.ratio}` : ''}
-                </>
-              )}
-            </p>
-          </div>
-        )}
-
-        {(form.placement === 'reels_sponsored' || form.placement === 'stories_sponsored') && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label className="block text-xs text-gray-400">
-              {t('admin.sponsors.fieldVideoUrl')}
-              <input
-                className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
-                value={form.videoUrl}
-                onChange={(e) => setForm((f) => ({ ...f, videoUrl: e.target.value }))}
-                placeholder="https://…/video.mp4"
-              />
-            </label>
-            <label className="block text-xs text-gray-400">
-              {t('admin.sponsors.fieldPosterUrl')}
-              <input
-                className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
-                value={form.posterUrl}
-                onChange={(e) => setForm((f) => ({ ...f, posterUrl: e.target.value }))}
-                placeholder="https://…/poster.jpg"
-              />
-            </label>
-            <p className="text-[10px] text-gray-500 sm:col-span-2">{t(imageSpec.noteKey)}</p>
-          </div>
-        )}
-
-        <label className="block text-xs text-gray-400">
-          {t('admin.sponsors.fieldDescription')}
-          <textarea
-            className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white min-h-[4.5rem] resize-y"
-            value={form.description}
-            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            placeholder={t('admin.sponsors.fieldDescriptionPlaceholder')}
-          />
-        </label>
-
-        <label className="block text-xs text-gray-400">
-          {t('admin.sponsors.fieldLinkUrl')}
-          <span className="text-amber-400/90"> *</span>
-          <input
-            className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
-            value={form.linkUrl}
-            onChange={(e) => setForm((f) => ({ ...f, linkUrl: e.target.value }))}
-            placeholder="https://…"
-          />
-        </label>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <label className="block text-xs text-gray-400">
-            {t('admin.sponsors.fieldDisplayDays')}
-            <input
-              type="number"
-              min={SPONSOR_DISPLAY_DAYS_MIN}
-              max={SPONSOR_DISPLAY_DAYS_MAX}
-              className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
-              value={form.displayDays}
-              onChange={(e) => setForm((f) => ({ ...f, displayDays: e.target.value }))}
-            />
-            <span className="text-[10px] text-gray-500 mt-0.5 block">
-              {t('admin.sponsors.fieldDisplayDaysHint', {
-                min: SPONSOR_DISPLAY_DAYS_MIN,
-                max: SPONSOR_DISPLAY_DAYS_MAX,
-              })}
-            </span>
-          </label>
-
-          <label className="block text-xs text-gray-400">
-            {t('admin.sponsors.fieldDisplayDuration')}
-            <input
-              type="number"
-              min={SPONSOR_DISPLAY_DURATION_MIN_SEC}
-              max={SPONSOR_DISPLAY_DURATION_MAX_SEC}
-              className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
-              value={form.displayDurationSec}
-              onChange={(e) => setForm((f) => ({ ...f, displayDurationSec: e.target.value }))}
-            />
-            <span className="text-[10px] text-gray-500 mt-0.5 block">
-              {t('admin.sponsors.fieldDisplayDurationRotationHint', {
-                min: SPONSOR_DISPLAY_DURATION_MIN_SEC,
-                max: SPONSOR_DISPLAY_DURATION_MAX_SEC,
-                default: DEFAULT_DISPLAY_DURATION_SEC,
-              })}
-            </span>
-          </label>
-        </div>
-
-        <button
-          type="submit"
-          disabled={isSubmitBusy}
-          className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-sm font-medium disabled:opacity-50"
-        >
-          {opts.mode === 'edit' ? t('admin.sponsors.save') : t('admin.sponsors.create')}
-        </button>
-      </form>
+      />
     );
   };
 
@@ -804,7 +608,10 @@ export function AdminSponsorsTab() {
 
       <SponsorsSubTabBar subTab={placementTab} onChange={handlePlacementTabChange} t={t} />
 
-
+      {placementTab === 'pricing' ? (
+        <AdminSponsorsPricingTab />
+      ) : (
+        <>
 
       {placementTab === 'stories_sponsored' && (
 
@@ -1128,6 +935,21 @@ export function AdminSponsorsTab() {
 
                     </div>
 
+                    <p className="text-[10px] text-gray-500 mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                      <span>
+                        {t('admin.sponsors.listCreatedAt', {
+                          date: formatSponsorAdminDate(sponsor.createdAt, i18n.language),
+                        })}
+                      </span>
+                      <span>
+                        {sponsor.endsAt
+                          ? t('admin.sponsors.listEndsAt', {
+                              date: formatSponsorAdminDate(sponsor.endsAt, i18n.language),
+                            })
+                          : t('admin.sponsors.listNoEndDate')}
+                      </span>
+                    </p>
+
                     <p className="text-sm text-white mt-1 truncate">{sponsor.title}</p>
 
                     {sponsor.subtitle && sponsor.subtitle !== sponsor.title && (
@@ -1137,6 +959,11 @@ export function AdminSponsorsTab() {
                     <div className="flex flex-wrap gap-1 mt-1.5">
                       <MetaTag>#{sponsor.priority + 1}</MetaTag>
                       <MetaTag>{placementLabel(sponsor.placement)}</MetaTag>
+                      {sponsor.audienceEstimate ? (
+                        <MetaTag>
+                          {formatSponsorAudienceEstimateLabel(sponsor.audienceEstimate, t)}
+                        </MetaTag>
+                      ) : null}
                       {sponsor.endsAt && (
                         <MetaTag>
                           {t('admin.sponsors.listDisplayDays', {
@@ -1150,6 +977,11 @@ export function AdminSponsorsTab() {
                         </MetaTag>
                       )}
                       {sponsor.linkUrl && <MetaTag>{t('admin.sponsors.listHasLink')}</MetaTag>}
+                      {sponsor.linkedEventPostId && (
+                        <MetaTag>
+                          {t('admin.sponsors.listLinkedEvent', { id: sponsor.linkedEventPostId })}
+                        </MetaTag>
+                      )}
                       {sponsor.placement === 'map_banner' && (
                         <MetaTag>
                           {sponsor.mapVisibilityScope === 'region'
@@ -1279,6 +1111,9 @@ export function AdminSponsorsTab() {
 
         </ul>
 
+      )}
+
+        </>
       )}
 
     </div>

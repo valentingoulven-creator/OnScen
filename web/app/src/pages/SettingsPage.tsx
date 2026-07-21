@@ -112,11 +112,40 @@ export function SettingsGearButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function SettingsSectionHeader({ children }: { children: React.ReactNode }) {
+function SettingsSectionHeader({
+  children,
+  expanded,
+  onToggle,
+  toggleAriaLabel,
+}: {
+  children: React.ReactNode;
+  expanded?: boolean;
+  onToggle?: () => void;
+  toggleAriaLabel?: string;
+}) {
+  if (!onToggle) {
+    return (
+      <p className="px-4 pt-5 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider first:pt-4">
+        {children}
+      </p>
+    );
+  }
   return (
-    <p className="px-4 pt-5 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider first:pt-4">
-      {children}
-    </p>
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={expanded}
+      aria-label={toggleAriaLabel}
+      className="w-full flex items-center justify-between gap-2 px-4 pt-5 pb-2 min-h-[44px] text-left first:pt-4 hover:bg-[#12121a]/40 active:bg-[#12121a]/60 transition-colors"
+    >
+      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{children}</span>
+      <span
+        className={`text-gray-500 shrink-0 text-base leading-none transition-transform ${expanded ? 'rotate-90' : ''}`}
+        aria-hidden
+      >
+        ›
+      </span>
+    </button>
   );
 }
 
@@ -198,6 +227,7 @@ export function SettingsPage({
   const [showDonationSheet, setShowDonationSheet] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [streamingExpanded, setStreamingExpanded] = useState(false);
+  const [notificationsExpanded, setNotificationsExpanded] = useState(true);
   const [exportLoading, setExportLoading] = useState(false);
   const [dmDisabled, setDmDisabled] = useState(() => user?.allowPrivateMessages === false);
   const [dmSaving, setDmSaving] = useState(false);
@@ -636,36 +666,48 @@ export function SettingsPage({
         {/* ── 4. Notifications ── */}
         {pushSupported && (
           <section>
-            <SettingsSectionHeader>{t('settings.notificationsSection')}</SettingsSectionHeader>
-            <SettingsGroup>
-              <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-white">{t('settings.pushNotifications')}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {pushPermission === 'granted'
-                      ? t('settings.pushEnabledHint')
-                      : pushPermission === 'denied'
-                        ? t('settings.pushDeniedHint')
-                        : t('settings.pushDefaultHint')}
-                  </p>
-                </div>
-                {pushPermission === 'denied' ? (
-                  <span className="text-xs text-gray-600 shrink-0">{t('settings.pushBlocked')}</span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleTogglePush}
-                    disabled={pushLoading}
-                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${pushPermission === 'granted' ? 'bg-purple-600' : 'bg-gray-600'}`}
-                    aria-label={t('settings.pushToggleAria')}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${pushPermission === 'granted' ? 'translate-x-6' : 'translate-x-1'}`}
-                    />
-                  </button>
-                )}
-              </label>
-            </SettingsGroup>
+            <SettingsSectionHeader
+              expanded={notificationsExpanded}
+              onToggle={() => setNotificationsExpanded((v) => !v)}
+              toggleAriaLabel={
+                notificationsExpanded
+                  ? t('settings.notificationsSectionCollapse')
+                  : t('settings.notificationsSectionExpand')
+              }
+            >
+              {t('settings.notificationsSection')}
+            </SettingsSectionHeader>
+            {notificationsExpanded && (
+              <SettingsGroup>
+                <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white">{t('settings.pushNotifications')}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {pushPermission === 'granted'
+                        ? t('settings.pushEnabledHint')
+                        : pushPermission === 'denied'
+                          ? t('settings.pushDeniedHint')
+                          : t('settings.pushDefaultHint')}
+                    </p>
+                  </div>
+                  {pushPermission === 'denied' ? (
+                    <span className="text-xs text-gray-600 shrink-0">{t('settings.pushBlocked')}</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleTogglePush}
+                      disabled={pushLoading}
+                      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${pushPermission === 'granted' ? 'bg-purple-600' : 'bg-gray-600'}`}
+                      aria-label={t('settings.pushToggleAria')}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${pushPermission === 'granted' ? 'translate-x-6' : 'translate-x-1'}`}
+                      />
+                    </button>
+                  )}
+                </label>
+              </SettingsGroup>
+            )}
           </section>
         )}
 

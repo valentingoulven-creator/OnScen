@@ -13,6 +13,7 @@ function baseForm(overrides: Partial<SponsorAdminFormState> = {}): SponsorAdminF
   return {
     name: 'Partner',
     description: 'Description du partenaire',
+    logoUrl: '',
     bannerImageUrl: '/uploads/sponsors/banners/test.png',
     linkUrl: 'https://example.com',
     placement: 'map_banner',
@@ -25,6 +26,7 @@ function baseForm(overrides: Partial<SponsorAdminFormState> = {}): SponsorAdminF
     startsAt: '2026-06-22T10:00',
     videoUrl: '',
     posterUrl: '',
+    linkedEventPostId: '',
     ...overrides,
   };
 }
