@@ -844,8 +844,107 @@ export interface Story {
   visibility?: 'public' | 'followers';
 }
 
+/**
+ * `Map<userId, User>` avec index secondaires (email / pseudo) maintenus automatiquement
+ * sur `set`/`delete`/`clear` — évite les scans O(n) de `[...db.users.values()].find(...)`
+ * sur les chemins chauds (login, register, reset password, vérification email).
+ * Les index couvrent à la fois la valeur exacte stockée et sa forme en minuscules,
+ * pour préserver le comportement exact (sensible ou non à la casse) des appelants existants.
+ */
+class UserIndexMap extends Map<string, User> {
+  private readonly byEmailExact = new Map<string, string>();
+  private readonly byEmailLower = new Map<string, string>();
+  private readonly byUsernameExact = new Map<string, string>();
+  private readonly byUsernameLower = new Map<string, string>();
+
+  private unindex(user: User): void {
+    if (this.byEmailExact.get(user.email) === user.id) this.byEmailExact.delete(user.email);
+    if (this.byEmailLower.get(user.email.toLowerCase()) === user.id) {
+      this.byEmailLower.delete(user.email.toLowerCase());
+    }
+    if (this.byUsernameExact.get(user.username) === user.id) this.byUsernameExact.delete(user.username);
+    if (this.byUsernameLower.get(user.username.toLowerCase()) === user.id) {
+      this.byUsernameLower.delete(user.username.toLowerCase());
+    }
+  }
+
+  private reindex(user: User): void {
+    this.byEmailExact.set(user.email, user.id);
+    this.byEmailLower.set(user.email.toLowerCase(), user.id);
+    this.byUsernameExact.set(user.username, user.id);
+    this.byUsernameLower.set(user.username.toLowerCase(), user.id);
+  }
+
+  override set(key: string, value: User): this {
+    const prev = super.get(key);
+    if (prev) this.unindex(prev);
+    super.set(key, value);
+    this.reindex(value);
+    return this;
+  }
+
+  override delete(key: string): boolean {
+    const prev = super.get(key);
+    if (prev) this.unindex(prev);
+    return super.delete(key);
+  }
+
+  override clear(): void {
+    this.byEmailExact.clear();
+    this.byEmailLower.clear();
+    this.byUsernameExact.clear();
+    this.byUsernameLower.clear();
+    super.clear();
+  }
+
+  /**
+   * Filet de sécurité : si l'entrée indexée ne correspond plus au champ réel de l'utilisateur
+   * (ex. mutation directe `user.email = ...` sans repasser par `.set()`), on retombe sur un
+   * scan complet — plus lent mais toujours correct — et on répare l'index au passage.
+   */
+  private fallbackScan(predicate: (u: User) => boolean): User | undefined {
+    for (const user of this.values()) {
+      if (predicate(user)) {
+        this.reindex(user);
+        return user;
+      }
+    }
+    return undefined;
+  }
+
+  findByEmailExact(email: string): User | undefined {
+    const id = this.byEmailExact.get(email);
+    const hit = id ? this.get(id) : undefined;
+    if (hit && hit.email === email) return hit;
+    return this.fallbackScan((u) => u.email === email);
+  }
+
+  findByEmailLower(email: string): User | undefined {
+    const lower = email.toLowerCase();
+    const id = this.byEmailLower.get(lower);
+    const hit = id ? this.get(id) : undefined;
+    if (hit && hit.email.toLowerCase() === lower) return hit;
+    return this.fallbackScan((u) => u.email.toLowerCase() === lower);
+  }
+
+  findByUsernameExact(username: string): User | undefined {
+    const id = this.byUsernameExact.get(username);
+    const hit = id ? this.get(id) : undefined;
+    if (hit && hit.username === username) return hit;
+    return this.fallbackScan((u) => u.username === username);
+  }
+
+  findByUsernameLower(username: string): User | undefined {
+    const lower = username.toLowerCase();
+    const id = this.byUsernameLower.get(lower);
+    const hit = id ? this.get(id) : undefined;
+    if (hit && hit.username.toLowerCase() === lower) return hit;
+    return this.fallbackScan((u) => u.username.toLowerCase() === lower);
+  }
+}
+
 export const db = {
-  users: new Map<string, User>(),
+  users: new UserIndexMap(),
   salons: new Map<string, Salon>(),
   lives: new Map<string, Live>(),
   /** hostId → id du live actif courant (index O(1) — évite un scan de `lives` à chaque démarrage). */

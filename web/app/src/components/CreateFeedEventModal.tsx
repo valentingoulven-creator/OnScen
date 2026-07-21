@@ -12,10 +12,13 @@ import { EventDatePickerInput } from './EventDatePickerInput';
 import { EventLocationInput } from './EventLocationInput';
 import { StoryUserTagPicker } from './StoryUserTagPicker';
 import { formatEventDateRangeChip } from '../lib/eventDateInput';
+import { FEED_EVENT_TITLE_MAX_LEN } from '../lib/feedEvents';
 import { readSavedEventLocation } from '../lib/savedEventLocation';
+import { getEventTypeIcon, type FeedEventType } from '../lib/eventType';
 
 export interface FeedEventDraft {
   title: string;
+  description: string;
   eventType: 'dance' | 'chant' | 'autre';
   confirmedEventDates: { start: string; end: string | null }[];
   eventLocation: string;
@@ -28,6 +31,7 @@ export interface FeedEventDraft {
 function defaultDraft(): FeedEventDraft {
   return {
     title: '',
+    description: '',
     eventType: 'autre',
     confirmedEventDates: [],
     eventLocation: readSavedEventLocation() ?? '',
@@ -38,17 +42,22 @@ function defaultDraft(): FeedEventDraft {
   };
 }
 
+/** Titre court + description optionnelle → contenu publication événement. */
+export function buildFeedEventContent(title: string, description: string, fallback = ''): string {
+  const shortTitle = title.trim();
+  const detail = description.trim();
+  if (shortTitle && detail) return `${shortTitle}\n\n${detail}`;
+  return shortTitle || detail || fallback;
+}
+
 function buildEventPreviewPost(draft: FeedEventDraft, author: User): FeedPost {
   const eventDatesIso = draft.confirmedEventDates.map((e) => new Date(e.start).toISOString());
   const link = draft.eventLinkUrl.trim();
+  const fallback = tFallbackTitle(draft.eventType) || draft.eventLocation.trim() || 'Événement';
   return {
     id: 'event-preview',
     userId: author.id,
-    content:
-      draft.title.trim() ||
-      tFallbackTitle(draft.eventType) ||
-      draft.eventLocation.trim() ||
-      'Événement',
+    content: buildFeedEventContent(draft.title, draft.description, fallback),
     imageUrl: draft.imageUrl.trim() || undefined,
     createdAt: Date.now(),
     author: {
@@ -81,7 +90,7 @@ function buildEventPreviewPost(draft: FeedEventDraft, author: User): FeedPost {
 
 function tFallbackTitle(eventType: FeedEventDraft['eventType']): string {
   if (eventType === 'dance') return 'Soirée danse';
-  if (eventType === 'chant') return 'Concert / chant';
+  if (eventType === 'chant') return 'Musique';
   return 'Événement';
 }
 
@@ -156,11 +165,19 @@ function PencilIcon({ className }: { className?: string }) {
   );
 }
 
-const EVENT_TYPE_META = {
-  dance: { emoji: '💃' },
-  chant: { emoji: '🎤' },
-  autre: { emoji: '✨' },
-} as const;
+function AlignLeftIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M4 6h16M4 12h10M4 18h14" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+const EVENT_TYPE_META: Record<FeedEventType, { emoji: string }> = {
+  dance: { emoji: getEventTypeIcon('dance') },
+  chant: { emoji: getEventTypeIcon('chant') },
+  autre: { emoji: getEventTypeIcon('autre') },
+};
 
 interface CreateFeedEventModalProps {
   open: boolean;
@@ -209,6 +226,7 @@ export function CreateFeedEventModal({
       imageUrl: initialDraft?.imageUrl ?? '',
       eventLinkUrl: initialDraft?.eventLinkUrl ?? '',
       title: initialDraft?.title ?? '',
+      description: initialDraft?.description ?? '',
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -235,7 +253,10 @@ export function CreateFeedEventModal({
           : draft.eventType === 'chant'
             ? t('feed.eventTypeChant')
             : t('feed.eventTypeAutre');
-      return { ...post, content: draft.title.trim() || fallback };
+      return {
+        ...post,
+        content: buildFeedEventContent(draft.title, draft.description, fallback),
+      };
     }
     return post;
   }, [draft, user, t]);
@@ -461,7 +482,7 @@ export function CreateFeedEventModal({
                       value={draft.title}
                       onChange={(e) => setDraft((prev) => ({ ...prev, title: e.target.value }))}
                       placeholder={t('feed.eventModalTitlePlaceholder')}
-                      maxLength={200}
+                      maxLength={FEED_EVENT_TITLE_MAX_LEN}
                       className="w-full bg-transparent border-0 text-lg sm:text-xl font-bold text-white placeholder:text-white/45 focus:outline-none focus:ring-0"
                     />
                   </div>
@@ -508,6 +529,21 @@ export function CreateFeedEventModal({
                     ))}
                   </div>
                 </div>
+
+                <SectionCard
+                  icon={<AlignLeftIcon className="w-4 h-4" />}
+                  title={t('feed.eventModalSectionDetail')}
+                >
+                  <textarea
+                    value={draft.description}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
+                    placeholder={t('feed.eventModalDetailPlaceholder')}
+                    rows={4}
+                    maxLength={1800}
+                    className="w-full rounded-xl bg-[#12121a] border border-[#2a2a3d] px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/40 resize-y min-h-[88px]"
+                  />
+                  <p className="text-[11px] text-gray-500">{t('feed.eventModalDetailHint')}</p>
+                </SectionCard>
 
                 {/* When */}
                 <div ref={dateSectionRef}>

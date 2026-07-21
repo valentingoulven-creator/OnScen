@@ -40,6 +40,7 @@ import { initPostGis } from './lib/postgisConfig';
 import { loadSalonQueuesFromPg } from './lib/pgSalonQueues';
 import { loadReelsFromPg } from './lib/pgReels';
 import { loadCompositionsFromPg } from './lib/pgCompositions';
+import { getDatabaseUrl } from './db/pool';
 import { loadDonationsFromPg } from './lib/pgDonations';
 import { loadCreatorSubscriptionsFromPg } from './lib/pgSubscriptions';
 import { loadSubscriptionCheckoutsFromPg } from './lib/pgSubscriptionCheckouts';
@@ -54,6 +55,24 @@ import { resolveCorsOrigin } from './lib/corsConfig';
 import { startServerMonitor, stopServerMonitor } from './lib/serverMonitor';
 import { startExternalUptimeMonitor } from './lib/externalUptimeMonitor';
 import { sendMonitoringAlert } from './lib/alertNotifier';
+
+async function loadMsdevOptionalPgMusic(): Promise<void> {
+  if (!getDatabaseUrl()) return;
+  try {
+    const { loadAlbumsFromPg } = await import('./lib/pgAlbums');
+    const [compositionStats, albumStats] = await Promise.all([
+      loadCompositionsFromPg(),
+      loadAlbumsFromPg(),
+    ]);
+    if (compositionStats.compositions > 0 || albumStats.albums > 0) {
+      console.log(
+        `[msdev] Musique chargée depuis PostgreSQL (${albumStats.albums} album(s), ${compositionStats.compositions} morceau(x))`
+      );
+    }
+  } catch (e) {
+    console.warn('[msdev] Chargement musique PostgreSQL ignoré:', e);
+  }
+}
 
 function getLocalIpv4Addresses(): string[] {
   const ips: string[] = [];
@@ -269,6 +288,7 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
         '[melosong] Contrôle d’accès tunnel public actif — inscriptions soumises à validation admin par défaut'
       );
     }
+    await loadMsdevOptionalPgMusic();
     startPersistLoop();
   } else if (APP_ENV === 'production' || APP_ENV === 'preproduction') {
     if (usesPostgresPersistence()) {

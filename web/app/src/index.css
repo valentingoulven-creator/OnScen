@@ -78,6 +78,24 @@ button, a, [role="button"], input[type="button"], input[type="submit"], label {
   touch-action: pan-x;
 }
 
+.events-carousel--compact {
+  --events-carousel-peek: 2rem;
+}
+
+.events-carousel--compact .events-carousel-card {
+  max-width: min(13.5rem, calc(100% - var(--events-carousel-peek)));
+}
+
+.events-carousel--sidebar {
+  --events-carousel-peek: 1.25rem;
+}
+
+.events-carousel--sidebar .events-carousel-card {
+  flex: 0 0 calc(100% - var(--events-carousel-peek));
+  width: calc(100% - var(--events-carousel-peek));
+  max-width: min(12.75rem, calc(100% - var(--events-carousel-peek)));
+}
+
 .events-carousel > * {
   flex-shrink: 0;
   touch-action: pan-x;
@@ -1105,10 +1123,24 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 
 .map-marker.event .event-marker-icon {
   display: block;
-  font-size: 26px;
-  line-height: 1;
+  line-height: 0;
+  position: relative;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.95))
     drop-shadow(0 0 6px rgba(0, 0, 0, 0.55));
+}
+
+.map-marker.event .event-marker-icon .event-day-pin {
+  display: block;
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.leaflet-div-icon.event-day-leaflet-icon {
+  background: transparent !important;
+  border: none !important;
 }
 
 .map-marker.event .event-cluster-badge {
@@ -1130,6 +1162,50 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 
 .map-marker.event {
   position: relative;
+}
+
+.map-marker.event.map-marker--highlighted .event-marker-icon {
+  filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.95))
+    drop-shadow(0 0 18px rgba(192, 132, 252, 0.75));
+  animation: map-event-pin-highlight-pulse 1.35s ease-in-out infinite;
+}
+
+.map-marker.event.map-marker--highlighted .event-marker-icon::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  border: 2px solid rgba(168, 85, 247, 0.9);
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.55);
+  animation: map-event-pin-highlight-ring 1.35s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes map-event-pin-highlight-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.14);
+  }
+}
+
+@keyframes map-event-pin-highlight-ring {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
 }
 
 /* Simplified overview dots (z < 8 / globe alt ≥ 0.6) */
@@ -2114,8 +2190,9 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 
 .globe-event-pin {
   display: block;
-  font-size: calc(13px * var(--globe-icon-scale, 1));
-  line-height: 1;
+  width: calc(13px * var(--globe-icon-scale, 1));
+  height: calc(13px * var(--globe-icon-scale, 1));
+  line-height: 0;
   user-select: none;
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.85))
     drop-shadow(0 0 2px rgba(0, 0, 0, 0.35));
@@ -2457,6 +2534,28 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   height: 100% !important;
   min-height: inherit;
   touch-action: none;
+}
+
+/* Recherche événements / organisateurs — haut droite carte (sous recherche lieu en mode globe) */
+.ms-map-event-search {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 30;
+  pointer-events: auto;
+  display: flex;
+  justify-content: flex-end;
+  max-width: calc(100% - 1.5rem);
+}
+
+.ms-map-event-search--below-place {
+  top: 4.75rem;
+}
+
+@media (max-width: 639px) {
+  .ms-map-event-search--below-place {
+    top: 4.5rem;
+  }
 }
 
 /* Recherche pays/ville — bouton compact → panneau déplié, haut droite globe */

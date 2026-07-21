@@ -157,7 +157,7 @@ const filterChipClass = (active: boolean) =>
       : 'border-[#2d2d3d] bg-[#0b0b0f] text-gray-400 hover:text-gray-200 hover:border-[#3d3d4d]'
   }`;
 
-function LivesBrowseFilterPanel({
+export function LivesBrowseFilterPanel({
   geo,
   onPersistGeo,
   showCountryFilter,
@@ -332,7 +332,7 @@ function LivesBrowseFilterPanel({
   );
 }
 
-function LivesBrowseFilterModal({
+export function LivesBrowseFilterModal({
   open,
   onClose,
   children,

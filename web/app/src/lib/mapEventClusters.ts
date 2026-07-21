@@ -155,3 +155,19 @@ export function clusterMapEventsByCity(markers: MapEventMarker[]): MapEventCityC
 
   return clusters.sort((a, b) => a.cityLabel.localeCompare(b.cityLabel, 'fr'));
 }
+
+/** Événements uniques issus des clusters (ordre stable). */
+export function flattenEventClustersToMarkers(
+  clusters: MapEventCityCluster[]
+): MapEventMarker[] {
+  const seen = new Set<string>();
+  const out: MapEventMarker[] = [];
+  for (const cluster of clusters) {
+    for (const event of cluster.events) {
+      if (seen.has(event.id)) continue;
+      seen.add(event.id);
+      out.push(event);
+    }
+  }
+  return out;
+}

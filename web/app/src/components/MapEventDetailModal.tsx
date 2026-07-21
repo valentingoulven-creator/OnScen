@@ -13,7 +13,6 @@ interface MapEventDetailModalProps {
   post?: FeedPost | null;
   savedEventPostIds?: ReadonlySet<string>;
   onClose: () => void;
-  onOpenInFeed?: (postId: string) => void;
   onOpenAuthor?: (userId: string) => void;
   onPostUpdated?: (postId: string, patch: Partial<FeedPost>) => void;
 }
@@ -24,7 +23,6 @@ export function MapEventDetailModal({
   post,
   savedEventPostIds,
   onClose,
-  onOpenInFeed,
   onOpenAuthor,
   onPostUpdated,
 }: MapEventDetailModalProps) {
@@ -98,7 +96,7 @@ export function MapEventDetailModal({
   const modal = (
     <>
       <div
-        className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-4 bg-black/65 backdrop-blur-sm"
+        className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-4 bg-black/65 backdrop-blur-sm"
         role="dialog"
         aria-modal="true"
         aria-label={t('feed.eventDetails')}
@@ -140,6 +138,7 @@ export function MapEventDetailModal({
                         : null
                     }
                     profileActions={toolbar}
+                    onOpen={() => {}}
                     onOpenAuthor={(p) => {
                       if (p.author.id) {
                         onOpenAuthor?.(p.author.id);
@@ -148,10 +147,6 @@ export function MapEventDetailModal({
                     }}
                     onOpenTaggedUser={(userId) => {
                       onOpenAuthor?.(userId);
-                      onClose();
-                    }}
-                    onOpen={() => {
-                      onOpenInFeed?.(activePost.id);
                       onClose();
                     }}
                     onPostChange={(patch) => handlePostChange(patch)}

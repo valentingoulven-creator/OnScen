@@ -7,9 +7,10 @@ import {
   getEventDateEntries,
   formatEventDateWithEndTime,
   getPrimaryEventDate,
-  hasUpcomingEventDate,
   resolveEventHeroVisual,
+  splitFeedEventContent,
 } from '../lib/feedEvents';
+import { getEventTypeIcon, type FeedEventType } from '../lib/eventType';
 import { storyLinkDisplayLabel } from '../lib/storyLink';
 import { resolveEventCoordsSync } from '../lib/mapEventCoords';
 import type { FeedPost } from '../types';
@@ -18,6 +19,7 @@ import { UsernameDisplay } from './UsernameDisplay';
 import { OpenLocationMenu } from './OpenLocationMenu';
 import { EventTaggedUsersRow } from './EventTaggedUsersRow';
 import { EventUpvoteButton } from './EventUpvoteButton';
+import { EventCardMapSidebar } from './EventCardMapSidebar';
 
 function CalendarIcon({ className }: { className?: string }) {
   return (
@@ -39,6 +41,24 @@ function ShareIcon({ className }: { className?: string }) {
   );
 }
 
+function eventTypeLabel(t: ReturnType<typeof useTranslation>['t'], eventType?: FeedEventType | null): string {
+  if (eventType === 'dance') return t('feed.eventTypeDance');
+  if (eventType === 'chant') return t('feed.eventTypeChant');
+  return t('feed.eventTypeAutre');
+}
+
+function eventTypeEmojiClass(isSidebar: boolean, isCompact: boolean): string {
+  if (isSidebar) return 'text-[1.75rem] leading-none';
+  if (isCompact) return 'text-4xl leading-none';
+  return 'text-5xl leading-none';
+}
+
+function eventTypeBadgeEmojiClass(isSidebar: boolean, isCompact: boolean): string {
+  if (isSidebar) return 'text-[10px] leading-none';
+  if (isCompact) return 'text-xs leading-none';
+  return 'text-sm leading-none';
+}
+
 function MapPinIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
@@ -56,7 +76,8 @@ export interface EventCardProps {
   layout?: 'vertical' | 'carousel';
   /** Liste verticale compacte (défaut true pour vertical, false pour carousel) */
   compact?: boolean;
-  showUpcomingBadge?: boolean;
+  /** Densité visuelle carrousel : sidebar = panneau latéral carte (hero plus petit) */
+  density?: 'default' | 'compact' | 'sidebar';
   extraBadges?: ReactNode;
   /** Actions (like, commentaire…) à droite de la ligne organisateur. */
   profileActions?: ReactNode;
@@ -80,7 +101,7 @@ export function EventCard({
   onShare,
   layout = 'vertical',
   compact,
-  showUpcomingBadge = true,
+  density = 'default',
   extraBadges,
   profileActions,
   onOpenAuthor,
@@ -110,29 +131,44 @@ export function EventCard({
   const showHeroImage = hero.type === 'image' && !heroImageFailed;
   const eventDates = getEventDates(post);
   const primaryEventDate = getPrimaryEventDate(post);
-  const upcoming = showUpcomingBadge && hasUpcomingEventDate(post);
-  const title = post.content.trim();
+  const { title: eventTitle, description: eventDescription } = splitFeedEventContent(post.content);
   const isCarousel = layout === 'carousel';
   const isCompact = compact ?? !isCarousel;
-
-  const heroClass = isCarousel
-    ? 'h-32'
-    : isCompact
-      ? 'aspect-[2/1]'
-      : 'aspect-video';
-
-  const badgeIconClass = isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3';
-  const badgeTextClass = isCompact ? 'text-[9px]' : 'text-[10px]';
-  const badgePadClass = isCompact ? 'px-1.5 py-0.5' : 'px-2 py-0.5';
-  const dateOverlayClass = isCompact ? 'text-[10px] px-1.5 py-0.5' : 'text-[11px] px-2 py-1';
-  const profilePadClass = isCompact ? 'pt-1' : 'pt-1.5';
-  const profileRowBorder = `flex items-center gap-1.5 border-t border-purple-500/15 ${profilePadClass}`;
+  const isSidebar = density === 'sidebar';
 
   const resolvedLocationCoords = useMemo(() => {
     if (locationCoords) return locationCoords;
     if (!post.eventLocation?.trim()) return null;
     return resolveEventCoordsSync(post.eventLocation);
   }, [locationCoords, post.eventLocation]);
+
+  if (isSidebar && isCarousel) {
+    return (
+      <EventCardMapSidebar post={post} onOpen={onOpen} onPostChange={onPostChange} />
+    );
+  }
+
+  /** Carrousel horizontal : hauteur hero */
+  const heroClass = isCarousel
+    ? isSidebar
+      ? 'h-14'
+      : isCompact
+        ? 'h-24'
+        : 'h-32'
+    : isCompact
+      ? 'aspect-[2/1]'
+      : 'aspect-video';
+
+  const badgeIconClass = isSidebar ? 'w-2 h-2' : isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3';
+  const badgeTextClass = isSidebar ? 'text-[8px]' : isCompact ? 'text-[9px]' : 'text-[10px]';
+  const badgePadClass = isSidebar ? 'px-1 py-0.5' : isCompact ? 'px-1.5 py-0.5' : 'px-2 py-0.5';
+  const dateOverlayClass = isSidebar
+    ? 'text-[9px] px-1 py-0.5'
+    : isCompact
+      ? 'text-[10px] px-1.5 py-0.5'
+      : 'text-[11px] px-2 py-1';
+  const profilePadClass = isSidebar ? 'pt-0.5' : isCompact ? 'pt-1' : 'pt-1.5';
+  const profileRowBorder = `flex items-center gap-1.5 border-t border-purple-500/15 ${profilePadClass}`;
 
   const locationRow = post.eventLocation ? (
     locationNavigable ? (
@@ -233,6 +269,9 @@ export function EventCard({
     </div>
   ) : null;
 
+  const eventTypeIcon = getEventTypeIcon(post.eventType);
+  const eventTypeName = eventTypeLabel(t, post.eventType);
+
   const heroVisual = (
     <div className={`relative w-full overflow-hidden bg-[#1a1028] ${heroClass}`}>
       {showHeroImage ? (
@@ -247,10 +286,12 @@ export function EventCard({
         <div
           className={`absolute inset-0 bg-gradient-to-br ${placeholderGradient} flex items-center justify-center`}
         >
-          <CalendarIcon
-            className={`${isCompact ? 'w-10 h-10' : 'w-12 h-12'} text-purple-300/65 drop-shadow-lg`}
+          <span
+            className={`${eventTypeEmojiClass(isSidebar, isCompact)} drop-shadow-lg`}
             aria-hidden
-          />
+          >
+            {eventTypeIcon}
+          </span>
         </div>
       )}
 
@@ -258,28 +299,31 @@ export function EventCard({
 
       <div
         className={`absolute flex items-start justify-between pointer-events-none ${
-          isCompact ? 'top-1.5 left-1.5 right-1.5 gap-1.5' : 'top-2 left-2 right-2 gap-2'
+          isSidebar
+            ? 'top-1 left-1 right-1 gap-1'
+            : isCompact
+              ? 'top-1.5 left-1.5 right-1.5 gap-1.5'
+              : 'top-2 left-2 right-2 gap-2'
         }`}
       >
         <span
           className={`inline-flex items-center gap-0.5 font-bold rounded-full border bg-purple-600/80 text-white border-purple-400/50 backdrop-blur-sm shadow-sm ${badgeTextClass} ${badgePadClass}`}
         >
-          <CalendarIcon className={badgeIconClass} />
-          Événement
-        </span>
-        {upcoming ? (
-          <span
-            className={`font-semibold text-emerald-100 bg-emerald-600/70 rounded-full border border-emerald-400/40 backdrop-blur-sm ${badgeTextClass} ${badgePadClass}`}
-          >
-            À venir
+          <span className={eventTypeBadgeEmojiClass(isSidebar, isCompact)} aria-hidden>
+            {eventTypeIcon}
           </span>
-        ) : null}
+          {eventTypeName}
+        </span>
       </div>
 
       {primaryEventDate ? (
         <div
           className={`absolute pointer-events-none ${
-            isCompact ? 'bottom-1.5 left-1.5 right-1.5' : 'bottom-2 left-2 right-2'
+            isSidebar
+              ? 'bottom-1 left-1 right-1'
+              : isCompact
+                ? 'bottom-1.5 left-1.5 right-1.5'
+                : 'bottom-2 left-2 right-2'
           }`}
         >
           <span
@@ -310,7 +354,7 @@ export function EventCard({
       {post.isEvent ? (
         <div
           className={`absolute z-10 pointer-events-auto ${
-            isCompact ? 'bottom-1.5 right-1.5' : 'bottom-2 right-2'
+            isSidebar ? 'bottom-1 right-1' : isCompact ? 'bottom-1.5 right-1.5' : 'bottom-2 right-2'
           }`}
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
@@ -325,22 +369,15 @@ export function EventCard({
           />
         </div>
       ) : null}
-
-      {onOpenAuthor ? (
-        <div
-          className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/hero:bg-black/20 transition-colors pointer-events-none"
-          aria-hidden
-        >
-          <span className="opacity-0 group-hover/hero:opacity-100 transition-opacity rounded-full bg-black/55 border border-white/15 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur-sm">
-            {t('map.eventModalOpenInFeed', { defaultValue: 'Voir dans le fil' })}
-          </span>
-        </div>
-      ) : null}
     </div>
   );
 
   const cardBody = (
-    <div className={`${isCompact ? 'p-2.5 space-y-1.5' : 'p-3 space-y-2'}`}>
+    <div
+      className={`${
+        isSidebar ? 'p-2 space-y-1' : isCompact ? 'p-2.5 space-y-1.5' : 'p-3 space-y-2'
+      }`}
+    >
       {extraBadges ? <div className="flex items-center gap-1.5 flex-wrap">{extraBadges}</div> : null}
 
       {locationRow}
@@ -374,10 +411,27 @@ export function EventCard({
         </div>
       ) : null}
 
-      {title ? (
-        <p className={`text-[11px] text-gray-400 leading-snug ${isCompact ? 'line-clamp-1' : 'line-clamp-2'}`}>
-          {title}
+      {eventTitle ? (
+        <p
+          className={`font-semibold text-white leading-snug ${
+            isCompact ? 'text-[11px] line-clamp-2' : 'text-sm'
+          }`}
+        >
+          {eventTitle}
         </p>
+      ) : null}
+
+      {eventDescription ? (
+        isCompact ? (
+          <p className="text-[11px] text-gray-400 leading-snug line-clamp-2">{eventDescription}</p>
+        ) : (
+          <div className="rounded-xl border border-purple-500/20 bg-purple-950/25 p-2.5 space-y-1.5">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-purple-300/90">
+              {t('feed.eventModalSectionDetail')}
+            </p>
+            <p className="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap">{eventDescription}</p>
+          </div>
+        )
       ) : null}
 
       {profileRowInsideCard}
@@ -410,15 +464,7 @@ export function EventCard({
       ) : null}
       {onOpenAuthor ? (
         <>
-          <button
-            type="button"
-            onClick={() => onOpen(post)}
-            className="group/hero w-full text-left block cursor-pointer active:scale-[0.99] transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/50"
-            aria-label={t('map.eventModalOpenInFeed', { defaultValue: 'Voir dans le fil' })}
-            title={t('map.eventModalOpenInFeed', { defaultValue: 'Voir dans le fil' })}
-          >
-            {heroVisual}
-          </button>
+          <div className="w-full">{heroVisual}</div>
           {cardBody}
           {profileRowOutsideCard}
         </>

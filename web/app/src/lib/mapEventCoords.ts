@@ -16,6 +16,14 @@ const VENUE_LOOKUP: Array<{ match: RegExp; latitude: number; longitude: number }
   { match: /nuits sonores/i, latitude: 45.764, longitude: 4.8357 },
   { match: /bar musical/i, latitude: 45.764, longitude: 4.8357 },
   { match: /café des arts|cafe des arts/i, latitude: 44.8378, longitude: -0.5792 },
+  { match: /place de la com[eé]die/i, latitude: 43.608, longitude: 3.8778 },
+  { match: /place du mill[eé]naire|antigone/i, latitude: 43.6088, longitude: 3.8855 },
+  { match: /le polygone|polygone/i, latitude: 43.5745, longitude: 3.8578 },
+  { match: /jazz [àa] juan|pin[eè]de gould/i, latitude: 43.5804, longitude: 7.1251 },
+  { match: /vieilles charrues|carhaix/i, latitude: 48.2758, longitude: -3.5744 },
+  { match: /longchamp|lollapalooza/i, latitude: 48.8575, longitude: 2.2415 },
+  { match: /francofolies/i, latitude: 46.1603, longitude: -1.1511 },
+  { match: /calvi on the rocks/i, latitude: 42.5676, longitude: 8.757 },
 ];
 
 const CITY_LOOKUP: Array<{ match: RegExp; latitude: number; longitude: number }> = [
@@ -24,6 +32,11 @@ const CITY_LOOKUP: Array<{ match: RegExp; latitude: number; longitude: number }>
   { match: /le cr[eè]s|^cr[eè]s$/i, latitude: 43.6489, longitude: 3.9394 },
   { match: /lyon/i, latitude: 45.764, longitude: 4.8357 },
   { match: /bordeaux/i, latitude: 44.8378, longitude: -0.5792 },
+  { match: /argel[eè]s-sur-mer|argel[eè]s/i, latitude: 42.5467, longitude: 3.0222 },
+  { match: /antibes/i, latitude: 43.5804, longitude: 7.1251 },
+  { match: /carhaix/i, latitude: 48.2758, longitude: -3.5744 },
+  { match: /la rochelle/i, latitude: 46.1603, longitude: -1.1511 },
+  { match: /calvi/i, latitude: 42.5676, longitude: 8.757 },
   { match: /boom|tomorrowland/i, latitude: 51.1624, longitude: 4.3707 },
   { match: /glastonbury|pilton|somerset/i, latitude: 51.155, longitude: -2.585 },
   { match: /indio|coachella/i, latitude: 33.7206, longitude: -116.2156 },

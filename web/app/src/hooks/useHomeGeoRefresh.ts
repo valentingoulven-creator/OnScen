@@ -32,6 +32,8 @@ export function useHomeGeoRefresh(options: {
   loadNearbyAt: (coords: Coords, opts?: { updateUserGeo?: boolean }) => void;
   loadNearbyFromState: (userPos: Coords | null, mapCenter: Coords) => void;
   setSafeCenter: (coords: Coords) => void;
+  /** Cadre carte / globe sur l'ancre utilisateur (GPS ou ville profil) — vol explicite. */
+  applyMapViewportCenter: (coords: Coords) => void;
   setUserPosition: (pos: Coords | null) => void;
   /** True après pan/zoom carte ou rotation globe — ne pas recentrer sur GPS tardif. */
   mapExploredRef: RefObject<boolean>;
@@ -47,6 +49,7 @@ export function useHomeGeoRefresh(options: {
     loadNearbyAt,
     loadNearbyFromState,
     setSafeCenter,
+    applyMapViewportCenter,
     setUserPosition,
     mapExploredRef,
     geoIntervalRef,
@@ -75,11 +78,17 @@ export function useHomeGeoRefresh(options: {
     const geo = getLivesGeo();
     const { locationSharing } = getPrivacyPreferences();
 
+    const centerMapOnCoords = (coords: Coords) => {
+      if (!mapExploredRef.current) {
+        applyMapViewportCenter(coords);
+      } else {
+        setSafeCenter(coords);
+      }
+    };
+
     const applyProfileCityFallback = () => {
       const fallback = resolveMapCameraFallbackCenter(profileCityRef.current);
-      if (!mapExploredRef.current) {
-        setSafeCenter(fallback);
-      }
+      centerMapOnCoords(fallback);
       loadNearbyAt(fallback);
 
       const label = normalizeCityLabel(profileCityRef.current ?? '').trim();
@@ -96,6 +105,8 @@ export function useHomeGeoRefresh(options: {
           defaultCenter
         );
         if (!mapExploredRef.current) {
+          applyMapViewportCenter(resolved);
+        } else {
           setSafeCenter(resolved);
         }
         loadNearbyAtRef.current(resolved);
@@ -104,7 +115,7 @@ export function useHomeGeoRefresh(options: {
 
     if (isFixedMapGeoSource(geo.source)) {
       const coords: Coords = [geo.latitude, geo.longitude];
-      setSafeCenter(coords);
+      centerMapOnCoords(coords);
       loadNearbyAt(coords);
     } else if (!isGeolocationAvailable()) {
       applyProfileCityFallback();
@@ -114,9 +125,7 @@ export function useHomeGeoRefresh(options: {
           if (cancelled) return;
           const coords: Coords = [pos.latitude, pos.longitude];
           setUserPosition(sanitizeLatLngTuple(coords[0], coords[1], defaultCenter));
-          if (!mapExploredRef.current) {
-            setSafeCenter(coords);
-          }
+          centerMapOnCoords(coords);
           loadNearbyAt(coords, { updateUserGeo: locationSharing });
         },
         () => {
@@ -137,6 +146,7 @@ export function useHomeGeoRefresh(options: {
     defaultCenter,
     loadNearbyAt,
     setSafeCenter,
+    applyMapViewportCenter,
     setUserPosition,
   ]);
 

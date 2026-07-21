@@ -1,3 +1,4 @@
+import { EventDayPinIcon } from '../EventDayPinIcon';
 import type { SoundyGlobePoint } from './SoundyGlobeMarkers';
 import { GlobeFacingHtml } from './GlobeFacingHtml';
 
@@ -16,7 +17,7 @@ interface SoundyGlobeEventMarkersProps {
 const MAX_HTML_EVENT_MARKERS = 120;
 
 /**
- * Pins événement globe — icône 📍 dédiée (pas `.map-marker.event`, sinon 26px carte gagne).
+ * Pins événement globe — SVG coloré par jour (pas `.map-marker.event`, sinon 26px carte gagne).
  *
  * Pas de `distanceFactor` : sans lui, <Html> garde une taille CSS fixe à l'écran
  * quel que soit le zoom caméra (comme un iconAnchor Leaflet). Avec `distanceFactor`,
@@ -50,9 +51,10 @@ export function SoundyGlobeEventMarkers({ points, onPointClick }: SoundyGlobeEve
               onPointClick(p);
             }}
           >
-            <span className="globe-event-pin" aria-hidden="true">
-              📍
-            </span>
+            <EventDayPinIcon
+              dayIndex={p.dayIndex ?? 3}
+              className="globe-event-pin"
+            />
             {p.count && p.count > 1 && (
               <span className="globe-event-cluster-badge">{p.count}</span>
             )}

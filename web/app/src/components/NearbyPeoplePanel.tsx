@@ -1,6 +1,5 @@
 import { memo, useMemo, useState, useCallback, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { formatWeekRangeLabel } from '../lib/feedEvents';
 import {
   countMapSidebarItems,
   countEventsSidebarItems,
@@ -9,12 +8,37 @@ import {
   type MapSidebarContent,
 } from '../lib/mapSidebarContent';
 import type { MapViewDetailState } from '../lib/mapMarkerVisibility';
-import { MapEventRow } from './MapCityEventsPanel';
+import type { MapEventFilterCriteria } from '../lib/mapEventFilter';
+import { MapEventsBrowseList } from './MapEventsBrowseList';
+import { useMapEventsBrowseData } from '../hooks/useMapEventsBrowseData';
 import { PlatformListeningIcon } from './PlatformListeningIcon';
 import { UserAvatarOnline } from './UserAvatarOnline';
 import { UsernameDisplay } from './UsernameDisplay';
-import type { Live, MapEventCityCluster, MapEventMarker, NearbyPerson, Salon } from '../types';
+import { formatCompactCount } from '../lib/formatCount';
+import type { FeedPost, Live, MapEventMarker, NearbyPerson, Salon } from '../types';
+import { MapEventRow } from './MapCityEventsPanel';
 import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
+
+export interface MapSidebarEventsBrowseConfig {
+  token: string;
+  profileCity?: string;
+  favoriteAuthorIds?: ReadonlySet<string>;
+  eventsFilterOn: boolean;
+  filterCriteria?: MapEventFilterCriteria;
+  viewerId?: string;
+  /** Événements filtre carte (rayon fixe) pour l’onglet Autour. */
+  aroundEventPosts?: FeedPost[];
+  /** Clic carte sidebar : zoom carte uniquement (sans modal). */
+  onZoomEventOnMap?: (post: FeedPost) => void;
+  /** Feuille browse « Voir sur la carte » : zoom + modal détail. */
+  onOpenEvent?: (post: FeedPost) => void;
+  /** Feuille browse : modal détail sans recentrage (fallback). */
+  onOpenEventDetail?: (post: FeedPost) => void;
+  onOpenInFeed?: (postId: string) => void;
+  onPostChange?: (postId: string, patch: Partial<FeedPost>) => void;
+  selectedMapEventDayKey?: string | null;
+  onMapEventDayKeySelect?: (dayKey: string) => void;
+}
 
 interface NearbyPeoplePanelProps {
   content: MapSidebarContent;
@@ -24,14 +48,16 @@ interface NearbyPeoplePanelProps {
   layout?: 'side' | 'bottom';
   selectedSalonId?: string | null;
   onHide?: () => void;
-  onEventClick?: (event: MapEventMarker) => void;
-  onEventClusterClick?: (cluster: MapEventCityCluster) => void;
   onSalonClick?: (salon: Salon) => void;
   onLiveClick?: (live: Live) => void;
+  onEventClick?: (event: MapEventMarker) => void;
   onPersonClick?: (person: NearbyPerson) => void;
   eventsFilterOn?: boolean;
   livesFilterOn?: boolean;
   salonFilterOn?: boolean;
+  /** Filtre Événement actif — même liste que la popup browse. */
+  eventsBrowseMode?: boolean;
+  eventsBrowse?: MapSidebarEventsBrowseConfig;
 }
 
 function CollapsibleSectionHeader({
@@ -211,36 +237,6 @@ function CollapsibleSidebarSection<T>({
   );
 }
 
-const CityClusterRow = memo(function CityClusterRow({
-  cluster,
-  onSelect,
-}: {
-  cluster: MapEventCityCluster;
-  onSelect: () => void;
-}) {
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={onSelect}
-        className="w-full text-left px-2 py-1 hover:bg-[var(--ms-surface-elevated)] border-l-2 border-transparent hover:border-purple-500/40 transition"
-      >
-        <div className="flex items-start gap-1.5">
-          <span className="text-sm shrink-0 leading-none" aria-hidden>
-            📍
-          </span>
-          <div className="min-w-0 flex-1 space-y-0.5">
-            <p className={`${SIDEBAR_ROW_NAME} text-gray-100`}>{cluster.cityLabel}</p>
-            <p className={`${SIDEBAR_ROW_META} text-purple-300/90`}>
-              {cluster.count} événement{cluster.count !== 1 ? 's' : ''} cette semaine
-            </p>
-          </div>
-        </div>
-      </button>
-    </li>
-  );
-});
-
 const SalonSidebarRow = memo(function SalonSidebarRow({
   salon,
   active,
@@ -250,6 +246,8 @@ const SalonSidebarRow = memo(function SalonSidebarRow({
   active: boolean;
   onSelect: () => void;
 }) {
+  const listenerCount = Math.max(0, salon.listenersCount ?? 0);
+
   return (
     <li>
       <button
@@ -267,6 +265,7 @@ const SalonSidebarRow = memo(function SalonSidebarRow({
           avatarUrl={salon.hostAvatarUrl}
           size="xs"
           isLive={salon.isLive}
+          liveViewersCount={salon.isLive && listenerCount > 0 ? listenerCount : undefined}
         />
         <div className="min-w-0 flex-1">
           <UsernameDisplay
@@ -277,8 +276,17 @@ const SalonSidebarRow = memo(function SalonSidebarRow({
             usernameWaveTo={salon.hostUsernameWaveTo}
             className={SIDEBAR_ROW_NAME}
           />
-          <p className={`${SIDEBAR_ROW_META} text-fuchsia-300/90`}>{salon.title}</p>
+          <p className={`${SIDEBAR_ROW_META} text-fuchsia-300/90 truncate`}>{salon.title}</p>
         </div>
+        {listenerCount > 0 ? (
+          <span
+            className="shrink-0 text-[9px] sm:text-[10px] font-semibold tabular-nums text-fuchsia-200/90"
+            title={`${listenerCount} participant${listenerCount !== 1 ? 's' : ''}`}
+            aria-label={`${listenerCount} participant${listenerCount !== 1 ? 's' : ''}`}
+          >
+            {formatCompactCount(listenerCount)} 🎧
+          </span>
+        ) : null}
       </button>
     </li>
   );
@@ -376,17 +384,38 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
   layout = 'bottom',
   selectedSalonId,
   onHide,
-  onEventClick,
-  onEventClusterClick,
   onSalonClick,
   onLiveClick,
+  onEventClick,
   onPersonClick,
   eventsFilterOn = false,
   livesFilterOn = false,
   salonFilterOn = false,
+  eventsBrowseMode = false,
+  eventsBrowse,
 }: NearbyPeoplePanelProps) {
   const { t } = useTranslation();
   const isBottom = layout === 'bottom';
+  const showEventsBrowseList = eventsBrowseMode && Boolean(eventsBrowse?.token);
+
+  const browse = useMapEventsBrowseData({
+    enabled: showEventsBrowseList,
+    token: eventsBrowse?.token ?? '',
+    profileCity: eventsBrowse?.profileCity,
+    favoriteAuthorIds: eventsBrowse?.favoriteAuthorIds,
+    eventsFilterOn: eventsBrowse?.eventsFilterOn,
+    filterCriteria: eventsBrowse?.filterCriteria,
+    aroundEventPosts: eventsBrowse?.aroundEventPosts,
+    viewerId: eventsBrowse?.viewerId,
+    onPostChange: eventsBrowse?.onPostChange,
+  });
+
+  const handleBrowsePostChange = useCallback(
+    (postId: string, patch: Partial<FeedPost>) => {
+      browse.handlePostChange(postId, patch);
+    },
+    [browse]
+  );
   const [sectionVisibleCounts, setSectionVisibleCounts] = useState<Record<string, number>>({});
   const [retractedSections, setRetractedSections] = useState<Record<string, boolean>>({});
   const getSectionVisibleCount = useCallback(
@@ -436,27 +465,21 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
     [content.livesFollowing, content.lives, content.livesSuggestions]
   );
   const salonCount = useMemo(() => countSalonsSidebarItems(content), [content]);
-  const eventCount = useMemo(() => countEventsSidebarItems(content), [content]);
-  const showWeekLabel =
-    eventsFilterOn &&
-    (content.eventClusters.length > 0 ||
-      content.eventClustersFollowing.length > 0 ||
-      content.eventClustersSuggestions.length > 0 ||
-      content.events.length > 0 ||
-      content.eventsFollowing.length > 0 ||
-      content.eventsSuggestions.length > 0);
-  const showCategoryPanels = livesFilterOn || salonFilterOn || eventsFilterOn;
-  const showEventClusterSections = eventsFilterOn && detail.tier === 'overview';
-  const showEventItemSections = eventsFilterOn && detail.tier !== 'overview';
+  const eventCount = useMemo(
+    () => (showEventsBrowseList ? browse.activePosts.length : countEventsSidebarItems(content)),
+    [showEventsBrowseList, browse.activePosts.length, content]
+  );
+  const showCategoryPanels = livesFilterOn || salonFilterOn;
+  const showFollowingOnlyPanel = content.noFilters;
+  const eventsFollowingEmptyText = t('map.sidebarEventsFollowingEmpty', {
+    defaultValue: 'Aucun événement suivi ou enregistré.',
+  });
   const followingEmptyText = t('map.sidebarFollowingEmpty', { defaultValue: 'Aucun contenu suivi.' });
   const suggestionsEmptyText = t('map.sidebarSuggestionsEmpty', { defaultValue: 'Aucune suggestion.' });
   const livesInViewEmptyText = content.zoomTooWide
     ? t('map.sidebarLivesZoomHint', { defaultValue: 'Zoomez pour voir les lives dans cette zone.' })
     : t('map.sidebarLivesEmpty', { defaultValue: 'Aucun live dans cette zone.' });
   const salonsInViewEmptyText = t('map.sidebarSalonsEmpty', { defaultValue: 'Aucun salon dans cette zone.' });
-  const eventsInViewEmptyText = eventsLoading
-    ? t('map.sidebarEventsLoading', { defaultValue: 'Chargement des événements…' })
-    : t('map.sidebarEventsEmpty', { defaultValue: 'Aucun événement dans cette zone.' });
 
   const summaryParts: string[] = [];
   if (eventCount > 0) {
@@ -474,7 +497,10 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
 
   const emptyMessage = () => {
     if (content.noFilters) {
-      return 'Activez Lives, Salon ou Évènement sur la carte pour afficher la liste.';
+      return t('map.sidebarNoFiltersFollowingEmpty', {
+        defaultValue:
+          'Aucun live, salon ou événement suivi. Activez Lives, Salon ou Évènement pour explorer la carte.',
+      });
     }
     if (content.zoomTooWide) {
       if (livesFilterOn && !salonFilterOn && !eventsFilterOn) {
@@ -498,7 +524,9 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
       className={
         isBottom
           ? 'ms-map-sidebar-panel shrink-0 w-full max-h-[min(52dvh,22rem)] sm:max-h-[min(58vh,28rem)] flex flex-col min-h-0 overflow-hidden bg-[var(--ms-surface)] border-t border-[var(--ms-border)] z-20'
-          : 'ms-map-sidebar-panel shrink-0 w-[min(38vw,10.5rem)] min-w-[7.5rem] sm:w-56 flex flex-col min-h-0 overflow-hidden bg-[var(--ms-surface)] border-r border-[var(--ms-border)] z-20'
+          : showEventsBrowseList
+            ? 'ms-map-sidebar-panel shrink-0 w-[min(92vw,22rem)] min-w-[16rem] sm:w-72 flex flex-col min-h-0 overflow-hidden bg-[var(--ms-surface)] border-r border-[var(--ms-border)] z-20'
+            : 'ms-map-sidebar-panel shrink-0 w-[min(38vw,10.5rem)] min-w-[7.5rem] sm:w-56 flex flex-col min-h-0 overflow-hidden bg-[var(--ms-surface)] border-r border-[var(--ms-border)] z-20'
       }
     >
       <div className="shrink-0 px-2.5 sm:px-3 py-2.5 border-b border-[var(--ms-border)]">
@@ -511,9 +539,6 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
               {mapDetailTierLabel(detail.tier)}
               {summaryParts.length > 0 ? ` · ${summaryParts.join(' · ')}` : loading ? ' · …' : ''}
             </p>
-            {showWeekLabel && (
-              <p className="text-[9px] text-purple-400/80 mt-0.5">Cette semaine · {formatWeekRangeLabel()}</p>
-            )}
           </div>
           {onHide && (
             <button
@@ -534,117 +559,94 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
         </div>
       </div>
 
-      <ul className="flex-1 min-h-0 overflow-y-auto py-1">
-        {itemCount === 0 && !showCategoryPanels ? (
+      <div className="flex-1 min-h-0 flex flex-col min-w-0">
+        <ul className="flex-1 min-h-0 overflow-y-auto py-1">
+          {showEventsBrowseList ? (
+            <li className="list-none min-w-0">
+              <MapEventsBrowseList
+                variant="sidebar"
+                activeTab={browse.activeTab}
+                onTabChange={browse.setActiveTab}
+                communityEvents={browse.communityEvents}
+                countryUpcoming={browse.countryUpcoming}
+                communityEventsVisibleCount={browse.communityEventsVisibleCount}
+                countryEventsVisibleCount={browse.countryEventsVisibleCount}
+                activeLoading={browse.activeLoading}
+                eventsByDay={browse.eventsByDay}
+                countryEventsByCategory={browse.countryEventsByCategory}
+                sectionEmoji={browse.sectionEmoji}
+                displayCountryName={browse.displayCountryName}
+                countrySectionEmoji={browse.countrySectionEmoji}
+                onOpenPost={(post) => {
+                  if (eventsBrowse?.onZoomEventOnMap) {
+                    eventsBrowse.onZoomEventOnMap(post);
+                    return;
+                  }
+                  if (eventsBrowse?.onOpenEvent) {
+                    eventsBrowse.onOpenEvent(post);
+                    return;
+                  }
+                  eventsBrowse?.onOpenEventDetail?.(post);
+                }}
+                onPostChange={handleBrowsePostChange}
+                selectedMapEventDayKey={eventsBrowse?.selectedMapEventDayKey}
+                onMapEventDayKeySelect={eventsBrowse?.onMapEventDayKeySelect}
+              />
+            </li>
+          ) : null}
+        {itemCount === 0 && !showCategoryPanels && !showEventsBrowseList && !showFollowingOnlyPanel ? (
           <li className="px-2 sm:px-3 py-6 text-center text-[10px] text-gray-500 leading-snug">
             {emptyMessage()}
           </li>
         ) : (
           <>
-            {showEventClusterSections && (
-              <CollapsibleSidebarSection
-                label={t('map.sidebarEventsFollowing', { defaultValue: 'Suivi / Enregistré' })}
-                items={content.eventClustersFollowing}
-                emptyText={t('map.sidebarEventsFollowingEmpty', {
-                  defaultValue: 'Aucun événement suivi ou enregistré.',
-                })}
-                {...sectionProps('eventClustersFollowing', content.eventClustersFollowing.length)}
-                renderItem={(cluster) => (
-                  <CityClusterRow
-                    key={`follow-cluster-${cluster.cityKey}`}
-                    cluster={cluster}
-                    onSelect={() => onEventClusterClick?.(cluster)}
-                  />
-                )}
-              />
+            {showFollowingOnlyPanel && !showEventsBrowseList && (
+              <>
+                <CollapsibleSidebarSection
+                  label={t('map.sidebarEventsFollowing', { defaultValue: 'Événements suivis' })}
+                  items={content.eventsFollowing}
+                  emptyText={eventsFollowingEmptyText}
+                  {...sectionProps('nfEventsFollowing', content.eventsFollowing.length)}
+                  renderItem={(event) => (
+                    <MapEventRow
+                      key={`nf-event-${event.id}`}
+                      event={event}
+                      compact
+                      onSelect={() => onEventClick?.(event)}
+                    />
+                  )}
+                />
+                <CollapsibleSidebarSection
+                  label={t('map.sidebarLivesFollowing', { defaultValue: 'Lives suivis' })}
+                  items={content.livesFollowing}
+                  emptyText={followingEmptyText}
+                  {...sectionProps('nfLivesFollowing', content.livesFollowing.length)}
+                  renderItem={(live) => (
+                    <LiveSidebarRow
+                      key={`nf-live-${live.id}`}
+                      live={live}
+                      onSelect={() => onLiveClick?.(live)}
+                    />
+                  )}
+                />
+                <CollapsibleSidebarSection
+                  label={t('map.sidebarSalonsFollowing', { defaultValue: 'Salons suivis' })}
+                  items={content.salonsFollowing}
+                  emptyText={followingEmptyText}
+                  {...sectionProps('nfSalonsFollowing', content.salonsFollowing.length)}
+                  renderItem={(salon) => (
+                    <SalonSidebarRow
+                      key={`nf-salon-${salon.id}`}
+                      salon={salon}
+                      active={salon.id === selectedSalonId}
+                      onSelect={() => onSalonClick?.(salon)}
+                    />
+                  )}
+                />
+              </>
             )}
 
-            {showEventClusterSections && (
-              <CollapsibleSidebarSection
-                label={t('map.sidebarEventsInView', { defaultValue: 'Événements' })}
-                items={content.eventClusters}
-                emptyText={eventsInViewEmptyText}
-                {...sectionProps('eventClusters', content.eventClusters.length)}
-                renderItem={(cluster) => (
-                  <CityClusterRow
-                    key={cluster.cityKey}
-                    cluster={cluster}
-                    onSelect={() => onEventClusterClick?.(cluster)}
-                  />
-                )}
-              />
-            )}
-
-            {showEventClusterSections && (
-              <CollapsibleSidebarSection
-                label={t('map.sidebarLivesSuggestions', { defaultValue: 'Suggestions' })}
-                items={content.eventClustersSuggestions}
-                emptyText={suggestionsEmptyText}
-                {...sectionProps('eventClustersSuggestions', content.eventClustersSuggestions.length)}
-                renderItem={(cluster) => (
-                  <CityClusterRow
-                    key={`suggest-cluster-${cluster.cityKey}`}
-                    cluster={cluster}
-                    onSelect={() => onEventClusterClick?.(cluster)}
-                  />
-                )}
-              />
-            )}
-
-            {showEventItemSections && (
-              <CollapsibleSidebarSection
-                label={t('map.sidebarEventsFollowing', { defaultValue: 'Suivi / Enregistré' })}
-                items={content.eventsFollowing}
-                emptyText={t('map.sidebarEventsFollowingEmpty', {
-                  defaultValue: 'Aucun événement suivi ou enregistré.',
-                })}
-                {...sectionProps('eventsFollowing', content.eventsFollowing.length)}
-                renderItem={(event) => (
-                  <MapEventRow
-                    key={`follow-event-${event.id}`}
-                    event={event}
-                    compact
-                    onSelect={() => onEventClick?.(event)}
-                  />
-                )}
-              />
-            )}
-
-            {showEventItemSections && (
-              <CollapsibleSidebarSection
-                label={t('map.sidebarEventsInView', { defaultValue: 'Événements' })}
-                items={content.events}
-                emptyText={eventsInViewEmptyText}
-                {...sectionProps('events', content.events.length)}
-                renderItem={(event) => (
-                  <MapEventRow
-                    key={event.id}
-                    event={event}
-                    compact
-                    onSelect={() => onEventClick?.(event)}
-                  />
-                )}
-              />
-            )}
-
-            {showEventItemSections && (
-              <CollapsibleSidebarSection
-                label={t('map.sidebarLivesSuggestions', { defaultValue: 'Suggestions' })}
-                items={content.eventsSuggestions}
-                emptyText={suggestionsEmptyText}
-                {...sectionProps('eventsSuggestions', content.eventsSuggestions.length)}
-                renderItem={(event) => (
-                  <MapEventRow
-                    key={`suggest-event-${event.id}`}
-                    event={event}
-                    compact
-                    onSelect={() => onEventClick?.(event)}
-                  />
-                )}
-              />
-            )}
-
-            {livesFilterOn && (
+            {!showEventsBrowseList && livesFilterOn && (
               <CollapsibleSidebarSection
                 label={t('map.sidebarLivesFollowing', { defaultValue: 'Suivi' })}
                 items={content.livesFollowing}
@@ -660,7 +662,7 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
               />
             )}
 
-            {livesFilterOn && (
+            {!showEventsBrowseList && livesFilterOn && (
               <CollapsibleSidebarSection
                 label={t('map.sidebarLivesInView', { defaultValue: 'Lives' })}
                 items={content.lives}
@@ -672,7 +674,7 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
               />
             )}
 
-            {livesFilterOn && (
+            {!showEventsBrowseList && livesFilterOn && (
               <CollapsibleSidebarSection
                 label={t('map.sidebarLivesSuggestions', { defaultValue: 'Suggestions' })}
                 items={content.livesSuggestions}
@@ -688,7 +690,7 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
               />
             )}
 
-            {salonFilterOn && (
+            {!showEventsBrowseList && salonFilterOn && (
               <CollapsibleSidebarSection
                 label={t('map.sidebarLivesFollowing', { defaultValue: 'Suivi' })}
                 items={content.salonsFollowing}
@@ -705,7 +707,7 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
               />
             )}
 
-            {salonFilterOn && (
+            {!showEventsBrowseList && salonFilterOn && (
               <CollapsibleSidebarSection
                 label={t('map.sidebarSalonsInView', { defaultValue: 'Salons' })}
                 items={content.salons}
@@ -722,7 +724,7 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
               />
             )}
 
-            {salonFilterOn && (
+            {!showEventsBrowseList && salonFilterOn && (
               <CollapsibleSidebarSection
                 label={t('map.sidebarLivesSuggestions', { defaultValue: 'Suggestions' })}
                 items={content.salonsSuggestions}
@@ -739,7 +741,7 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
               />
             )}
 
-            {content.people.length > 0 && (
+            {!showEventsBrowseList && content.people.length > 0 && (
               <CollapsibleSidebarSection
                 label="En direct"
                 items={content.people}
@@ -755,7 +757,8 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
             )}
           </>
         )}
-      </ul>
+        </ul>
+      </div>
     </aside>
   );
 });

@@ -39,11 +39,12 @@ const alertHistory: MonitoringAlert[] = [];
 const cooldowns = new Map<AlertType, number>();
 const COOLDOWN_MS = parseInt(process.env.ALERT_COOLDOWN_MS ?? '1800000', 10); // 30 min
 
+const DEFAULT_ADMIN_EMAIL = 'admin@getsoundy.com';
+
 function getRecipients(): string[] {
   const recipients = new Set<string>();
-  recipients.add('admin@getsoundy.com');
-  const adminEmail = process.env.SMTP_ADMIN_EMAIL;
-  if (adminEmail) recipients.add(adminEmail);
+  const adminEmail = process.env.SMTP_ADMIN_EMAIL || DEFAULT_ADMIN_EMAIL;
+  recipients.add(adminEmail);
   const extra = process.env.ALERT_EXTRA_EMAILS ?? '';
   extra
     .split(',')

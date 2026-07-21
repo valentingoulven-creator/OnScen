@@ -12,6 +12,8 @@ export interface SoundyGlobePoint {
   entity?: unknown;
   /** Emoji affiché sur le badge événement (marqueurs 'event' uniquement). */
   icon?: string;
+  /** Index jour browse (0–3) pour la couleur du pin événement. */
+  dayIndex?: number;
   /** Nombre d'événements regroupés — badge numérique sur l'icône. */
   count?: number;
 }

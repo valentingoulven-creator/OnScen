@@ -7,11 +7,12 @@ const sample: GlobalSearchResultItem[] = [
   { kind: 'event', id: 'e1', title: 'Concert', authorId: 'u1', authorUsername: 'dj' },
   { kind: 'user', id: 'u1', username: 'djval' },
   { kind: 'album', id: 'a1', userId: 'u1', title: 'Summer', authorUsername: 'dj' },
+  { kind: 'song', id: 's1', userId: 'u1', title: 'Track', authorUsername: 'dj' },
 ];
 
 describe('filterGlobalSearchResults', () => {
   it('returns all items when filter is all', () => {
-    expect(filterGlobalSearchResults(sample, 'all')).toHaveLength(4);
+    expect(filterGlobalSearchResults(sample, 'all')).toHaveLength(5);
   });
 
   it('keeps only users for account filter', () => {
@@ -36,5 +37,12 @@ describe('filterGlobalSearchResults', () => {
         'city'
       )
     ).toHaveLength(1);
+  });
+
+  it('keeps albums and songs for music filter', () => {
+    expect(filterGlobalSearchResults(sample, 'music')).toEqual([
+      { kind: 'album', id: 'a1', userId: 'u1', title: 'Summer', authorUsername: 'dj' },
+      { kind: 'song', id: 's1', userId: 'u1', title: 'Track', authorUsername: 'dj' },
+    ]);
   });
 });

@@ -1,3 +1,1847 @@
+﻿================================================================================
+MODIF 745 — Sidebar EventCard : zoom seul (fix fallback ?? ouvrait le modal)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic carte sidebar ouvrait quand même MapEventDetailModal : `onZoomEventOnMap()`
+ retourne void, donc `?? onOpenEvent` déclenchait l'ouverture modal.
+
+CHANGEMENTS / FIX
+-----
+ NearbyPeoplePanel.tsx
+ ─────────────────
+ • onOpenPost : if/onZoomEventOnMap + return (plus de chaîne ??).
+
+ HomePage.tsx
+ ─────────────────
+ • handleBrowseEventZoomOnMap : fermeture modals avant zoom.
+
+FICHIERS MODIFIÉS
+-----
+ NearbyPeoplePanel.tsx · HomePage.tsx
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 744 — Sidebar Autour : alignement liste ↔ pins carte (occurrences)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Événement visible sur la carte (zoom) absent de la liste sidebar Autour :
+ la liste groupait par date primaire alors que la carte filtre sur toutes
+ les occurrences ; bascule auto vers l'onglet Pays.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/feedEvents.ts
+ ─────────────────
+ • resolvePostBrowseDayKey : première occurrence dans la fenêtre jour.
+ • fallbackNearestDay pour posts viewport carte.
+
+ web/app/src/hooks/useMapEventsBrowseData.ts
+ ─────────────────
+ • Onglet Autour : groupFeedPostsByCalendarDays + fallbackNearestDay.
+ • communityEventsVisibleCount = len(viewport) ; garde onglet Autour si pins.
+
+ web/app/src/lib/feedEventsBrowse.test.ts
+ ─────────────────
+ • Tests multi-dates + fallback viewport.
+
+FICHIERS MODIFIÉS
+-----
+ feedEvents.ts · useMapEventsBrowseData.ts · feedEventsBrowse.test.ts
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 743 — Filtres carte : retrait badges numériques (Lives / Salon / Évènement)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retirer les pastilles de comptage sur la pile filtres carte (haut gauche).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • Suppression badges livesFilterBadgeCount, salonFilterBadgeCount,
+   eventsFilterBadgeCount, activeMapFilterCount sur ms-map-filter-stack.
+
+FICHIERS MODIFIÉS
+-----
+ HomePage.tsx
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 742 — Sidebar événements : clic carte → zoom seul (sans modal)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic EventCard dans le carrousel sidebar : centrer la carte sur le lieu,
+ sans ouvrir le modal détail.
+
+CHANGEMENTS / FIX
+-----
+ HomePage.tsx · NearbyPeoplePanel.tsx
+ ─────────────────
+ • focusMapOnFeedEvent(post, { openModal? }) ; handleBrowseEventZoomOnMap.
+ • Sidebar : onZoomEventOnMap (zoom only) ; feuille browse garde openModal.
+
+FICHIERS MODIFIÉS
+-----
+ HomePage.tsx · NearbyPeoplePanel.tsx
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 741 — Pin événement carte : modal direct (confirm + rebuild assets)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic pin événement : ouvrir le modal détail sans popup Leaflet intermédiaire
+ (« Événement aujourd'hui… »).
+
+CHANGEMENTS / FIX
+-----
+ MapView.tsx
+ ─────────────────
+ • Clic : closeTooltip + closePopup défensif ; onSelectMapEvent direct.
+
+ HomePage.tsx
+ ─────────────────
+ • handleCityEventClick : flyToMapEventMarker + modal (sans popup).
+
+BUILD
+-----
+ web/app → npm run build → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 740 — Sidebar événements : clic carte → zoom emplacement
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic sur EventCard dans le carrousel sidebar carte : centrer / zoomer la carte
+ sur le lieu de l'événement.
+
+CHANGEMENTS / FIX
+-----
+ NearbyPeoplePanel.tsx
+ ─────────────────
+ • onOpenPost utilise onOpenEvent (handleBrowseEventOpen) au lieu de
+   onOpenEventDetail seul.
+
+FICHIERS MODIFIÉS
+-----
+ NearbyPeoplePanel.tsx
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 739 — Modal événement carte : retrait « Voir dans le fil »
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retirer le lien / overlay « Voir dans le fil » sur le hero EventCard dans le
+ modal détail carte.
+
+CHANGEMENTS / FIX
+-----
+ EventCard.tsx · MapEventDetailModal.tsx · HomePage.tsx
+ ─────────────────
+ • Hero non cliquable (plus overlay ni navigation fil) quand onOpenAuthor est actif.
+ • Suppression prop onOpenInFeed du modal carte.
+
+FICHIERS MODIFIÉS
+-----
+ EventCard.tsx · MapEventDetailModal.tsx · HomePage.tsx
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 738 — Carte : clic événement → modal détail (sans popup Leaflet)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Au clic sur un pin événement, ouvrir directement le modal EventCard au lieu
+ de la popup Leaflet intermédiaire.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapView.tsx
+ ─────────────────
+ • Suppression bindPopup / openPopup sur marqueurs événements.
+ • Clic : pin individuel ou cluster 1 evt → onSelectMapEvent ; cluster multi → sidebar ville.
+
+FICHIERS MODIFIÉS
+-----
+ MapView.tsx
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 737 — EventCard : retrait badge « À venir »
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retirer le badge vert « À venir » sur le hero des cartes événement.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/EventCard.tsx
+ ─────────────────
+ • Suppression badge « À venir » et prop showUpcomingBadge.
+
+FICHIERS MODIFIÉS
+-----
+ EventCard.tsx · EventsCarousel · UserEventsSection · MapEventBrowseDetailOverlay · MapOrganizerEventsPopup
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 736 — MapEventSearchBar : recherche villes / pays intégrée
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La barre recherche carte (événements / organisateurs) doit aussi proposer
+ villes et pays, avec vol carte au clic.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapEventSearchBar.tsx
+ ─────────────────
+ • searchPlaces en parallèle ; sections Pays / Villes / Événements / Organisateurs.
+ • Prop onSelectPlace ; placeholder « Événement, ville, organisateur… ».
+
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • handleMapSearchSelectPlace (globe flyToGlobe ou flat flyToCityBounds).
+ • Suppression MapGlobePlaceSearch séparée sur le globe.
+
+ web/app/src/locales/fr.json · en.json
+ ─────────────────
+ • Libellés eventSearch* mis à jour.
+
+FICHIERS MODIFIÉS
+-----
+ MapEventSearchBar.tsx · HomePage.tsx · fr.json · en.json
+
+BUILD (si vérifié)
+-----
+ web/app → npm run build → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 735 — ProfileSearchBar : recherche profils uniquement
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La barre header doit proposer uniquement des profils utilisateur (plus
+ événements, lieux, albums, sons).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/ProfileSearchBar.tsx
+ ─────────────────
+ • Appel direct api.searchUsers (/users/search) au lieu de searchGlobal.
+ • Liste plate profils ; placeholders profileSearch (plus globalSearch multi-types).
+
+FICHIERS MODIFIÉS
+-----
+ ProfileSearchBar.tsx → recherche comptes uniquement
+
+BUILD (si vérifié)
+-----
+ web/app → npm run build → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 734 — Recherche globale : fusion parallèle + anti-race ProfileSearchBar
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La barre header ne proposait parfois que des profils (requête stale ou sources
+ non fusionnées).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/globalSearch.ts
+ ─────────────────
+ • Fusion parallèle systématique : /api/search + lieux + musique + feed événements
+   + fallback users ; merge par id ; kind forcé sur chaque hit.
+
+ web/app/src/components/ProfileSearchBar.tsx
+ ─────────────────
+ • searchSeqRef + guard aborted : évite qu'une requête annulée écrase les résultats.
+
+FICHIERS MODIFIÉS
+-----
+ globalSearch.ts → agrégation multi-sources robuste
+ ProfileSearchBar.tsx → anti-race condition
+
+BUILD (si vérifié)
+-----
+ web/app → npm run build → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 733 — ProfileSearchBar : retrait liste filtres (Tout / Compte / …)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retirer le menu déroulant de filtres à gauche de la barre de recherche header ;
+ recherche globale unique (tous types).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/ProfileSearchBar.tsx
+ ─────────────────
+ • Suppression bouton « Tout » + listbox filtres.
+ • Barre simplifiée : icône loupe + champ (sections résultats inchangées).
+
+FICHIERS MODIFIÉS
+-----
+ ProfileSearchBar.tsx → UI sans filtre
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 732 — Recherche header : multi-types réels (plus profils-ville only)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Filtre « Tout » : résultats dominés par des profils (match ville « Montpellier »
+ etc.) — événements/lieux noyés ou absents ; fallback API incomplet.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/globalSearch.ts
+ ─────────────────
+ • Profils : pseudo uniquement (plus de match par ville — réservé au filtre Lieux).
+
+ web/app/src/lib/globalSearch.ts
+ ─────────────────
+ • Promise.allSettled (API + lieux + musique).
+ • kind explicite sur chaque hit ; fallback feed événements si /api/search échoue.
+ • Fusion /music/search + recherche feed eventsOnly en secours.
+
+ web/app/src/components/ProfileSearchBar.tsx
+ ─────────────────
+ • Cache par filtre+requête ; bucket kind robuste pour sections.
+
+FICHIERS MODIFIÉS
+-----
+ globalSearch.ts (backend + frontend), ProfileSearchBar.tsx
+
+BUILD (si vérifié)
+-----
+ backend vitest globalSearch → ✅
+ app tsc --noEmit → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 731 — Recherche globale : sections visibles + musique msdev PostgreSQL
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Filtre « Tout » : l'utilisateur ne voyait que des profils — l'API renvoyait
+ bien événements/lieux, mais l'UI mélangeait mal les types ; albums/sons vides
+ en msdev (store.json sans compositions, PG non chargé).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/ProfileSearchBar.tsx
+ ─────────────────
+ • Résultats groupés par section (Lieux → Événements → Albums → Sons → Profils).
+
+ web/app/src/lib/globalSearch.ts
+ ─────────────────
+ • Fusion /music/search ; places isolées (échec Nominatim n'annule plus tout).
+
+ commun/backend/src/bootstrap.ts
+ ─────────────────
+ • msdev : loadAlbumsFromPg + loadCompositionsFromPg si DATABASE_URL présent.
+
+FICHIERS MODIFIÉS
+-----
+ ProfileSearchBar.tsx → sections explicites
+ globalSearch.ts (frontend) → musique + robustesse
+ bootstrap.ts → musique PG en dev
+
+BUILD (si vérifié)
+-----
+ app vitest globalSearchFilter → ✅
+ app tsc --noEmit → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 730 — Recherche globale header : événements, albums, sons, villes (pas seulement profils)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La barre ProfileSearchBar (placeholder multi-types) ne remontait en pratique
+ que des profils utilisateur : le moteur backend ne matchait que le pseudo
+ (users), le titre d'événement/lieu, le titre d'album ou titre/artiste du son.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/globalSearch.ts
+ ─────────────────
+ • Users : pseudo + ville ; ranking unifié.
+ • Événements : titre, lieu, organisateur, comptes tagués ; exclusion adminBlocked.
+ • Albums : titre, description, pseudo créateur.
+ • Sons : titre, artiste, album parent, pseudo créateur.
+
+ web/app/src/lib/globalSearch.ts
+ ─────────────────
+ • Fallback [] si clés API absentes (rétrocompat).
+
+ web/app/src/lib/globalSearchFilter.ts + ProfileSearchBar.tsx
+ ─────────────────
+ • Filtre « Musique » (albums + sons) + i18n fr/en.
+
+ commun/backend/src/lib/globalSearch.test.ts
+ web/app/src/lib/globalSearchFilter.test.ts
+ ─────────────────
+ • Tests organisateur, ville, filtre musique.
+
+FICHIERS MODIFIÉS
+-----
+ globalSearch.ts (backend) → matching élargi
+ globalSearch.ts (frontend) → défensif API
+ ProfileSearchBar + globalSearchFilter + locales → filtre Musique
+ tests vitest backend/frontend
+
+BUILD (si vérifié)
+-----
+ backend vitest globalSearch → ✅
+ app vitest globalSearchFilter → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 729 — Sidebar carte sans filtre : section Suivi (lives, salons, événements)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sans filtre Lives / Salon / Évènement, le panneau latéral affichait seulement
+ « Activez un filtre… » au lieu des contenus suivis.
+
+CHANGEMENTS / FIX
+-----
+ mapSidebarContent → noFilters : livesFollowing, salonsFollowing, eventsFollowing.
+ NearbyPeoplePanel → 3 sections Suivi + clic événement (MapEventRow).
+ HomePage → allMapEvents + onEventClick ; i18n fr/en.
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 728 — Browse « Autour » : liste alignée viewport carte / globe 3D
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La sidebar « Autour » ne reflétait pas les événements visibles sur la carte
+ au pan/zoom (flat) ou selon l’altitude globe — décalage pins vs carrousels.
+
+CHANGEMENTS / FIX
+-----
+ browseAroundEventPosts ← mapEventClustersForMap (événements visibles à l’écran).
+ Globe : clip rayon selon altitude caméra ; mapSidebarDetailEqual inclut altitude.
+ Badge compteur filtre Évènement = même jeu visible.
+
+FICHIERS MODIFIÉS
+-----
+ mapEventClusters.ts, mapMarkerVisibility.ts, mapSidebarContent.ts,
+ useMapEventsBrowseData.ts, HomePage.tsx
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 727 — Filtre événement « Autour » : rayon 30 km fixe (plus viewport zoom)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L’onglet Autour / les pins événement suivaient le pan/zoom carte (clip viewport)
+ au lieu d’un rayon fixe de 30 km autour du lieu du filtre.
+
+CHANGEMENTS / FIX
+-----
+ useMapEventsBrowseData → onglet Autour alimenté par aroundEventPosts (marqueurs
+ filtrés carte), pas userEventsOnly seul.
+ HomePage → browseAroundEventPosts depuis filteredMapEvents ; badge compteur aligné.
+ mapEventClustersForMap + mapSidebarContent → sans clip viewport si filtre événement actif.
+
+FICHIERS MODIFIÉS
+-----
+ mapEventFilter.ts, mapSidebarContent.ts, useMapEventsBrowseData.ts,
+ NearbyPeoplePanel.tsx, MapEventsBrowseSheet.tsx, HomePage.tsx
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 726 — Fix build frontend : imports/props inutilisés (TS6133)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ `npm run build` échouait sur tsc -b (TS6133) après refonte sidebar événements.
+
+CHANGEMENTS / FIX
+-----
+ MapSalonFilterSheet.tsx → retrait import LivesGeoPrefs inutilisé.
+ NearbyPeoplePanel.tsx → retrait props onEventClick / onEventClusterClick (liste browse).
+ HomePage.tsx → retrait passage de ces props.
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm run build → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 725 — Type événement « chant » : icône 🎶 + libellé « Musique »
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le type « chant » utilisait 🎤 et le libellé « Chant » ; « autre » avait reçu 🎶
+ à la place de ✨.
+
+CHANGEMENTS / FIX
+-----
+ eventType.ts → chant : 🎶 · autre : ✨ (revert).
+ fr.json / en.json → feed + admin : eventTypeChant → « Musique » / « Music ».
+ CreateFeedEventModal → titre brouillon par défaut « Musique ».
+ eventType.test.ts → assertions mises à jour.
+
+FICHIERS MODIFIÉS
+-----
+ eventType.ts, eventType.test.ts, CreateFeedEventModal.tsx, locales fr/en
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 724 — Type événement « Autre » : icône 🎶 (plus 📍)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ 📍 pour « autre » prêtait à confusion avec les pins jour sur la carte.
+
+CHANGEMENTS / FIX
+-----
+ eventType.ts → autre : 🎶 (aligné thème musical Soundy).
+
+ CreateFeedEventModal → EVENT_TYPE_META via getEventTypeIcon (source unique).
+
+ eventType.test.ts → assertions mises à jour.
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 723 — EventCard : icône par type (danse, chant, autre)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Hero sans photo et badge affichaient un calendrier + libellé générique « Événement ».
+
+CHANGEMENTS / FIX
+-----
+ EventCard.tsx → placeholder hero + badge : emoji et libellé selon eventType
+ (💃 Danse · 🎤 Chant · 📍 Autre).
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 722 — Sidebar événements : liste par jours uniquement (suppression MapEventRow)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Panneau latéral affichait des lignes MapEventRow (viewport) au zoom ville au lieu
+ de la liste browse par jours (Autour / Pays + carrousels).
+
+CHANGEMENTS / FIX
+-----
+ NearbyPeoplePanel.tsx → suppression sections MapEventRow et clusters ville ;
+ browse par jours dès que des événements sont visibles sur la sidebar.
+
+ HomePage.tsx → mapEventsBrowseConfig + eventsBrowseMode sur sidebarEventsFilterOn
+ (filtre Événement ou globe ambiant).
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 721 — Sidebar browse : clic EventCard ouvre le modal détail
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic sur une carte événement du carrousel sidebar (filtre Événement) sans
+ modal détail — overlay sidebar bas de panneau uniquement.
+
+CHANGEMENTS / FIX
+-----
+ HomePage.tsx → handleBrowseEventDetailOpen (modal sans vol carte).
+
+ NearbyPeoplePanel + MapEventsBrowseSheet → onOpenEventDetail sur le carrousel.
+
+ mapEventsBrowseConfig → onOpenEventDetail branché.
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 720 — Popup carte : clic item Leaflet ouvre le détail événement (modal)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic sur un bouton `.map-event-popup-item` (popup cluster Leaflet) sans effet
+ visible en mode filtre Événement actif.
+
+CHANGEMENTS / FIX
+-----
+ HomePage.tsx → MapEventDetailModal ouvert aussi avec filtre Événement ;
+ handleCityEventClick cache le FeedPost depuis le marqueur ;
+ selectedMapEventPost fallback feedPostFromMapEventMarker.
+
+ MapEventDetailModal.tsx → z-index 120 (au-dessus popup Leaflet).
+
+ Suppression externalDetailPost sidebar (modal carte à la place).
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 719 — Carte Leaflet : pins événement colorés par jour (fix rendu)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Pins carte encore perçus comme 📍 rouges uniformes ; couleurs jour sidebar
+ non reflétées sur la carte plate.
+
+CHANGEMENTS / FIX
+-----
+ mapEventDayColors.ts → pin Leaflet via <img data:image/svg+xml> (rendu fiable).
+
+ MapView.tsx → couleur par événement en zoom ville/rue ; cluster en overview ;
+ className Leaflet `event-day-leaflet-icon` (fond transparent).
+
+ mapMarkersKey.ts → clé cluster inclut l’index jour (rebuild marqueurs).
+
+ index.css → styles img.event-day-pin + reset .leaflet-div-icon.
+
+BUILD (si vérifié)
+-----
+ tsc + vitest mapEventDayColors → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 718 — Pin jour browse : clic filtre carte/globe sur un seul jour
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Pin coloré par jour dans la sidebar browse non interactif ; la carte/globe
+ affichait toujours tous les jours de la fenêtre.
+
+CHANGEMENTS / FIX
+-----
+ mapEventFilter.ts → filterMapEventsOnCalendarDay(dayKey).
+
+ HomePage.tsx → état mapEventDayPinFilter (toggle) appliqué à mapEventsForPins.
+
+ MapEventsBrowseList.tsx → pin jour = bouton 44×44, aria-pressed + ring si actif.
+
+ NearbyPeoplePanel + MapEventsBrowseSheet → props selectedMapEventDayKey / callback.
+
+ locales fr/en → eventsDayPinFilter, eventsDayPinFilterClear.
+
+BUILD (si vérifié)
+-----
+ tsc → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 717 — Pins événements : couleur par jour (liste, carte, globe)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Icône 📍 identique pour tous les jours dans la sidebar browse événements,
+ sur la carte Leaflet et sur le globe 3D.
+
+CHANGEMENTS / FIX
+-----
+ mapEventDayColors.ts + EventDayPinIcon.tsx
+ ─────────────────
+ • Jour 1 vert · jour 2 bleu · jour 3 orange · jour 4 noir (fenêtre browse 4 jours).
+
+ MapEventsBrowseList.tsx → SectionHeader par jour : EventDayPinIcon coloré.
+
+ MapView.tsx → marqueurs cluster événement : SVG buildEventDayPinHtml (jour le plus proche).
+
+ GlobeView.tsx + SoundyGlobeEventMarkers.tsx → dayIndex sur les points event, pin SVG.
+
+ index.css → styles .event-day-pin / .globe-event-pin pour SVG.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/mapEventDayColors.ts → utilitaires couleur + HTML Leaflet
+ web/app/src/components/EventDayPinIcon.tsx → composant SVG React
+ web/app/src/components/MapEventsBrowseList.tsx → en-têtes jour colorés
+ web/app/src/components/MapView.tsx → pins carte
+ web/app/src/components/GlobeView.tsx + globe3d/SoundyGlobeEventMarkers.tsx → pins globe
+
+BUILD (si vérifié)
+-----
+ vitest mapEventDayColors + tsc → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 716 — Sidebar carte : SalonSidebarRow affiche le nombre d’auditeurs
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Lignes salon du panneau latéral carte sans indication du nombre de participants.
+
+CHANGEMENTS / FIX
+-----
+ NearbyPeoplePanel.tsx → SalonSidebarRow : badge « N 🎧 » (listenersCount) ;
+ liveViewersCount sur l’avatar si salon live.
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Popup cluster métropole listait aussi les sessions GPS dans le rayon ~40 km
+ (« Géolocalisés sur la ville »). Attendu : uniquement les salons/lives créés
+ sans GPS précis, ancrés sur le centre de la grande ville.
+
+CHANGEMENTS / FIX
+-----
+ mapMajorCityLiveClusters.ts
+ ─────────────────
+ • clusterSalonsLivesByMajorCity : seulement kind === cityAnchored (~2 km centre).
+ • geolocatedInCity → marqueurs individuels sur la carte, plus dans le cluster.
+
+ MapMajorCityLiveSheet.tsx → une seule section (suppression geoSection).
+
+ locales fr/en → majorCityAnchoredSection libellé clarifié.
+
+ mapMajorCityLiveClusters.test.ts → test mis à jour.
+
+BUILD (si vérifié)
+-----
+ vitest mapMajorCityLiveClusters + tsc → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Activer le filtre Salon (bouton 🎵) recentrait la carte sur Paris : les critères
+ par défaut reprenaient mapGeo (repli Paris) et applySalonFilter appelait flyTo.
+
+CHANGEMENTS / FIX
+-----
+ MapSalonFilterSheet.tsx → getDefaultSalonFilterCriteria sans ville (location vide,
+ lat/lng null) ; affinités depuis nearbyPanelPrefs seulement.
+ flyToSalonFilterBounds reste actif si l’utilisateur choisit une ville dans le sheet.
+
+ HomePage.tsx → appels sans mapGeo.
+
+BUILD (si vérifié)
+-----
+ web/app → npx tsc --noEmit → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic sur le bouton Salon ne doit pas ouvrir MapSidebarBrowseSheet — seulement
+ activer/désactiver le filtre carte + panneau latéral (comme Lives).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • toggleSalonFilter : clic actif → disableSalonFilter ; inactif → applySalonFilter.
+ • applySalonFilter : setNearbyPeopleVisible, plus openSalonBrowsePopup.
+ • Popup browse salon réservée au bouton entonnoir (openMapFilterPopup).
+ • title/aria « Désactiver le filtre Salon » quand actif.
+
+BUILD (si vérifié)
+-----
+ web/app → npx tsc --noEmit → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic sur Salon (filtre actif) : popup toujours invisible — race entre le clic
+ (open browse) et l’appui long (disableSalonFilter à 600 ms) + réouverture
+ no-op si showSalonBrowseSheet déjà true.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • openSalonBrowsePopup : pulse false → rAF → true (salonBrowseOpenSeqRef).
+ • Appui long (actif ou non) → sheet critères salon, plus disable au long press.
+ • clearSalonFilterLongPress au clic ; open={showSalonBrowseSheet} sans && salonFilterOn.
+
+ MapSidebarBrowseSheet.tsx → garde backdrop 450 ms.
+
+BUILD (si vérifié)
+-----
+ web/app → npx tsc --noEmit → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic sur le bouton Salon (filtre actif) : la popup browse se fermait aussitôt
+ (ghost-click touch sur le backdrop) ou ne montait pas de façon fiable.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • openSalonBrowsePopup() : ouverture différée (setTimeout 0) + panneau nearby.
+ • toggleSalonFilter / applySalonFilter / entonnoir → openSalonBrowsePopup.
+ • MapSidebarBrowseSheet salon toujours monté, open={showSalonBrowseSheet && salonFilterOn}.
+ • deactivateMapContentFiltersExcept → ferme aussi showSalonBrowseSheet.
+
+ web/app/src/components/MapSidebarBrowseSheet.tsx
+ ─────────────────
+ • Ignorer clic backdrop < 300 ms après ouverture (openedAtRef).
+
+BUILD (si vérifié)
+-----
+ web/app → npx tsc --noEmit → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ npm run build échouait : EventCard exige onOpen ; MapOrganizerEventsPopup
+ passait la carte sans prop + bouton wrapper (HTML invalide).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapOrganizerEventsPopup.tsx
+ ─────────────────
+ • onOpen={onSelectEvent} sur EventCard ; suppression du <button> englobant.
+
+BUILD (si vérifié)
+-----
+ web/app → npm run build → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 709 — Carte : bouton Salon → popup browse (Suivi / Autour / Suggestion)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton « Salon » sur la pile filtres carte n’ouvrait pas la popup liste
+ (comportement attendu comme Lives / Événements). Onglets à renommer et aligner
+ à droite : Suivi, Autour, Suggestion.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • Clic court Salon actif → ouvre MapSidebarBrowseSheet ; inactif → applySalonFilter
+   (default + popup).
+ • Appui long actif → désactive le filtre ; inactif → sheet critères salon.
+ • title/aria « Voir les salons sur la carte » quand filtre actif.
+
+ web/app/src/components/MapSidebarBrowseSheet.tsx
+ ─────────────────
+ • Onglets Suivi / Autour / Suggestion (clés map.browseTab*).
+ • Barre d’onglets alignée à droite (inline-flex).
+
+ locales fr/en → browseTabFollowing, browseTabAround, browseTabSuggestions
+
+FICHIERS MODIFIÉS
+-----
+ HomePage.tsx, MapSidebarBrowseSheet.tsx, locales fr/en
+
+BUILD (si vérifié)
+-----
+ web/app → npx tsc --noEmit → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ MapSidebarBrowseSheet trop compacte (style sidebar 10px, 3 sections repliables,
+ doublons Live/viewers) — illisible en popup modal.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapSidebarBrowseSheet.tsx
+ ─────────────────
+ • Onglets Suivi / Zone / Plus (badges compteurs) au lieu de sections repliables.
+ • Cartes 72px : titre, host, pill Live, spectateurs/auditeurs, chevron.
+ • Header compact : badge total, actions icône (carte, filtre, fermer).
+ • Poignée bottom-sheet mobile, bordure accent rouge/fuchsia, pagination « Afficher plus ».
+
+ locales fr/en → livesBrowseTabInView, livesBrowseTabsAria, salonBrowseTabInView
+
+FICHIERS MODIFIÉS
+-----
+ MapSidebarBrowseSheet.tsx, locales fr/en
+
+BUILD (si vérifié)
+-----
+ web/app → npx tsc --noEmit → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 707 — Carte : entonnoir → popup browse Lives et Salon
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Même UX que Événements (MODIF 706) : filtre Lives ou Salon actif → bouton
+ entonnoir ouvre une popup liste (Suivi / Zone / Suggestions), pas le résumé
+ critères générique.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapSidebarBrowseSheet.tsx (nouveau)
+ ─────────────────
+ • Sheet modal lives (rouge) ou salon (fuchsia) : sections sidebar + filtres.
+ • Lives : panneau geo/tri (MapLivesFilterEditor) ; Salon : sheet filtre existant.
+
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • openMapFilterPopup : events → events sheet, lives → lives sheet, salon → salon sheet.
+ • flyToGeoPointsBounds partagé ; Voir sur la carte pour lives/salons.
+
+ MapCurrentFilterPopup → export MapLivesFilterEditor.
+
+ locales fr/en → map.livesBrowse* / map.salonBrowse*
+
+FICHIERS MODIFIÉS
+-----
+ MapSidebarBrowseSheet.tsx, HomePage.tsx, MapCurrentFilterPopup.tsx, locales
+
+BUILD (si vérifié)
+-----
+ web/app → npx tsc --noEmit → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 706 — Carte : bouton entonnoir → popup browse événements (filtre actif)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Avec le filtre Événement actif, le bouton entonnoir doit rouvrir la popup
+ récapitulative (Autour / Pays, jours, EventCard) comme avant, pas le résumé
+ critères MapCurrentFilterPopup.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapEventsBrowseSheet.tsx (restauré)
+ ─────────────────
+ • Sheet modal z-110 : MapEventsBrowseList + détail overlay + filtre + Voir sur la carte.
+
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • openMapFilterPopup : eventsFilterOn → MapEventsBrowseSheet ; sinon MapCurrentFilterPopup.
+ • handleBrowseViewOnMap : cadrage carte sur l'onglet actif.
+
+FICHIERS MODIFIÉS
+-----
+ MapEventsBrowseSheet.tsx, HomePage.tsx
+
+BUILD (si vérifié)
+-----
+ web/app → npx tsc --noEmit → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 705 — Carte : bouton filtre → popup récap filtre actif
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton grille « Afficher les lives » (stack filtres carte) doit ouvrir un
+ popup du filtre carte actuel (Lives / Salon / Événements), pas la grille plein écran.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapCurrentFilterPopup.tsx (nouveau)
+ ─────────────────
+ • Récap critères + actions Modifier / Désactiver ; filtre Lives → panneau geo/tri.
+ • Sans filtre : raccourcis d'activation.
+
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • Bouton entonnoir + badge ; suppression overlay LivesBrowseGrid sur la carte.
+ • Zoom / recentrage / recherche toujours visibles sur la carte.
+
+ LivesBrowseGrid.tsx → export LivesBrowseFilterModal / Panel pour réutilisation.
+
+ locales fr/en → map.currentFilter*
+
+FICHIERS MODIFIÉS
+-----
+ MapCurrentFilterPopup.tsx, HomePage.tsx, LivesBrowseGrid.tsx, locales fr/en
+
+BUILD (si vérifié)
+-----
+ web/app → npx tsc --noEmit → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 704 — Carte browse pays : sections Concert / Festivals / Artistique
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Onglet Pays (sidebar événements) : regrouper les événements par catégorie
+ Concert, Festivals, Artistique au lieu des sections par jour.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/mapEventBrowseCategories.ts (nouveau)
+ ─────────────────
+ • classifyCountryEventCategory : festival (mot-clé / marqueurs) > chant → Concert > reste Artistique.
+ • groupFeedPostsByCountryCategory + tests vitest.
+
+ web/app/src/hooks/useMapEventsBrowseData.ts
+ ─────────────────
+ • countryEventsByCategory (fenêtre jour inchangée pour badges).
+
+ web/app/src/components/MapEventsBrowseList.tsx
+ ─────────────────
+ • Onglet Pays : 3 sections 🎤 Concert, 🎪 Festivals, 🎨 Artistique.
+ • Onglet Autour : sections par jour conservées.
+
+ locales fr/en → map.eventsBrowseCategory*
+
+FICHIERS MODIFIÉS
+-----
+ mapEventBrowseCategories.ts, useMapEventsBrowseData, MapEventsBrowseList, NearbyPeoplePanel, locales
+
+BUILD (si vérifié)
+-----
+ web/app → npx tsc --noEmit + vitest mapEventBrowseCategories → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 703 — Carte : recherche événements / organisateurs (barre haut droite)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande : barre de recherche en haut à droite de la carte — titres d'événements
+ et organisateurs cherchables ; clic événement → popup détail ; clic organisateur
+ → popup avec tous ses événements à venir.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/mapEventSearch.ts (nouveau)
+ ─────────────────
+ • searchMapEventsAndOrganizers : recherche locale sur pins carte (titre, lieu, @organisateur).
+
+ web/app/src/components/MapEventSearchBar.tsx (nouveau)
+ ─────────────────
+ • UI dépliable (style recherche globe), sections Événements / Organisateurs.
+
+ web/app/src/components/MapOrganizerEventsPopup.tsx (nouveau)
+ ─────────────────
+ • Popup liste EventCard compact des événements à venir de l'organisateur.
+
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • Intégration barre recherche (flat + globe sous recherche lieu).
+ • Popup détail MapEventDetailModal depuis recherche ; vol carte ~5 km.
+
+ web/app/src/index.css + locales fr/en
+ ─────────────────
+ • Position .ms-map-event-search ; clés i18n map.eventSearch* / organizerEvents*.
+
+FICHIERS MODIFIÉS
+-----
+ mapEventSearch.ts, MapEventSearchBar, MapOrganizerEventsPopup, HomePage, index.css, locales
+
+BUILD (si vérifié)
+-----
+ web/app → npx tsc --noEmit → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 702 — Carte : fix FAB recentrer (cadrage direct, sans conflit token)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton « Recentrer sur ma position » ne bougeait pas la carte : applyMapViewportCenter
+ passait par recenterToken + scheduleMapFlyWhenReady en conflit ; GPS identique
+ annulait le recentrage après pan/zoom.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • flyMapRecenter dédié au FAB : jumpToCityBounds direct (sans recenterToken).
+ • Vol immédiat si carte prête, sinon scheduleMapFlyWhenReady (pas les deux).
+ • GPS inchangé (< 50 m) : force quand même le cadrage viewport.
+
+ web/app/src/components/MapView.tsx
+ ─────────────────
+ • recenterToken effect : vérifie programmaticMapMove avant de consommer le token.
+ • recenterToBounds : repli jump instantané si flyToBounds échoue.
+
+FICHIERS MODIFIÉS
+-----
+ HomePage.tsx, MapView.tsx → FAB recentrer fiable 30 km
+
+BUILD (si vérifié)
+-----
+ web/app → npx tsc --noEmit → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 701 — Build frontend : fix TS (ReadonlySet + code mort)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ `npm run build` échouait (tsc -b) : ReadonlySet vs Set dans getUpcomingUserEvents ;
+ handleBrowseViewOnMap déclaré mais jamais utilisé.
+
+CHANGEMENTS / FIX
+-----
+ feedEvents.ts — favoriteAuthorIds?: ReadonlySet<string>
+ HomePage.tsx — suppression handleBrowseViewOnMap (mort)
+
+BUILD (si vérifié)
+-----
+ web/app → npm run build → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 700 — Carte : fix carte invisible (init Leaflet + cadrage ancre)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Régression MODIF 699 : fitBounds 30 km avant tuiles + invalidateSize → viewport
+ Leaflet invalide, conteneur vide (opacity 1 mais pas de tuiles). Double vol
+ applyMapViewportCenter aggravait le problème.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapView.tsx
+ ─────────────────
+ • Init Leaflet : setView zoom 12 (comme avant) ; redraw tuiles après invalidateSize.
+ • circleBounds : coords explicites [lat, lng].
+
+ web/app/src/pages/HomePage.tsx — applyMapViewportCenter
+ ─────────────────
+ • Un seul scheduleMapFlyWhenReady (mapAnchorFlyCancelRef).
+ • Mode flat bootstrap : jumpToCityBounds instantané (pas flyToBounds animé).
+ • programmaticMapMoveUntilRef déclaré avant usage.
+
+FICHIERS MODIFIÉS
+-----
+ MapView.tsx, HomePage.tsx → carte visible + ancre GPS/ville profil
+
+BUILD (si vérifié)
+-----
+ web/app → npx tsc --noEmit → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 699 — Carte : ancre GPS / ville profil à l’ouverture onglet Carte
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ À l’ouverture de l’onglet Carte, la vue devait toujours se centrer sur la
+ géolocalisation ; si GPS indisponible, sur la ville du profil. Le bootstrap
+ ne cadrait pas la carte (setSafeCenter sans vol, zoom 12 à l’init Leaflet).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • applyMapViewportCenter : force recenterToken + recenterToBounds (30 km) ou
+   flyToGlobe selon le mode ; FAB recentrer bascule globe → flat.
+ • Centre initial resolveMapCameraFallbackCenter(user?.city).
+ • MAP_GEO_CHANGED et recenterMap utilisent applyMapViewportCenter.
+
+ web/app/src/hooks/useHomeGeoRefresh.ts
+ ─────────────────
+ • Bootstrap geo : applyMapViewportCenter quand carte non explorée (GPS ou ville).
+
+ web/app/src/components/MapView.tsx
+ ─────────────────
+ • Init Leaflet : fitBounds cercle 30 km au lieu de setView zoom 12.
+
+FICHIERS MODIFIÉS
+-----
+ HomePage, useHomeGeoRefresh, MapView → ancre utilisateur fiable
+
+BUILD (si vérifié)
+-----
+ web/app → npx tsc --noEmit → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 698 — Carte : fix complet bouton recentrer (30 km, globe→flat)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le FAB « ma position » ne recentrait pas la carte : pas de vol sans GPS cache,
+ crossfade globe→flat ecrasait le cadre 30 km (zoom 12), erreurs flyToBounds avalees.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapView.tsx
+ ─────────────────
+ • Helper flyMapToCircleBounds (flyToBounds + repli fitBounds + logs).
+ • pendingRecenterBoundsRef : crossfade globe→flat conserve le rayon km demande.
+ • recenterToBounds sur MapViewHandle (force cadrage, reset userMapPan).
+ • prepareFlatAt enregistre pendingRecenterBounds quand radiusKm fourni.
+
+ web/app/src/pages/HomePage.tsx — recenterMap
+ ─────────────────
+ • Vol immediat a chaque clic (position connue ou fallback ville), puis affinage GPS.
+ • recenterToBounds 30 km au lieu de flyMapToSearchPlace / setSafeCenter.
+ • Mode globe : prepareFlatAt + bascule flat + recenterToBounds apres crossfade.
+
+FICHIERS MODIFIÉS
+-----
+ MapView.tsx → cadrage circulaire robuste + pending bounds crossfade
+ HomePage.tsx → recentrer ma position fiable
+
+BUILD (si vérifié)
+-----
+ web/app → npx tsc --noEmit → ✅
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 697 — Carte : recentrer fiable GPS + cadre 30 km à chaque clic
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le FAB recentrer pouvait ne pas bouger la carte (position cache sans nouveau GPS,
+ vol uniquement via scheduleMapFlyWhenReady).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx — recenterMap
+ ─────────────────
+ • Vol immédiat si carte prête + retry scheduleMapFlyWhenReady (rayon 30 km).
+ • GPS rafraîchi à chaque clic ; vol instantané sur dernière position en attendant.
+
+FICHIERS MODIFIÉS
+-----
+ HomePage → recentrer ma position 30 km
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 696 — Carte sidebar browse : retrait badge « À venir » sur EventCard
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le badge vert « À venir » encombra les cartes compactes du browse événements sidebar.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/EventsCarousel.tsx
+ ─────────────────
+ • showUpcomingBadge={false} pour size compact / sidebar (fil Actualité inchangé).
+
+FICHIERS MODIFIÉS
+-----
+ EventsCarousel → pas de badge À venir en browse carte
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 695 — Carte : « Voir sur la carte » cadre l’emplacement événement
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton « Voir sur la carte » dans le détail sidebar ne déplaçait pas
+ fiabillement la caméra sur le lieu (async geocode + rayon ville trop large).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx — handleBrowseEventOpen
+ ─────────────────
+ • Coords sync immédiat + flyMapToSearchPlace (rayon 5 km, scheduleMapFlyWhenReady).
+
+FICHIERS MODIFIÉS
+-----
+ HomePage → vol caméra vers l’événement
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 694 — Carte sidebar : liste browse visible au clic événement (filtre on)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Avec le filtre Événement, un clic sur une carte ouvrait un overlay plein écran
+ qui masquait la liste browse (Autour / France / jours).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapEventBrowseDetailOverlay.tsx
+ ─────────────────
+ • variant `sidebar` : panneau bas de sidebar, sans portal plein écran.
+
+ web/app/src/components/NearbyPeoplePanel.tsx · HomePage.tsx
+ ─────────────────
+ • Détail inline sous la liste browse ; sync sélection marqueur carte.
+ • MapEventDetailModal désactivé tant que le filtre événements est actif.
+
+FICHIERS MODIFIÉS
+-----
+ browse sidebar + détail inline filtre événements
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 693 — Carte : fix bouton recentrer (30 km, sans conflit flyTo)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Après MODIF 691, le FAB recentrer ne déplaçait plus la carte : setSafeCenter
+ déclenchait l'effet recenterToken (zoom 12) en conflit avec flyToCityBounds.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • recenterMap réutilise flyMapToSearchPlace + scheduleMapFlyWhenReady ;
+   plus de setSafeCenter sur ce chemin.
+
+ web/app/src/components/MapView.tsx
+ ─────────────────
+ • Effet recenterToken → flyToBounds 30 km (fallback cohérent).
+
+FICHIERS MODIFIÉS
+-----
+ HomePage + MapView → recentrer fiable à 30 km
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 692 — Carte sidebar : badges onglets = événements visibles (4 jours)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les onglets Autour / France affichaient le total filtré (ex. 6) alors que seules
+ les sections des 4 prochains jours sont listées (ex. 2 visibles).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/feedEvents.ts
+ ─────────────────
+ • countFeedPostsInCalendarDays pour compter dans la fenêtre jour affichée.
+
+ web/app/src/hooks/useMapEventsBrowseData.ts · MapEventsBrowseList.tsx
+ ─────────────────
+ • Badges onglets basés sur communityEventsVisibleCount / countryEventsVisibleCount.
+
+FICHIERS MODIFIÉS
+-----
+ browse sidebar → compteurs alignés sur la liste affichée
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 691 — Carte : recentrer sur position avec cadre 30 km
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le FAB « Recentrer sur ma position » utilisait un zoom fixe (~13) au lieu d’un cadre
+ cohérent avec le rayon 30 km des événements « Autour ».
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • recenterMap → flyToCityBounds / jumpToCityBounds avec DEFAULT_EVENT_FILTER_RADIUS_KM (30).
+
+FICHIERS MODIFIÉS
+-----
+ HomePage → recentrage carte aligné 30 km
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 690 — Carte sidebar : images événements plus compactes
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les EventCard du browse événements dans le panneau latéral affichaient des images
+ trop hautes (hero h-24, cartes ~13.5rem).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/EventsCarousel.tsx · EventCard.tsx · MapEventsBrowseList.tsx
+ ─────────────────
+ • Taille carousel `sidebar` : hero h-14, cartes ~10.5rem, badges/texte réduits.
+
+ web/app/src/index.css
+ ─────────────────
+ • Classe `.events-carousel--sidebar`.
+
+FICHIERS MODIFIÉS
+-----
+ browse sidebar carte → cartes événements plus denses
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 689 — msdev : 10 événements autour + 7 festivals France (semaine)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Peu d'événements à venir visibles dans la sidebar carte (Autour / France) en dev msdev.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/seed-user-events.ts
+ ─────────────────
+ • 10 événements communauté Montpellier agglo (20–26 juil. 2026) ; force re-seed.
+
+ commun/backend/src/seed-feed-events.ts
+ ─────────────────
+ • +7 festivals France (Déferlantes, Nuits Sonores, Jazz à Juan, Vieilles Charrues,
+   Lollapalooza Paris, Francofolies, Calvi on the Rocks) — un par jour semaine courante.
+
+ web/app/src/lib/mapEventCoords.ts
+ ─────────────────
+ • Coords venues / villes pour nouveaux lieux seeds.
+
+ commun/backend/src/scripts/seed-msdev-events.ts · package.json
+ ─────────────────
+ • npm run msdev:seed-events [-- --force]
+
+FICHIERS MODIFIÉS
+-----
+ seeds événements msdev + script re-seed + geocoding lieux
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 688 — Carte : retrait popup browse événements (sidebar seule)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La popup MapEventsBrowseSheet doublonnait la sidebar après MODIF 687 ; l'utilisateur
+ souhaite uniquement le panneau latéral pour parcourir les événements filtrés.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • Suppression de MapEventsBrowseSheet et de showEventsBrowseSheet.
+ • toggleEventsFilter : ouvre le panneau nearby (setNearbyPeopleVisible) au lieu de la popup.
+
+ web/app/src/components/MapEventBrowseDetailOverlay.tsx
+ ─────────────────
+ • Overlay détail extrait (ex-MapEventsBrowseSheet).
+
+ web/app/src/components/MapEventsBrowseSheet.tsx
+ ─────────────────
+ • Fichier supprimé (liste browse déjà dans MapEventsBrowseList + sidebar).
+
+ web/app/src/components/NearbyPeoplePanel.tsx
+ ─────────────────
+ • Import overlay depuis MapEventBrowseDetailOverlay.
+
+FICHIERS MODIFIÉS
+-----
+ HomePage + overlay extrait + suppression popup browse événements
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 687 — Carte : sidebar événements = popup browse (jours + EventCard)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Avec le filtre Événement, la sidebar affichait Suivi / Zone / Suggestions (lignes
+ compactes) au lieu du même contenu que la popup (onglets Autour/Pays, jours, carrousels).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/hooks/useMapEventsBrowseData.ts · MapEventsBrowseList.tsx
+ ─────────────────
+ • Données + UI browse partagées (filtre, jours, upvotes, EventCard compact).
+
+ web/app/src/components/NearbyPeoplePanel.tsx · HomePage.tsx
+ ─────────────────
+ • eventsBrowseMode : liste browse à la place des sections événements legacy.
+ • Panneau latéral élargi (sm:w-72) + overlay détail identique à la popup.
+
+ web/app/src/components/MapEventsBrowseSheet.tsx
+ ─────────────────
+ • Refactor sur hook + liste partagée ; MapEventBrowseDetailOverlay exporté.
+
+FICHIERS MODIFIÉS
+-----
+ browse partagé popup/sidebar → même UX filtre Événement
+
+================================================================================
+Fin — 2026-07-20
+================================================================================
+================================================================================
+MODIF 686 — Carte : filtre événements synchronisé popup + carte
+Date : 2026-07-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le filtre événements ne s'appliquait pas à la popup browse ; « Voir sur la carte »
+ ne reproduisait pas les mêmes critères que le filtre.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/mapEventFilter.ts
+ ─────────────────
+ • filterFeedPostsByEventCriteria (même logique que marqueurs carte).
+
+ web/app/src/components/MapEventsBrowseSheet.tsx
+ ─────────────────
+ • Reçoit eventsFilterOn + filterCriteria ; liste filtrée côté client.
+
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • handleBrowseViewOnMap : active filtre carte + cadrage selon critères.
+ • openEventFilterSheet : ne ferme plus la popup browse.
+
+ web/app/src/components/MapEventFilterSheet.tsx
+ ─────────────────
+ • z-[130] au-dessus du browse sheet (z-110).
+
+FICHIERS MODIFIÉS
+-----
+ mapEventFilter + browse sheet + HomePage → filtre popup/carte alignés
+
+================================================================================
+Fin — 2026-07-16
+================================================================================
+================================================================================
+MODIF 685 — Carte : cartes événements compactes dans le browse sheet
+Date : 2026-07-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les EventCard du sheet événements carte étaient trop grandes (même taille que le fil
+ Actualité), réduisant la lisibilité des 4 sections jour.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/EventsCarousel.tsx
+ ─────────────────
+ • Prop size="compact" (hero, padding, largeur carte).
+
+ web/app/src/components/EventCard.tsx · index.css
+ ─────────────────
+ • Hero carousel compact h-24 ; max-width 13.5rem via .events-carousel--compact.
+
+ web/app/src/components/MapEventsBrowseSheet.tsx
+ ─────────────────
+ • EventsCarousel size="compact".
+
+FICHIERS MODIFIÉS
+-----
+ EventsCarousel + EventCard + sheet carte → cartes plus petites
+
+================================================================================
+Fin — 2026-07-16
+================================================================================
+================================================================================
+MODIF 684 — Carte : sheet événements aligné fil Actualité (4 jours)
+Date : 2026-07-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le sheet « Événements » carte utilisait une liste compacte différente du fil
+ Actualité ; l'utilisateur souhaitait le même design (EventCard + carrousel)
+ avec regroupement par jour sur 4 jours.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapEventsBrowseSheet.tsx
+ ─────────────────
+ • Liste remplacée par sections jour (Aujourd'hui, Demain, +2) + EventsCarousel.
+ • SectionHeader et EventCard layout carousel comme Actualité.
+ • Sheet élargi max-w-2xl ; overlay détail conservé au clic carte.
+
+ web/app/src/lib/feedEvents.ts
+ ─────────────────
+ • groupFeedPostsByCalendarDays, getNextCalendarDayKeys, MAP_EVENTS_BROWSE_DAY_COUNT.
+
+ web/app/src/locales/fr.json · en.json
+ ─────────────────
+ • map.eventsDayToday, eventsDayTomorrow, eventsDayEmpty.
+
+FICHIERS MODIFIÉS
+-----
+ MapEventsBrowseSheet + feedEvents + i18n → browse événements par jour (4j)
+
+BUILD (si vérifié)
+-----
+ web/app → npx tsc --noEmit → ✅
+
+================================================================================
+Fin — 2026-07-16
+================================================================================
+================================================================================
+MODIF 683 — Paramètres : refonte UX organisation
+Date : 2026-07-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La page Paramètres mélangeait identité, monétisation, confidentialité et légal
+ dans une liste plate peu lisible ; le hint « Confidentialité » renvoyait à la carte
+ alors que les réglages concernent MPs et tags.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/SettingsPage.tsx
+ ─────────────────
+ • Sections distinctes : Plateformes, Abonnement & créateur, Confidentialité,
+   Notifications, Sécurité, Application, Assistance, Légal & données, Session.
+ • Groupes visuels type iOS (SettingsGroup) pour lisibilité.
+ • Hint confidentialité corrigé + callout carte séparé.
+
+ web/app/src/locales/fr.json · en.json
+ ─────────────────
+ • Clés platformsSection, monetizationSection, privacyMapCallout, hints mis à jour.
+
+FICHIERS MODIFIÉS
+-----
+ SettingsPage + i18n → IA paramètres clarifiée
+
+BUILD (si vérifié)
+-----
+ web/app → npx tsc --noEmit → ✅
+
+================================================================================
+Fin — 2026-07-16
+================================================================================
 ================================================================================
 MODIF 682 ? Carte : �v�nements du jour par d�faut (filtre = autres dates)
 Date : 2026-07-09
@@ -25675,4 +27519,713 @@ BUILD (si vérifié)
 
 ================================================================================
 Fin MODIF 1054 — 2026-07-16
+================================================================================
+
+================================================================================
+MODIF 1055 — Carte : popup événements (Actualité) au clic filtre — Soundly Dev
+Date : 2026-07-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton « Évènement » sur la carte ouvrait le filtre dates/lieu ou basculait
+ le mode filtre. L'utilisateur souhaite un popup « Événements autour » + « Événements
+ en [pays] » avec le même design que l'onglet Actualité (carrousels EventCard).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapEventsBrowseSheet.tsx
+ ─────────────────
+ • Nouveau bottom-sheet : sections Actualité (autour 30 km + pays géoloc/profil),
+   EventsCarousel + EventCard, bouton « Filtrer carte ».
+
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • Clic court → MapEventsBrowseSheet ; appui long (600 ms) → MapEventFilterSheet.
+ • Clic sur un événement : détail carte + vol vers le lieu.
+
+ web/app/src/locales/fr.json, en.json
+ ─────────────────
+ • map.eventsBrowse* (titre, hint, filtre, aria bouton).
+
+FICHIERS MODIFIÉS
+-----
+ MapEventsBrowseSheet.tsx → popup événements style Actualité
+ HomePage.tsx → branchement clic / ouverture détail
+ locales fr/en → libellés popup
+
+================================================================================
+Fin MODIF 1055 — 2026-07-16
+================================================================================
+
+================================================================================
+MODIF 1056 — Header : logo → bouton Mon profil — Soundly Dev
+Date : 2026-07-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Remplacer le logo Soundy (coin haut-gauche) par l'accès direct au profil
+ de l'utilisateur connecté.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/App.tsx
+ ─────────────────
+ • SoundyLogoButton retiré du header ; avatar + « Mon profil » à gauche.
+ • Doublon avatar profil retiré à droite (Admin + notifications conservés).
+
+ ios/apptel/src/App.tsx
+ ─────────────────
+ • Même logique : « Soundy » texte remplacé par Mon profil à gauche.
+
+================================================================================
+Fin MODIF 1056 — 2026-07-16
+================================================================================
+
+================================================================================
+MODIF 1057 — Header : bouton Paramètres — Soundly Dev
+Date : 2026-07-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Ajouter un accès direct aux paramètres dans le header, à droite de la cloche
+ notifications (Admin | Notifications | Paramètres).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/SettingsHeaderButton.tsx
+ ─────────────────
+ • Nouveau bouton engrenage (style header : bordure, 44×44px touch, i18n).
+
+ web/app/src/App.tsx
+ ─────────────────
+ • État settingsOpen + overlay SettingsPage (comme admin).
+ • openSettingsPanel() ; bouton après NotificationBell.
+
+ ios/apptel/src/App.tsx
+ ─────────────────
+ • Même bouton + overlay ; retour Android ferme les paramètres.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/SettingsHeaderButton.tsx → nouveau
+ web/app/src/App.tsx → header + navigation settings
+ ios/apptel/src/App.tsx → miroir mobile
+
+================================================================================
+Fin MODIF 1057 — 2026-07-16
+================================================================================
+
+================================================================================
+MODIF 1058 — Header : taille bouton Paramètres = cloche — Soundly Dev
+Date : 2026-07-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton Paramètres (SettingsHeaderButton) était plus grand visuellement que
+ la cloche notifications à cause de min-w-11 min-h-11 (44px) en plus de w-8/h-8.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/SettingsHeaderButton.tsx
+ ─────────────────
+ • Retrait min-w-11 min-h-11 — dimensions alignées sur NotificationBell :
+   w-8 h-8 sm:w-9 sm:h-9, icône w-4 h-4 sm:w-5 sm:h-5 inchangée.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/SettingsHeaderButton.tsx → taille header = cloche
+
+================================================================================
+Fin MODIF 1058 — 2026-07-16
+================================================================================
+
+================================================================================
+MODIF 1059 — Refonte UX onglet Paramètres (lisibilité)
+Date : 2026-07-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Onglet Paramètres jugé peu lisible (demande @soundy-cto) : section « Légal »
+ en liste plate de 12+ lignes sans hiérarchie, action « Contacter » dupliquée
+ sous deux libellés différents (Mon compte vs Légal), en-têtes « Application »
+ et « Confidentialité » non traduits (incohérents avec le reste du fichier).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/SettingsPage.tsx
+ ─────────────────
+ • Fix doublon : suppression de la ligne « Contacter le support » (Légal),
+   qui ouvrait exactement le même écran que « Contacter Soundy » (Mon compte).
+ • Section Légal éclatée en 3 sous-groupes visuels (sans nouvel état, juste
+   des légendes) : Documents légaux → Signaler un contenu → Mes données.
+ • Section Mon compte : sous-légendes Assistance / Session pour séparer
+   Contacter Soundy et Déconnexion des actions de gestion de compte.
+ • En-têtes « Application » et « Confidentialité » traduits (t()) au lieu
+   de chaînes en dur — cohérence avec le reste des sections.
+
+ web/app/src/locales/fr.json, en.json
+ ─────────────────
+ • applicationSection, privacySection(+Hint), accountSupportGroup,
+   accountSessionGroup, legalDocumentsGroup, legalDataGroup, legalReportGroup.
+
+FICHIERS MODIFIÉS
+-----
+ SettingsPage.tsx → regroupement visuel + fix doublon contact
+ locales fr/en → nouvelles clés de section/groupe
+
+BUILD (si vérifié)
+-----
+ web/app/ → npx tsc -b --noEmit → ✅ 0 erreur dans les fichiers touchés
+ Lints (3 fichiers) → ✅ 0 erreur
+
+================================================================================
+Fin MODIF 1059 — 2026-07-16
+================================================================================
+
+================================================================================
+MODIF 1060 — Paramètres : réorganisation sections (déconnexion en bas)
+Date : 2026-07-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande utilisateur : réorganiser les boutons des paramètres — la déconnexion
+ doit être en bas de page (pattern UX : actions de session/destructives en dernier).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/SettingsPage.tsx
+ ─────────────────
+ • Nouvel ordre des sections : Mon compte → Sécurité → Assistance → Application
+   → Confidentialité → Légal & RGPD → [spacer flex] → Session (Déconnexion).
+ • « Contacter Soundy » sorti de Mon compte → section Assistance dédiée.
+ • « Déconnexion » sortie de Mon compte → section Session en bas (flex-1 spacer).
+ • SettingsRow : prop `destructive` (texte rouge, hover subtil, min-h 44px).
+ • Safe area bottom sur le conteneur scroll (`env(safe-area-inset-bottom)`).
+
+ web/app/src/locales/fr.json, en.json
+ ─────────────────
+ • assistanceSection, sessionSection (en-têtes de section).
+
+FICHIERS MODIFIÉS
+-----
+ SettingsPage.tsx → réorganisation + style destructif déconnexion
+ locales fr/en → assistanceSection, sessionSection
+
+BUILD (si vérifié)
+-----
+ —
+
+================================================================================
+Fin MODIF 1060 — 2026-07-16
+================================================================================
+
+================================================================================
+MODIF 1061 — Paramètres : organisation type Instagram / TikTok / X
+Date : 2026-07-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande utilisateur : réorganiser la page Paramètres sur le modèle des apps
+ sociales (Instagram, TikTok, X) — compte en premier, confidentialité et
+ notifications séparées, sécurité regroupée, aide/légal en bas, déconnexion isolée.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/SettingsPage.tsx
+ ─────────────────
+ • Ordre final : Compte → Confidentialité → Notifications → Sécurité et accès
+   → Application → Aide et informations → [spacer] → Session (Déconnexion).
+ • Notifications push sorties de Confidentialité → section Notifications dédiée.
+ • « Contacter Soundy » fusionné dans Aide et informations (ex-Assistance + Légal).
+ • Composant léger SettingsSectionHeader (labels uppercase gris, pattern IG/TikTok).
+ • Section Compte : clé settings.accountSection (au lieu de profile.sectionAccount).
+
+ web/app/src/locales/fr.json, en.json
+ ─────────────────
+ • accountSection, notificationsSection, securityAccessSection, helpInfoSection.
+
+FICHIERS MODIFIÉS
+-----
+ SettingsPage.tsx → réorganisation 7 sections + SettingsSectionHeader
+ locales fr/en → titres de section
+
+BUILD (si vérifié)
+-----
+ Lints (3 fichiers) → ✅ 0 erreur
+
+================================================================================
+Fin MODIF 1061 — 2026-07-16
+================================================================================
+
+================================================================================
+MODIF 1062 — Header : refonte bouton « Mon profil »
+Date : 2026-07-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton profil du header (anneau violet + libellé générique « Mon profil »)
+ manquait de cohérence avec SettingsHeaderButton / AdminHeaderButton et
+ n’indiquait pas l’état actif quand l’overlay profil est ouvert.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/ProfileHeaderButton.tsx (nouveau)
+ ─────────────────
+ • Avatar seul sur mobile (44×44), pseudo tronqué sur sm+.
+ • Bordure/fond alignés header (#1a1a26, #2d2d3d) ; état actif violet.
+ • i18n title + aria-label.
+
+ web/app/src/App.tsx
+ ─────────────────
+ • Remplacement du bouton inline par ProfileHeaderButton (active={profileOpen}).
+
+ web/app/src/locales/fr.json, en.json
+ ─────────────────
+ • profile.openOwnProfile, profile.openOwnProfileAria.
+
+FICHIERS MODIFIÉS
+-----
+ ProfileHeaderButton.tsx → composant header profil
+ App.tsx → intégration + import
+ locales fr/en → clés i18n
+
+BUILD (si vérifié)
+-----
+ Lints → ✅ 0 erreur
+
+================================================================================
+Fin MODIF 1062 — 2026-07-16
+================================================================================
+
+================================================================================
+MODIF 1063 — CV PDF WYSIWYG depuis HTML
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le PDF généré ne correspondait pas au rendu navigateur de CV_Valentin_Goulven.html
+ (polices Google Fonts non attendues, photo relative, grilles/couleurs print).
+
+CHANGEMENTS / FIX
+-----
+ docs/cv/generate-pdf.cjs
+ ─────────────────
+ • Playwright Chromium : networkidle + document.fonts.ready + photo inline base64.
+ • page.pdf(printBackground, preferCSSPageSize, marges 0).
+ • Fallback Edge/Chrome : compositor wait + --print-to-pdf-no-header.
+
+ docs/cv/generate-cv-pdf.ps1, generate-pdf.mjs
+ ─────────────────
+ • Commentaires WYSIWYG + mêmes flags fallback.
+
+ docs/cv/CV_Valentin_Goulven.html
+ ─────────────────
+ • @media print renforcé (grid sidebar, gradient, skills 2 col, print-color-adjust).
+
+FICHIERS MODIFIÉS
+-----
+ docs/cv/* → pipeline PDF WYSIWYG
+
+BUILD (si vérifié)
+-----
+ generate-cv-pdf.ps1 → PDF 506431 bytes ✅
+
+================================================================================
+Fin MODIF 1063 — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 1064 — Sidebar événement : zoom plus serré sur la carte
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic EventCard sidebar : zoom trop large (~5 km) — rapprocher le cadrage sur le lieu.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • MAP_SIDEBAR_EVENT_FLY_RADIUS_KM = 1.2 (vs 5 km modal / pin).
+ • focusMapOnFeedEvent accepte opts.radiusKm ; sidebar passe ce rayon.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/HomePage.tsx → zoom sidebar 1.2 km
+
+================================================================================
+Fin MODIF 1064 — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 1065 — Sidebar événement : surbrillance du pin sur la carte
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic EventCard sidebar (zoom seul) : repérer visuellement l'événement sur la carte.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • highlightedMapEventId — set au clic sidebar, clear au clic fond carte.
+
+ web/app/src/components/MapView.tsx
+ ─────────────────
+ • Prop highlightedMapEventId — classe map-marker--highlighted + z-index pin.
+
+ web/app/src/index.css
+ ─────────────────
+ • Animation pulse / anneau violet sur pin surligné.
+
+FICHIERS MODIFIÉS
+-----
+ HomePage.tsx, MapView.tsx, index.css → surbrillance pin événement sidebar
+
+================================================================================
+Fin MODIF 1065 — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 1066 — Filtre jour pin : carte seule (sidebar inchangée)
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Bouton « Afficher sur la carte uniquement le … » filtrait aussi la liste sidebar Autour.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • mapEventsBaseForPins / mapEventsForMapPins — filtre jour réservé aux pins carte.
+ • mapEventClustersForSidebarBrowse — viewport sans filtre jour pour onglet Autour.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/HomePage.tsx → filtre jour = carte uniquement
+
+================================================================================
+Fin MODIF 1066 — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 1067 — Refonte UX EventCard sidebar carte
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Cartes événement sidebar trop denses et redondantes (date ×3, « Organisateur », ~174px).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/EventCardMapSidebar.tsx (nouveau)
+ ─────────────────
+ • Layout dédié panneau carte : lieu → titre → auteur + « Voir sur la carte ».
+ • Hero compact (h-12) : type + heure seule (jour déjà dans l’en-tête section).
+
+ web/app/src/components/EventCard.tsx
+ ─────────────────
+ • density sidebar + carousel → délègue à EventCardMapSidebar.
+
+ web/app/src/lib/feedEvents.ts
+ ─────────────────
+ • formatEventTimeShort() pour affichage heure.
+
+ web/app/src/index.css, locales, MapEventsBrowseList
+ ─────────────────
+ • Cartes sidebar un peu plus larges ; skeleton aligné.
+
+FICHIERS MODIFIÉS
+-----
+ EventCardMapSidebar.tsx, EventCard.tsx, feedEvents.ts, index.css, fr/en.json, MapEventsBrowseList.tsx
+
+================================================================================
+Fin MODIF 1067 — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 1068 — Sidebar EventCard : upvote fonctionnel
+Date : 2026-07-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Upvote sidebar inopérant : bouton imbriqué dans le bouton carte (HTML invalide) ;
+ cache mapEventPostsRef vide au 1er toggle → UI non rafraîchie.
+
+CHANGEMENTS / FIX
+-----
+ EventCardMapSidebar.tsx — EventUpvoteButton en sibling (absolute), hors bouton carte.
+ HomePage.tsx — handleBrowseEventPostChange initialise le cache depuis le marqueur.
+
+================================================================================
+Fin MODIF 1068 — 2026-07-20
+================================================================================
+
+================================================================================
+MODIF 1069 — Sidebar MapEventRow : zoom seul (sans modal)
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic MapEventRow sidebar ouvrait MapEventDetailModal (handleCityEventClick).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • handleSidebarMapEventZoom — zoom serré + surbrillance pin, ferme modals.
+ • NearbyPeoplePanel + MapCityEventsPanel : onEventClick → handleSidebarMapEventZoom.
+ • flyToMapEventMarker accepte opts.radiusKm.
+
+================================================================================
+Fin MODIF 1069 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1070 — Pin événement carte : fiche violette sur la carte (sans modal)
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic pin événement ouvrait MapEventDetailModal plein écran — afficher la fiche
+ sur la carte (style violet EventCard) sans popup.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapEventMapInfoPanel.tsx (nouveau)
+ ─────────────────
+ • Panneau flottant bas de carte : EventCard + interactions, bordure violette.
+
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • mapFocusedEvent — handleCityEventClick : zoom + surbrillance + panneau carte.
+ • Fermeture : clic fond carte, Échap, bouton ×.
+
+================================================================================
+Fin MODIF 1070 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1071 — MapEventMapInfoPanel : fiche compacte (taille réduite)
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Fiche flottante carte trop grande (~384×288px), contenu redondant (EventCard complet).
+
+CHANGEMENTS / FIX
+-----
+ EventCardMapCompact.tsx (nouveau) — layout partagé sidebar / fiche carte.
+ MapEventMapInfoPanel — max ~17.5rem, hero h-10, 1 ligne titre/lieu, sans commentaires.
+ EventCardMapSidebar — délègue à EventCardMapCompact.
+
+================================================================================
+Fin MODIF 1071 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1072 — MapEventMapInfoPanel : emplacement PiP + affichage événement
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Fiche événement carte en bas à droite (~280px) ; contenu peu lisible (lieu avant
+ titre, texte tronqué). Aligner sur le slot PiP vidéo (coin haut-gauche carte).
+
+CHANGEMENTS / FIX
+-----
+ MapEventMapInfoPanel.tsx
+ ─────────────────
+ • Portal fixed — defaultVideoPipPos (237×224), largeur VIDEO_PIP_WIDTH (200px).
+ • En-tête draggable (même pattern que SalonPip / LivePip) : type, upvote, fermer.
+
+ EventCardMapCompact.tsx
+ ─────────────────
+ • Prop pipPanel : titre avant lieu, typo renforcée, badge type/upvote dans header.
+
+================================================================================
+Fin MODIF 1072 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1073 — MapEventMapInfoPanel : hero 16:9 image complète (refonte UX)
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Fiche carte : bandeau hero h-10 + object-cover — image rognée, peu lisible.
+
+CHANGEMENTS / FIX
+-----
+ EventCardMapCompact.tsx (pipPanel)
+ ─────────────────
+ • Hero aspect-video 16:9 (comme PiP vidéo), object-contain sur fond noir.
+ • Titre + lieu en overlay bas de l’image ; auteur + actions en pied.
+ • Toolbar interactions sur ligne dédiée (200px).
+
+================================================================================
+Fin MODIF 1073 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1074 — MapEventPreviewCard : refonte UX aperçu événement carte (CTO Phase 1)
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Panneau type PiP 200px illisible — repenser l’aperçu pin (image hero, titre, CTAs).
+
+CHANGEMENTS / FIX
+-----
+ MapEventPreviewCard.tsx (nouveau) — hero aspect-video, chips, itinéraire, upvote, Voir plus.
+ MapEventMapInfoPanel.tsx — ancrage viewport (bottom sheet mobile / top-left desktop).
+ EventCardMapCompact.tsx — retrait prop pipPanel (sidebar seul).
+ FeedPostInteractions.tsx — onCommentClick → ouvre modal détail depuis l’aperçu.
+ HomePage.tsx — onOpenDetail → MapEventDetailModal.
+ fr.json / en.json — map.eventPreview.*
+
+================================================================================
+Fin MODIF 1074 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1075 — MapEventPreviewCard : fiche compacte lisible (refonte CTO v2)
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Aperçu carte ~451px, hero + toolbar feed + chips — illisible, trop d’actions.
+
+CHANGEMENTS / FIX
+-----
+ MapEventPreviewCard — vignette 64px + 4 lignes (quand/où/qui) + 2 boutons.
+ Retrait FeedPostInteractions de l’aperçu (like/partage → modal Détail).
+ MapEventMapInfoPanel — hauteur naturelle, max-w 17.5rem desktop.
+
+================================================================================
+Fin MODIF 1075 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1076 — CreateFeedEventModal : section Détail (description longue)
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Création événement : titre court seul — pas de champ pour une description détaillée.
+
+CHANGEMENTS / FIX
+-----
+ CreateFeedEventModal — FeedEventDraft.description, SectionCard Détail (textarea).
+ buildFeedEventContent — titre + description → content publication.
+ ActualiteTabPage — eventDescription, publish + initialDraft.
+ fr.json / en.json — feed.eventModalSectionDetail, placeholders.
+
+================================================================================
+Fin MODIF 1076 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1077 — EventCard + seed : bloc Détail (titre / description)
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Modal détail événement : contenu unique sans section description structurée.
+
+CHANGEMENTS / FIX
+-----
+ EventCard.tsx — splitFeedEventContent : titre + encart « Détail » (modal).
+ seed-user-events.ts — electro-antigone : description détaillée ; sync contenu seed.
+
+================================================================================
+Fin MODIF 1077 — 2026-07-21
+================================================================================
+
+================================================================================
+MODIF 1078 — Fixes audit CTO (P0/P1) : bug callback, hook React, index users
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suite audit-cto-20260721.md : double-exécution de callback (?? sur void),
+ useMemo appelé après un early return (erreur ESLint rules-of-hooks), et
+ scans O(n) sur db.users pour email/pseudo (login/register/reset password).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/NearbyPeoplePanel.tsx
+ ─────────────────
+ • onOpenPost : if/return explicite au lieu de `a?.() ?? b?.()` (évitait le
+   double-appel puisque a?.() retourne toujours undefined → ?? déclenchait b()).
+
+ web/app/src/components/EventCard.tsx
+ ─────────────────
+ • resolvedLocationCoords (useMemo) déplacé avant le early return sidebar/carousel.
+
+ commun/backend/src/models/schema.ts
+ ─────────────────
+ • UserIndexMap (extends Map<string,User>) : index email/pseudo (exact + lowercase)
+   maintenus sur set/delete/clear, avec fallback scan + auto-réparation si un
+   appelant mute un champ sans repasser par .set() (défense en profondeur).
+
+ commun/backend/src/routes/auth.ts
+ ─────────────────
+ • register/login/check-username/PATCH profile/forgot-password : remplacement des
+   5 scans `[...db.users.values()].find/some(...)` par db.users.findByEmail*/
+   findByUsername* (O(1) au lieu de O(n)).
+
+ commun/backend/src/lib/alertNotifier.ts
+ ─────────────────
+ • Retrait du hardcode 'admin@getsoundy.com' toujours ajouté en plus de
+   SMTP_ADMIN_EMAIL ; devient uniquement le défaut si la variable est absente.
+
+ commun/backend/src/lib/profilePhotoAssets.ts, web/app/src/lib/feedEvents.ts
+ ─────────────────
+ • Nettoyage lint : fonction morte uploadsDir() retirée ; interface vide
+   remplacée par un type alias.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/NearbyPeoplePanel.tsx → fix double-callback
+ web/app/src/components/EventCard.tsx → fix ordre hooks
+ commun/backend/src/models/schema.ts → UserIndexMap
+ commun/backend/src/routes/auth.ts → lookups O(1)
+ commun/backend/src/lib/alertNotifier.ts → retrait hardcode email
+ commun/backend/src/lib/profilePhotoAssets.ts → lint
+ web/app/src/lib/feedEvents.ts → lint
+
+BUILD / TESTS
+-----
+ commun/backend → npm run build → ✅ · npm test → ✅ 365/365 · npm run lint → ✅ 0 erreur
+ web/app → npm run build → ✅ · npm test → ✅ 433/433 · npm run lint → ✅ 0 erreur
+
+================================================================================
+Fin MODIF 1078 — 2026-07-21
 ================================================================================

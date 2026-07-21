@@ -10,11 +10,27 @@ export interface EventsCarouselProps {
   onShare?: (post: FeedPost) => void;
   getExtraBadges?: (post: FeedPost) => ReactNode;
   onPostChange?: (postId: string, patch: Partial<FeedPost>) => void;
+  /** default = fil Actualité ; compact = sheet carte ; sidebar = panneau latéral carte */
+  size?: 'default' | 'compact' | 'sidebar';
 }
 
 /** Carrousel horizontal d'événements (même layout que « Prochains événements »). */
-export function EventsCarousel({ posts, onOpen, onShare, getExtraBadges, onPostChange }: EventsCarouselProps) {
+export function EventsCarousel({
+  posts,
+  onOpen,
+  onShare,
+  getExtraBadges,
+  onPostChange,
+  size = 'default',
+}: EventsCarouselProps) {
   const { t } = useTranslation();
+  const isCompact = size === 'compact' || size === 'sidebar';
+  const isSidebar = size === 'sidebar';
+  const carouselModifier = isSidebar
+    ? ' events-carousel--sidebar'
+    : isCompact
+      ? ' events-carousel--compact'
+      : '';
 
   if (posts.length === 0) return null;
 
@@ -23,7 +39,7 @@ export function EventsCarousel({ posts, onOpen, onShare, getExtraBadges, onPostC
       itemCount={posts.length}
       ariaPrevLabel={t('feed.carouselPrev')}
       ariaNextLabel={t('feed.carouselNext')}
-      scrollClassName="events-carousel ms-hscroll-track min-w-0 w-full flex flex-nowrap gap-3 pb-1"
+      scrollClassName={`events-carousel${carouselModifier} ms-hscroll-track min-w-0 w-full flex flex-nowrap ${isCompact ? 'gap-2' : 'gap-3'} pb-1`}
     >
       {posts.map((post) => (
         <EventCard
@@ -32,7 +48,8 @@ export function EventsCarousel({ posts, onOpen, onShare, getExtraBadges, onPostC
           onOpen={onOpen}
           onShare={onShare}
           layout="carousel"
-          compact={false}
+          compact={isCompact}
+          density={isSidebar ? 'sidebar' : isCompact ? 'compact' : 'default'}
           extraBadges={getExtraBadges?.(post)}
           onPostChange={(patch) => onPostChange?.(post.id, patch)}
         />

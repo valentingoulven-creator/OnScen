@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rankTrendingSalonGenres, sortGenresByTrendingPriority } from './salonTrendingGenres';
+import { listActiveSalonGenres, rankTrendingSalonGenres, sortGenresByTrendingPriority } from './salonTrendingGenres';
 
 describe('rankTrendingSalonGenres', () => {
   it('pondère par listenersCount', () => {
@@ -15,6 +15,15 @@ describe('rankTrendingSalonGenres', () => {
 
   it('ignore les salons sans genres', () => {
     expect(rankTrendingSalonGenres([{ listenersCount: 50 }])).toEqual([]);
+  });
+
+  it('listActiveSalonGenres retourne tous les genres uniques', () => {
+    expect(
+      listActiveSalonGenres([
+        { genres: ['Électro', 'Indie'], listenersCount: 3 },
+        { genres: ['Indie', 'Jazz'], listenersCount: 1 },
+      ])
+    ).toEqual(['Indie', 'Électro', 'Jazz']);
   });
 });
 

@@ -9,14 +9,13 @@ import {
   toggleSalonGenreFilter,
   type SalonAffinityGenreFilter,
 } from '../lib/musicAffinities';
-import { POPULAR_GENRES } from '../lib/popularGenres';
 import { filterCreateSalonGenreSuggestions } from '../lib/createSalonGenres';
 import {
+  listActiveSalonGenres,
   rankTrendingSalonGenres,
   sortGenresByTrendingPriority,
   type SalonGenreSource,
 } from '../lib/salonTrendingGenres';
-import type { LivesGeoPrefs } from '../lib/livesGeo';
 
 export type MapSalonFilterCriteria = {
   location: string;
@@ -47,7 +46,7 @@ const DEFAULT_SALON_FILTER: Omit<
 
 function resolveSalonGenreOptions(
   profileGenres?: string[],
-  trendingGenres?: string[]
+  salonGenres?: string[]
 ): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -58,9 +57,8 @@ function resolveSalonGenreOptions(
     seen.add(key);
     out.push(label);
   };
-  for (const g of trendingGenres ?? []) add(g);
+  for (const g of salonGenres ?? []) add(g);
   for (const g of profileGenres ?? []) add(g);
-  for (const g of POPULAR_GENRES) add(g);
   return out;
 }
 
@@ -77,17 +75,17 @@ const SOUND_TYPE_SUGGESTION_LIMIT = 12;
 const SOUND_TYPE_SEARCH_LIMIT = 20;
 
 function resolveSoundTypeSuggestions(
-  genreOptions: string[],
+  salonGenres: string[],
   query: string,
   filter: SalonAffinityGenreFilter | null,
   trendingGenres: string[]
 ): string[] {
   const selectedNorm = new Set(
     filter === 'all'
-      ? genreOptions.map(normalizeTag)
+      ? salonGenres.map(normalizeTag)
       : (filter ?? []).map(normalizeTag)
   );
-  let pool = genreOptions.filter((g) => !selectedNorm.has(normalizeTag(g)));
+  let pool = salonGenres.filter((g) => !selectedNorm.has(normalizeTag(g)));
 
   const q = query.trim();
   if (q) {
@@ -95,19 +93,7 @@ function resolveSoundTypeSuggestions(
     return sortGenresByTrendingPriority(pool, trendingGenres).slice(0, SOUND_TYPE_SEARCH_LIMIT);
   }
 
-  const trendingNorm = new Set(trendingGenres.map(normalizeTag));
-  const optionByNorm = new Map(genreOptions.map((g) => [normalizeTag(g), g]));
-  const trendingInPool: string[] = [];
-  for (const trend of trendingGenres) {
-    const key = normalizeTag(trend);
-    if (selectedNorm.has(key)) continue;
-    const canonical = optionByNorm.get(key) ?? trend;
-    if (!trendingInPool.some((g) => normalizeTag(g) === key)) {
-      trendingInPool.push(canonical);
-    }
-  }
-  const rest = pool.filter((g) => !trendingNorm.has(normalizeTag(g)));
-  return [...trendingInPool, ...rest].slice(0, SOUND_TYPE_SUGGESTION_LIMIT);
+  return sortGenresByTrendingPriority(pool, trendingGenres).slice(0, SOUND_TYPE_SUGGESTION_LIMIT);
 }
 
 function listSelectedSoundTypes(filter: SalonAffinityGenreFilter | null): string[] {
@@ -140,9 +126,13 @@ export function MapSalonFilterSheet({
     () => rankTrendingSalonGenres(activeSalons, SOUND_TYPE_SUGGESTION_LIMIT),
     [activeSalons]
   );
+  const activeSalonGenres = useMemo(
+    () => listActiveSalonGenres(activeSalons),
+    [activeSalons]
+  );
   const genreOptions = useMemo(
-    () => resolveSalonGenreOptions(profileGenres, trendingSalonGenres),
-    [profileGenres, trendingSalonGenres]
+    () => resolveSalonGenreOptions(profileGenres, activeSalonGenres),
+    [profileGenres, activeSalonGenres]
   );
   const [draft, setDraft] = useState<MapSalonFilterCriteria>(initialCriteria);
   const [genreQuery, setGenreQuery] = useState('');
@@ -261,12 +251,12 @@ export function MapSalonFilterSheet({
   const soundTypeSuggestions = useMemo(
     () =>
       resolveSoundTypeSuggestions(
-        genreOptions,
+        activeSalonGenres,
         genreQuery,
         draft.affinityGenres,
         trendingSalonGenres
       ),
-    [genreOptions, genreQuery, draft.affinityGenres, trendingSalonGenres]
+    [activeSalonGenres, genreQuery, draft.affinityGenres, trendingSalonGenres]
   );
   const allSoundTypesSelected = draft.affinityGenres === 'all';
 
@@ -396,7 +386,7 @@ export function MapSalonFilterSheet({
             {!allSoundTypesSelected && (
               <div className="mt-2 rounded-lg border border-[#2d2d3d] bg-[#0b0b0f]/80 p-1.5">
                 <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-600 px-1 pb-1">
-                  {trendingSalonGenres.length > 0 && !genreQuery.trim()
+                  {activeSalonGenres.length > 0 && !genreQuery.trim()
                     ? t('map.salonFilterSoundTypesTrending')
                     : t('map.salonFilterSoundTypesSuggestions')}
                 </p>
@@ -404,9 +394,9 @@ export function MapSalonFilterSheet({
                   <p className="text-[10px] text-gray-500 px-1 py-1">
                     {genreQuery.trim()
                       ? t('map.salonFilterSoundTypesEmpty')
-                      : trendingSalonGenres.length > 0
+                      : activeSalonGenres.length > 0
                         ? t('map.salonFilterSoundTypesTrendingEmpty')
-                        : t('map.salonFilterAffinitiesNone')}
+                        : t('map.salonFilterSoundTypesNoSalonGenres')}
                   </p>
                 ) : (
                   <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto overscroll-y-contain">
@@ -467,13 +457,13 @@ export function MapSalonFilterSheet({
   );
 }
 
-export function getDefaultSalonFilterCriteria(mapGeo: LivesGeoPrefs): MapSalonFilterCriteria {
+export function getDefaultSalonFilterCriteria(): MapSalonFilterCriteria {
   const prefs = getNearbyPanelPreferences();
   return {
     affinityGenres: prefs.salonAffinityGenres,
     affinityGenreOptions: prefs.salonAffinityGenreOptions,
-    location: mapGeo.label,
-    latitude: mapGeo.latitude,
-    longitude: mapGeo.longitude,
+    location: '',
+    latitude: null,
+    longitude: null,
   };
 }

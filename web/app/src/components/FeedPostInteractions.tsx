@@ -70,6 +70,8 @@ export interface FeedPostInteractionsProps {
   className?: string;
   /** Barre compacte pour la ligne profil (sans encadré). */
   inlineToolbar?: boolean;
+  /** Remplace l’ouverture inline des commentaires (ex. aperçu carte → modal détail). */
+  onCommentClick?: () => void;
   children?: (parts: { toolbar: ReactNode; comments: ReactNode }) => ReactNode;
 }
 
@@ -80,6 +82,7 @@ export function FeedPostInteractions({
   onToast,
   className = '',
   inlineToolbar = false,
+  onCommentClick,
   children,
 }: FeedPostInteractionsProps) {
   const { t } = useTranslation();
@@ -246,10 +249,10 @@ export function FeedPostInteractions({
 
       <button
         type="button"
-        onClick={() => void handleToggleComments()}
-        disabled={!token}
+        onClick={() => (onCommentClick ? onCommentClick() : void handleToggleComments())}
+        disabled={!token && !onCommentClick}
         className={`${btnClass} ${
-          commentsOpen
+          !onCommentClick && commentsOpen
             ? 'text-purple-400 bg-purple-900/15 hover:bg-purple-900/25'
             : post.commentCount > 0
               ? 'text-purple-400/90 bg-purple-900/10 hover:bg-purple-900/15'

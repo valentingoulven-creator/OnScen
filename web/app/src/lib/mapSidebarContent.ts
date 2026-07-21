@@ -200,6 +200,8 @@ export function buildMapSidebarContent(opts: {
   followingIds?: Set<string>;
   /** Publications événement enregistrées (favori post) — section Suivi événements. */
   savedEventPostIds?: Set<string>;
+  /** Pool complet pour la section Suivi quand aucun filtre carte actif. */
+  allMapEvents?: MapEventMarker[];
   /** Centre de la dernière requête nearby ; si absent, centre des bounds (tests). */
   nearbyFetchCenter?: [number, number] | null;
 }): MapSidebarContent {
@@ -218,24 +220,50 @@ export function buildMapSidebarContent(opts: {
     favoriteIds,
     followingIds = new Set(),
     savedEventPostIds = new Set(),
+    allMapEvents = mapEvents,
     nearbyFetchCenter,
   } = opts;
 
   const anyFilter = eventsFilterOn || livesFilterOn || salonFilterOn;
   if (!anyFilter) {
+    const activeLives = lives.filter((l) => l.isActive !== false);
+    const livesFollowing =
+      followingIds.size > 0
+        ? sortLivesByViewersDesc(activeLives.filter((l) => followingIds.has(l.hostId)))
+        : [];
+
+    const salonPool = salons.filter(isPublicSalon);
+    const salonsFollowing =
+      followingIds.size > 0
+        ? sortSalonsByListenersDesc(salonPool.filter((s) => followingIds.has(s.hostId)))
+        : [];
+
+    const hasEventsFollowingSources =
+      followingIds.size > 0 || savedEventPostIds.size > 0;
+    const eventsFollowing = hasEventsFollowingSources
+      ? applyFavoritesFirst(
+          sortMapEventsForPanel(allMapEvents, favoriteIds).filter((e) =>
+            isSidebarFollowingEvent(e, followingIds, savedEventPostIds)
+          ),
+          (e) => e.id,
+          savedEventPostIds,
+          true
+        )
+      : [];
+
     return {
       noFilters: true,
       zoomTooWide: false,
       eventClustersFollowing: [],
       eventClusters: [],
       eventClustersSuggestions: [],
-      eventsFollowing: [],
+      eventsFollowing,
       events: [],
       eventsSuggestions: [],
-      livesFollowing: [],
+      livesFollowing,
       lives: [],
       livesSuggestions: [],
-      salonsFollowing: [],
+      salonsFollowing,
       salons: [],
       salonsSuggestions: [],
       people: [],

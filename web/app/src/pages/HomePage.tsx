@@ -5,12 +5,14 @@ import { api } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { MapView, type MapViewHandle, type MapStyle, MAP_GLOBE_FLAT_DO_SELECT_MS } from '../components/MapView';
 import { MapZoomSlider } from '../components/MapZoomSlider';
-import { MapGlobePlaceSearch } from '../components/MapGlobePlaceSearch';
-import { NearbyPeoplePanel } from '../components/NearbyPeoplePanel';
+import { MapEventSearchBar } from '../components/MapEventSearchBar';
+import { MapOrganizerEventsPopup } from '../components/MapOrganizerEventsPopup';
+import { NearbyPeoplePanel, type MapSidebarEventsBrowseConfig } from '../components/NearbyPeoplePanel';
 import { MapCityEventsPanel } from '../components/MapCityEventsPanel';
 import { MapLiveClusterSheet } from '../components/MapLiveClusterSheet';
 import { MapMajorCityLiveSheet } from '../components/MapMajorCityLiveSheet';
 import { MapEventDetailModal } from '../components/MapEventDetailModal';
+import { MapEventMapInfoPanel } from '../components/MapEventMapInfoPanel';
 import { MapEventFilterSheet } from '../components/MapEventFilterSheet';
 import {
   MapSalonFilterSheet,
@@ -27,23 +29,35 @@ import { useMapUserDisplayPosition, resolveMapCameraFallbackCenter } from '../li
 import { canJoinSalonAsParticipant, ensureYoutubeLinkedToJoinSalon } from '../lib/platformConnect';
 import { MapAdBanner, type MapSponsorViewport } from '../components/MapAdBanner';
 import { MapActiveSessionOverlay } from '../components/MapActiveSessionOverlay';
-import { LivesBrowseGrid } from '../components/LivesBrowseGrid';
+import { MapCurrentFilterPopup, type MapActiveFilterKind } from '../components/MapCurrentFilterPopup';
+import { MapEventsBrowseSheet } from '../components/MapEventsBrowseSheet';
+import {
+  MapSidebarBrowseSheet,
+  collectGeoPointsFromLivesContent,
+  collectGeoPointsFromSalonContent,
+  uniqueLiveCountFromContent,
+  uniqueSalonCountFromContent,
+} from '../components/MapSidebarBrowseSheet';
+import { FilterIcon } from '../components/FilterIcon';
 import { MAP_EVENTS_REFRESH_EVENT, MAP_OPEN_CREATE_SALON_EVENT } from '../lib/mapUiEvents';
 import { isAppa2Layout, type AppLayoutId } from '../lib/appLayout';
 import { useCompactMapViewport } from '../hooks/usePhoneWebViewport';
 import {
   createDefaultEventFilter,
+  DEFAULT_EVENT_FILTER_RADIUS_KM,
   filterMapEventsByCriteria,
   filterMapEventsOccurringToday,
   filterMapEventsOccurringTodayOrTomorrow,
+  filterMapEventsOnCalendarDay,
   getEventFilterCityMapRadiusKm,
   hasEventFilterCityLocation,
   resolveDefaultUserCityLabel,
   type MapEventFilterCriteria,
 } from '../lib/mapEventFilter';
-import { applySavedEventFavoriteState, feedPostFromMapEventMarker, loadMapEventMarkers } from '../lib/mapFeedEvents';
-import { resolveEventCoords } from '../lib/mapEventCoords';
-import { clusterMapEventsByLocation, extractCityFromLocation } from '../lib/mapEventClusters';
+import { applySavedEventFavoriteState, feedPostFromMapEventMarker, loadMapEventMarkers, buildMapEventMarkersFromPosts } from '../lib/mapFeedEvents';
+import { getPrimaryEventDate } from '../lib/feedEvents';
+import { resolveEventCoords, resolveEventCoordsSync } from '../lib/mapEventCoords';
+import { clusterMapEventsByLocation, extractCityFromLocation, flattenEventClustersToMarkers } from '../lib/mapEventClusters';
 import {
   getMapSearchFlyRadiusKm,
   MAP_FLY_TO_PLACE_EVENT,
@@ -62,7 +76,6 @@ import {
   buildMapSidebarContent,
   countLivesFilterBadge,
   countMapSidebarItems,
-  countEventsSidebarItems,
   countSalonsSidebarItems,
 } from '../lib/mapSidebarContent';
 import {
@@ -70,7 +83,9 @@ import {
   clipPeopleForMapView,
   clipSalonsForMapView,
   filterEventClustersInViewport,
+  filterEventClustersInGlobeRegion,
   filterMarkersInViewport,
+  getGlobeCapitalVisibleRadiusKm,
   getDistanceKm,
   getFlatMapDetailTier,
   getMapBoundsCenter,
@@ -83,6 +98,10 @@ import {
 } from '../lib/mapMarkerVisibility';
 import { flatZoomToNorm, type MapZoomControlSnapshot } from '../lib/mapZoomControl';
 import type { PlaceSearchHit } from '../lib/placeSearch';
+import type {
+  MapEventSearchEventHit,
+  MapEventSearchOrganizerHit,
+} from '../lib/mapEventSearch';
 import type { NearbyPerson, Salon, Live, MapEventMarker, MapEventCityCluster, PlaybackState, FeedPost } from '../types';
 import { getNearbyRadiusKm, SETTINGS_CHANGED_EVENT } from '../lib/settings';
 import {
@@ -136,9 +155,12 @@ const MAP_DETAIL_BOUNDS_DEBOUNCE_MS = 250;
 
 const MAP_STYLE_KEY = MAP_STYLE_STORAGE_KEY;
 const MAP_LIVE_ZOOM = 15;
-/** Recentrer : quartier (GPS) vs ville (profil). */
-const MAP_RECENTER_ZOOM_GPS = 13;
-const MAP_RECENTER_ZOOM_CITY = 12;
+/** Recentrer : cadre ~30 km autour du lieu (aligné filtre / onglet Autour). */
+const MAP_RECENTER_RADIUS_KM = DEFAULT_EVENT_FILTER_RADIUS_KM;
+/** Cadrage « Voir sur la carte » pour un événement ponctuel (lieu / venue). */
+const MAP_EVENT_DETAIL_FLY_RADIUS_KM = 5;
+/** Clic carte sidebar — zoom serré sur le lieu (sans modal). */
+const MAP_SIDEBAR_EVENT_FLY_RADIUS_KM = 1.2;
 /** Boutons Lives / Évènement (pile haut-gauche carte) — padding, typo et hauteur alignés. */
 const MAP_STACK_FILTER_BTN =
   'w-full min-h-[2rem] px-3 py-2 rounded-full border shadow-lg active:scale-95 transition shrink-0 text-[10px] sm:text-[11px] font-bold leading-none whitespace-nowrap flex items-center justify-center gap-1.5';
@@ -268,11 +290,15 @@ export function HomePage({
   const [lives, setLives] = useState<Live[]>([]);
   const [nearbyPeople, setNearbyPeople] = useState<NearbyPerson[]>([]);
   const [selected, setSelected] = useState<Salon | null>(null);
-  const [center, setCenter] = useState<[number, number]>(() => resolveMapCameraFallbackCenter());
+  const [center, setCenter] = useState<[number, number]>(() =>
+    resolveMapCameraFallbackCenter(user?.city)
+  );
   const mapRecenterTokenRef = useRef(0);
   const [mapRecenterToken, setMapRecenterToken] = useState(0);
   /** Après pan carte ou rotation globe — ne pas ramener le viewport sur le GPS tardif. */
   const mapExploredRef = useRef(false);
+  /** Ignore bounds-driven nearby reloads pendant flyTo programmé (recherche / recenter). */
+  const programmaticMapMoveUntilRef = useRef(0);
   /** Seuil recentrage carte (~10 m) — évite flyTo en boucle sur jitter GPS / bootstrap geo. */
   const setSafeCenter = useCallback((coords: [number, number]) => {
     const bumpRecenter = () => {
@@ -309,7 +335,10 @@ export function HomePage({
   const [userPosition, setUserPosition] = useState<[number, number] | null>(null);
   const [showCreateSalon, setShowCreateSalon] = useState(false);
   /** Vue grille lives à la place de la carte (toggle logo). */
-  const [mapLivesBrowseOpen, setMapLivesBrowseOpen] = useState(false);
+  const [mapFilterPopupOpen, setMapFilterPopupOpen] = useState(false);
+  const [showEventsBrowseSheet, setShowEventsBrowseSheet] = useState(false);
+  const [showLivesBrowseSheet, setShowLivesBrowseSheet] = useState(false);
+  const [showSalonBrowseSheet, setShowSalonBrowseSheet] = useState(false);
   const [locating, setLocating] = useState(false);
   const [loadingNearby, setLoadingNearby] = useState(true);
   const [showNearbyPeople, setShowNearbyPeople] = useState(getMapSidebarListVisible);
@@ -329,6 +358,8 @@ export function HomePage({
   const mapViewRef = useRef<MapViewHandle>(null);
   const lastHandledMapSearchFlyNonceRef = useRef(0);
   const mapSearchFlyCancelRef = useRef<(() => void) | null>(null);
+  const mapAnchorFlyCancelRef = useRef<(() => void) | null>(null);
+  const mapRecenterFlyCancelRef = useRef<(() => void) | null>(null);
   const eventFilterFlyPendingRef = useRef<MapEventFilterCriteria | null>(null);
   const lastEventFilterCityFlyRef = useRef<string | null>(null);
   const lastSalonFilterCityFlyRef = useRef<string | null>(null);
@@ -339,10 +370,12 @@ export function HomePage({
   const [showEventMarkers, setShowEventMarkers] = useState(false);
   const [eventFilterCriteria, setEventFilterCriteria] =
     useState<MapEventFilterCriteria>(createDefaultEventFilter);
+  /** Pin jour sidebar browse : filtre carte/globe sur un seul jour (toggle). */
+  const [mapEventDayPinFilter, setMapEventDayPinFilter] = useState<string | null>(null);
   const [showEventFilterSheet, setShowEventFilterSheet] = useState(false);
   const [showSalonFilterSheet, setShowSalonFilterSheet] = useState(false);
   const [salonFilterCriteria, setSalonFilterCriteria] = useState<MapSalonFilterCriteria>(() =>
-    getDefaultSalonFilterCriteria(getLivesGeo())
+    getDefaultSalonFilterCriteria()
   );
   useEffect(() => {
     if (!showEventFilterSheet) lastEventFilterCityFlyRef.current = null;
@@ -412,6 +445,17 @@ export function HomePage({
   const [selectedMajorCityCluster, setSelectedMajorCityCluster] =
     useState<MapMajorCityLiveCluster | null>(null);
   const [selectedMapEvent, setSelectedMapEvent] = useState<MapEventMarker | null>(null);
+  /** Pin événement surligné sur la carte (clic sidebar — zoom sans modal). */
+  const [highlightedMapEventId, setHighlightedMapEventId] = useState<string | null>(null);
+  /** Fiche événement ancrée sur la carte (pin) — sans modal plein écran. */
+  const [mapFocusedEvent, setMapFocusedEvent] = useState<MapEventMarker | null>(null);
+  /** Popup détail événement ouvert depuis la recherche carte (indépendant du filtre sidebar). */
+  const [mapSearchEventModal, setMapSearchEventModal] = useState<{
+    marker: MapEventMarker;
+    post: FeedPost | null;
+  } | null>(null);
+  const [mapSearchOrganizerModal, setMapSearchOrganizerModal] =
+    useState<MapEventSearchOrganizerHit | null>(null);
   const [mapEventPostVersion, setMapEventPostVersion] = useState(0);
   /** Centre de la dernière requête api.nearby (pour clip viewport stable). */
   const [nearbyFetchCenter, setNearbyFetchCenter] = useState<[number, number]>(() => [
@@ -500,9 +544,33 @@ export function HomePage({
     if (!selectedMapEvent) return null;
     void mapEventPostVersion;
     const cached = mapEventPostsRef.current.get(selectedMapEvent.id);
-    if (!cached) return null;
-    return applySavedEventFavoriteState(cached, savedEventPostIds);
+    const post =
+      cached ?? feedPostFromMapEventMarker(selectedMapEvent, null, savedEventPostIds);
+    return applySavedEventFavoriteState(post, savedEventPostIds);
   }, [selectedMapEvent, savedEventPostIds, mapEventPostVersion]);
+
+  const mapFocusedEventPost = useMemo(() => {
+    if (!mapFocusedEvent) return null;
+    void mapEventPostVersion;
+    const cached = mapEventPostsRef.current.get(mapFocusedEvent.id);
+    return (
+      cached ?? feedPostFromMapEventMarker(mapFocusedEvent, null, savedEventPostIds)
+    );
+  }, [mapFocusedEvent, savedEventPostIds, mapEventPostVersion]);
+
+  const mapSearchEventPost = useMemo(() => {
+    if (!mapSearchEventModal) return null;
+    void mapEventPostVersion;
+    const cached =
+      mapSearchEventModal.post ?? mapEventPostsRef.current.get(mapSearchEventModal.marker.id);
+    if (cached) return applySavedEventFavoriteState(cached, savedEventPostIds);
+    return feedPostFromMapEventMarker(mapSearchEventModal.marker, null, savedEventPostIds);
+  }, [mapSearchEventModal, savedEventPostIds, mapEventPostVersion]);
+
+  const mapEventPostsMap = useMemo(() => {
+    void mapEventPostVersion;
+    return new Map(mapEventPostsRef.current);
+  }, [mapEventPostVersion, mapEvents]);
 
   const viewerTastes = useMemo(
     () => ({
@@ -636,6 +704,7 @@ export function HomePage({
   const mapDetailMapStyle = mapDetailState.mapStyle;
   const mapDetailTier     = mapDetailState.tier;
   const mapDetailFlatZoom = mapDetailState.flatZoom;
+  const mapDetailGlobeAltitude = mapDetailState.globeAltitude;
 
   /** Vue globe overview : sonars live visibles sans activer le filtre Lives. */
   const globeLiveAmbientOn =
@@ -757,22 +826,36 @@ export function HomePage({
     [mapEvents, eventFilterCriteria, user?.id]
   );
 
-  /** Pins carte : du jour par défaut ; globe overview = aujourd'hui + demain ; filtre Évènement = critères. */
-  const mapEventsForPins = useMemo(() => {
+  /** Événements carte / sidebar (sans filtre jour pin). */
+  const mapEventsBaseForPins = useMemo(() => {
     if (eventsFilterOn) return filteredMapEvents;
     if (mapDetailMapStyle === 'globe' && mapDetailTier === 'overview') {
       return filterMapEventsOccurringTodayOrTomorrow(mapEvents);
     }
     return filterMapEventsOccurringToday(mapEvents);
-  }, [eventsFilterOn, filteredMapEvents, mapEvents, mapDetailMapStyle, mapDetailTier]);
+  }, [
+    eventsFilterOn,
+    filteredMapEvents,
+    mapEvents,
+    mapDetailMapStyle,
+    mapDetailTier,
+  ]);
+
+  /** Pins carte uniquement — peut restreindre à un jour (bouton pin section sidebar). */
+  const mapEventsForMapPins = useMemo(() => {
+    if (mapEventDayPinFilter && eventsFilterOn) {
+      return filterMapEventsOnCalendarDay(mapEventsBaseForPins, mapEventDayPinFilter);
+    }
+    return mapEventsBaseForPins;
+  }, [mapEventsBaseForPins, mapEventDayPinFilter, eventsFilterOn]);
 
   const mapEventAuthorIds = useMemo(() => {
     const ids = new Set<string>();
-    for (const event of mapEventsForPins) {
+    for (const event of mapEventsForMapPins) {
       if (event.authorId) ids.add(event.authorId);
     }
     return ids.size > 0 ? ids : undefined;
-  }, [mapEventsForPins]);
+  }, [mapEventsForMapPins]);
 
   const mapPeople = useMemo(
     () => peopleMarkersOnMap(filteredNearbyPeople, mapEventAuthorIds),
@@ -790,27 +873,69 @@ export function HomePage({
   }, [anyMapFilterActive, livesFilterOn, mapPeople, mapDetailBounds, mapDetailMapStyle, nearbyFetchCenter]);
 
   const mapEventClusters = useMemo(
-    () => clusterMapEventsByLocation(mapEventsForPins),
-    [mapEventsForPins]
+    () => clusterMapEventsByLocation(mapEventsBaseForPins),
+    [mapEventsBaseForPins]
+  );
+
+  const mapEventClustersOnMap = useMemo(
+    () => clusterMapEventsByLocation(mapEventsForMapPins),
+    [mapEventsForMapPins]
+  );
+
+  const clipEventClustersToViewport = useCallback(
+    (clusters: MapEventCityCluster[]) => {
+      if (mapDetailTier === 'overview') return clusters;
+
+      if (mapDetailMapStyle === 'globe') {
+        const radiusKm = getGlobeCapitalVisibleRadiusKm(mapDetailGlobeAltitude ?? 0.6);
+        return filterEventClustersInGlobeRegion(clusters, center[0], center[1], radiusKm);
+      }
+
+      if (!mapDetailBounds) return clusters;
+      const clipped = filterEventClustersInViewport(
+        clusters,
+        mapDetailBounds,
+        mapDetailTier
+      );
+      if (clipped.length === 0 && clusters.length > 0) return clusters;
+      return clipped;
+    },
+    [mapDetailMapStyle, mapDetailBounds, mapDetailTier, mapDetailGlobeAltitude, center]
   );
 
   /**
-   * Event clusters clipped to the visible flat-map viewport.
-   * On globe or when bounds are unknown the full cluster list is passed through.
+   * Clusters visibles sur la carte : viewport + filtre jour pin optionnel.
    */
-  const mapEventClustersForMap = useMemo(() => {
-    if (mapDetailTier === 'overview') return mapEventClusters;
-    if (mapDetailMapStyle !== 'flat' || !mapDetailBounds) return mapEventClusters;
-    const clipped = filterEventClustersInViewport(
-      mapEventClusters,
-      mapDetailBounds,
-      mapDetailTier
-    );
-    // Même garde-fou que clipLivesForMapView : évite un blackout transitoire
-    // quand le viewport est très serré (zoom max) ou que les bounds bougent.
-    if (clipped.length === 0 && mapEventClusters.length > 0) return mapEventClusters;
-    return clipped;
-  }, [mapEventClusters, mapDetailMapStyle, mapDetailBounds, mapDetailTier]);
+  const mapEventClustersForMap = useMemo(
+    () => clipEventClustersToViewport(mapEventClustersOnMap),
+    [clipEventClustersToViewport, mapEventClustersOnMap]
+  );
+
+  /** Clusters viewport pour l’onglet Autour sidebar — sans filtre jour pin. */
+  const mapEventClustersForSidebarBrowse = useMemo(
+    () => clipEventClustersToViewport(mapEventClusters),
+    [clipEventClustersToViewport, mapEventClusters]
+  );
+
+  /** Onglet Autour : événements visibles sur la carte / globe (viewport), alignés sur les pins. */
+  const browseAroundEventPosts = useMemo((): FeedPost[] | undefined => {
+    if (!sidebarEventsFilterOn) return undefined;
+    void mapEventPostVersion;
+    const markers = flattenEventClustersToMarkers(mapEventClustersForSidebarBrowse);
+    return markers
+      .map((marker) => {
+        const cached = mapEventPostsRef.current.get(marker.id);
+        return feedPostFromMapEventMarker(marker, cached, savedEventPostIds);
+      })
+      .sort((a, b) => {
+        const aDate = getPrimaryEventDate(a);
+        const bDate = getPrimaryEventDate(b);
+        if (aDate && bDate) {
+          return new Date(aDate).getTime() - new Date(bDate).getTime();
+        }
+        return 0;
+      });
+  }, [sidebarEventsFilterOn, mapEventClustersForSidebarBrowse, savedEventPostIds, mapEventPostVersion]);
 
   /** Panneau ville : événements filtrés par viewport au zoom ville / rue. */
   const selectedEventClusterForPanel = useMemo(() => {
@@ -836,7 +961,7 @@ export function HomePage({
         salonFilterOn,
         eventsOnly: mapEventsOnly,
         showAllSalonsAtCityZoom,
-        mapEvents: mapEventsForPins,
+        mapEvents: mapEventsBaseForPins,
         eventClusters: mapEventClusters,
         lives: mapLives,
         salons: salonFilterOn ? salons : mapSalonsForView,
@@ -844,6 +969,7 @@ export function HomePage({
         favoriteIds,
         followingIds,
         savedEventPostIds,
+        allMapEvents: mapEvents,
         nearbyFetchCenter,
       }),
     [
@@ -855,7 +981,7 @@ export function HomePage({
       salonFilterOn,
       showAllSalonsAtCityZoom,
       mapEventsOnly,
-      mapEventsForPins,
+      mapEventsBaseForPins,
       mapEventClusters,
       mapLives,
       mapSalonsForView,
@@ -875,9 +1001,9 @@ export function HomePage({
   /** Badge filtre Salon : salons uniques (suivi + zone + suggestions). */
   const salonFilterBadgeCount = salonFilterOn ? countSalonsSidebarItems(mapSidebarContent) : 0;
 
-  /** Badge filtre Évènement : événements/clusters uniques dans la sidebar. */
+  /** Badge filtre Évènement : événements visibles dans le viewport carte/globe. */
   const eventsFilterBadgeCount = eventsFilterOn
-    ? countEventsSidebarItems(mapSidebarContent)
+    ? flattenEventClustersToMarkers(mapEventClustersForMap).length
     : 0;
 
   const liveSalonMarkerCount = useMemo(
@@ -990,8 +1116,14 @@ export function HomePage({
     setSelectedEventCluster(null);
     setShowEventMarkers(false);
     setShowEventFilterSheet(false);
+    setShowEventsBrowseSheet(false);
+    setMapEventDayPinFilter(null);
     setEventFilterCriteria(createDefaultEventFilter(user?.city));
   }, [user?.city]);
+
+  const handleMapEventDayPinFilter = useCallback((dayKey: string) => {
+    setMapEventDayPinFilter((prev) => (prev === dayKey ? null : dayKey));
+  }, []);
 
   /** Un seul filtre carte actif à la fois : Lives, Salon ou Évènement. */
   const deactivateMapContentFiltersExcept = useCallback(
@@ -1004,6 +1136,7 @@ export function HomePage({
         clearNearbyCache();
         setShowSalonMarkers(false);
         setShowSalonFilterSheet(false);
+        setShowSalonBrowseSheet(false);
       }
       if (except !== 'events' && showEventMarkers) {
         disableEventsFilter();
@@ -1016,37 +1149,93 @@ export function HomePage({
   const toggleLivesFilter = useCallback(() => {
     if (nearbyPanelPrefs.livesOnly) {
       setNearbyPanelPreferences({ livesOnly: false });
+      setShowLivesBrowseSheet(false);
       return;
     }
     deactivateMapContentFiltersExcept('lives');
     setNearbyPanelPreferences({ livesOnly: true });
   }, [nearbyPanelPrefs.livesOnly, deactivateMapContentFiltersExcept]);
 
-  /** Logo carte → bascule carte / grille lives (sans changer d'onglet). */
-  const toggleMapLivesBrowse = useCallback(() => {
-    setMapLivesBrowseOpen((open) => {
-      const next = !open;
-      if (next && nearbyPanelPrefs.livesOnly) {
-        setNearbyPanelPreferences({ livesOnly: false });
-      }
-      return next;
-    });
-  }, [nearbyPanelPrefs.livesOnly]);
+  const openMapFilterPopup = useCallback(() => {
+    if (eventsFilterOn) {
+      setShowEventsBrowseSheet(true);
+      setNearbyPeopleVisible(true);
+      return;
+    }
+    if (livesFilterOn) {
+      setShowLivesBrowseSheet(true);
+      setNearbyPeopleVisible(true);
+      return;
+    }
+    if (salonFilterOn) {
+      setShowSalonBrowseSheet(true);
+      setNearbyPeopleVisible(true);
+      return;
+    }
+    setMapFilterPopupOpen(true);
+  }, [eventsFilterOn, livesFilterOn, salonFilterOn, setNearbyPeopleVisible]);
+
+  const activeMapFilterKind = useMemo((): MapActiveFilterKind => {
+    if (livesFilterOn) return 'lives';
+    if (salonFilterOn) return 'salon';
+    if (eventsFilterOn) return 'events';
+    return null;
+  }, [livesFilterOn, salonFilterOn, eventsFilterOn]);
+
+  const activeMapFilterCount = useMemo(() => {
+    if (livesFilterOn) return livesFilterBadgeCount;
+    if (salonFilterOn) return salonFilterBadgeCount;
+    if (eventsFilterOn) return eventsFilterBadgeCount;
+    return 0;
+  }, [
+    livesFilterOn,
+    salonFilterOn,
+    eventsFilterOn,
+    livesFilterBadgeCount,
+    salonFilterBadgeCount,
+    eventsFilterBadgeCount,
+  ]);
+
+  const mapBrowsePopupTitle = useMemo(() => {
+    if (eventsFilterOn) {
+      return t('map.eventsBrowseOpenTitle', {
+        defaultValue: 'Voir les événements autour et dans votre pays',
+      });
+    }
+    if (livesFilterOn) {
+      return t('map.livesBrowseOpenTitle', { defaultValue: 'Voir les lives sur la carte' });
+    }
+    if (salonFilterOn) {
+      return t('map.salonBrowseOpenTitle', { defaultValue: 'Voir les salons sur la carte' });
+    }
+    return t('map.currentFilterPopupTitle', { defaultValue: 'Filtre carte actif' });
+  }, [eventsFilterOn, livesFilterOn, salonFilterOn, t]);
+
+  const anyBrowseSheetOpen =
+    mapFilterPopupOpen || showEventsBrowseSheet || showLivesBrowseSheet || showSalonBrowseSheet;
 
   const disableSalonFilter = useCallback(() => {
     pendingMapFilterNearbyReloadRef.current = true;
     clearNearbyCache();
     setShowSalonMarkers(false);
     setShowSalonFilterSheet(false);
+    setShowSalonBrowseSheet(false);
+  }, []);
+
+  const clearSalonFilterLongPress = useCallback(() => {
+    if (salonFilterLongPressRef.current) {
+      clearTimeout(salonFilterLongPressRef.current);
+      salonFilterLongPressRef.current = null;
+    }
   }, []);
 
   const openSalonFilterSheet = useCallback(() => {
     if (!showSalonMarkers) {
       deactivateMapContentFiltersExcept(null);
     }
-    setSalonFilterCriteria(getDefaultSalonFilterCriteria(mapGeo));
+    setSalonFilterCriteria(getDefaultSalonFilterCriteria());
     setShowSalonFilterSheet(true);
-  }, [showSalonMarkers, deactivateMapContentFiltersExcept, mapGeo]);
+  }, [showSalonMarkers, deactivateMapContentFiltersExcept]);
 
   const flyMapToSalonFilterCity = useCallback(
     (lat: number, lng: number, locationLabel: string, opts?: { force?: boolean }) => {
@@ -1082,14 +1271,6 @@ export function HomePage({
     [flyMapToSalonFilterCity]
   );
 
-  const toggleSalonFilter = useCallback(() => {
-    if (showSalonMarkers) {
-      disableSalonFilter();
-      return;
-    }
-    openSalonFilterSheet();
-  }, [showSalonMarkers, disableSalonFilter, openSalonFilterSheet]);
-
   const applySalonFilter = useCallback(
     (criteria: MapSalonFilterCriteria) => {
       deactivateMapContentFiltersExcept('salon');
@@ -1110,32 +1291,38 @@ export function HomePage({
         requestAnimationFrame(() => flyToSalonFilterBounds(criteria, true));
       }
     },
-    [deactivateMapContentFiltersExcept, flyToSalonFilterBounds]
+    [deactivateMapContentFiltersExcept, flyToSalonFilterBounds, setNearbyPeopleVisible]
   );
+
+  const toggleSalonFilter = useCallback(() => {
+    if (showSalonMarkers) {
+      disableSalonFilter();
+      return;
+    }
+    applySalonFilter(getDefaultSalonFilterCriteria());
+  }, [showSalonMarkers, disableSalonFilter, applySalonFilter]);
 
   const onSalonFilterPointerDown = useCallback(() => {
     salonFilterLongPressTriggeredRef.current = false;
-    if (salonFilterLongPressRef.current) clearTimeout(salonFilterLongPressRef.current);
+    clearSalonFilterLongPress();
     salonFilterLongPressRef.current = setTimeout(() => {
       salonFilterLongPressTriggeredRef.current = true;
       openSalonFilterSheet();
     }, 600);
-  }, [openSalonFilterSheet]);
+  }, [clearSalonFilterLongPress, openSalonFilterSheet]);
 
   const onSalonFilterPointerUp = useCallback(() => {
-    if (salonFilterLongPressRef.current) {
-      clearTimeout(salonFilterLongPressRef.current);
-      salonFilterLongPressRef.current = null;
-    }
-  }, []);
+    clearSalonFilterLongPress();
+  }, [clearSalonFilterLongPress]);
 
   const onSalonFilterClick = useCallback(() => {
+    clearSalonFilterLongPress();
     if (salonFilterLongPressTriggeredRef.current) {
       salonFilterLongPressTriggeredRef.current = false;
       return;
     }
     toggleSalonFilter();
-  }, [toggleSalonFilter]);
+  }, [clearSalonFilterLongPress, toggleSalonFilter]);
 
   const openEventFilterSheet = useCallback(() => {
     if (!showEventMarkers) {
@@ -1143,6 +1330,107 @@ export function HomePage({
     }
     setShowEventFilterSheet(true);
   }, [showEventMarkers, deactivateMapContentFiltersExcept]);
+
+  const toggleEventsFilter = useCallback(() => {
+    if (showEventMarkers) {
+      disableEventsFilter();
+      return;
+    }
+    deactivateMapContentFiltersExcept('events');
+    setShowEventMarkers(true);
+    setShowEventFilterSheet(false);
+    setNearbyPeopleVisible(true);
+  }, [showEventMarkers, disableEventsFilter, deactivateMapContentFiltersExcept, setNearbyPeopleVisible]);
+
+  /** Cadre carte / globe sur GPS ou ville profil (ouverture onglet Carte, bootstrap geo). */
+  const applyMapViewportCenter = useCallback((
+    coords: [number, number],
+    opts?: { switchGlobeToFlat?: boolean }
+  ) => {
+    const safe = sanitizeLatLngTuple(coords[0], coords[1], DEFAULT_CENTER);
+    programmaticMapMoveUntilRef.current = Date.now() + 2500;
+
+    mapRecenterTokenRef.current += 1;
+    setMapRecenterToken(mapRecenterTokenRef.current);
+    setCenter(safe);
+
+    mapAnchorFlyCancelRef.current?.();
+    mapAnchorFlyCancelRef.current = scheduleMapFlyWhenReady(
+      () => mapViewRef.current,
+      (handle) => {
+        const flyDurationSec = opts?.switchGlobeToFlat ? 1.2 : 1.0;
+        if (mapStyle === 'globe' && opts?.switchGlobeToFlat) {
+          handle.prepareFlatAt(safe[0], safe[1], undefined, MAP_RECENTER_RADIUS_KM);
+          setMapStyle('flat');
+          localStorage.setItem(MAP_STYLE_KEY, 'flat');
+          window.setTimeout(() => {
+            const active = mapViewRef.current;
+            if (active?.isMapReady()) {
+              active.invalidateSize();
+              active.recenterToBounds(safe[0], safe[1], MAP_RECENTER_RADIUS_KM, {
+                durationSec: flyDurationSec,
+              });
+            }
+          }, MAP_GLOBE_FLAT_DO_SELECT_MS);
+        } else if (mapStyle === 'globe') {
+          handle.prepareFlatAt(safe[0], safe[1], undefined, MAP_RECENTER_RADIUS_KM);
+          handle.flyToGlobe(safe[0], safe[1], 0.45, 900);
+        } else {
+          handle.invalidateSize();
+          if (opts?.switchGlobeToFlat) {
+            handle.recenterToBounds(safe[0], safe[1], MAP_RECENTER_RADIUS_KM, {
+              durationSec: flyDurationSec,
+            });
+          } else {
+            handle.jumpToCityBounds(safe[0], safe[1], MAP_RECENTER_RADIUS_KM);
+          }
+          window.setTimeout(() => mapViewRef.current?.invalidateSize(), 80);
+        }
+        mapAnchorFlyCancelRef.current = null;
+      }
+    );
+  }, [mapStyle]);
+
+  /** FAB « ma position » — cadrage direct sans recenterToken (évite conflits Leaflet). */
+  const flyMapRecenter = useCallback((coords: [number, number]) => {
+    const safe = sanitizeLatLngTuple(coords[0], coords[1], DEFAULT_CENTER);
+    mapExploredRef.current = false;
+    programmaticMapMoveUntilRef.current = Date.now() + 2500;
+    setCenter(safe);
+
+    const runFly = (handle: MapViewHandle) => {
+      if (mapStyle === 'globe') {
+        handle.prepareFlatAt(safe[0], safe[1], undefined, MAP_RECENTER_RADIUS_KM);
+        setMapStyle('flat');
+        localStorage.setItem(MAP_STYLE_KEY, 'flat');
+        window.setTimeout(() => {
+          const active = mapViewRef.current;
+          if (!active?.isMapReady()) return;
+          active.invalidateSize();
+          active.jumpToCityBounds(safe[0], safe[1], MAP_RECENTER_RADIUS_KM);
+          window.setTimeout(() => mapViewRef.current?.invalidateSize(), 80);
+        }, MAP_GLOBE_FLAT_DO_SELECT_MS);
+        return;
+      }
+      handle.invalidateSize();
+      handle.jumpToCityBounds(safe[0], safe[1], MAP_RECENTER_RADIUS_KM);
+      window.setTimeout(() => mapViewRef.current?.invalidateSize(), 80);
+    };
+
+    mapRecenterFlyCancelRef.current?.();
+    const ready = mapViewRef.current;
+    if (ready?.isMapReady()) {
+      runFly(ready);
+    } else {
+      mapRecenterFlyCancelRef.current = scheduleMapFlyWhenReady(
+        () => mapViewRef.current,
+        (handle) => {
+          runFly(handle);
+          mapRecenterFlyCancelRef.current = null;
+        }
+      );
+    }
+  }, [mapStyle]);
 
   const flyMapToSearchPlace = useCallback(
     (handle: MapViewHandle, lat: number, lng: number, radiusKm: number) => {
@@ -1216,6 +1504,8 @@ export function HomePage({
   useEffect(
     () => () => {
       mapSearchFlyCancelRef.current?.();
+      mapAnchorFlyCancelRef.current?.();
+      mapRecenterFlyCancelRef.current?.();
     },
     []
   );
@@ -1256,8 +1546,8 @@ export function HomePage({
     [flyMapToEventFilterCity]
   );
 
-  const flyToEventMarkersBounds = useCallback((markers: MapEventMarker[]) => {
-    const valid = markers.filter((m) => isValidLatLng(m.latitude, m.longitude));
+  const flyToGeoPointsBounds = useCallback((points: { latitude: number; longitude: number }[]) => {
+    const valid = points.filter((p) => isValidLatLng(p.latitude, p.longitude));
     if (valid.length === 0) return;
 
     if (valid.length === 1) {
@@ -1265,24 +1555,30 @@ export function HomePage({
       return;
     }
 
-    let minLat = Infinity, maxLat = -Infinity;
-    let minLng = Infinity, maxLng = -Infinity;
-    for (const m of valid) {
-      if (m.latitude < minLat) minLat = m.latitude;
-      if (m.latitude > maxLat) maxLat = m.latitude;
-      if (m.longitude < minLng) minLng = m.longitude;
-      if (m.longitude > maxLng) maxLng = m.longitude;
+    let minLat = Infinity;
+    let maxLat = -Infinity;
+    let minLng = Infinity;
+    let maxLng = -Infinity;
+    for (const p of valid) {
+      if (p.latitude < minLat) minLat = p.latitude;
+      if (p.latitude > maxLat) maxLat = p.latitude;
+      if (p.longitude < minLng) minLng = p.longitude;
+      if (p.longitude > maxLng) maxLng = p.longitude;
     }
 
     const centerLat = (minLat + maxLat) / 2;
     const centerLng = (minLng + maxLng) / 2;
     let maxDistKm = 0;
-    for (const m of valid) {
-      const d = getDistanceKm(centerLat, centerLng, m.latitude, m.longitude);
+    for (const p of valid) {
+      const d = getDistanceKm(centerLat, centerLng, p.latitude, p.longitude);
       if (d > maxDistKm) maxDistKm = d;
     }
     mapViewRef.current?.flyToCityBounds(centerLat, centerLng, Math.max(maxDistKm * 1.4, 10));
   }, []);
+
+  const flyToEventMarkersBounds = useCallback((markers: MapEventMarker[]) => {
+    flyToGeoPointsBounds(markers);
+  }, [flyToGeoPointsBounds]);
 
   const applyEventFilter = useCallback(
     (criteria: MapEventFilterCriteria) => {
@@ -1310,14 +1606,6 @@ export function HomePage({
     },
     [flyToEventFilterBounds, flyToEventMarkersBounds, user?.id, deactivateMapContentFiltersExcept]
   );
-
-  const toggleEventsFilter = useCallback(() => {
-    if (showEventMarkers) {
-      disableEventsFilter();
-      return;
-    }
-    openEventFilterSheet();
-  }, [showEventMarkers, disableEventsFilter, openEventFilterSheet]);
 
   const onEventFilterPointerDown = useCallback(() => {
     eventFilterLongPressTriggeredRef.current = false;
@@ -1433,11 +1721,23 @@ export function HomePage({
     mapViewRef.current?.setZoomSliderDragging(false);
   }, []);
 
-  const handleGlobePlaceSearch = useCallback((hit: PlaceSearchHit) => {
-    noteMapExplored();
-    const altitude = hit.kind === 'country' ? 1.8 : 0.45;
-    mapViewRef.current?.flyToGlobe(hit.latitude, hit.longitude, altitude);
-  }, [noteMapExplored]);
+  const handleMapSearchSelectPlace = useCallback(
+    (hit: PlaceSearchHit) => {
+      noteMapExplored();
+      if (mapStyle === 'globe') {
+        const altitude = hit.kind === 'country' ? 1.8 : 0.45;
+        mapViewRef.current?.flyToGlobe(hit.latitude, hit.longitude, altitude);
+        return;
+      }
+      const radiusKm = getMapSearchFlyRadiusKm(hit.label, hit.kind === 'country' ? 'country' : 'city');
+      const handle = mapViewRef.current;
+      if (handle?.isMapReady()) {
+        handle.invalidateSize();
+        handle.flyToCityBounds(hit.latitude, hit.longitude, radiusKm, { durationSec: 1.2 });
+      }
+    },
+    [mapStyle, noteMapExplored]
+  );
 
   // Ref holding the debounce timer for settings-triggered reloads.
   const nearbyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1548,6 +1848,7 @@ export function HomePage({
     loadNearbyFromState,
     setSafeCenter,
     setUserPosition,
+    applyMapViewportCenter,
     mapExploredRef,
     geoIntervalRef,
   });
@@ -1558,14 +1859,15 @@ export function HomePage({
       mapExploredRef.current = false;
       const geo = getLivesGeo();
       if (isFixedMapGeoSource(geo.source)) {
-        setSafeCenter([geo.latitude, geo.longitude]);
+        const coords: [number, number] = [geo.latitude, geo.longitude];
+        applyMapViewportCenter(coords);
         setUserPosition(null);
         loadNearby(geo.latitude, geo.longitude);
         return;
       }
       if (!navigator.geolocation) {
         const fallback = resolveMapCameraFallbackCenter(user?.city);
-        setSafeCenter(fallback);
+        applyMapViewportCenter(fallback);
         loadNearby(fallback[0], fallback[1]);
         return;
       }
@@ -1574,14 +1876,14 @@ export function HomePage({
         (pos) => {
           const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
           setUserPosition(sanitizeLatLngTuple(coords[0], coords[1]));
-          setSafeCenter(coords);
+          applyMapViewportCenter(coords);
           loadNearby(coords[0], coords[1]);
           setLocating(false);
         },
         () => {
           setLocating(false);
           const fallback = resolveMapCameraFallbackCenter(user?.city);
-          setSafeCenter(fallback);
+          applyMapViewportCenter(fallback);
           loadNearby(fallback[0], fallback[1]);
         },
         { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 }
@@ -1589,7 +1891,7 @@ export function HomePage({
     };
     window.addEventListener(MAP_GEO_CHANGED_EVENT, onMapGeo);
     return () => window.removeEventListener(MAP_GEO_CHANGED_EVENT, onMapGeo);
-  }, [isActive, token, user?.city]);
+  }, [isActive, token, user?.city, applyMapViewportCenter]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -1603,9 +1905,6 @@ export function HomePage({
       window.removeEventListener(NEARBY_PANEL_CHANGED_EVENT, reloadFromPrefs);
     };
   }, [isActive, token, userPosition, center, loadNearbyFromStateDebounced]);
-
-  /** Ignore bounds-driven nearby reloads pendant flyTo programmé (recherche / recenter). */
-  const programmaticMapMoveUntilRef = useRef(0);
 
   /** Rechargement nearby en attente (filtre Lives/Salon ON avant bounds / globe prêts). */
   const loadNearbyViewportDebounced = useCallback(
@@ -1789,55 +2088,51 @@ export function HomePage({
   const recenterMap = useCallback(() => {
     const geo = getLivesGeo();
 
-    const zoomToLocation = (coords: [number, number], zoom: number): [number, number] => {
+    const applyRecenter = (coords: [number, number]) => {
       const safe = sanitizeLatLngTuple(coords[0], coords[1], DEFAULT_CENTER);
-      if (mapStyle === 'globe') {
-        mapViewRef.current?.jumpTo(safe[0], safe[1], zoom);
-        setMapStyle('flat');
-        localStorage.setItem(MAP_STYLE_KEY, 'flat');
-      } else {
-        mapViewRef.current?.flyTo(safe[0], safe[1], zoom);
-      }
-      setSafeCenter(safe);
+      setUserPosition(safe);
+      loadNearbyAt(safe);
+      flyMapRecenter(safe);
       return safe;
     };
 
     if (isFixedMapGeoSource(geo.source)) {
-      const coords: [number, number] = [geo.latitude, geo.longitude];
-      zoomToLocation(coords, MAP_RECENTER_ZOOM_CITY);
-      loadNearby(geo.latitude, geo.longitude);
+      applyRecenter([geo.latitude, geo.longitude]);
       return;
     }
 
-    const doRecenter = (coords: [number, number]) => {
-      const safe = zoomToLocation(coords, MAP_RECENTER_ZOOM_GPS);
-      setUserPosition(safe);
-      loadNearbyAt(safe);
-    };
-
-    if (userPosition) {
-      doRecenter(userPosition);
-      return;
-    }
+    const fallbackCoords = userPosition ?? resolveMapCameraFallbackCenter(user?.city);
 
     if (!navigator.geolocation) {
-      doRecenter(resolveMapCameraFallbackCenter(user?.city));
+      applyRecenter(fallbackCoords);
       return;
     }
+
+    // Vol immédiat (position connue ou fallback ville), puis affinage GPS si disponible.
+    applyRecenter(fallbackCoords);
 
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        doRecenter([pos.coords.latitude, pos.coords.longitude]);
+        const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+        const safe = sanitizeLatLngTuple(coords[0], coords[1], DEFAULT_CENTER);
         setLocating(false);
+        if (
+          userPosition &&
+          getDistanceKm(userPosition[0], userPosition[1], safe[0], safe[1]) < 0.05
+        ) {
+          // GPS inchangé — forcer quand même le cadrage (pan/zoom utilisateur).
+          flyMapRecenter(safe);
+          return;
+        }
+        applyRecenter(safe);
       },
       () => {
         setLocating(false);
-        doRecenter(resolveMapCameraFallbackCenter(user?.city));
       },
       { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 }
     );
-  }, [userPosition, user?.city, loadNearby, loadNearbyAt, setSafeCenter, mapStyle]);
+  }, [userPosition, user?.city, loadNearbyAt, setUserPosition, flyMapRecenter]);
 
   const dismissSalonSheetOnly = useCallback(() => {
     setSelected((prev) => {
@@ -1872,9 +2167,330 @@ export function HomePage({
     [flyMapToCity, setNearbyPeopleVisible, nearbyPanelPrefs.livesOnly, loadNearbyAt]
   );
 
-  const handleCityEventClick = useCallback((event: MapEventMarker) => {
-    setSelectedMapEvent(event);
+  const flyToMapEventMarker = useCallback(
+    (event: MapEventMarker, opts?: { radiusKm?: number }) => {
+      const radiusKm = opts?.radiusKm ?? MAP_EVENT_DETAIL_FLY_RADIUS_KM;
+      const flyToEventCoords = (lat: number, lng: number) => {
+        if (!isValidLatLng(lat, lng)) return;
+        programmaticMapMoveUntilRef.current = Date.now() + 2500;
+        mapExploredRef.current = true;
+        scheduleMapFlyWhenReady(() => mapViewRef.current, (handle) => {
+          flyMapToSearchPlace(handle, lat, lng, radiusKm);
+        });
+        setCenter((prev) => {
+          const safe = sanitizeLatLngTuple(lat, lng, DEFAULT_CENTER);
+          if (getDistanceKm(prev[0], prev[1], safe[0], safe[1]) < 0.01) return prev;
+          return safe;
+        });
+      };
+
+      if (isValidLatLng(event.latitude, event.longitude)) {
+        flyToEventCoords(event.latitude, event.longitude);
+        return;
+      }
+      const location = event.eventLocation?.trim() ?? '';
+      const syncCoords = location ? resolveEventCoordsSync(location) : null;
+      if (syncCoords) flyToEventCoords(syncCoords.latitude, syncCoords.longitude);
+    },
+    [flyMapToSearchPlace]
+  );
+
+  const handleCityEventClick = useCallback(
+    (event: MapEventMarker) => {
+      const post = feedPostFromMapEventMarker(
+        event,
+        mapEventPostsRef.current.get(event.id),
+        savedEventPostIds
+      );
+      mapEventPostsRef.current.set(event.id, post);
+      setMapEventPostVersion((v) => v + 1);
+      setMapSearchEventModal(null);
+      setSelectedMapEvent(null);
+      setMapSearchOrganizerModal(null);
+      setHighlightedMapEventId(event.id);
+      setMapFocusedEvent(event);
+      flyToMapEventMarker(event, { radiusKm: MAP_SIDEBAR_EVENT_FLY_RADIUS_KM });
+      if (eventsFilterOn) {
+        setNearbyPeopleVisible(true);
+      }
+    },
+    [eventsFilterOn, savedEventPostIds, setNearbyPeopleVisible, flyToMapEventMarker]
+  );
+
+  /** Sidebar MapEventRow / liste cluster — zoom + surbrillance, sans modal. */
+  const handleSidebarMapEventZoom = useCallback(
+    (event: MapEventMarker) => {
+      const post = feedPostFromMapEventMarker(
+        event,
+        mapEventPostsRef.current.get(event.id),
+        savedEventPostIds
+      );
+      mapEventPostsRef.current.set(event.id, post);
+      setMapEventPostVersion((v) => v + 1);
+      setMapSearchEventModal(null);
+      setSelectedMapEvent(null);
+      setMapSearchOrganizerModal(null);
+      setHighlightedMapEventId(event.id);
+      setMapFocusedEvent(null);
+      setNearbyPeopleVisible(true);
+      flyToMapEventMarker(event, { radiusKm: MAP_SIDEBAR_EVENT_FLY_RADIUS_KM });
+    },
+    [savedEventPostIds, setNearbyPeopleVisible, flyToMapEventMarker]
+  );
+
+  const handleBrowseEventDetailOpen = useCallback(
+    (post: FeedPost) => {
+      const saved = applySavedEventFavoriteState(post, savedEventPostIds);
+      mapEventPostsRef.current.set(saved.id, saved);
+      setMapEventPostVersion((v) => v + 1);
+      let opened = false;
+      const openMarker = (marker: MapEventMarker) => {
+        if (opened) return;
+        opened = true;
+        handleCityEventClick(marker);
+      };
+      void buildMapEventMarkersFromPosts([saved], {
+        onProgress: (markers) => {
+          if (markers[0]) openMarker(markers[0]);
+        },
+      }).then((markers) => {
+        if (markers[0]) {
+          openMarker(markers[0]);
+          return;
+        }
+        const location = saved.eventLocation?.trim() ?? '';
+        const coords = location ? resolveEventCoordsSync(location) : null;
+        if (coords) {
+          openMarker({
+            id: saved.id,
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            title: saved.content.trim() || 'Événement',
+            eventDate: saved.eventDate ?? saved.eventDates?.[0],
+            eventDates: saved.eventDates,
+            eventEndTimes: saved.eventEndTimes,
+            eventLocation: saved.eventLocation,
+            eventType: saved.eventType,
+            authorId: saved.author.id,
+            authorUsername: saved.author.username,
+            authorAvatarUrl: saved.author.avatarUrl,
+            authorUsernameColor: saved.author.usernameColor,
+            authorUsernameWaveFrom: saved.author.usernameWaveFrom,
+            authorUsernameWaveTo: saved.author.usernameWaveTo,
+            ...(saved.eventTaggedUsers?.length ? { eventTaggedUsers: saved.eventTaggedUsers } : {}),
+          });
+        }
+      });
+    },
+    [savedEventPostIds, handleCityEventClick]
+  );
+
+  const handleBrowseLivesViewOnMap = useCallback(() => {
+    flyToGeoPointsBounds(collectGeoPointsFromLivesContent(mapSidebarContent));
+  }, [flyToGeoPointsBounds, mapSidebarContent]);
+
+  const handleBrowseSalonViewOnMap = useCallback(() => {
+    flyToGeoPointsBounds(collectGeoPointsFromSalonContent(mapSidebarContent));
+  }, [flyToGeoPointsBounds, mapSidebarContent]);
+
+  const handleBrowseViewOnMap = useCallback(
+    (posts: FeedPost[]) => {
+      setShowEventsBrowseSheet(false);
+      void buildMapEventMarkersFromPosts(posts).then((markers) => {
+        if (markers.length > 0) flyToEventMarkersBounds(markers);
+      });
+    },
+    [flyToEventMarkersBounds]
+  );
+
+  const focusMapOnFeedEvent = useCallback(
+    (post: FeedPost, opts?: { openModal?: boolean; radiusKm?: number }) => {
+      const saved = applySavedEventFavoriteState(post, savedEventPostIds);
+      mapEventPostsRef.current.set(saved.id, saved);
+      setMapEventPostVersion((v) => v + 1);
+      const flyRadiusKm = opts?.radiusKm ?? MAP_EVENT_DETAIL_FLY_RADIUS_KM;
+
+      const flewRef = { current: false };
+      const flyToEventCoords = (lat: number, lng: number) => {
+        if (flewRef.current || !isValidLatLng(lat, lng)) return;
+        flewRef.current = true;
+        programmaticMapMoveUntilRef.current = Date.now() + 2500;
+        mapExploredRef.current = true;
+        scheduleMapFlyWhenReady(() => mapViewRef.current, (handle) => {
+          flyMapToSearchPlace(handle, lat, lng, flyRadiusKm);
+        });
+        setCenter((prev) => {
+          const safe = sanitizeLatLngTuple(lat, lng, DEFAULT_CENTER);
+          if (getDistanceKm(prev[0], prev[1], safe[0], safe[1]) < 0.01) return prev;
+          return safe;
+        });
+      };
+
+      const location = saved.eventLocation?.trim() ?? '';
+      const syncCoords = location ? resolveEventCoordsSync(location) : null;
+      if (syncCoords) {
+        flyToEventCoords(syncCoords.latitude, syncCoords.longitude);
+      }
+
+      void buildMapEventMarkersFromPosts([saved]).then((markers) => {
+        const marker = markers[0];
+        if (!marker) return;
+        if (!flewRef.current) {
+          flyToEventCoords(marker.latitude, marker.longitude);
+        }
+        if (opts?.openModal) {
+          setMapFocusedEvent(null);
+          setSelectedMapEvent(marker);
+        }
+      });
+    },
+    [savedEventPostIds, flyMapToSearchPlace]
+  );
+
+  const handleBrowseEventZoomOnMap = useCallback(
+    (post: FeedPost) => {
+      setMapSearchEventModal(null);
+      setSelectedMapEvent(null);
+      setMapSearchOrganizerModal(null);
+      setHighlightedMapEventId(post.id);
+      setMapFocusedEvent(null);
+      setNearbyPeopleVisible(true);
+      focusMapOnFeedEvent(post, { radiusKm: MAP_SIDEBAR_EVENT_FLY_RADIUS_KM });
+    },
+    [focusMapOnFeedEvent, setNearbyPeopleVisible]
+  );
+
+  const handleBrowseEventOpen = useCallback(
+    (post: FeedPost) => {
+      setNearbyPeopleVisible(true);
+      focusMapOnFeedEvent(post, { openModal: true });
+    },
+    [focusMapOnFeedEvent, setNearbyPeopleVisible]
+  );
+
+  const openMapSearchEventPopup = useCallback(
+    (marker: MapEventMarker, post: FeedPost | null) => {
+      const saved = post ? applySavedEventFavoriteState(post, savedEventPostIds) : null;
+      if (saved) {
+        mapEventPostsRef.current.set(saved.id, saved);
+        setMapEventPostVersion((v) => v + 1);
+      }
+      setMapSearchOrganizerModal(null);
+      setMapFocusedEvent(null);
+      setMapSearchEventModal({ marker, post: saved });
+      setSelectedMapEvent(marker);
+
+      const flyToEventCoords = (lat: number, lng: number) => {
+        if (!isValidLatLng(lat, lng)) return;
+        programmaticMapMoveUntilRef.current = Date.now() + 2500;
+        mapExploredRef.current = true;
+        scheduleMapFlyWhenReady(() => mapViewRef.current, (handle) => {
+          flyMapToSearchPlace(handle, lat, lng, MAP_EVENT_DETAIL_FLY_RADIUS_KM);
+        });
+        setCenter((prev) => {
+          const safe = sanitizeLatLngTuple(lat, lng, DEFAULT_CENTER);
+          if (getDistanceKm(prev[0], prev[1], safe[0], safe[1]) < 0.01) return prev;
+          return safe;
+        });
+      };
+
+      if (isValidLatLng(marker.latitude, marker.longitude)) {
+        flyToEventCoords(marker.latitude, marker.longitude);
+        return;
+      }
+
+      const location = marker.eventLocation?.trim() ?? saved?.eventLocation?.trim() ?? '';
+      const syncCoords = location ? resolveEventCoordsSync(location) : null;
+      if (syncCoords) {
+        flyToEventCoords(syncCoords.latitude, syncCoords.longitude);
+      }
+    },
+    [savedEventPostIds, flyMapToSearchPlace]
+  );
+
+  const handleMapSearchSelectEvent = useCallback(
+    (hit: MapEventSearchEventHit) => {
+      openMapSearchEventPopup(hit.marker, hit.post);
+    },
+    [openMapSearchEventPopup]
+  );
+
+  const handleMapSearchSelectOrganizer = useCallback((hit: MapEventSearchOrganizerHit) => {
+    setMapSearchEventModal(null);
+    setMapSearchOrganizerModal(hit);
   }, []);
+
+  const handleMapSearchOrganizerPickEvent = useCallback(
+    (post: FeedPost) => {
+      const saved = applySavedEventFavoriteState(post, savedEventPostIds);
+      mapEventPostsRef.current.set(saved.id, saved);
+      setMapEventPostVersion((v) => v + 1);
+      setMapSearchOrganizerModal(null);
+      void buildMapEventMarkersFromPosts([saved]).then((markers) => {
+        const marker = markers[0];
+        if (marker) openMapSearchEventPopup(marker, saved);
+      });
+    },
+    [savedEventPostIds, openMapSearchEventPopup]
+  );
+
+  const handleBrowseEventPostChange = useCallback((postId: string, patch: Partial<FeedPost>) => {
+    let cached = mapEventPostsRef.current.get(postId);
+    if (!cached) {
+      const marker = mapEventsRef.current.find((e) => e.id === postId);
+      if (marker) {
+        cached = feedPostFromMapEventMarker(marker, null, savedEventPostIds);
+      }
+    }
+    if (cached) {
+      mapEventPostsRef.current.set(postId, { ...cached, ...patch });
+      setMapEventPostVersion((v) => v + 1);
+    }
+    if (patch.favoriteByMe !== undefined) {
+      setSavedEventPostIds((prev) => {
+        const next = new Set(prev);
+        if (patch.favoriteByMe) next.add(postId);
+        else next.delete(postId);
+        return next;
+      });
+    }
+  }, [savedEventPostIds]);
+
+  const mapEventsBrowseConfig = useMemo((): MapSidebarEventsBrowseConfig | undefined => {
+    if (!token || !sidebarEventsFilterOn) return undefined;
+    return {
+      token,
+      profileCity: user?.city,
+      favoriteAuthorIds: favoriteIds,
+      eventsFilterOn,
+      filterCriteria: eventFilterCriteria,
+      aroundEventPosts: browseAroundEventPosts,
+      viewerId: user?.id,
+      onZoomEventOnMap: handleBrowseEventZoomOnMap,
+      onOpenEvent: handleBrowseEventOpen,
+      onOpenEventDetail: handleBrowseEventDetailOpen,
+      onOpenInFeed: onOpenFeedPost,
+      onPostChange: handleBrowseEventPostChange,
+      selectedMapEventDayKey: mapEventDayPinFilter,
+      onMapEventDayKeySelect: handleMapEventDayPinFilter,
+    };
+  }, [
+    token,
+    sidebarEventsFilterOn,
+    eventsFilterOn,
+    user?.city,
+    user?.id,
+    favoriteIds,
+    eventFilterCriteria,
+    browseAroundEventPosts,
+    handleBrowseEventZoomOnMap,
+    handleBrowseEventOpen,
+    handleBrowseEventDetailOpen,
+    onOpenFeedPost,
+    handleBrowseEventPostChange,
+    mapEventDayPinFilter,
+    handleMapEventDayPinFilter,
+  ]);
 
   const clearEventClusterSelection = useCallback(() => {
     setSelectedEventCluster(null);
@@ -2174,8 +2790,18 @@ export function HomePage({
     if (selectedEventCluster) setSelectedEventCluster(null);
     if (selectedLiveCluster) setSelectedLiveCluster(null);
     if (selectedMajorCityCluster) setSelectedMajorCityCluster(null);
+    if (highlightedMapEventId) setHighlightedMapEventId(null);
+    if (mapFocusedEvent) setMapFocusedEvent(null);
     if (mapProfileOpen) onCloseMapProfile?.();
-  }, [mapProfileOpen, onCloseMapProfile, selectedEventCluster, selectedLiveCluster, selectedMajorCityCluster]);
+  }, [
+    mapProfileOpen,
+    onCloseMapProfile,
+    selectedEventCluster,
+    selectedLiveCluster,
+    selectedMajorCityCluster,
+    highlightedMapEventId,
+    mapFocusedEvent,
+  ]);
 
   const handleMapSalonClick = useCallback((salon: Salon) => {
     flyMapTo(salon.latitude, salon.longitude);
@@ -2400,6 +3026,83 @@ export function HomePage({
         />
       )}
 
+      {token && eventsFilterOn && (
+        <MapEventsBrowseSheet
+          open={showEventsBrowseSheet}
+          onClose={() => setShowEventsBrowseSheet(false)}
+          token={token}
+          profileCity={user?.city}
+          favoriteAuthorIds={favoriteIds}
+          eventsFilterOn={eventsFilterOn}
+          filterCriteria={eventFilterCriteria}
+          aroundEventPosts={browseAroundEventPosts}
+          viewerId={user?.id}
+          onOpenFilter={openEventFilterSheet}
+          onViewOnMap={handleBrowseViewOnMap}
+          onOpenEvent={handleBrowseEventOpen}
+          onOpenEventDetail={handleBrowseEventDetailOpen}
+          onOpenInFeed={onOpenFeedPost}
+          onPostChange={handleBrowseEventPostChange}
+          selectedMapEventDayKey={mapEventDayPinFilter}
+          onMapEventDayKeySelect={handleMapEventDayPinFilter}
+        />
+      )}
+
+      {livesFilterOn && (
+        <MapSidebarBrowseSheet
+          mode="lives"
+          open={showLivesBrowseSheet}
+          onClose={() => setShowLivesBrowseSheet(false)}
+          content={mapSidebarContent}
+          itemCount={uniqueLiveCountFromContent(mapSidebarContent)}
+          onViewOnMap={handleBrowseLivesViewOnMap}
+          onLiveClick={handleSidebarLiveClick}
+        />
+      )}
+
+      {salonFilterOn && (
+        <MapSidebarBrowseSheet
+          mode="salon"
+          open={showSalonBrowseSheet}
+          onClose={() => setShowSalonBrowseSheet(false)}
+          content={mapSidebarContent}
+          itemCount={uniqueSalonCountFromContent(mapSidebarContent)}
+          selectedSalonId={selected?.id}
+          onOpenFilter={openSalonFilterSheet}
+          onViewOnMap={handleBrowseSalonViewOnMap}
+          onSalonClick={handleSidebarSalonClick}
+        />
+      )}
+
+      {token && (
+        <MapCurrentFilterPopup
+          open={mapFilterPopupOpen}
+          onClose={() => setMapFilterPopupOpen(false)}
+          activeFilter={activeMapFilterKind}
+          itemCount={activeMapFilterCount}
+          eventCriteria={eventFilterCriteria}
+          salonCriteria={salonFilterCriteria}
+          onEditSalon={openSalonFilterSheet}
+          onEditEvents={openEventFilterSheet}
+          onDisableLives={() => {
+            setNearbyPanelPreferences({ livesOnly: false });
+            setShowLivesBrowseSheet(false);
+          }}
+          onDisableSalon={disableSalonFilter}
+          onDisableEvents={disableEventsFilter}
+          onActivateLives={() => {
+            deactivateMapContentFiltersExcept('lives');
+            setNearbyPanelPreferences({ livesOnly: true });
+          }}
+          onActivateSalon={openSalonFilterSheet}
+          onActivateEvents={() => {
+            deactivateMapContentFiltersExcept('events');
+            setShowEventMarkers(true);
+            setNearbyPeopleVisible(true);
+          }}
+        />
+      )}
+
       {token && (
         <MapSalonFilterSheet
           open={showSalonFilterSheet}
@@ -2443,7 +3146,7 @@ export function HomePage({
             cluster={selectedEventClusterForPanel ?? selectedEventCluster}
             detailTier={mapDetailState.tier}
             favoriteIds={favoriteIds}
-            onEventClick={handleCityEventClick}
+            onEventClick={handleSidebarMapEventZoom}
             onBack={clearEventClusterSelection}
             onHide={() => setNearbyPeopleVisible(false)}
           />
@@ -2458,12 +3161,13 @@ export function HomePage({
             onPersonClick={handleSidebarPersonClick}
             onSalonClick={handleSidebarSalonClick}
             onLiveClick={handleSidebarLiveClick}
+            onEventClick={handleSidebarMapEventZoom}
             onHide={() => setNearbyPeopleVisible(false)}
-            onEventClick={handleCityEventClick}
-            onEventClusterClick={handleMapEventClusterClick}
             eventsFilterOn={sidebarEventsFilterOn}
             livesFilterOn={sidebarLivesFilterOn}
             salonFilterOn={salonFilterOn}
+            eventsBrowseMode={sidebarEventsFilterOn}
+            eventsBrowse={mapEventsBrowseConfig}
           />
         )
       ) : !bottomMapList ? (
@@ -2507,7 +3211,6 @@ export function HomePage({
         {token &&
           user &&
           !mapProfileOpen &&
-          !mapLivesBrowseOpen &&
           (mapActiveSalonSession || mapActiveLiveSession) &&
           onMapReturnToSalon &&
           onMapReturnToLive && (
@@ -2559,12 +3262,7 @@ export function HomePage({
             }}
           />
         )}
-        <div
-          className={
-            mapLivesBrowseOpen ? 'absolute inset-0 z-0 hidden pointer-events-none inert' : 'absolute inset-0 z-0'
-          }
-          aria-hidden={mapLivesBrowseOpen ? true : undefined}
-        >
+        <div className="absolute inset-0 z-0">
         <MapView
           ref={mapViewRef}
           salons={mapSalonsForView}
@@ -2599,21 +3297,43 @@ export function HomePage({
           livesFilterOn={livesFilterOn}
           salonFilterOn={salonFilterOn}
           eventsFilterOn={eventsFilterOn}
+          highlightedMapEventId={highlightedMapEventId}
         />
         </div>
-        {mapLivesBrowseOpen && (
-          <div className="absolute inset-0 z-[5] flex flex-col min-h-0 bg-[#0b0b0f]">
-            <LivesBrowseGrid
-              className="flex-1 min-h-0 h-full"
-              onOpenLive={onOpenLive}
-              isActive={isActive && mapLivesBrowseOpen}
-            />
-          </div>
-        )}
         {mapStyle === 'globe' && (
           <div
             className="absolute inset-0 z-[1] pointer-events-none"
             style={{ background: 'radial-gradient(ellipse at center, transparent 55%, rgba(0,0,15,0.65) 100%)' }}
+          />
+        )}
+
+        {mapFocusedEvent && !mapSearchEventModal && !mapProfileOpen && (
+          <MapEventMapInfoPanel
+            marker={mapFocusedEvent}
+            post={mapFocusedEventPost}
+            savedEventPostIds={savedEventPostIds}
+            onClose={() => {
+              setMapFocusedEvent(null);
+              setHighlightedMapEventId(null);
+            }}
+            onOpenDetail={() => {
+              setSelectedMapEvent(mapFocusedEvent);
+              setMapFocusedEvent(null);
+            }}
+            onPostUpdated={handleBrowseEventPostChange}
+            onOpenAuthor={(userId) => {
+              const cached = mapEventPostsRef.current.get(mapFocusedEvent.id);
+              onOpenProfile({
+                id: userId,
+                username: cached?.author.username ?? mapFocusedEvent.authorUsername ?? '',
+                avatarUrl: cached?.author.avatarUrl ?? mapFocusedEvent.authorAvatarUrl,
+                usernameColor: cached?.author.usernameColor ?? mapFocusedEvent.authorUsernameColor,
+                usernameWaveFrom: cached?.author.usernameWaveFrom ?? mapFocusedEvent.authorUsernameWaveFrom,
+                usernameWaveTo: cached?.author.usernameWaveTo ?? mapFocusedEvent.authorUsernameWaveTo,
+              });
+              setMapFocusedEvent(null);
+              setHighlightedMapEventId(null);
+            }}
           />
         )}
 
@@ -2667,7 +3387,7 @@ export function HomePage({
           </div>
         )}
 
-        {!mapLivesBrowseOpen && (
+        {!mapProfileOpen && (
           <MapZoomSlider
             value={mapZoomControl.norm}
             mode={mapZoomControl.mode}
@@ -2678,7 +3398,7 @@ export function HomePage({
           />
         )}
 
-        {!mapLivesBrowseOpen && (
+        {!mapProfileOpen && (
           <div className="ms-map-recenter-fab absolute bottom-4 right-3 z-30 flex flex-row items-center gap-2 pointer-events-auto">
             <button
               type="button"
@@ -2701,8 +3421,14 @@ export function HomePage({
           </div>
         )}
 
-        {mapStyle === 'globe' && !mapLivesBrowseOpen && !mapProfileOpen && (
-          <MapGlobePlaceSearch onSelectPlace={handleGlobePlaceSearch} />
+        {token && !mapProfileOpen && (
+          <MapEventSearchBar
+            markers={mapEvents}
+            postsById={mapEventPostsMap}
+            onSelectEvent={handleMapSearchSelectEvent}
+            onSelectOrganizer={handleMapSearchSelectOrganizer}
+            onSelectPlace={handleMapSearchSelectPlace}
+          />
         )}
 
         <div className="ms-map-filter-stack absolute top-3 left-3 z-30 inline-flex flex-col gap-2 pointer-events-auto">
@@ -2735,14 +3461,6 @@ export function HomePage({
               </span>
               Lives
             </button>
-            {nearbyPanelPrefs.livesOnly && livesFilterBadgeCount > 0 && (
-              <span
-                className="pointer-events-none absolute -top-1 -right-1 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-red-600/90 px-0.5 text-[8px] font-bold leading-none text-white"
-                aria-hidden
-              >
-                {livesFilterBadgeCount}
-              </span>
-            )}
           </div>
           <div className="relative w-full">
             <button
@@ -2774,14 +3492,6 @@ export function HomePage({
               </span>
               Salon
             </button>
-            {showSalonMarkers && salonFilterBadgeCount > 0 && (
-              <span
-                className="pointer-events-none absolute -top-1 -right-1 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-fuchsia-600/90 px-0.5 text-[8px] font-bold leading-none text-white"
-                aria-hidden
-              >
-                {salonFilterBadgeCount}
-              </span>
-            )}
           </div>
           {token && (
             <div className="relative w-full">
@@ -2792,16 +3502,12 @@ export function HomePage({
                 onPointerUp={onEventFilterPointerUp}
                 onPointerLeave={onEventFilterPointerUp}
                 onPointerCancel={onEventFilterPointerUp}
-                title={
-                  showEventMarkers
-                    ? t('map.eventFilterDisableTitle')
-                    : t('map.eventFilterEnableTitle')
-                }
-                aria-label={
-                  showEventMarkers
-                    ? t('map.eventFilterDisableTitle')
-                    : t('map.eventFilterEnableTitle')
-                }
+                title={t('map.eventsBrowseOpenTitle', {
+                  defaultValue: 'Voir les événements autour et dans votre pays',
+                })}
+                aria-label={t('map.eventsBrowseOpenTitle', {
+                  defaultValue: 'Voir les événements autour et dans votre pays',
+                })}
                 aria-pressed={showEventMarkers}
                 className={`${MAP_STACK_FILTER_BTN} ${
                   showEventMarkers
@@ -2818,65 +3524,25 @@ export function HomePage({
                 )}
                 Évènement
               </button>
-              {showEventMarkers && eventsFilterBadgeCount > 0 && (
-                <span
-                  className="pointer-events-none absolute -top-1 -right-1 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-purple-600/90 px-0.5 text-[8px] font-bold leading-none text-white"
-                  aria-hidden
-                >
-                  {eventsFilterBadgeCount}
-                </span>
-              )}
             </div>
           )}
           <div className="ms-map-globe-row flex items-center gap-1.5 w-full shrink-0">
             <button
               type="button"
-              onClick={toggleMapLivesBrowse}
-              title={
-                mapLivesBrowseOpen
-                  ? t('map.showMap', { defaultValue: 'Afficher la carte' })
-                  : t('map.showLivesGrid', { defaultValue: 'Afficher les lives' })
-              }
-              aria-label={
-                mapLivesBrowseOpen
-                  ? t('map.showMap', { defaultValue: 'Afficher la carte' })
-                  : t('map.showLivesGrid', { defaultValue: 'Afficher les lives' })
-              }
-              aria-pressed={mapLivesBrowseOpen}
-              className={`${MAP_STACK_ICON_BTN} ${
-                mapLivesBrowseOpen
-                  ? 'bg-[var(--ms-surface)] border-purple-500 ring-2 ring-purple-500/40'
+              onClick={openMapFilterPopup}
+              title={mapBrowsePopupTitle}
+              aria-label={mapBrowsePopupTitle}
+              aria-expanded={anyBrowseSheetOpen}
+              aria-pressed={anyMapFilterActive}
+              className={`${MAP_STACK_ICON_BTN} relative ${
+                anyMapFilterActive
+                  ? 'border-indigo-500 bg-[var(--ms-surface)] text-indigo-300 ring-2 ring-indigo-500/40'
                   : 'border-[#232330] bg-[#131318] text-gray-400 hover:border-white/15 hover:text-white'
               }`}
             >
-              {mapLivesBrowseOpen ? (
-                <svg
-                  viewBox="0 0 24 24"
-                  className="w-3.5 h-3.5 text-indigo-300"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" />
-                  <path d="M9 3v15M15 6v15" />
-                </svg>
-              ) : (
-                <svg
-                  className="w-3.5 h-3.5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  aria-hidden
-                >
-                  <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" />
-                </svg>
-              )}
+              <FilterIcon className="w-3.5 h-3.5" />
             </button>
-            {!mapLivesBrowseOpen && canUseGlobeView() && (
+            {canUseGlobeView() && (
             <button
               type="button"
               onClick={toggleMapStyle}
@@ -2933,7 +3599,7 @@ export function HomePage({
                 cluster={selectedEventClusterForPanel ?? selectedEventCluster}
                 detailTier={mapDetailState.tier}
                 favoriteIds={favoriteIds}
-                onEventClick={handleCityEventClick}
+                onEventClick={handleSidebarMapEventZoom}
                 onBack={clearEventClusterSelection}
                 onHide={() => setNearbyPeopleVisible(false)}
               />
@@ -2948,12 +3614,13 @@ export function HomePage({
                 onPersonClick={handleSidebarPersonClick}
                 onSalonClick={handleSidebarSalonClick}
                 onLiveClick={handleSidebarLiveClick}
+                onEventClick={handleSidebarMapEventZoom}
                 onHide={() => setNearbyPeopleVisible(false)}
-                onEventClick={handleCityEventClick}
-                onEventClusterClick={handleMapEventClusterClick}
                 eventsFilterOn={sidebarEventsFilterOn}
                 livesFilterOn={sidebarLivesFilterOn}
                 salonFilterOn={salonFilterOn}
+                eventsBrowseMode={sidebarEventsFilterOn}
+                eventsBrowse={mapEventsBrowseConfig}
               />
             )
           ) : (
@@ -2978,12 +3645,70 @@ export function HomePage({
       </div>
 
       <MapEventDetailModal
-        open={!!selectedMapEvent}
+        open={!!mapSearchEventModal}
+        marker={mapSearchEventModal?.marker ?? null}
+        post={mapSearchEventPost}
+        savedEventPostIds={savedEventPostIds}
+        onClose={() => setMapSearchEventModal(null)}
+        onPostUpdated={(postId, patch) => {
+          const cached = mapEventPostsRef.current.get(postId);
+          const marker = mapSearchEventModal?.marker;
+          const next = cached
+            ? { ...cached, ...patch }
+            : marker?.id === postId
+              ? ({
+                  ...feedPostFromMapEventMarker(marker, null, savedEventPostIds),
+                  ...patch,
+                } as FeedPost)
+              : null;
+          if (next) {
+            mapEventPostsRef.current.set(postId, next);
+            setMapEventPostVersion((v) => v + 1);
+          }
+          if (patch.favoriteByMe !== undefined) {
+            setSavedEventPostIds((prev) => {
+              const nextIds = new Set(prev);
+              if (patch.favoriteByMe) nextIds.add(postId);
+              else nextIds.delete(postId);
+              return nextIds;
+            });
+          }
+        }}
+        onOpenAuthor={(userId) => {
+          const marker = mapSearchEventModal?.marker;
+          if (!marker) return;
+          const cached = mapEventPostsRef.current.get(marker.id);
+          onOpenProfile({
+            id: userId,
+            username: cached?.author.username ?? marker.authorUsername ?? '',
+            avatarUrl: cached?.author.avatarUrl ?? marker.authorAvatarUrl,
+            usernameColor: cached?.author.usernameColor ?? marker.authorUsernameColor,
+            usernameWaveFrom: cached?.author.usernameWaveFrom ?? marker.authorUsernameWaveFrom,
+            usernameWaveTo: cached?.author.usernameWaveTo ?? marker.authorUsernameWaveTo,
+          });
+          setMapSearchEventModal(null);
+        }}
+      />
+
+      <MapOrganizerEventsPopup
+        open={!!mapSearchOrganizerModal}
+        authorUsername={mapSearchOrganizerModal?.authorUsername ?? ''}
+        authorId={mapSearchOrganizerModal?.authorId ?? ''}
+        events={mapSearchOrganizerModal?.events ?? []}
+        onClose={() => setMapSearchOrganizerModal(null)}
+        onSelectEvent={handleMapSearchOrganizerPickEvent}
+        onOpenAuthor={(userId) => {
+          onOpenProfile({ id: userId, username: mapSearchOrganizerModal?.authorUsername ?? '' });
+          setMapSearchOrganizerModal(null);
+        }}
+      />
+
+      <MapEventDetailModal
+        open={!!selectedMapEvent && !mapSearchEventModal}
         marker={selectedMapEvent}
         post={selectedMapEventPost}
         savedEventPostIds={savedEventPostIds}
         onClose={() => setSelectedMapEvent(null)}
-        onOpenInFeed={onOpenFeedPost}
         onPostUpdated={(postId, patch) => {
           const cached = mapEventPostsRef.current.get(postId);
           const next = cached

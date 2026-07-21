@@ -29,6 +29,7 @@ import {
 } from './lib/forgotPasswordRoute';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { NotificationBell } from './components/NotificationBell';
+import { SettingsHeaderButton } from './components/SettingsHeaderButton';
 import { useDmUnread } from './context/DmUnreadContext';
 import { ProfileSearchBar, nearbyPreviewFromSearchItem } from './components/ProfileSearchBar';
 import type { GlobalSearchResultItem } from './components/ProfileSearchBar';
@@ -47,6 +48,7 @@ const UserProfilePage = lazy(() =>
 );
 const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 const LivesTabPage = lazy(() =>
   import('./pages/LivesTabPage').then((m) => ({ default: m.LivesTabPage }))
 );
@@ -78,6 +80,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('map');
   const [view, setView] = useState<View>({ type: 'home' });
   const [profileOpen, setProfileOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [profileOpenRecorder, setProfileOpenRecorder] = useState(false);
   const [profilePreview, setProfilePreview] = useState<NearbyPerson | null>(null);
   const [profileReturnView, setProfileReturnView] = useState<View>({ type: 'home' });
@@ -185,6 +188,10 @@ export default function App() {
    * courant — cf. audit mobile, gap navigation Android.
    */
   useAndroidBackButton(() => {
+    if (settingsOpen) {
+      setSettingsOpen(false);
+      return true;
+    }
     if (profileOpen) {
       setProfileOpen(false);
       return true;
@@ -320,8 +327,16 @@ export default function App() {
     if (tab === 'reels' && id !== 'reels') stopReelsMedia();
     if (id !== 'reels') pauseMediaElements();
     setProfileOpen(false);
+    setSettingsOpen(false);
     setView({ type: 'home' });
     setTab(id);
+  };
+
+  const openSettingsPanel = () => {
+    if (tab === 'reels') stopReelsMedia();
+    pauseMediaElements();
+    setProfileOpen(false);
+    setSettingsOpen(true);
   };
 
   const handleGlobalSearchSelect = (item: GlobalSearchResultItem) => {
@@ -392,12 +407,18 @@ export default function App() {
             <div className="flex items-center gap-1.5 justify-self-start min-w-0 overflow-hidden">
               <button
                 type="button"
-                onClick={() => selectTab('map')}
-                className="text-lg font-extrabold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent shrink-0 cursor-pointer hover:opacity-75 active:scale-95 transition"
-                title="Retour à la Carte"
-                aria-label="Aller à la carte"
+                onClick={() => {
+                  if (tab === 'reels') stopReelsMedia();
+                  setProfileOpen(true);
+                }}
+                className="flex items-center gap-1.5 shrink-0 rounded-full ring-2 ring-purple-500/40 hover:ring-purple-400 active:scale-95 transition min-h-11 min-w-11 pl-0.5 pr-2 cursor-pointer bg-transparent border-0"
+                title="Mon profil"
+                aria-label="Ouvrir mon profil"
               >
-                Soundy
+                <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                <span className="hidden min-[400px]:inline text-xs font-semibold text-white/90 whitespace-nowrap">
+                  Mon profil
+                </span>
               </button>
             </div>
             <div className="justify-self-center w-[min(100%,17.5rem)] min-w-[8.5rem] px-0.5">
@@ -413,18 +434,7 @@ export default function App() {
                 onOpenDm={openDmWithUser}
                 onOpenGroup={openGroupChat}
               />
-              <button
-                type="button"
-                onClick={() => {
-                  if (tab === 'reels') stopReelsMedia();
-                  setProfileOpen(true);
-                }}
-                className="rounded-full ring-2 ring-purple-500/40 hover:ring-purple-400 active:scale-95 transition"
-                title="Mon profil"
-                aria-label="Ouvrir mon profil"
-              >
-                <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
-              </button>
+              <SettingsHeaderButton onClick={openSettingsPanel} active={settingsOpen} />
             </div>
           </div>
         </div>
@@ -553,6 +563,14 @@ export default function App() {
                 openRecorderOnMount={profileOpenRecorder}
                 onRecorderMountHandled={() => setProfileOpenRecorder(false)}
               />
+            </Suspense>
+          </div>
+        )}
+
+        {settingsOpen && (
+          <div className="ms-app-profile-overlay flex flex-col min-h-0 bg-[#0b0b0f]">
+            <Suspense fallback={<PageFallback />}>
+              <SettingsPage onBack={() => setSettingsOpen(false)} />
             </Suspense>
           </div>
         )}

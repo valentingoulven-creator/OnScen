@@ -4,7 +4,7 @@ import { schedulePersist } from './lib/persist';
 /** Publications événement — préfixe idempotent (msdev). */
 export const EVENT_POST_ID_PREFIX = 'feed-event-';
 
-export const EVENT_SEED_TARGET = 12;
+export const EVENT_SEED_TARGET = 19;
 
 export interface FeedEventSeed {
   id: string;
@@ -135,6 +135,76 @@ export const FEED_EVENT_SEEDS: FeedEventSeed[] = [
     eventLocation: 'Le Corum Opéra Berlioz, Montpellier, France',
     eventType: 'chant',
     imageUrl: 'https://images.unsplash.com/photo-1460723237253-f7e14d6cc893?w=600&q=80',
+  },
+  {
+    id: `${EVENT_POST_ID_PREFIX}deferlantes-2026-07-20`,
+    userId: 'user_dj',
+    content:
+      'Les Déferlantes — jour 2 : Damso, Vald et Lomepal sur la plage d’Argelès. Festival rock & hip-hop.',
+    eventDate: '2026-07-20T16:00:00.000Z',
+    eventLocation: 'Les Déferlantes, Argelès-sur-Mer, France',
+    eventType: 'autre',
+    imageUrl: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&q=80',
+  },
+  {
+    id: `${EVENT_POST_ID_PREFIX}nuits-sonores-2026-07-21`,
+    userId: 'user_bass',
+    content:
+      'Nuits Sonores — soirée électro au parc de la Tête d’Or : Amelie Lens, Four Tet et Bicep en live.',
+    eventDate: '2026-07-21T18:00:00.000Z',
+    eventLocation: 'Nuits Sonores, Lyon, France',
+    eventType: 'dance',
+    imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600',
+  },
+  {
+    id: `${EVENT_POST_ID_PREFIX}jazz-juan-2026-07-22`,
+    userId: 'user_listener',
+    content:
+      'Jazz à Juan — soirée au Pinède Gould : Gregory Porter et Ibrahim Maalouf face à la Méditerranée.',
+    eventDate: '2026-07-22T19:30:00.000Z',
+    eventLocation: 'Jazz à Juan, Antibes, France',
+    eventType: 'chant',
+    imageUrl: 'https://images.unsplash.com/photo-1415201364774-f6f0ff35ac28?w=600&q=80',
+  },
+  {
+    id: `${EVENT_POST_ID_PREFIX}vieilles-charrues-2026-07-23`,
+    userId: 'user_dj',
+    content:
+      'Les Vieilles Charrues — jour 1 à Carhaix : Stromae, Angèle et Måneskin sur la prairie bretonne.',
+    eventDate: '2026-07-23T14:00:00.000Z',
+    eventLocation: 'Les Vieilles Charrues, Carhaix, France',
+    eventType: 'chant',
+    imageUrl: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600',
+  },
+  {
+    id: `${EVENT_POST_ID_PREFIX}lollapalooza-paris-2026-07-24`,
+    userId: 'user_bass',
+    content:
+      'Lollapalooza Paris — hip-hop day à Longchamp : Tyler, The Creator, A$AP Rocky et Central Cee.',
+    eventDate: '2026-07-24T12:00:00.000Z',
+    eventLocation: 'Hippodrome de Longchamp, Paris, France',
+    eventType: 'autre',
+    imageUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&q=80',
+  },
+  {
+    id: `${EVENT_POST_ID_PREFIX}francofolies-2026-07-25`,
+    userId: 'user_listener',
+    content:
+      'Francofolies de La Rochelle — soirée chanson : -M-, Zazie et Grand Corps Malade sur le port.',
+    eventDate: '2026-07-25T19:00:00.000Z',
+    eventLocation: 'Francofolies, La Rochelle, France',
+    eventType: 'chant',
+    imageUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&q=80',
+  },
+  {
+    id: `${EVENT_POST_ID_PREFIX}calvi-rocks-2026-07-26`,
+    userId: 'user_dj',
+    content:
+      'Calvi on the Rocks — closing party : Disclosure, Peggy Gou et DJ set sunset sur la citadelle.',
+    eventDate: '2026-07-26T17:00:00.000Z',
+    eventLocation: 'Calvi on the Rocks, Calvi, France',
+    eventType: 'dance',
+    imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600',
   },
 ];
 

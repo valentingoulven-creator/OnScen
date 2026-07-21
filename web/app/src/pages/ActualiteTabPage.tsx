@@ -50,7 +50,7 @@ import { HorizontalScrollCarousel } from '../components/HorizontalScrollCarousel
 import { NewsArticleCard } from '../components/NewsArticleCard';
 import { getUpcomingUserEvents, getEventDates, getEventDateEntries, formatEventDateWithEndTime, getPrimaryEventDate, hasUpcomingEventDate } from '../lib/feedEvents';
 import { EventTaggedUsersRow } from '../components/EventTaggedUsersRow';
-import { CreateFeedEventModal } from '../components/CreateFeedEventModal';
+import { CreateFeedEventModal, buildFeedEventContent } from '../components/CreateFeedEventModal';
 import { readSavedEventLocation, writeSavedEventLocation } from '../lib/savedEventLocation';
 import { storyLinkDisplayLabel, validateStoryLinkUrl } from '../lib/storyLink';
 import { ConfirmModal } from '../components/ConfirmModal';
@@ -1054,6 +1054,7 @@ export function ActualiteTabPage({
   const [saveEventLocation, setSaveEventLocation] = useState(true);
   const [eventType, setEventType] = useState<'dance' | 'chant' | 'autre'>('autre');
   const [eventTitle, setEventTitle] = useState('');
+  const [eventDescription, setEventDescription] = useState('');
   const [eventLinkUrl, setEventLinkUrl] = useState('');
   const [eventTaggedUsers, setEventTaggedUsers] = useState<StoryTaggedUser[]>([]);
   const [eventModalOpen, setEventModalOpen] = useState(false);
@@ -1609,6 +1610,7 @@ export function ActualiteTabPage({
     setConfirmedEventDates([]);
     setEventType('autre');
     setEventTitle('');
+    setEventDescription('');
     setEventLinkUrl('');
     setEventTaggedUsers([]);
     const savedLocation = readSavedEventLocation();
@@ -1627,7 +1629,7 @@ export function ActualiteTabPage({
       draft.trim() ||
         imageUrl.trim() ||
         videoUrl.trim() ||
-        (isEvent && eventTitle.trim())
+        (isEvent && (eventTitle.trim() || eventDescription.trim()))
     ) && eventFieldsValid;
   const editorOpen = Boolean(editorSource && editorPreviewUrl);
   const mediaAttaching = imageAttaching || videoAttaching || imagePreparing;
@@ -1638,7 +1640,8 @@ export function ActualiteTabPage({
     setError(null);
     try {
       const textContent =
-        draft.trim() || (isEvent ? eventTitle.trim() || eventTypeLabel : '');
+        draft.trim() ||
+        (isEvent ? buildFeedEventContent(eventTitle, eventDescription, eventTypeLabel) : '');
       const body: Parameters<typeof api.createFeedPost>[1] = { content: textContent };
       const img = imageUrl.trim();
       const vid = videoUrl.trim();
@@ -2221,6 +2224,7 @@ export function ActualiteTabPage({
         onConfirm={(draft) => {
           setEventType(draft.eventType);
           setEventTitle(draft.title);
+          setEventDescription(draft.description);
           setEventLinkUrl(draft.eventLinkUrl);
           setConfirmedEventDates(draft.confirmedEventDates);
           setEventLocation(draft.eventLocation);
@@ -2237,6 +2241,7 @@ export function ActualiteTabPage({
           isEvent
             ? {
                 title: eventTitle,
+                description: eventDescription,
                 eventType,
                 confirmedEventDates,
                 eventLocation,

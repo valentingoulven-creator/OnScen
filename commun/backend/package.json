@@ -18,6 +18,7 @@
     "seed:sponsors": "npm run build && node dist/commun/scripts/seed-production-sponsors.js",
     "seed:world": "npm run build && node dist/commun/scripts/seed-production-world-random.js",
     "msdev:seed-stories": "npm run build && node dist/commun/scripts/seed-msdev-stories.js",
+    "msdev:seed-events": "npm run build && node dist/scripts/seed-msdev-events.js",
     "create-admin": "npx ts-node src/scripts/create-admin-user.ts",
     "audit:orphaned-uploads": "npx ts-node src/scripts/find-orphaned-s3-uploads.ts"
   },

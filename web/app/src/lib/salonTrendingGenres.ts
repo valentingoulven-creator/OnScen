@@ -5,11 +5,7 @@ export interface SalonGenreSource {
   listenersCount?: number;
 }
 
-/** Genres les plus présents dans les salons actifs, pondérés par auditeurs. */
-export function rankTrendingSalonGenres(
-  salons: SalonGenreSource[],
-  limit = 12
-): string[] {
+function scoreSalonGenres(salons: SalonGenreSource[]): Map<string, { label: string; score: number }> {
   const scores = new Map<string, { label: string; score: number }>();
 
   for (const salon of salons) {
@@ -29,10 +25,22 @@ export function rankTrendingSalonGenres(
     }
   }
 
-  return [...scores.values()]
+  return scores;
+}
+
+/** Tous les genres présents dans au moins un salon actif, triés par popularité. */
+export function listActiveSalonGenres(salons: SalonGenreSource[]): string[] {
+  return [...scoreSalonGenres(salons).values()]
     .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label, 'fr'))
-    .slice(0, limit)
     .map((e) => e.label);
+}
+
+/** Genres les plus présents dans les salons actifs, pondérés par auditeurs. */
+export function rankTrendingSalonGenres(
+  salons: SalonGenreSource[],
+  limit = 12
+): string[] {
+  return listActiveSalonGenres(salons).slice(0, Math.max(0, limit));
 }
 
 export function sortGenresByTrendingPriority(genres: string[], trending: string[]): string[] {

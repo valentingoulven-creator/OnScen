@@ -22,8 +22,6 @@ export interface MapMajorCityLiveCluster {
   longitude: number;
   cityAnchoredSalons: Salon[];
   cityAnchoredLives: Live[];
-  geolocatedSalons: Salon[];
-  geolocatedLives: Live[];
   count: number;
   liveCount: number;
 }
@@ -74,21 +72,15 @@ function countLiveInCluster(c: MapMajorCityLiveCluster): number {
   let n = 0;
   for (const s of c.cityAnchoredSalons) if (isLiveSalon(s)) n++;
   n += c.cityAnchoredLives.length;
-  for (const s of c.geolocatedSalons) if (isLiveSalon(s)) n++;
-  n += c.geolocatedLives.length;
   return n;
 }
 
 function finalizeCluster(c: MapMajorCityLiveCluster): MapMajorCityLiveCluster {
-  const count =
-    c.cityAnchoredSalons.length +
-    c.cityAnchoredLives.length +
-    c.geolocatedSalons.length +
-    c.geolocatedLives.length;
+  const count = c.cityAnchoredSalons.length + c.cityAnchoredLives.length;
   return { ...c, count, liveCount: countLiveInCluster(c) };
 }
 
-/** Regroupe salons/lives par grande ville (vue overview carte plate). */
+/** Regroupe salons/lives ancrés sur une grande ville (sans GPS précis). */
 export function clusterSalonsLivesByMajorCity(
   salons: Salon[],
   lives: Live[],
@@ -113,8 +105,6 @@ export function clusterSalonsLivesByMajorCity(
         longitude: city.longitude,
         cityAnchoredSalons: [],
         cityAnchoredLives: [],
-        geolocatedSalons: [],
-        geolocatedLives: [],
         count: 0,
         liveCount: 0,
       };
@@ -131,8 +121,6 @@ export function clusterSalonsLivesByMajorCity(
     const { kind, city } = classifyMapMarkerCoords(lat, lon);
     if (kind === 'cityAnchored' && city) {
       ensureBucket(city).cityAnchoredSalons.push(salon);
-    } else if (kind === 'geolocatedInCity' && city) {
-      ensureBucket(city).geolocatedSalons.push(salon);
     } else {
       geolocatedRemoteSalons.push(salon);
     }
@@ -147,8 +135,6 @@ export function clusterSalonsLivesByMajorCity(
     const { kind, city } = classifyMapMarkerCoords(lat, lon);
     if (kind === 'cityAnchored' && city) {
       ensureBucket(city).cityAnchoredLives.push(live);
-    } else if (kind === 'geolocatedInCity' && city) {
-      ensureBucket(city).geolocatedLives.push(live);
     } else {
       geolocatedRemoteLives.push(live);
     }

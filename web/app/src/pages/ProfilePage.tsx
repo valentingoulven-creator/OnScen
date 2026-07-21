@@ -751,13 +751,14 @@ export function ProfilePage({
               <button
                 type="button"
                 onClick={startEditing}
-                className="w-full min-h-[44px] py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 active:scale-[0.98] font-bold text-white text-sm transition shadow-lg shadow-purple-900/30 flex items-center justify-center gap-1.5"
+                className="min-h-[44px] px-3 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 active:scale-[0.98] font-bold text-white text-xs sm:text-sm transition shadow-lg shadow-purple-900/30 flex items-center justify-center gap-1.5"
               >
                 <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5" />
                   <path strokeLinecap="round" strokeLinejoin="round" d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
                 </svg>
-                {t('profile.editProfile')}
+                <span className="hidden sm:inline">{t('profile.editProfile')}</span>
+                <span className="sm:hidden">{t('profile.editProfileShort')}</span>
               </button>
             }
             hostRatingSlot={
