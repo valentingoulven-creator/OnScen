@@ -29200,3 +29200,31 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 1106 — 2026-07-21
 ================================================================================
+
+================================================================================
+MODIF 1107 — Ops prod : LEGAL_PUBLISHER_ADDRESS quotée + assets post-deploy — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Deploy prod bloqué par migrate-remote (.env ligne 96 : adresse sans guillemets).
+
+CHANGEMENTS / FIX
+-----
+ setup-legal-prod.ps1 — LEGAL_PUBLISHER_ADDRESS entre guillemets dans .env VPS
+ fix-legal-env-quotes.sh — script correctif one-shot (prod)
+ Assets build synchronisés après deploy zero-downtime
+
+FICHIERS MODIFIÉS
+-----
+ commun/scripts/setup-legal-prod.ps1 · fix-legal-env-quotes.sh
+ commun/backend/public/* (assets index/sw)
+
+BUILD (si vérifié)
+-----
+ deploy-prod.ps1 → verify-prod OK ✅
+
+================================================================================
+Fin MODIF 1107 — 2026-07-21
+================================================================================

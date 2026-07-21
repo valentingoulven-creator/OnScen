@@ -28,9 +28,9 @@ set -euo pipefail
 ADDR="$escaped"
 ENV_FILE="/opt/soundly/.env"
 if grep -q '^LEGAL_PUBLISHER_ADDRESS=' "`$ENV_FILE" 2>/dev/null; then
-  sed -i "s|^LEGAL_PUBLISHER_ADDRESS=.*|LEGAL_PUBLISHER_ADDRESS=`$ADDR|" "`$ENV_FILE"
+  sed -i "s|^LEGAL_PUBLISHER_ADDRESS=.*|LEGAL_PUBLISHER_ADDRESS=\"`$ADDR\"|" "`$ENV_FILE"
 else
-  printf '%s\n' "LEGAL_PUBLISHER_ADDRESS=`$ADDR" >> "`$ENV_FILE"
+  printf '%s\n' "LEGAL_PUBLISHER_ADDRESS=\"`$ADDR\"" >> "`$ENV_FILE"
 fi
 python3 - <<PY
 import json
