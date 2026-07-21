@@ -29228,3 +29228,46 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 1107 — 2026-07-21
 ================================================================================
+
+================================================================================
+MODIF 1108 — Paramètres : accordéon UX épuré — Soundy Dev
+Date : 2026-07-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Page Paramètres trop longue (9 blocs toujours ouverts) — refonte CTO en catégories déroulables.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/settings/SettingsAccordionSection.tsx
+ ─────────────────
+ • Accordéon réutilisable (chevron, résumé collapsed, aria-expanded)
+
+ web/app/src/components/settings/SettingsPrimitives.tsx
+ ─────────────────
+ • SettingsRow, SettingsGroup, SettingsInfoCallout extraits
+
+ web/app/src/pages/SettingsPage.tsx
+ ─────────────────
+ • 6 panneaux : Comptes & créateur, Confidentialité, Notifications, Sécurité, Application, Aide & légal
+ • Sous-accordéons Documents légaux / Mes données
+ • Déconnexion toujours visible (hors accordéon)
+
+ web/app/src/locales/fr.json · en.json
+ ─────────────────
+ • Clés sectionExpand/Collapse, summaries, accountsCreatorSection, helpLegalSection
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/SettingsPage.tsx → accordéon
+ web/app/src/components/settings/* → nouveaux composants
+ web/app/src/locales/fr.json · en.json → i18n
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 1108 — 2026-07-21
+================================================================================

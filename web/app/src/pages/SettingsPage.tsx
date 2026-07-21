@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LEGAL, type LegalKey } from '../content/legal';
 import { resetCookieConsent } from '../lib/cookieConsent';
@@ -21,6 +21,12 @@ import { PlatformConnectCard } from '../components/PlatformConnectCard';
 import { SupportMeloSongTeaser } from '../components/SupportMeloSongSection';
 import { ContactSoundyPage } from './ContactSoundyPage';
 import { PlatformSubscriptionPage } from './PlatformSubscriptionPage';
+import { SettingsAccordionSection } from '../components/settings/SettingsAccordionSection';
+import {
+  SettingsGroup,
+  SettingsInfoCallout,
+  SettingsRow,
+} from '../components/settings/SettingsPrimitives';
 
 // ─── 2FA setup modal states ───────────────────────────────────────────────────
 type TwoFAModalState =
@@ -112,104 +118,6 @@ export function SettingsGearButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function SettingsSectionHeader({
-  children,
-  expanded,
-  onToggle,
-  toggleAriaLabel,
-}: {
-  children: React.ReactNode;
-  expanded?: boolean;
-  onToggle?: () => void;
-  toggleAriaLabel?: string;
-}) {
-  if (!onToggle) {
-    return (
-      <p className="px-4 pt-5 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider first:pt-4">
-        {children}
-      </p>
-    );
-  }
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded={expanded}
-      aria-label={toggleAriaLabel}
-      className="w-full flex items-center justify-between gap-2 px-4 pt-5 pb-2 min-h-[44px] text-left first:pt-4 hover:bg-[#12121a]/40 active:bg-[#12121a]/60 transition-colors"
-    >
-      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{children}</span>
-      <span
-        className={`text-gray-500 shrink-0 text-base leading-none transition-transform ${expanded ? 'rotate-90' : ''}`}
-        aria-hidden
-      >
-        ›
-      </span>
-    </button>
-  );
-}
-
-function SettingsSubGroupHeader({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="px-4 pt-2 pb-1 text-[9px] font-semibold text-gray-600 uppercase tracking-wide">
-      {children}
-    </p>
-  );
-}
-
-function SettingsGroup({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mx-4 rounded-xl border border-[#1e1e2f] bg-[#12121a]/60 overflow-hidden divide-y divide-[#1e1e2f]/70">
-      {children}
-    </div>
-  );
-}
-
-function SettingsInfoCallout({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="mx-4 mt-2 mb-3 px-3 py-2.5 rounded-xl bg-[#12121a]/40 border border-[#1e1e2f]/80 text-[11px] text-gray-500 leading-relaxed">
-      {children}
-    </p>
-  );
-}
-
-function SettingsRow({
-  label,
-  hint,
-  onClick,
-  children,
-  destructive,
-}: {
-  label: string;
-  hint?: string;
-  onClick?: () => void;
-  children?: React.ReactNode;
-  destructive?: boolean;
-}) {
-  const Tag = onClick ? 'button' : 'div';
-  return (
-    <Tag
-      type={onClick ? 'button' : undefined}
-      onClick={onClick}
-      className={`w-full flex items-center justify-between gap-3 p-4 min-h-[44px] text-left ${
-        onClick
-          ? destructive
-            ? 'hover:bg-red-500/5 active:bg-red-500/10'
-            : 'hover:bg-[#1a1a26] active:bg-[#1a1a26]'
-          : ''
-      }`}
-    >
-      <div className="min-w-0">
-        <p className={`text-sm font-semibold ${destructive ? 'text-red-400' : 'text-white'}`}>{label}</p>
-        {hint && <p className="text-xs text-gray-500 mt-0.5">{hint}</p>}
-      </div>
-      {children ?? (onClick && (
-        <span className={`shrink-0 ${destructive ? 'text-red-400/70' : 'text-gray-500'}`}>›</span>
-      ))}
-    </Tag>
-  );
-}
-
 export function SettingsPage({
   onBack,
   openContactOnMount = false,
@@ -226,8 +134,16 @@ export function SettingsPage({
   const [showSubscription, setShowSubscription] = useState(false);
   const [showDonationSheet, setShowDonationSheet] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [streamingExpanded, setStreamingExpanded] = useState(false);
-  const [notificationsExpanded, setNotificationsExpanded] = useState(true);
+  const [accountsExpanded, setAccountsExpanded] = useState(
+    () => (user?.connectedPlatforms?.length ?? 0) > 0
+  );
+  const [privacyExpanded, setPrivacyExpanded] = useState(false);
+  const [notificationsExpanded, setNotificationsExpanded] = useState(false);
+  const [securityExpanded, setSecurityExpanded] = useState(false);
+  const [applicationExpanded, setApplicationExpanded] = useState(false);
+  const [helpLegalExpanded, setHelpLegalExpanded] = useState(false);
+  const [legalDocsExpanded, setLegalDocsExpanded] = useState(false);
+  const [legalDataExpanded, setLegalDataExpanded] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [dmDisabled, setDmDisabled] = useState(() => user?.allowPrivateMessages === false);
   const [dmSaving, setDmSaving] = useState(false);
@@ -261,6 +177,9 @@ export function SettingsPage({
   useEffect(() => {
     if (!pushSupported) return;
     setPushPermission(Notification.permission as PushPermissionState);
+    if (Notification.permission === 'default') {
+      setNotificationsExpanded(true);
+    }
   }, [pushSupported]);
 
   useEffect(() => {
@@ -525,6 +444,51 @@ export function SettingsPage({
       ? LEGAL[legal].title
       : t('settings.title');
 
+  const accountsSummary = useMemo(() => {
+    const platforms = user?.connectedPlatforms ?? [];
+    if (platforms.length > 0) return platforms.join(', ');
+    return t('settings.sectionSummaryNoPlatform');
+  }, [user?.connectedPlatforms, t]);
+
+  const privacySummary = useMemo(() => {
+    const parts: string[] = [];
+    if (dmDisabled) parts.push(t('settings.sectionSummaryDmOff', 'DM off'));
+    if (externalEventTagsDisabled) parts.push(t('settings.sectionSummaryTagsOff', 'Tags off'));
+    return parts.length > 0
+      ? parts.join(' · ')
+      : t('settings.sectionSummaryPrivacyDefault', 'Messages & tags actifs');
+  }, [dmDisabled, externalEventTagsDisabled, t]);
+
+  const notificationsSummary = useMemo(() => {
+    if (!pushSupported) return undefined;
+    if (pushPermission === 'granted') return t('settings.sectionSummaryPushOn', 'Push activées');
+    if (pushPermission === 'denied') return t('settings.sectionSummaryPushBlocked', 'Push bloquées');
+    return t('settings.sectionSummaryPushOff', 'Push désactivées');
+  }, [pushPermission, pushSupported, t]);
+
+  const securitySummary = useMemo(() => {
+    const parts: string[] = [];
+    parts.push(
+      twoFAEnabled
+        ? t('settings.sectionSummary2FAOn', '2FA activée')
+        : t('settings.sectionSummary2FAOff', '2FA désactivée')
+    );
+    return parts.join(' · ');
+  }, [twoFAEnabled, t]);
+
+  const applicationSummary = useMemo(() => {
+    const langLabel = language === 'fr' ? 'FR' : 'EN';
+    const themeLabel =
+      theme === 'dark'
+        ? t('settings.themeDark')
+        : theme === 'light'
+          ? t('settings.themeLight')
+          : t('settings.themeSystem');
+    return `${langLabel} · ${themeLabel}`;
+  }, [language, theme, t]);
+
+  const helpLegalSummary = t('settings.sectionSummaryHelpLegal', 'Légal · Données');
+
   if (showSubscription) {
     return <PlatformSubscriptionPage onBack={() => setShowSubscription(false)} />;
   }
@@ -560,258 +524,372 @@ export function SettingsPage({
         ) : legal ? (
           <LegalDocumentView docKey={legal} embedded />
         ) : (
-          <div className="flex flex-col flex-1 min-h-full pb-[max(2rem,env(safe-area-inset-bottom))]">
-        {/* ── 1. Plateformes connectées ── */}
-        <section>
-          <SettingsSectionHeader>{t('settings.platformsSection')}</SettingsSectionHeader>
-          <p className="px-4 pb-2 text-[11px] text-gray-500">{t('settings.platformsSectionHint')}</p>
-          <SettingsGroup>
-            <SettingsRow
-              label={t('profile.connectedAccounts')}
-              onClick={() => setStreamingExpanded((v) => !v)}
+          <div className="flex flex-col flex-1 min-h-full pb-[max(2rem,env(safe-area-inset-bottom))] pt-3">
+            <SettingsAccordionSection
+              id="settings-accounts"
+              title={t('settings.accountsCreatorSection', 'Comptes & créateur')}
+              summary={accountsSummary}
+              expanded={accountsExpanded}
+              onToggle={() => setAccountsExpanded((v) => !v)}
             >
-              <span
-                className={`text-gray-500 shrink-0 transition-transform ${streamingExpanded ? 'rotate-90' : ''}`}
-                aria-hidden
-              >
-                ›
-              </span>
-            </SettingsRow>
-          </SettingsGroup>
-          {streamingExpanded && token && user && (
-            <div className="px-4 pb-2 pt-3 space-y-2">
-              {(['youtube'] as const).map((p) => (
-                <PlatformConnectCard
-                  key={p}
-                  token={token}
-                  platform={p}
-                  connectedPlatforms={user.connectedPlatforms}
-                  platformLinks={user.platformLinks}
-                  onUserUpdated={setUserFromProfile}
-                />
-              ))}
-            </div>
-          )}
-        </section>
+              <p className="text-[11px] text-gray-500 mb-3">{t('settings.platformsSectionHint')}</p>
+              {token && user ? (
+                <div className="space-y-2 mb-3">
+                  {(['youtube'] as const).map((p) => (
+                    <PlatformConnectCard
+                      key={p}
+                      token={token}
+                      platform={p}
+                      connectedPlatforms={user.connectedPlatforms}
+                      platformLinks={user.platformLinks}
+                      onUserUpdated={setUserFromProfile}
+                    />
+                  ))}
+                </div>
+              ) : null}
+              {token && user ? (
+                <div className="pt-3">
+                  <CreatorStripeConnectCard
+                    token={token}
+                    user={user}
+                    onUserUpdated={() => void refreshUser()}
+                  />
+                </div>
+              ) : null}
+            </SettingsAccordionSection>
 
-        {/* ── 2. Abonnement & créateur ── */}
-        <section>
-          <SettingsSectionHeader>{t('settings.monetizationSection')}</SettingsSectionHeader>
-          <SettingsGroup>
-            <SettingsRow
-              label={t('profile.subscription')}
-              onClick={() => setShowSubscription(true)}
-            />
-          </SettingsGroup>
-
-          {token && user && (
-            <div className="px-4 py-3">
-              <CreatorStripeConnectCard
-                token={token}
-                user={user}
-                onUserUpdated={() => void refreshUser()}
-              />
-            </div>
-          )}
-
-          <div className="px-4 pb-2">
-            <SupportMeloSongTeaser onOpen={() => setShowDonationSheet(true)} />
-          </div>
-        </section>
-
-        {/* ── 3. Confidentialité ── */}
-        <section>
-          <SettingsSectionHeader>{t('settings.privacySection')}</SettingsSectionHeader>
-          <p className="px-4 pb-2 text-[11px] text-gray-500">{t('settings.privacySectionHint')}</p>
-          <SettingsGroup>
-            <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-white">{t('settings.disablePrivateMessages')}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{t('settings.disablePrivateMessagesHint')}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => void handleTogglePrivateMessages()}
-                disabled={dmSaving || !token}
-                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${dmDisabled ? 'bg-purple-600' : 'bg-gray-600'}`}
-                aria-label={t('settings.disablePrivateMessagesToggleAria')}
-              >
-                <span
-                  className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${dmDisabled ? 'translate-x-6' : 'translate-x-1'}`}
-                />
-              </button>
-            </label>
-
-            <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-white">{t('settings.disableExternalEventTags')}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{t('settings.disableExternalEventTagsHint')}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => void handleToggleExternalEventTags()}
-                disabled={externalEventTagsSaving || !token}
-                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${externalEventTagsDisabled ? 'bg-purple-600' : 'bg-gray-600'}`}
-                aria-label={t('settings.disableExternalEventTagsToggleAria')}
-              >
-                <span
-                  className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${externalEventTagsDisabled ? 'translate-x-6' : 'translate-x-1'}`}
-                />
-              </button>
-            </label>
-          </SettingsGroup>
-          <SettingsInfoCallout>{t('settings.privacyMapCallout')}</SettingsInfoCallout>
-        </section>
-
-        {/* ── 4. Notifications ── */}
-        {pushSupported && (
-          <section>
-            <SettingsSectionHeader
-              expanded={notificationsExpanded}
-              onToggle={() => setNotificationsExpanded((v) => !v)}
-              toggleAriaLabel={
-                notificationsExpanded
-                  ? t('settings.notificationsSectionCollapse')
-                  : t('settings.notificationsSectionExpand')
-              }
+            <SettingsAccordionSection
+              id="settings-privacy"
+              title={t('settings.privacySection')}
+              summary={privacySummary}
+              expanded={privacyExpanded}
+              onToggle={() => setPrivacyExpanded((v) => !v)}
             >
-              {t('settings.notificationsSection')}
-            </SettingsSectionHeader>
-            {notificationsExpanded && (
               <SettingsGroup>
                 <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-white">{t('settings.pushNotifications')}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {pushPermission === 'granted'
-                        ? t('settings.pushEnabledHint')
-                        : pushPermission === 'denied'
-                          ? t('settings.pushDeniedHint')
-                          : t('settings.pushDefaultHint')}
-                    </p>
+                    <p className="text-sm font-semibold text-white">{t('settings.disablePrivateMessages')}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{t('settings.disablePrivateMessagesHint')}</p>
                   </div>
-                  {pushPermission === 'denied' ? (
-                    <span className="text-xs text-gray-600 shrink-0">{t('settings.pushBlocked')}</span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleTogglePush}
-                      disabled={pushLoading}
-                      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${pushPermission === 'granted' ? 'bg-purple-600' : 'bg-gray-600'}`}
-                      aria-label={t('settings.pushToggleAria')}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${pushPermission === 'granted' ? 'translate-x-6' : 'translate-x-1'}`}
-                      />
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => void handleTogglePrivateMessages()}
+                    disabled={dmSaving || !token}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${dmDisabled ? 'bg-purple-600' : 'bg-gray-600'}`}
+                    aria-label={t('settings.disablePrivateMessagesToggleAria')}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${dmDisabled ? 'translate-x-6' : 'translate-x-1'}`}
+                    />
+                  </button>
+                </label>
+
+                <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white">{t('settings.disableExternalEventTags')}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{t('settings.disableExternalEventTagsHint')}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void handleToggleExternalEventTags()}
+                    disabled={externalEventTagsSaving || !token}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${externalEventTagsDisabled ? 'bg-purple-600' : 'bg-gray-600'}`}
+                    aria-label={t('settings.disableExternalEventTagsToggleAria')}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${externalEventTagsDisabled ? 'translate-x-6' : 'translate-x-1'}`}
+                    />
+                  </button>
                 </label>
               </SettingsGroup>
-            )}
-          </section>
-        )}
+              <SettingsInfoCallout>{t('settings.privacyMapCallout')}</SettingsInfoCallout>
+            </SettingsAccordionSection>
 
-        {/* ── 5. Sécurité et accès ── */}
-        <section>
-          <SettingsSectionHeader>{t('settings.securityAccessSection')}</SettingsSectionHeader>
-          <SettingsGroup>
-            <SettingsRow
-              label={t('settings.changePassword')}
-              hint={t('settings.currentPasswordHint')}
-              onClick={() => { setPwSection((s) => !s); setPwError(''); }}
-            />
-          </SettingsGroup>
+            {pushSupported ? (
+              <SettingsAccordionSection
+                id="settings-notifications"
+                title={t('settings.notificationsSection')}
+                summary={notificationsSummary}
+                expanded={notificationsExpanded}
+                onToggle={() => setNotificationsExpanded((v) => !v)}
+              >
+                <SettingsGroup>
+                  <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-white">{t('settings.pushNotifications')}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {pushPermission === 'granted'
+                          ? t('settings.pushEnabledHint')
+                          : pushPermission === 'denied'
+                            ? t('settings.pushDeniedHint')
+                            : t('settings.pushDefaultHint')}
+                      </p>
+                    </div>
+                    {pushPermission === 'denied' ? (
+                      <span className="text-xs text-gray-600 shrink-0">{t('settings.pushBlocked')}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleTogglePush}
+                        disabled={pushLoading}
+                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${pushPermission === 'granted' ? 'bg-purple-600' : 'bg-gray-600'}`}
+                        aria-label={t('settings.pushToggleAria')}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${pushPermission === 'granted' ? 'translate-x-6' : 'translate-x-1'}`}
+                        />
+                      </button>
+                    )}
+                  </label>
+                </SettingsGroup>
+              </SettingsAccordionSection>
+            ) : null}
 
-          {pwSection && (
-            <form onSubmit={handleChangePassword} className="px-4 pb-4 pt-3 space-y-3">
-              <input
-                type="password"
-                placeholder={t('settings.currentPassword')}
-                value={currentPwd}
-                onChange={(e) => setCurrentPwd(e.target.value)}
-                required
-                autoComplete="current-password"
-                className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white"
-              />
-              <div className="space-y-1.5">
-                <input
-                  type="password"
-                  placeholder={t('settings.newPassword')}
-                  value={newPwd}
-                  onChange={(e) => setNewPwd(e.target.value)}
-                  required
-                  autoComplete="new-password"
-                  className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white"
-                />
-                <PasswordStrengthBar password={newPwd} />
-              </div>
-              <input
-                type="password"
-                placeholder={t('settings.confirmNewPassword')}
-                value={confirmPwd}
-                onChange={(e) => setConfirmPwd(e.target.value)}
-                required
-                autoComplete="new-password"
-                className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white"
-              />
-              {confirmPwd && newPwd !== confirmPwd && (
-                <p className="text-[11px] text-red-400">{t('settings.passwordMismatch')}</p>
-              )}
-              {pwError && (
-                <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{pwError}</p>
-              )}
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setPwSection(false); setPwError(''); setCurrentPwd(''); setNewPwd(''); setConfirmPwd(''); }}
-                  className="flex-1 py-2 rounded-xl text-sm text-gray-400 bg-[#1a1a26] hover:bg-[#22222f] transition"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  disabled={pwLoading}
-                  className="flex-1 py-2 rounded-xl text-sm font-bold text-white bg-purple-600 hover:bg-purple-500 disabled:opacity-50 transition"
-                >
-                  {pwLoading ? '…' : t('common.save')}
-                </button>
-              </div>
-            </form>
-          )}
-
-          <SettingsGroup>
-            <SettingsRow
-              label="Double authentification (2FA)"
-              hint={twoFAEnabled
-                ? 'Activée — votre compte est protégé par TOTP'
-                : 'Ajoutez une couche de sécurité avec Google Authenticator'}
-              onClick={twoFAEnabled
-                ? () => { setTwoFAModal('disable'); setTwoFAError(''); setTwoFADisableCode(''); }
-                : () => void openTwoFASetup()}
+            <SettingsAccordionSection
+              id="settings-security"
+              title={t('settings.securityAccessSection')}
+              summary={securitySummary}
+              expanded={securityExpanded}
+              onToggle={() => setSecurityExpanded((v) => !v)}
             >
-              {twoFALoading && twoFAModal === 'closed'
-                ? <span className="w-4 h-4 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin shrink-0" />
-                : (
-                  <span className={`text-xs font-semibold shrink-0 ${twoFAEnabled ? 'text-green-400' : 'text-gray-500'}`}>
-                    {twoFAEnabled ? 'Activée' : 'Désactivée'}
-                  </span>
-                )}
-            </SettingsRow>
-          </SettingsGroup>
+              <SettingsGroup>
+                <SettingsRow
+                  label={t('settings.changePassword')}
+                  hint={t('settings.currentPasswordHint')}
+                  onClick={() => { setPwSection((s) => !s); setPwError(''); }}
+                />
+              </SettingsGroup>
 
-          <div className="px-4 py-3">
-            <BiometricSetup />
-          </div>
+              {pwSection ? (
+                <form onSubmit={handleChangePassword} className="pt-3 space-y-3">
+                  <input
+                    type="password"
+                    placeholder={t('settings.currentPassword')}
+                    value={currentPwd}
+                    onChange={(e) => setCurrentPwd(e.target.value)}
+                    required
+                    autoComplete="current-password"
+                    className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white"
+                  />
+                  <div className="space-y-1.5">
+                    <input
+                      type="password"
+                      placeholder={t('settings.newPassword')}
+                      value={newPwd}
+                      onChange={(e) => setNewPwd(e.target.value)}
+                      required
+                      autoComplete="new-password"
+                      className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white"
+                    />
+                    <PasswordStrengthBar password={newPwd} />
+                  </div>
+                  <input
+                    type="password"
+                    placeholder={t('settings.confirmNewPassword')}
+                    value={confirmPwd}
+                    onChange={(e) => setConfirmPwd(e.target.value)}
+                    required
+                    autoComplete="new-password"
+                    className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white"
+                  />
+                  {confirmPwd && newPwd !== confirmPwd ? (
+                    <p className="text-[11px] text-red-400">{t('settings.passwordMismatch')}</p>
+                  ) : null}
+                  {pwError ? (
+                    <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{pwError}</p>
+                  ) : null}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setPwSection(false); setPwError(''); setCurrentPwd(''); setNewPwd(''); setConfirmPwd(''); }}
+                      className="flex-1 py-2 rounded-xl text-sm text-gray-400 bg-[#1a1a26] hover:bg-[#22222f] transition"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={pwLoading}
+                      className="flex-1 py-2 rounded-xl text-sm font-bold text-white bg-purple-600 hover:bg-purple-500 disabled:opacity-50 transition"
+                    >
+                      {pwLoading ? '…' : t('common.save')}
+                    </button>
+                  </div>
+                </form>
+              ) : null}
 
-          <SettingsGroup>
-            <SettingsRow
-              label={t('settings.deleteAccount')}
-              hint={t('settings.deleteAccountHint')}
-              onClick={() => { setDeleteModal(true); setDeleteError(''); setDeletePwd(''); setDeleteConfirmText(''); }}
-              destructive
-            />
-          </SettingsGroup>
-        </section>
+              <div className="pt-3">
+                <SettingsGroup>
+                  <SettingsRow
+                    label="Double authentification (2FA)"
+                    hint={twoFAEnabled
+                      ? 'Activée — votre compte est protégé par TOTP'
+                      : 'Ajoutez une couche de sécurité avec Google Authenticator'}
+                    onClick={twoFAEnabled
+                      ? () => { setTwoFAModal('disable'); setTwoFAError(''); setTwoFADisableCode(''); }
+                      : () => void openTwoFASetup()}
+                  >
+                    {twoFALoading && twoFAModal === 'closed'
+                      ? <span className="w-4 h-4 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin shrink-0" />
+                      : (
+                        <span className={`text-xs font-semibold shrink-0 ${twoFAEnabled ? 'text-green-400' : 'text-gray-500'}`}>
+                          {twoFAEnabled ? 'Activée' : 'Désactivée'}
+                        </span>
+                      )}
+                  </SettingsRow>
+                </SettingsGroup>
+              </div>
+
+              <div className="pt-3">
+                <BiometricSetup />
+              </div>
+
+              <div className="pt-3">
+                <SettingsGroup>
+                  <SettingsRow
+                    label={t('settings.deleteAccount')}
+                    hint={t('settings.deleteAccountHint')}
+                    onClick={() => { setDeleteModal(true); setDeleteError(''); setDeletePwd(''); setDeleteConfirmText(''); }}
+                    destructive
+                  />
+                </SettingsGroup>
+              </div>
+            </SettingsAccordionSection>
+
+            <SettingsAccordionSection
+              id="settings-application"
+              title={t('settings.applicationSection')}
+              summary={applicationSummary}
+              expanded={applicationExpanded}
+              onToggle={() => setApplicationExpanded((v) => !v)}
+            >
+              <SettingsGroup>
+                <SettingsRow label={t('settings.language')}>
+                  <select
+                    value={language}
+                    onChange={(e) => applyLanguage(e.target.value as AppLanguage)}
+                    className="bg-[#1a1a26] border border-[#2d2d3d] rounded-lg px-2 py-1 text-sm text-white"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <option value="fr">Français</option>
+                    <option value="en">English</option>
+                  </select>
+                </SettingsRow>
+                <SettingsRow label={t('settings.theme')}>
+                  <select
+                    value={theme}
+                    onChange={(e) => applyTheme(e.target.value as AppTheme)}
+                    className="bg-[#1a1a26] border border-[#2d2d3d] rounded-lg px-2 py-1 text-sm text-white"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <option value="dark">{t('settings.themeDark')}</option>
+                    <option value="light">{t('settings.themeLight')}</option>
+                    <option value="system">{t('settings.themeSystem')}</option>
+                  </select>
+                </SettingsRow>
+              </SettingsGroup>
+            </SettingsAccordionSection>
+
+            <SettingsAccordionSection
+              id="settings-help-legal"
+              title={t('settings.helpLegalSection', 'Aide & légal')}
+              summary={helpLegalSummary}
+              expanded={helpLegalExpanded}
+              onToggle={() => setHelpLegalExpanded((v) => !v)}
+            >
+              <SettingsGroup>
+                <SettingsRow
+                  label={t('settings.dsaReportContent')}
+                  hint={t('settings.dsaReportContentHint')}
+                  onClick={() => setShowContact(true)}
+                />
+              </SettingsGroup>
+
+              {legalIncomplete ? (
+                <div className="mt-3 flex items-start gap-2 bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2.5">
+                  <span className="text-amber-400 text-sm shrink-0 mt-px">⚠</span>
+                  <p className="text-[11px] text-amber-200/80 leading-relaxed">
+                    Les <span className="font-semibold text-amber-300">Mentions légales</span> contiennent des champs non renseignés.{' '}
+                    Complétez <code className="text-amber-200 bg-amber-500/10 rounded px-0.5">msdev/legal-publisher.json</code> avant mise en production (LCEN).
+                  </p>
+                </div>
+              ) : null}
+
+              <SettingsAccordionSection
+                id="settings-legal-docs"
+                nested
+                title={t('settings.legalDocumentsGroup')}
+                summary={t('settings.sectionSummaryLegalDocs', '8 documents')}
+                expanded={legalDocsExpanded}
+                onToggle={() => setLegalDocsExpanded((v) => !v)}
+              >
+                <SettingsGroup>
+                  <SettingsRow
+                    label={t('settings.legalMentions')}
+                    onClick={() => setLegal('mentions')}
+                  >
+                    {legalIncomplete ? (
+                      <span className="text-[10px] font-bold text-amber-400 bg-amber-500/15 border border-amber-500/30 rounded-full px-2 py-0.5 shrink-0">
+                        À compléter
+                      </span>
+                    ) : (
+                      <span className="text-gray-500 shrink-0">›</span>
+                    )}
+                  </SettingsRow>
+                  <SettingsRow label={t('settings.legalTerms')} onClick={() => setLegal('terms')} />
+                  <SettingsRow label={t('settings.legalPrivacy')} onClick={() => setLegal('privacy')} />
+                  <SettingsRow label={t('settings.legalCookies')} onClick={() => setLegal('cookies')} />
+                  <SettingsRow label={t('settings.legalRgpd')} onClick={() => setLegal('rgpd')} />
+                  <SettingsRow
+                    label={t('settings.legalApiPlatforms')}
+                    hint={t('settings.legalApiPlatformsHint')}
+                    onClick={() => setLegal('apiPlatforms')}
+                  />
+                  <SettingsRow
+                    label={t('settings.legalMonetization')}
+                    onClick={() => setLegal('creatorMonetization')}
+                  />
+                  <SettingsRow label={t('settings.legalLicenses')} onClick={() => setLegal('licenses')} />
+                </SettingsGroup>
+              </SettingsAccordionSection>
+
+              <SettingsAccordionSection
+                id="settings-legal-data"
+                nested
+                title={t('settings.legalDataGroup')}
+                summary={t('settings.sectionSummaryLegalData', 'Cookies · Export JSON')}
+                expanded={legalDataExpanded}
+                onToggle={() => setLegalDataExpanded((v) => !v)}
+              >
+                <SettingsGroup>
+                  <SettingsRow
+                    label={t('settings.legalCookiePrefs')}
+                    hint={t('settings.legalCookiePrefsHint')}
+                    onClick={() => resetCookieConsent()}
+                  />
+                  <SettingsRow
+                    label={t('settings.exportData')}
+                    hint={t('settings.exportDataHint')}
+                    onClick={handleExportData}
+                  >
+                    <span className="text-xs text-purple-400 shrink-0 font-medium">
+                      {exportLoading ? '…' : t('settings.exportJson')}
+                    </span>
+                  </SettingsRow>
+                </SettingsGroup>
+                <div className="mt-3 px-3 py-3 rounded-xl bg-[#12121a]/40 border border-[#1e1e2f]/80">
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">{t('settings.dataRightsSection')}</p>
+                  <p className="text-[11px] text-gray-400 leading-relaxed">
+                    {t('settings.dataRightsHint')} :{' '}
+                    <a
+                      href="mailto:privacy@getsoundy.com"
+                      className="text-purple-400 underline"
+                    >
+                      privacy@getsoundy.com
+                    </a>
+                  </p>
+                </div>
+              </SettingsAccordionSection>
+            </SettingsAccordionSection>
 
         {/* ── Modals 2FA / suppression (overlays) ── */}
         {twoFAModal === 'setup_qr' && (
@@ -990,142 +1068,43 @@ export function SettingsPage({
           </div>
         )}
 
-        {/* ── 6. Application ── */}
-        <section>
-          <SettingsSectionHeader>{t('settings.applicationSection')}</SettingsSectionHeader>
-          <SettingsGroup>
-            <SettingsRow label={t('settings.language')}>
-              <select
-                value={language}
-                onChange={(e) => applyLanguage(e.target.value as AppLanguage)}
-                className="bg-[#1a1a26] border border-[#2d2d3d] rounded-lg px-2 py-1 text-sm text-white"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <option value="fr">Français</option>
-                <option value="en">English</option>
-              </select>
-            </SettingsRow>
-            <SettingsRow label={t('settings.theme')}>
-              <select
-                value={theme}
-                onChange={(e) => applyTheme(e.target.value as AppTheme)}
-                className="bg-[#1a1a26] border border-[#2d2d3d] rounded-lg px-2 py-1 text-sm text-white"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <option value="dark">{t('settings.themeDark')}</option>
-                <option value="light">{t('settings.themeLight')}</option>
-                <option value="system">{t('settings.themeSystem')}</option>
-              </select>
-            </SettingsRow>
-          </SettingsGroup>
-        </section>
+            <div className="flex-1 min-h-6" aria-hidden />
 
-        {/* ── 7. Assistance ── */}
-        <section>
-          <SettingsSectionHeader>{t('settings.assistanceSection')}</SettingsSectionHeader>
-          <SettingsGroup>
-            <SettingsRow
-              label={t('profile.contactSoundy')}
-              onClick={() => setShowContact(true)}
-            />
-            <SettingsRow
-              label={t('settings.dsaReportContent')}
-              hint={t('settings.dsaReportContentHint')}
-              onClick={() => setShowContact(true)}
-            />
-          </SettingsGroup>
-        </section>
-
-        {/* ── 8. Légal & données ── */}
-        <section>
-          <SettingsSectionHeader>{t('settings.legalSection')}</SettingsSectionHeader>
-          {legalIncomplete && (
-            <div className="mx-4 mb-3 flex items-start gap-2 bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2.5">
-              <span className="text-amber-400 text-sm shrink-0 mt-px">⚠</span>
-              <p className="text-[11px] text-amber-200/80 leading-relaxed">
-                Les <span className="font-semibold text-amber-300">Mentions légales</span> contiennent des champs non renseignés.{' '}
-                Complétez <code className="text-amber-200 bg-amber-500/10 rounded px-0.5">msdev/legal-publisher.json</code> avant mise en production (LCEN).
+            <section className="mx-4 mb-2">
+              <p className="pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                {t('settings.sessionSection')}
               </p>
-            </div>
-          )}
-          <SettingsSubGroupHeader>{t('settings.legalDocumentsGroup')}</SettingsSubGroupHeader>
-          <SettingsGroup>
-            <SettingsRow
-              label={t('settings.legalMentions')}
-              onClick={() => setLegal('mentions')}
-            >
-              {legalIncomplete ? (
-                <span className="text-[10px] font-bold text-amber-400 bg-amber-500/15 border border-amber-500/30 rounded-full px-2 py-0.5 shrink-0">
-                  À compléter
-                </span>
-              ) : (
-                <span className="text-gray-500 shrink-0">›</span>
-              )}
-            </SettingsRow>
-            <SettingsRow label={t('settings.legalTerms')} onClick={() => setLegal('terms')} />
-            <SettingsRow label={t('settings.legalPrivacy')} onClick={() => setLegal('privacy')} />
-            <SettingsRow label={t('settings.legalCookies')} onClick={() => setLegal('cookies')} />
-            <SettingsRow label={t('settings.legalRgpd')} onClick={() => setLegal('rgpd')} />
-            <SettingsRow
-              label={t('settings.legalApiPlatforms')}
-              hint={t('settings.legalApiPlatformsHint')}
-              onClick={() => setLegal('apiPlatforms')}
-            />
-            <SettingsRow
-              label={t('settings.legalMonetization')}
-              onClick={() => setLegal('creatorMonetization')}
-            />
-            <SettingsRow label={t('settings.legalLicenses')} onClick={() => setLegal('licenses')} />
-          </SettingsGroup>
+              <SettingsGroup>
+                <SettingsRow
+                  label={t('profile.subscription')}
+                  onClick={() => setShowSubscription(true)}
+                />
+              </SettingsGroup>
+              <div className="pt-2">
+                <SettingsGroup>
+                  <SettingsRow
+                    label={t('profile.contactSoundy')}
+                    onClick={() => setShowContact(true)}
+                  />
+                </SettingsGroup>
+              </div>
+              <div className="pt-2">
+                <SupportMeloSongTeaser onOpen={() => setShowDonationSheet(true)} />
+              </div>
+              <div className="pt-2">
+                <SettingsGroup>
+                  <SettingsRow
+                    label={t('profile.logout')}
+                    onClick={() => setShowLogoutConfirm(true)}
+                    destructive
+                  />
+                </SettingsGroup>
+              </div>
+            </section>
 
-          <SettingsSubGroupHeader>{t('settings.legalDataGroup')}</SettingsSubGroupHeader>
-          <SettingsGroup>
-            <SettingsRow
-              label={t('settings.legalCookiePrefs')}
-              hint={t('settings.legalCookiePrefsHint')}
-              onClick={() => resetCookieConsent()}
-            />
-            <SettingsRow
-              label={t('settings.exportData')}
-              hint={t('settings.exportDataHint')}
-              onClick={handleExportData}
-            >
-              <span className="text-xs text-purple-400 shrink-0 font-medium">
-                {exportLoading ? '…' : t('settings.exportJson')}
-              </span>
-            </SettingsRow>
-          </SettingsGroup>
-          <div className="mx-4 mt-3 mb-2 px-3 py-3 rounded-xl bg-[#12121a]/40 border border-[#1e1e2f]/80">
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">{t('settings.dataRightsSection')}</p>
-            <p className="text-[11px] text-gray-400 leading-relaxed">
-              {t('settings.dataRightsHint')} :{' '}
-              <a
-                href="mailto:privacy@getsoundy.com"
-                className="text-purple-400 underline"
-              >
-                privacy@getsoundy.com
-              </a>
+            <p className="px-4 pt-4 text-center text-[10px] text-gray-600">
+              {t('app.versionFooter', { version: '2.0.0' })}
             </p>
-          </div>
-        </section>
-
-        <div className="flex-1 min-h-6" aria-hidden />
-
-        {/* ── 9. Session (déconnexion en bas) ── */}
-        <section>
-          <SettingsSectionHeader>{t('settings.sessionSection')}</SettingsSectionHeader>
-          <SettingsGroup>
-            <SettingsRow
-              label={t('profile.logout')}
-              onClick={() => setShowLogoutConfirm(true)}
-              destructive
-            />
-          </SettingsGroup>
-        </section>
-
-        <p className="px-4 pt-6 text-center text-[10px] text-gray-600">
-          {t('app.versionFooter', { version: '2.0.0' })}
-        </p>
           </div>
         )}
       </div>
