@@ -935,7 +935,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
         crossfadeRafRef.current = null;
       }
     };
-  }, [mapStyle]);
+  }, [mapStyle, refreshFlatTileLayer]);
 
   // ── Map initialisation (runs once) ───────────────────────────────────────
   useEffect(() => {
@@ -1698,7 +1698,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     if (batchMarkers.length > 0) {
       personCluster.addLayers(batchMarkers);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [salonLivePeopleKey]); // data arrays read via stable refs; callbacks via stable refs
 
   // ── Event markers (location pins) ───────────────────────────────────────
@@ -1844,7 +1844,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     } catch (err) {
       console.error('[MapView] event marker error:', err);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [eventClusterKey, flatDetailTier]); // visibleEventClusters read via stable ref
 
   useEffect(() => {

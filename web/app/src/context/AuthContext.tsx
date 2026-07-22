@@ -110,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setDiagnosticLogUser(user?.id ?? null, user?.username ?? null);
     if (user) void flushDiagnosticLogsToServer(token);
-  }, [user?.id, user?.username, token]);
+  }, [user, token]);
 
   /**
    * Boot: authenticate the session on startup.
@@ -173,7 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       window.clearTimeout(timeout);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []);
 
   const login = async (email: string, password: string, rememberMe = true) => {

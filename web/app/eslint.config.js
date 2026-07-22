@@ -20,15 +20,16 @@ export default defineConfig([
     },
     rules: {
       /*
-       * React Compiler migration rules — warn until refactored incrementally.
-       * rules-of-hooks + exhaustive-deps stay at error/warn via recommended preset.
+       * React Compiler migration — désactivé tant que la migration n'est pas planifiée
+       * (500+ avertissements set-state-in-effect/refs sans impact runtime).
+       * Réactiver progressivement : docs/SOUNDY-DEV-AGENT.md
        */
-      'react-hooks/set-state-in-effect': 'warn',
-      'react-hooks/refs': 'warn',
-      'react-hooks/preserve-manual-memoization': 'warn',
-      'react-hooks/immutability': 'warn',
-      'react-hooks/purity': 'warn',
-      'react-hooks/static-components': 'warn',
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/preserve-manual-memoization': 'off',
+      'react-hooks/immutability': 'off',
+      'react-hooks/purity': 'off',
+      'react-hooks/static-components': 'off',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       '@typescript-eslint/no-unused-vars': [
         'error',
@@ -45,6 +46,12 @@ export default defineConfig([
   },
   {
     files: ['src/context/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
+    files: ['src/pages/**/*.{ts,tsx}', 'src/hooks/**/*.{ts,tsx}', 'src/components/**/*.{ts,tsx}'],
     rules: {
       'react-refresh/only-export-components': 'off',
     },

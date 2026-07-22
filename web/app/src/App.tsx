@@ -22,16 +22,11 @@ import {
 } from './lib/storyAppLink';
 import { pauseAllReelsMediaInDom } from './lib/reelsMedia';
 import { pauseMediaElements } from './hooks/usePauseMediaOnPageHidden';
-import { AuthPage } from './pages/AuthPage';
-import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
-import { ResetPasswordPage } from './pages/ResetPasswordPage';
-import { EmailVerificationPage } from './pages/EmailVerificationPage';
 import {
   isForgotPasswordRoute,
   isResetPasswordRoute,
   isVerifyEmailRoute,
 } from './lib/forgotPasswordRoute';
-import { OnboardingPage } from './pages/OnboardingPage';
 import { GenreOnboardingPrompt, shouldShowGenrePrompt } from './components/GenreOnboardingPrompt';
 import { SalonPipPreviewFloat } from './components/SalonPipPreviewFloat';
 const LivePipPreviewFloat = lazy(() =>
@@ -87,7 +82,6 @@ import {
 import { emitOnSocket } from './lib/socket';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { TermsReacceptanceModal } from './components/TermsReacceptanceModal';
-import { RequiredPasswordChangeModal } from './components/RequiredPasswordChangeModal';
 import { dispatchPlatformStatusRefresh } from './lib/platformStatusEvents';
 import {
   emitLeaveSalon,
@@ -98,6 +92,24 @@ import type { NearbyPerson, Salon, Live } from './types';
 
 // Heavy pages are lazy-loaded to defer bundle parsing of Leaflet, react-globe.gl,
 // and other large media deps until the user first visits each tab.
+const AuthPage = lazy(() => import('./pages/AuthPage').then((m) => ({ default: m.AuthPage })));
+const ForgotPasswordPage = lazy(() =>
+  import('./pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage }))
+);
+const ResetPasswordPage = lazy(() =>
+  import('./pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage }))
+);
+const EmailVerificationPage = lazy(() =>
+  import('./pages/EmailVerificationPage').then((m) => ({ default: m.EmailVerificationPage }))
+);
+const OnboardingPage = lazy(() =>
+  import('./pages/OnboardingPage').then((m) => ({ default: m.OnboardingPage }))
+);
+const RequiredPasswordChangeModal = lazy(() =>
+  import('./components/RequiredPasswordChangeModal').then((m) => ({
+    default: m.RequiredPasswordChangeModal,
+  }))
+);
 const DmPage = lazy(() => import('./pages/DmPage').then((m) => ({ default: m.DmPage })));
 const ActualiteTabPage = lazy(() => import('./pages/ActualiteTabPage').then((m) => ({ default: m.ActualiteTabPage })));
 const LivePage = lazy(() => import('./pages/LivePage').then((m) => ({ default: m.LivePage })));
@@ -291,7 +303,7 @@ export default function App() {
     }
     if (viewRef.current.type !== 'home') return;
     setTab('map');
-  }, [user, token, activeSalonSession]);
+  }, [user, token, activeSalonSession, viewRef]);
 
   const liveRestoredOnBootRef = useRef(false);
   useEffect(() => {
@@ -384,7 +396,7 @@ export default function App() {
     params.delete('google_error');
     const q = params.toString();
     window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`);
-  }, [token, refreshUser]);
+  }, [token, refreshUser, showAppToast]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -410,7 +422,7 @@ export default function App() {
     params.delete('reason');
     const q = params.toString();
     window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`);
-  }, [token, refreshUser]);
+  }, [token, refreshUser, showAppToast]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -433,7 +445,7 @@ export default function App() {
       view.type === 'home' &&
       activeSalonSessionRef.current?.viewMode !== 'full';
     setDmTabActive(dmTabActive);
-  }, [user, token, tab, profileOpen, view.type, setDmTabActive]);
+  }, [user, token, tab, profileOpen, view.type, setDmTabActive, activeSalonSessionRef]);
 
   useEffect(() => {
     if (!profileOpen) return;
@@ -485,7 +497,7 @@ export default function App() {
     setProfileOpen(false);
     setView({ type: 'profile', id: userId });
     syncProfileUrlInBar(userId);
-  }, []);
+  }, [activeSalonSessionRef, viewRef]);
 
   const openStoryAppLink = useCallback(
     (target: StoryAppLinkTarget) => {
@@ -511,7 +523,7 @@ export default function App() {
         });
       }
     },
-    []
+    [viewRef]
   );
 
   useEffect(() => {
@@ -530,7 +542,7 @@ export default function App() {
     if (parseProfileIdFromLocation()) {
       clearProfileUrlFromBar();
     }
-  }, []);
+  }, [profileReturnViewRef]);
 
   const closeActiveSalonSession = useCallback(() => {
     setSalonVideoFloatActive(false);
@@ -547,7 +559,7 @@ export default function App() {
     closeActiveSalonSession();
     setView({ type: 'home' });
     setTab('map');
-  }, [closeActiveSalonSession]);
+  }, [activeSalonSessionRef, closeActiveSalonSession]);
 
   const handleSalonForcedEnd = useCallback(
     (_reason: SalonForcedEndReason) => {
@@ -560,7 +572,7 @@ export default function App() {
       setTab('map');
       if (wasHost) void refreshUser();
     },
-    [closeActiveSalonSession, refreshUser]
+    [activeSalonSessionRef, closeActiveSalonSession, refreshUser]
   );
 
   const handleOwnSalonEnded = useCallback(() => {
@@ -608,7 +620,7 @@ export default function App() {
       setView({ type: 'home' });
     }
     syncSalonUrlInBar(salonId);
-  }, [showAppToast, user?.isLive, user?.liveId, user?.connectedPlatforms]);
+  }, [activeLiveViewerSessionRef, showAppToast, user, viewRef]);
 
   /** Clic sidebar carte : aperçu YouTube sans rejoindre le salon. */
   const openSalonPipPreview = useCallback((salon: Salon) => {
@@ -677,19 +689,19 @@ export default function App() {
     setTab('map');
     setOpenSalonPipIntent(salonId);
     dispatchOpenSalonPip();
-  }, [showAppToast, user?.isLive, user?.liveId, user?.connectedPlatforms]);
+  }, [activeLiveViewerSessionRef, showAppToast, user, viewRef]);
 
   const handleSalonPageBack = useCallback(() => {
     const session = activeSalonSessionRef.current;
     if (!session) return;
     minimizeSalonToMap(session.id, session.title);
-  }, [minimizeSalonToMap]);
+  }, [activeSalonSessionRef, minimizeSalonToMap]);
 
   const handleSalonMinimizeToMap = useCallback((title?: string) => {
     const session = activeSalonSessionRef.current;
     if (!session) return;
     minimizeSalonToMap(session.id, title ?? session.title);
-  }, [minimizeSalonToMap]);
+  }, [activeSalonSessionRef, minimizeSalonToMap]);
 
   const openAdminPanel = useCallback(
     (options?: { tab?: 'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support' | 'sponsors' | 'reports'; supportMessageId?: string }) => {
@@ -703,7 +715,7 @@ export default function App() {
       setSettingsOpen(false);
       setAdminOpen(true);
     },
-    []
+    [activeSalonSessionRef]
   );
 
   const openSettingsPanel = useCallback(() => {
@@ -717,7 +729,7 @@ export default function App() {
     setProfileOpen(false);
     setAdminOpen(false);
     setSettingsOpen(true);
-  }, []);
+  }, [activeSalonSessionRef, tabRef]);
 
   /** Titre chargé — ne pas forcer viewMode (évite de ré-ouvrir le plein écran après réduction). */
   const handleSalonTitleLoaded = useCallback((title?: string) => {
@@ -753,7 +765,7 @@ export default function App() {
         return { id: session.id, title: session.title, viewMode: 'minimized', isHost: session.isHost };
       });
     }
-  }, []);
+  }, [activeSalonSessionRef]);
 
   const openProfileFromPerson = useCallback((person: NearbyPerson) => {
     openProfile(person.id, person);
@@ -775,7 +787,7 @@ export default function App() {
   const openOwnProfile = useCallback(() => {
     if (tabRef.current === 'reels') stopReelsMedia();
     setProfileOpen(true);
-  }, [stopReelsMedia]);
+  }, [stopReelsMedia, tabRef]);
 
   const openLive = useCallback((id: string) => {
     if (activeSalonSessionRef.current) {
@@ -801,7 +813,7 @@ export default function App() {
     }));
     setTab('map');
     setView({ type: 'live', id });
-  }, [showAppToast, user?.isLive, user?.liveId]);
+  }, [activeLiveViewerSessionRef, activeSalonSessionRef, showAppToast, tabRef, user]);
 
   const closeActiveLiveViewerSession = useCallback(() => {
     setLiveVideoFloatActive(false);
@@ -815,7 +827,7 @@ export default function App() {
     closeActiveLiveViewerSession();
     setView({ type: 'home' });
     setTab('map');
-  }, [closeActiveLiveViewerSession]);
+  }, [activeLiveViewerSessionRef, closeActiveLiveViewerSession]);
 
   const minimizeLiveViewer = useCallback(() => {
     dispatchLiveBeforeMinimize();
@@ -836,7 +848,7 @@ export default function App() {
     setProfileOpen(false);
     setTab('map');
     setView({ type: 'live', id: session.id });
-  }, []);
+  }, [activeLiveViewerSessionRef]);
 
   const handleLivePageBack = useCallback(() => {
     if (!activeLiveViewerSessionRef.current) {
@@ -845,7 +857,7 @@ export default function App() {
       return;
     }
     minimizeLiveViewer();
-  }, [minimizeLiveViewer]);
+  }, [activeLiveViewerSessionRef, minimizeLiveViewer]);
 
   const handleLiveTitleLoaded = useCallback((title?: string) => {
     setActiveLiveViewerSession((prev) => {
@@ -873,7 +885,7 @@ export default function App() {
     setDmPeerToOpen(userId);
     setTab('dm');
     dismissToast();
-  }, [dismissToast]);
+  }, [dismissToast, tabRef]);
 
   const openGroupChat = useCallback((groupId: string) => {
     if (tabRef.current === 'reels') pauseAllReelsMediaInDom({ resetPosition: true });
@@ -886,7 +898,7 @@ export default function App() {
     setDmGroupToOpen(groupId);
     setTab('dm');
     dismissToast();
-  }, [dismissToast]);
+  }, [dismissToast, tabRef]);
 
   const openSupportChat = useCallback((supportMessageId?: string) => {
     if (tabRef.current === 'reels') pauseAllReelsMediaInDom({ resetPosition: true });
@@ -901,7 +913,7 @@ export default function App() {
     setDmSupportToOpen(supportMessageId ?? 'latest');
     setTab('dm');
     dismissToast();
-  }, [dismissToast]);
+  }, [dismissToast, tabRef]);
 
   const selectTab = useCallback((id: Tab) => {
     const nextTab = id === 'live' ? 'map' : id;
@@ -942,7 +954,7 @@ export default function App() {
       setView({ type: 'home' });
     }
     setTab(nextTab);
-  }, [minimizeSalonToMap]);
+  }, [activeLiveViewerSessionRef, activeSalonSessionRef, minimizeSalonToMap, tabRef]);
 
   const handleGlobalSearchSelect = useCallback(
     (item: GlobalSearchResultItem) => {
@@ -975,7 +987,7 @@ export default function App() {
           return;
       }
     },
-    [openProfile, openFeedPostFromMap, selectTab]
+    [openProfile, openFeedPostFromMap, selectTab, tabRef]
   );
 
   const openReelInTab = useCallback(
@@ -988,7 +1000,7 @@ export default function App() {
       setReelsNavigateKey((k) => k + 1);
       selectTab('reels');
     },
-    [selectTab]
+    [selectTab, viewRef]
   );
 
   if (authBootError) {
@@ -1022,7 +1034,9 @@ export default function App() {
     if (isForgotPasswordRoute()) {
       return (
         <>
-          <ForgotPasswordPage />
+          <Suspense fallback={<PageFallback />}>
+            <ForgotPasswordPage />
+          </Suspense>
           <CookieConsentBanner />
         </>
       );
@@ -1030,7 +1044,9 @@ export default function App() {
     if (isResetPasswordRoute()) {
       return (
         <>
-          <ResetPasswordPage />
+          <Suspense fallback={<PageFallback />}>
+            <ResetPasswordPage />
+          </Suspense>
           <CookieConsentBanner />
         </>
       );
@@ -1038,29 +1054,41 @@ export default function App() {
     if (isVerifyEmailRoute()) {
       return (
         <>
-          <EmailVerificationPage />
+          <Suspense fallback={<PageFallback />}>
+            <EmailVerificationPage />
+          </Suspense>
           <CookieConsentBanner />
         </>
       );
     }
     return (
       <>
-        <AuthPage />
+        <Suspense fallback={<PageFallback />}>
+          <AuthPage />
+        </Suspense>
         <CookieConsentBanner />
       </>
     );
   }
 
-  if (!user.onboardingCompleted) return <OnboardingPage onDone={completeOnboarding} />;
+  if (!user.onboardingCompleted) {
+    return (
+      <Suspense fallback={<PageFallback />}>
+        <OnboardingPage onDone={completeOnboarding} />
+      </Suspense>
+    );
+  }
 
   if (user.passwordChangeRequired) {
     return (
       <>
-        <RequiredPasswordChangeModal
-          token={token!}
-          onChanged={() => void refreshUser()}
-          onLogout={logout}
-        />
+        <Suspense fallback={<PageFallback />}>
+          <RequiredPasswordChangeModal
+            token={token!}
+            onChanged={() => void refreshUser()}
+            onLogout={logout}
+          />
+        </Suspense>
         <CookieConsentBanner />
       </>
     );

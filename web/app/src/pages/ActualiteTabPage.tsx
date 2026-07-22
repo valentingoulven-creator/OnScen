@@ -1240,7 +1240,7 @@ export function ActualiteTabPage({
       else setFeedStorySheet({ kind: 'view', story: nav.story, isOwn: nav.isOwn });
       void loadFeedStories();
     },
-    [feedStoryStacks, user?.id, loadFeedStories]
+    [feedStoryStacks, user?.id, loadFeedStories, setFeedStoriesByUser]
   );
 
   const handlePostAuthorClick = useCallback(
@@ -1696,14 +1696,14 @@ export function ActualiteTabPage({
 
   const updatePostInList = useCallback((postId: string, patch: Partial<FeedPost>) => {
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, ...patch } : p)));
-  }, []);
+  }, [setPosts]);
 
   const patchEventPost = useCallback((postId: string, patch: Partial<FeedPost>) => {
     const apply = (prev: FeedPost[]) => prev.map((p) => (p.id === postId ? { ...p, ...patch } : p));
     setPosts(apply);
     setCommunityEventPosts(apply);
     setCountryEventPosts(apply);
-  }, []);
+  }, [setPosts]);
 
   const handleLike = useCallback(async (post: FeedPost) => {
     if (!token) return;
@@ -1759,7 +1759,7 @@ export function ActualiteTabPage({
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Impossible de repartager');
     }
-  }, [token, showToast, updatePostInList]);
+  }, [token, showToast, updatePostInList, setPosts]);
 
   const handleFeedPostLinkShared = useCallback(() => {
     const id = sharePost?.id;

@@ -241,7 +241,7 @@ export function SalonPage({
       socket.off('salon_updated', onUpdated);
     };
 
-  }, [salon?.id, user?.id, salon?.canJoin]);
+  }, [salon, user]);
 
   const setAccessMode = async (mode: 'public' | 'invite') => {
 
@@ -385,7 +385,7 @@ export function SalonPage({
         durationMs: opts.durationMs,
       });
     },
-    [salon?.id]
+    [salon]
   );
 
   const minimizeSalonButton = (

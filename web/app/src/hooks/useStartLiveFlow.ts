@@ -51,7 +51,7 @@ export function useStartLiveFlow({
 
   useEffect(() => {
     if (initialGeo) setGeo(initialGeo);
-  }, [initialGeo?.latitude, initialGeo?.longitude, initialGeo?.label, initialGeo?.source]);
+  }, [initialGeo]);
 
   const verifyStripeForLiveSetup = useCallback(async () => {
     if (!token) return;

@@ -66,14 +66,15 @@ export function EventCardMapCompact({
     return fallback.type === 'gradient'
       ? fallback.gradient
       : 'from-violet-900 via-purple-950 to-fuchsia-950';
-  }, [post.eventLocation, post.content]);
+  }, [post]);
+  const heroImageUrl = hero.type === 'image' ? hero.url : '';
   const [heroImageFailed, setHeroImageFailed] = useState(false);
   const [locationMenuOpen, setLocationMenuOpen] = useState(false);
 
   useEffect(() => {
     setHeroImageFailed(false);
     setLocationMenuOpen(false);
-  }, [post.id, hero.type === 'image' ? hero.url : '']);
+  }, [post.id, heroImageUrl]);
 
   const showHeroImage = hero.type === 'image' && !heroImageFailed;
   const primaryEventDate = getPrimaryEventDate(post);

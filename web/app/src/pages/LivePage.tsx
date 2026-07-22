@@ -407,7 +407,7 @@ export function LivePage({
       socket.off('salon_playback', onPlayback);
       socket.off('live_join_denied', onJoinDenied);
     };
-  }, [liveId, user?.id]);
+  }, [liveId, user]);
 
   useEffect(() => {
     setStreamEndedReason(null);
@@ -878,7 +878,7 @@ export function LivePage({
       socket.off('notification', onNotif);
       socket.off('gift_animation', onGift);
     };
-  }, [liveId, user?.id, isHost]);
+  }, [liveId, user, isHost]);
 
   const pendingCameraStartGenRef = useRef(0);
 
@@ -910,7 +910,7 @@ export function LivePage({
     } else {
       return onSocketConnect(applyChatConfig);
     }
-  }, [live?.id, live?.isActive, isHost]);
+  }, [live, isHost]);
 
   useEffect(() => {
     if (!live || !isHost || !live.isActive) return;
@@ -933,7 +933,7 @@ export function LivePage({
     } else {
       return onSocketConnect(applyAspect);
     }
-  }, [live?.id, live?.isActive, live?.videoAspectRatio, isHost, videoAspectRatio]);
+  }, [live, isHost, videoAspectRatio]);
 
   useEffect(() => {
     if (!live || !isHost || !live.isActive) return;
@@ -954,7 +954,7 @@ export function LivePage({
     } else {
       return onSocketConnect(applyVideoDelay);
     }
-  }, [live?.id, live?.isActive, live?.videoDelaySeconds, isHost]);
+  }, [live, isHost]);
 
   useEffect(() => {
     if (!live || !isHost || !live.isActive) return;
@@ -971,7 +971,7 @@ export function LivePage({
       rewards: sessionDraft.rewards,
     });
     clearHostSessionDraftFromPrefs();
-  }, [live?.id, live?.isActive, isHost]);
+  }, [live, isHost]);
 
   useEffect(() => {
     if (!live || !isHost || !live.isActive) return;
@@ -981,7 +981,7 @@ export function LivePage({
       setHostPanelTab('config');
     }
     clearUseObsFromPrefs();
-  }, [live?.id, live?.isActive, live?.streamMode, isHost]);
+  }, [live, isHost]);
 
   useEffect(() => {
     if (!live || !isHost || cameraLocalActive) return;
@@ -1024,7 +1024,7 @@ export function LivePage({
     return () => {
       pendingCameraStartGenRef.current += 1;
     };
-  }, [live?.id, isHost, cameraLocalActive, startCamera, emitCameraState, isLiveKitStream, isCloudflareStream]);
+  }, [live, isHost, cameraLocalActive, startCamera, emitCameraState, isLiveKitStream, isCloudflareStream]);
 
   useEffect(() => {
     return () => {
@@ -1347,7 +1347,7 @@ export function LivePage({
       if (!seen.has(m.senderId)) seen.set(m.senderId, m.senderName);
     }
     return [...seen.entries()].map(([id, name]) => ({ id, name }));
-  }, [chatMessages, live?.hostId, live?.vipModeratorIds]);
+  }, [live, chatMessages]);
 
   const vipEntries = useMemo(() => {
     if (!live) return [];
@@ -1355,7 +1355,7 @@ export function LivePage({
       const fromChat = chatMessages.find((m) => m.senderId === id);
       return { id, name: fromChat?.senderName ?? 'Utilisateur' };
     });
-  }, [live?.vipModeratorIds, chatMessages]);
+  }, [live, chatMessages]);
 
   const setVipModerator = useCallback(
     (targetUserId: string, add: boolean) => {

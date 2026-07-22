@@ -340,6 +340,8 @@ export function CreateSalonSetupChatModal({
     skipAccessSection,
     connectedPlatforms,
     platformLinks,
+    activeSalonId,
+    onUserUpdated,
   ]);
 
   useEffect(

@@ -1306,7 +1306,6 @@ export function PhotoImageEditor({
     cropSource,
     storyEffectId,
     duotoneGenreId,
-    musicTrack,
   ]);
 
   const hasStoryMeta = isStory && Boolean(musicTrack || link?.url.trim());

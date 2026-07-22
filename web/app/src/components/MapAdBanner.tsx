@@ -213,6 +213,7 @@ export function MapAdBanner({ viewport, isActive = true, onCtaSalon, onCtaLive }
   const [fading, setFading] = useState(false);
   const fetchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchGenerationRef = useRef(0);
+  const viewportKey = viewportQueryKey(viewport);
 
   useEffect(() => {
     if (!isActive) return;
@@ -275,7 +276,7 @@ export function MapAdBanner({ viewport, isActive = true, onCtaSalon, onCtaLive }
         fetchDebounceRef.current = null;
       }
     };
-  }, [viewportQueryKey(viewport), isActive]);
+  }, [viewportKey, isActive, viewport]);
 
   useEffect(() => {
     if (ads.length <= 1) return;

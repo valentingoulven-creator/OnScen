@@ -19,5 +19,5 @@ export function useBackgroundPlayback(
       release();
       clearMediaSession();
     };
-  }, [active, playing, meta?.title, meta?.artist, meta?.artworkUrl]);
+  }, [active, playing, meta]);
 }

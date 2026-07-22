@@ -135,6 +135,7 @@ export function MapEventFilterForm({
     draft.latitude,
     draft.longitude,
     draft.radiusKm,
+    draft,
   ]);
 
   useEffect(() => {

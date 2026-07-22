@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, type ComponentRef } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, type ComponentRef } from 'react';
 import { OrbitControls } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3 } from 'three';
@@ -53,7 +53,7 @@ export const GlobeCameraBridge = forwardRef<GlobeCameraBridgeHandle, GlobeCamera
     const flyRef = useRef<FlyState | null>(null);
     const lastRecenterTokenRef = useRef(-1);
 
-    const scheduleFly = (target: Vector3, durationMs: number) => {
+    const scheduleFly = useCallback((target: Vector3, durationMs: number) => {
       if (durationMs <= 0) {
         camera.position.copy(target);
         controlsRef.current?.update();
@@ -66,7 +66,7 @@ export const GlobeCameraBridge = forwardRef<GlobeCameraBridgeHandle, GlobeCamera
         startMs: performance.now(),
         durationMs,
       };
-    };
+    }, [camera]);
 
     useImperativeHandle(
       ref,
@@ -86,7 +86,7 @@ export const GlobeCameraBridge = forwardRef<GlobeCameraBridgeHandle, GlobeCamera
           scheduleFly(cameraPositionForPov(lat, lng, altitude), durationMs);
         },
       }),
-      [camera]
+      [camera, scheduleFly]
     );
 
     useEffect(() => {
@@ -101,7 +101,7 @@ export const GlobeCameraBridge = forwardRef<GlobeCameraBridgeHandle, GlobeCamera
         ),
         recenterRequest.durationMs
       );
-    }, [recenterRequest, camera]);
+    }, [recenterRequest, scheduleFly]);
 
     useFrame(() => {
       const controls = controlsRef.current;
