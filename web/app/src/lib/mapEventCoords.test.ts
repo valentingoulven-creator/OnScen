@@ -115,6 +115,21 @@ describe('resolveManyEventCoords', () => {
     }
   });
 
+  it('resolves feed-world-event seed locations without network', () => {
+    const locations = [
+      'Music Hall, Kuala Lumpur',
+      'Open Air Stage, Singapore',
+      'Jazz Club, Hanoi',
+      'Arena, Tokyo',
+      'Concert Hall, Berlin',
+    ];
+    const map = resolveManyEventCoordsSync(locations);
+    expect(map.size).toBe(locations.length);
+    for (const loc of locations) {
+      expect(map.get(loc)).toBeTruthy();
+    }
+  });
+
   it('resolveManyEventCoordsRemaining geocodes each unique location once', async () => {
     geocodeQuery.mockResolvedValue({
       latitude: 10,

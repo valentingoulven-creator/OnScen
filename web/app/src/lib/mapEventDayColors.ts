@@ -7,15 +7,15 @@ import {
 import { SPONSOR_EVENT_ICON } from './eventType';
 import type { MapEventCityCluster, MapEventMarker } from '../types';
 
-/** Jour 1 vert · jour 2 bleu · jour 3 orange · jour 4 noir (fenêtre browse carte). */
-export const MAP_EVENT_DAY_COLORS = ['#22c55e', '#3b82f6', '#f97316', '#171717'] as const;
+/** Jour 1 vert · jour 2 bleu · jour 3 orange · jour 4 violet (fenêtre browse carte). */
+export const MAP_EVENT_DAY_COLORS = ['#22c55e', '#3b82f6', '#f97316', '#8b5cf6'] as const;
 
 /** Palette sidebar browse : une couleur distincte par section jour (cycle si plage longue). */
 export const MAP_EVENT_BROWSE_SECTION_COLORS = [
   '#22c55e',
   '#3b82f6',
   '#f97316',
-  '#171717',
+  '#8b5cf6',
   '#a855f7',
   '#ec4899',
   '#14b8a6',
@@ -26,7 +26,7 @@ export const MAP_EVENT_BROWSE_SECTION_COLORS = [
   '#06b6d4',
 ] as const;
 
-const MAP_EVENT_DARK_PIN_COLORS = new Set<string>(['#171717']);
+const MAP_EVENT_DARK_PIN_COLORS = new Set<string>();
 
 export type MapEventDayIndex = 0 | 1 | 2 | 3;
 
@@ -152,8 +152,18 @@ export function resolveMapEventPinColor(
   if (dayKey) {
     const idx = getMapEventBrowseDayIndex(dayKey);
     if (idx >= 0) return getBrowseSectionDayColor(idx);
+    return stablePinColorForDayKey(dayKey);
   }
   return getBrowseSectionDayColor(3);
+}
+
+/** Couleur stable pour une date hors fenêtre browse (jamais noir). */
+function stablePinColorForDayKey(dayKey: string): string {
+  let hash = 0;
+  for (let i = 0; i < dayKey.length; i++) {
+    hash = (hash * 31 + dayKey.charCodeAt(i)) >>> 0;
+  }
+  return MAP_EVENT_BROWSE_SECTION_COLORS[hash % MAP_EVENT_BROWSE_SECTION_COLORS.length]!;
 }
 
 /** Couleur pin pour un marqueur (toutes les dates d’occurrence, comme le browse). */

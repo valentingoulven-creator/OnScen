@@ -367,6 +367,20 @@ export function filterMapEventsOnCalendarDay(
   );
 }
 
+/** Ne garde que les événements avec au moins une occurrence sur l’un des jours listés. */
+export function filterMapEventsOnCalendarDays(
+  events: MapEventMarker[],
+  dayKeys: readonly string[]
+): MapEventMarker[] {
+  if (dayKeys.length === 0) return events;
+  const allowed = new Set(dayKeys);
+  return events.filter((event) =>
+    getMapEventOccurrenceDates(event).some((iso) =>
+      allowed.has(new Date(iso).toLocaleDateString('en-CA'))
+    )
+  );
+}
+
 /** Au moins une occurrence aujourd'hui (jour calendaire locale). */
 export function filterMapEventsOccurringToday(
   events: MapEventMarker[],

@@ -9,17 +9,21 @@ import {
 export function EventDayPinIcon({
   dayIndex,
   sectionIndex,
+  pinColor,
   className = 'w-4 h-4 shrink-0',
 }: {
   dayIndex?: number;
   /** Index dans la liste browse — couleur distincte par section. */
   sectionIndex?: number;
+  /** Couleur explicite (marqueur carte / sidebar). */
+  pinColor?: string;
   className?: string;
 }) {
   const color =
-    sectionIndex != null
+    pinColor ??
+    (sectionIndex != null
       ? getBrowseSectionDayColor(sectionIndex)
-      : getMapEventDayColor(clampMapEventDayIndex(dayIndex ?? 0));
+      : getMapEventDayColor(clampMapEventDayIndex(dayIndex ?? 0)));
   const stroke = getBrowseSectionDayStroke(color);
 
   return (

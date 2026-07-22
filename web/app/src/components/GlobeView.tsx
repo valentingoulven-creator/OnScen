@@ -333,7 +333,7 @@ export const GlobeView = memo(
     }, []);
 
     const syncTierAndPovFromGlobe = useCallback(
-      (scheduleNearby: boolean) => {
+      (_scheduleNearby: boolean) => {
         try {
           const pov = cameraBridgeRef.current?.getPointOfView();
           if (!pov || typeof pov.altitude !== 'number') return;
@@ -349,7 +349,7 @@ export const GlobeView = memo(
           if (!isInteractingRef.current) {
             refreshGlobeCapitalRegion(pov.lat, pov.lng, pov.altitude);
           }
-          if (scheduleNearby && isValidLatLng(pov.lat, pov.lng)) {
+          if (isValidLatLng(pov.lat, pov.lng)) {
             schedulePovChange(pov.lat, pov.lng, pov.altitude);
           }
         } catch {
@@ -440,6 +440,9 @@ export const GlobeView = memo(
                 lastReportedTierRef.current = tier;
                 setGlobeDetailTier(tier);
               }
+              if (isValidLatLng(pov.lat, pov.lng)) {
+                schedulePovChange(pov.lat, pov.lng, pov.altitude);
+              }
             } catch {
               /* ignore */
             }
@@ -463,7 +466,7 @@ export const GlobeView = memo(
       } catch {
         /* POV indisponible */
       }
-    }, [syncTierAndPovFromGlobe]);
+    }, [syncTierAndPovFromGlobe, schedulePovChange]);
 
     const salonIds = useMemo(() => new Set(salons.map((s) => s.id)), [salons]);
 

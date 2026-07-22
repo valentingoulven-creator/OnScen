@@ -114,15 +114,26 @@ export function useMapEventsBrowseData({
   ]);
 
   const countryUpcoming = useMemo(() => {
-    const upcoming = countryEventPosts
+    let upcoming = countryEventPosts
       .filter((p) => p.isEvent && hasUpcomingEventDate(p))
       .sort(
         (a, b) =>
           new Date(getPrimaryEventDate(a)!).getTime() - new Date(getPrimaryEventDate(b)!).getTime()
       );
+    if (aroundEventPosts !== undefined) {
+      const visibleIds = new Set(aroundEventPosts.map((post) => post.id));
+      upcoming = upcoming.filter((post) => visibleIds.has(post.id));
+    }
     if (!eventsFilterOn || !filterCriteria || !eventFilterCustomized) return upcoming;
     return filterFeedPostsByEventCriteria(upcoming, filterCriteria, { viewerId });
-  }, [countryEventPosts, eventsFilterOn, eventFilterCustomized, filterCriteria, viewerId]);
+  }, [
+    countryEventPosts,
+    aroundEventPosts,
+    eventsFilterOn,
+    eventFilterCustomized,
+    filterCriteria,
+    viewerId,
+  ]);
 
   const displayCountryCode = countryCode ?? EVENTS_COUNTRY_FALLBACK.code;
   const displayCountryName = countryName ?? EVENTS_COUNTRY_FALLBACK.name;

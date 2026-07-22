@@ -59,6 +59,7 @@ import {
   DEFAULT_EVENT_FILTER_RADIUS_KM,
   filterMapEventsByCriteria,
   filterMapEventsOnCalendarDay,
+  filterMapEventsOnCalendarDays,
   filterMapEventPinsForView,
   getBrowseSheetCalendarDayKeys,
   getEventFilterCityMapRadiusKm,
@@ -97,6 +98,7 @@ import {
   clipSalonsForMapView,
   filterEventClustersInViewport,
   filterEventClustersInGlobeRegion,
+  filterMapEventMarkersInMapView,
   filterMarkersInViewport,
   getGlobeCapitalVisibleRadiusKm,
   getDistanceKm,
@@ -456,6 +458,8 @@ export function HomePage({
   }, [t]);
   /** Filtre carte « salons » — combinable avec Lives et Évènement. */
   const [showSalonMarkers, setShowSalonMarkers] = useState(false);
+  /** Filtre carte « lives » — session uniquement (comme Salon / Évènement), indépendant du panneau À proximité. */
+  const [showLivesMarkers, setShowLivesMarkers] = useState(false);
   const showSalonMarkersRef = useRef(showSalonMarkers);
   useEffect(() => {
     showSalonMarkersRef.current = showSalonMarkers;
@@ -700,38 +704,40 @@ export function HomePage({
   ]);
 
   const mapSalons = useMemo(() => {
-    const filtered = filterSalonsForMap(salons, filteredNearbyPeople, nearbyPanelPrefs).filter((s) =>
+    const mapPrefs = { ...nearbyPanelPrefs, livesOnly: showLivesMarkers };
+    const filtered = filterSalonsForMap(salons, filteredNearbyPeople, mapPrefs).filter((s) =>
       isValidLatLng(s.latitude, s.longitude)
     );
     return sortSalonsForNearby(filtered, nearbyPanelPrefs.sortBy, nearbySortOptions);
   }, [
     salons,
     filteredNearbyPeople,
-    nearbyPanelPrefs.livesOnly,
-    nearbyPanelPrefs.sortBy,
+    showLivesMarkers,
+    nearbyPanelPrefs,
     nearbySortOptions,
   ]);
 
   const mapLives = useMemo(() => {
-    const filtered = filterLivesForMap(lives, filteredNearbyPeople, nearbyPanelPrefs).filter(
+    const mapPrefs = { ...nearbyPanelPrefs, livesOnly: showLivesMarkers };
+    const filtered = filterLivesForMap(lives, filteredNearbyPeople, mapPrefs).filter(
       (l) => isValidLatLng(l.latitude, l.longitude) && isActiveMapLive(l)
     );
     return sortLivesForNearby(filtered, nearbyPanelPrefs.sortBy, nearbySortOptions);
   }, [
     lives,
     filteredNearbyPeople,
-    nearbyPanelPrefs.livesOnly,
-    nearbyPanelPrefs.sortBy,
+    showLivesMarkers,
+    nearbyPanelPrefs,
     nearbySortOptions,
   ]);
 
   /** Filtres carte haut-gauche — toggles indépendants (union des types actifs). */
-  const livesFilterOn = nearbyPanelPrefs.livesOnly;
+  const livesFilterOn = showLivesMarkers;
   const salonFilterOn = showSalonMarkers;
   const eventsFilterOn = showEventMarkers;
   const anyMapFilterActive = livesFilterOn || salonFilterOn || eventsFilterOn;
   const hasFollowingMapSources = followingIds.size > 0 || savedEventPostIds.size > 0;
-  /** Sans filtre carte : pins des contenus suivis / enregistrés (sidebar Suivi). */
+  /** Sans filtre carte : pins des contenus suivis / enregistrés uniquement (aligné sidebar Suivi). */
   const followingMapAmbientOn = !anyMapFilterActive && hasFollowingMapSources;
   /** Rechargement nearby au centre viewport (carte / globe). */
   const mapFilterViewportOn = livesFilterOn || salonFilterOn;
@@ -760,24 +766,15 @@ export function HomePage({
   const mapDetailFlatZoom = mapDetailState.flatZoom;
   const mapDetailGlobeAltitude = mapDetailState.globeAltitude;
 
-  /** Vue globe overview : sonars live visibles sans activer le filtre Lives. */
-  const globeLiveAmbientOn =
-    mapDetailMapStyle === 'globe' && mapDetailTier === 'overview';
-
-  /** Vue globe (tout zoom) : événements du jour visibles sans activer le filtre Évènement. */
-  const globeEventAmbientOn = mapDetailMapStyle === 'globe';
-
   /**
-   * Le panneau latéral (liste) doit refléter exactement ce qui s'affiche sur le globe,
-   * y compris en mode « ambiant » (pins visibles sans que le filtre correspondant soit activé) —
-   * sinon la liste reste vide alors que le globe montre déjà des lives/événements.
-   * Suivi/Enregistré est inclus automatiquement (sections gérées par NearbyPeoplePanel).
+   * Panneau latéral : même config que la carte sombre (filtres explicites uniquement).
+   * Les modes « ambiant » globe (pins sans filtre) n’élargissent pas la sidebar ni le browse.
    */
-  const sidebarLivesFilterOn = livesFilterOn || globeLiveAmbientOn;
-  const sidebarEventsFilterOn = eventsFilterOn || globeEventAmbientOn;
+  const sidebarLivesFilterOn = livesFilterOn;
+  const sidebarEventsFilterOn = eventsFilterOn;
 
   const rawMapSalonsForView = useMemo(() => {
-    if (!anyMapFilterActive && !globeLiveAmbientOn && !followingMapAmbientOn) return [];
+    if (!anyMapFilterActive && !followingMapAmbientOn) return [];
 
     const merged = new Map<string, Salon>();
     const addSalons = (list: Salon[]) => {
@@ -802,13 +799,12 @@ export function HomePage({
           )
         );
       }
-    } else if (livesFilterOn || globeLiveAmbientOn) {
-      const source = livesFilterOn ? mapSalons : mapSalons.filter((s) => s.isLive);
+    } else if (livesFilterOn) {
       addSalons(
-        mapDetailTier === 'overview' && (livesFilterOn || globeLiveAmbientOn)
-          ? source
+        mapDetailTier === 'overview'
+          ? mapSalons
           : clipSalonsForMapView(
-              source,
+              mapSalons,
               { bounds: mapDetailBounds, mapStyle: mapDetailMapStyle },
               nearbyFetchCenter
             )
@@ -820,7 +816,6 @@ export function HomePage({
     anyMapFilterActive,
     followingMapAmbientOn,
     followingIds,
-    globeLiveAmbientOn,
     salonFilterOn,
     livesFilterOn,
     salons,
@@ -834,12 +829,12 @@ export function HomePage({
   ]);
 
   const rawMapLivesForView = useMemo(() => {
-    if (!anyMapFilterActive && !globeLiveAmbientOn && !followingMapAmbientOn) return [];
-    if (followingMapAmbientOn && !livesFilterOn && !globeLiveAmbientOn) {
+    if (!anyMapFilterActive && !followingMapAmbientOn) return [];
+    if (followingMapAmbientOn && !livesFilterOn) {
       return mapLives.filter((l) => followingIds.has(l.hostId));
     }
-    if (!livesFilterOn && !globeLiveAmbientOn) return [];
-    if (globeLiveAmbientOn && mapDetailTier === 'overview' && !livesFilterOn) {
+    if (!livesFilterOn) return [];
+    if (mapDetailTier === 'overview') {
       return mapLives;
     }
     return clipLivesForMapView(
@@ -851,7 +846,6 @@ export function HomePage({
     anyMapFilterActive,
     followingMapAmbientOn,
     followingIds,
-    globeLiveAmbientOn,
     livesFilterOn,
     mapLives,
     mapDetailBounds,
@@ -861,9 +855,7 @@ export function HomePage({
   ]);
 
   const liveAudienceFilterActive =
-    !livesFilterOn &&
-    !followingMapAmbientOn &&
-    (globeLiveAmbientOn || rawMapLivesForView.length > 0);
+    !livesFilterOn && !followingMapAmbientOn && rawMapLivesForView.length > 0;
 
   const globeLiveAudienceFiltered = useMemo(() => {
     if (!liveAudienceFilterActive) return null;
@@ -898,32 +890,51 @@ export function HomePage({
 
   /** Événements carte / sidebar (sans filtre jour pin). Sponso : dates non passées. */
   const mapEventsBaseForPins = useMemo(() => {
-    let base: MapEventMarker[];
-    if (followingMapAmbientOn && !eventsFilterOn) {
-      base = sortMapEventsForPanel(
+    /** Filtre Salon/Lives sans Événement : pas de pins événement sur la carte. */
+    if (anyMapFilterActive && !eventsFilterOn) {
+      return [];
+    }
+
+    /** Sans filtre carte : événements suivis / enregistrés uniquement (pas d'ambiant ni sponso). */
+    if (!anyMapFilterActive && !eventsFilterOn) {
+      if (!followingMapAmbientOn) return [];
+      return sortMapEventsForPanel(
         mapEvents.filter((event) =>
           isSidebarFollowingEvent(event, followingIds, savedEventPostIds)
         ),
         favoriteIds
       );
-    } else {
-      base = filterMapEventPinsForView(mapEventsIncludingSponso, {
-        eventsFilterOn,
-        globeOverview: mapDetailMapStyle === 'globe' && mapDetailTier === 'overview',
-        filteredWhenCriteria: filteredMapEvents,
-        merge: mergeMapEventMarkers,
-      });
+    }
+
+    const base = filterMapEventPinsForView(mapEventsIncludingSponso, {
+      eventsFilterOn,
+      globeOverview: mapDetailMapStyle === 'globe' && mapDetailTier === 'overview',
+      /** Sans filtre « Appliquer » : fenêtre browse 3 jours (pas tout l’à-venir). */
+      filteredWhenCriteria: eventFilterCustomized ? filteredMapEvents : undefined,
+      merge: mergeMapEventMarkers,
+    });
+
+    let pins = base;
+    if (eventsFilterOn && !eventFilterCustomized) {
+      const browseDayKeys = getBrowseSheetCalendarDayKeys(undefined, false);
+      const regular = pins.filter((event) => !event.isSponsored);
+      const sponsored = pins.filter((event) => event.isSponsored);
+      pins = mergeMapEventMarkers(
+        filterMapEventsOnCalendarDays(regular, browseDayKeys),
+        sponsored
+      );
     }
 
     const sponso = mapSponsoredEventMarkers.filter((marker) =>
       isMapEventVisibleAsSponsoPin(marker)
     );
-    if (sponso.length === 0) return base;
+    if (sponso.length === 0) return pins;
     return mergeMapEventMarkers(
-      base.filter((marker) => !marker.isSponsored),
+      pins.filter((marker) => !marker.isSponsored),
       sponso
     );
   }, [
+    anyMapFilterActive,
     eventsFilterOn,
     favoriteIds,
     filteredMapEvents,
@@ -935,6 +946,7 @@ export function HomePage({
     mapEventsIncludingSponso,
     mapSponsoredEventMarkers,
     savedEventPostIds,
+    eventFilterCustomized,
   ]);
 
   /** Pins carte uniquement — peut restreindre à un jour (bouton pin section sidebar). */
@@ -961,12 +973,14 @@ export function HomePage({
   const mapPeopleForView = useMemo(() => {
     if (!anyMapFilterActive) return [];
     if (!livesFilterOn) return [];
+    /** Filtre Lives seul : pins live uniquement (pas de doublons person/salon). */
+    if (!salonFilterOn) return [];
     return clipPeopleForMapView(
       mapPeople,
       { bounds: mapDetailBounds, mapStyle: mapDetailMapStyle },
       nearbyFetchCenter
     );
-  }, [anyMapFilterActive, livesFilterOn, mapPeople, mapDetailBounds, mapDetailMapStyle, nearbyFetchCenter]);
+  }, [anyMapFilterActive, livesFilterOn, salonFilterOn, mapPeople, mapDetailBounds, mapDetailMapStyle, nearbyFetchCenter]);
 
   const mapEventClusters = useMemo(
     () => clusterMapEventsByLocation(mapEventsBaseForPins),
@@ -980,32 +994,47 @@ export function HomePage({
 
   const clipEventClustersToViewport = useCallback(
     (clusters: MapEventCityCluster[]) => {
-      if (mapDetailTier === 'overview') return clusters;
-
       if (mapDetailMapStyle === 'globe') {
+        const restrictToViewport = mapEventDayPinFilter != null || mapDetailTier !== 'overview';
+        if (!restrictToViewport) return clusters;
+
         const radiusKm = getGlobeCapitalVisibleRadiusKm(mapDetailGlobeAltitude ?? 0.6);
-        return filterEventClustersInGlobeRegion(clusters, center[0], center[1], radiusKm);
+        const effectiveRadius =
+          radiusKm > 0 ? radiusKm : mapEventDayPinFilter ? 4000 : 0;
+        if (effectiveRadius <= 0) return clusters;
+        return filterEventClustersInGlobeRegion(clusters, center[0], center[1], effectiveRadius);
       }
 
+      /** Filtre Événement : sidebar = pins visibles, y compris au zoom overview. */
+      const restrictToViewport =
+        eventsFilterOn ||
+        mapEventDayPinFilter != null ||
+        mapDetailTier !== 'overview';
+      if (!restrictToViewport) return clusters;
+
       if (!mapDetailBounds) return clusters;
-      const clipped = filterEventClustersInViewport(
-        clusters,
-        mapDetailBounds,
-        mapDetailTier
-      );
-      if (clipped.length === 0 && clusters.length > 0) return clusters;
-      return clipped;
+
+      const clipTier =
+        mapDetailTier === 'overview' && eventsFilterOn ? 'city' : mapDetailTier;
+
+      return filterEventClustersInViewport(clusters, mapDetailBounds, clipTier);
     },
-    [mapDetailMapStyle, mapDetailBounds, mapDetailTier, mapDetailGlobeAltitude, center]
+    [
+      mapDetailMapStyle,
+      mapDetailBounds,
+      mapDetailTier,
+      mapDetailGlobeAltitude,
+      center,
+      mapEventDayPinFilter,
+      eventsFilterOn,
+    ]
   );
 
   /**
    * Clusters visibles sur la carte : viewport + filtre jour pin optionnel.
    */
   const mapEventClustersForMap = useMemo(() => {
-    const skipViewportClip =
-      (followingMapAmbientOn && !eventsFilterOn) ||
-      (sidebarEventsFilterOn && mapSponsoredEventMarkers.length > 0);
+    const skipViewportClip = followingMapAmbientOn && !eventsFilterOn;
     if (skipViewportClip) {
       return mapEventClustersOnMap;
     }
@@ -1015,8 +1044,6 @@ export function HomePage({
     eventsFilterOn,
     followingMapAmbientOn,
     mapEventClustersOnMap,
-    mapSponsoredEventMarkers.length,
-    sidebarEventsFilterOn,
   ]);
 
   /** Onglet Autour : aligné sur les pins carte (même clusters que mapEventClustersForMap). */
@@ -1218,6 +1245,38 @@ export function HomePage({
     [sidebarSponsoredEvents.posts]
   );
 
+  const browseSidebarSponsoredEventPosts = useMemo(() => {
+    if (!sidebarEventsFilterOn) return sidebarSponsoredEvents.posts;
+
+    const sponsoMarkers = mapSponsoredEventMarkers.filter((marker) =>
+      isMapEventVisibleAsSponsoPin(marker)
+    );
+    const visibleMarkers = filterMapEventMarkersInMapView(
+      sponsoMarkers,
+      {
+        mapStyle: mapDetailMapStyle,
+        bounds: mapDetailBounds,
+        tier: mapDetailTier,
+        centerLat: center[0],
+        centerLng: center[1],
+        globeAltitude: mapDetailGlobeAltitude,
+      },
+      { eventsFilterOn: true, dayPinFilter: mapEventDayPinFilter }
+    );
+    const visibleIds = new Set(visibleMarkers.map((marker) => marker.id));
+    return sidebarSponsoredEvents.posts.filter((post) => visibleIds.has(post.id));
+  }, [
+    sidebarEventsFilterOn,
+    sidebarSponsoredEvents.posts,
+    mapSponsoredEventMarkers,
+    mapDetailMapStyle,
+    mapDetailBounds,
+    mapDetailTier,
+    mapDetailGlobeAltitude,
+    center,
+    mapEventDayPinFilter,
+  ]);
+
   useEffect(() => {
     if (!token || sidebarSponsoredEvents.posts.length === 0) {
       setMapSponsoredEventMarkers([]);
@@ -1286,8 +1345,9 @@ export function HomePage({
   /** Un seul filtre carte actif à la fois : Lives, Salon ou Évènement. */
   const deactivateMapContentFiltersExcept = useCallback(
     (except: 'lives' | 'salon' | 'events' | null) => {
-      if (except !== 'lives' && nearbyPanelPrefs.livesOnly) {
-        setNearbyPanelPreferences({ livesOnly: false });
+      if (except !== 'lives' && showLivesMarkers) {
+        setShowLivesMarkers(false);
+        setShowLivesBrowseSheet(false);
       }
       if (except !== 'salon' && showSalonMarkers) {
         pendingMapFilterNearbyReloadRef.current = true;
@@ -1300,19 +1360,19 @@ export function HomePage({
         disableEventsFilter();
       }
     },
-    [nearbyPanelPrefs.livesOnly, showSalonMarkers, showEventMarkers, disableEventsFilter]
+    [showLivesMarkers, showSalonMarkers, showEventMarkers, disableEventsFilter]
   );
 
   /** Filtres carte haut-gauche : Lives, Salon et Évènement — un seul actif à la fois. */
   const toggleLivesFilter = useCallback(() => {
-    if (nearbyPanelPrefs.livesOnly) {
-      setNearbyPanelPreferences({ livesOnly: false });
+    if (showLivesMarkers) {
+      setShowLivesMarkers(false);
       setShowLivesBrowseSheet(false);
       return;
     }
     deactivateMapContentFiltersExcept('lives');
-    setNearbyPanelPreferences({ livesOnly: true });
-  }, [nearbyPanelPrefs.livesOnly, deactivateMapContentFiltersExcept]);
+    setShowLivesMarkers(true);
+  }, [showLivesMarkers, deactivateMapContentFiltersExcept]);
 
   const openMapFilterPopup = useCallback(() => {
     if (eventsFilterOn) {
@@ -2320,11 +2380,11 @@ export function HomePage({
       flyMapToCity(cluster);
       setSelectedEventCluster(cluster);
       setNearbyPeopleVisible(true);
-      if (nearbyPanelPrefs.livesOnly && isValidLatLng(cluster.latitude, cluster.longitude)) {
+      if (livesFilterOn && isValidLatLng(cluster.latitude, cluster.longitude)) {
         loadNearbyAt([cluster.latitude, cluster.longitude], { updateUserGeo: false });
       }
     },
-    [flyMapToCity, setNearbyPeopleVisible, nearbyPanelPrefs.livesOnly, loadNearbyAt]
+    [flyMapToCity, setNearbyPeopleVisible, livesFilterOn, loadNearbyAt]
   );
 
   const flyToMapEventMarker = useCallback(
@@ -3275,7 +3335,9 @@ export function HomePage({
           onPostChange={handleBrowseEventPostChange}
           selectedMapEventDayKey={mapEventDayPinFilter}
           onMapEventDayKeySelect={handleMapEventDayPinFilter}
-          sponsoredEventPosts={sidebarSponsoredEvents.posts}
+          sponsoredEventPosts={
+            sidebarEventsFilterOn ? browseSidebarSponsoredEventPosts : sidebarSponsoredEvents.posts
+          }
         />
       )}
 
@@ -3318,14 +3380,14 @@ export function HomePage({
           onEditSalon={openSalonFilterSheet}
           onEditEvents={openEventFilterSheet}
           onDisableLives={() => {
-            setNearbyPanelPreferences({ livesOnly: false });
+            setShowLivesMarkers(false);
             setShowLivesBrowseSheet(false);
           }}
           onDisableSalon={disableSalonFilter}
           onDisableEvents={disableEventsFilter}
           onActivateLives={() => {
             deactivateMapContentFiltersExcept('lives');
-            setNearbyPanelPreferences({ livesOnly: true });
+            setShowLivesMarkers(true);
           }}
           onActivateSalon={openSalonFilterSheet}
           onActivateEvents={() => {
@@ -3415,7 +3477,9 @@ export function HomePage({
             salonFilterOn={salonFilterOn}
             eventsBrowseMode={sidebarEventsFilterOn}
             eventsBrowse={mapEventsBrowseConfig}
-            sponsoredEventPosts={sidebarSponsoredEvents.posts}
+            sponsoredEventPosts={
+              sidebarEventsFilterOn ? browseSidebarSponsoredEventPosts : sidebarSponsoredEvents.posts
+            }
             onSponsoredEventOpen={handleBrowseEventZoomOnMap}
             onSponsoredEventPostChange={sidebarSponsoredEvents.patchPost}
           />
@@ -3696,27 +3760,27 @@ export function HomePage({
               type="button"
               onClick={toggleLivesFilter}
               title={
-                nearbyPanelPrefs.livesOnly
+                showLivesMarkers
                   ? 'Désactiver le filtre Lives'
                   : 'Afficher les lives sur la carte'
               }
               aria-label={
-                nearbyPanelPrefs.livesOnly
+                showLivesMarkers
                   ? 'Désactiver le filtre Lives'
                   : 'Afficher les lives sur la carte'
               }
-              aria-pressed={nearbyPanelPrefs.livesOnly}
+              aria-pressed={showLivesMarkers}
               className={`${MAP_STACK_FILTER_BTN} ${
-                nearbyPanelPrefs.livesOnly
+                showLivesMarkers
                   ? 'bg-red-950/80 border-red-500 text-red-400'
                   : 'bg-[#12121a] border-[#2d2d3d] hover:border-red-500/50 text-white/60 hover:text-white/90'
               }`}
             >
               <span className="relative flex h-2.5 w-2.5 shrink-0">
-                {nearbyPanelPrefs.livesOnly && (
+                {showLivesMarkers && (
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                 )}
-                <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${nearbyPanelPrefs.livesOnly ? 'bg-red-500' : 'bg-white/25'}`} />
+                <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${showLivesMarkers ? 'bg-red-500' : 'bg-white/25'}`} />
               </span>
               Lives
             </button>
@@ -3880,7 +3944,9 @@ export function HomePage({
                 salonFilterOn={salonFilterOn}
                 eventsBrowseMode={sidebarEventsFilterOn}
                 eventsBrowse={mapEventsBrowseConfig}
-                sponsoredEventPosts={sidebarSponsoredEvents.posts}
+                sponsoredEventPosts={
+                  sidebarEventsFilterOn ? browseSidebarSponsoredEventPosts : sidebarSponsoredEvents.posts
+                }
                 onSponsoredEventOpen={handleBrowseEventZoomOnMap}
                 onSponsoredEventPostChange={sidebarSponsoredEvents.patchPost}
               />

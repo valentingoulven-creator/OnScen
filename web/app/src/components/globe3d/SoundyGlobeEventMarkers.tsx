@@ -20,11 +20,8 @@ const MAX_HTML_EVENT_MARKERS = 120;
 /**
  * Pins événement globe — SVG coloré par jour (pas `.map-marker.event`, sinon 26px carte gagne).
  *
- * Pas de `distanceFactor` : sans lui, <Html> garde une taille CSS fixe à l'écran
- * quel que soit le zoom caméra (comme un iconAnchor Leaflet). Avec `distanceFactor`,
- * la taille est mise à l'échelle par la distance caméra → énorme en zoomant (bug).
- * `center` ancre le point exact projeté au centre du bouton — précision constante
- * à tout niveau de zoom, sans hack de transform supplémentaire.
+ * Pas de `distanceFactor` : taille CSS fixe à l'écran. Ancrage bas-centre (pointe du pin)
+ * aligné sur lat/lng — comme Leaflet `iconAnchor: [24, 26]` sur la carte sombre.
  */
 export function SoundyGlobeEventMarkers({ points, onPointClick }: SoundyGlobeEventMarkersProps) {
   const eventPoints = points
@@ -40,29 +37,30 @@ export function SoundyGlobeEventMarkers({ points, onPointClick }: SoundyGlobeEve
           lat={p.lat}
           lng={p.lng}
           zIndexRange={[10, 0]}
-          center
         >
-          <button
-            type="button"
-            className="globe-event-marker-hit"
-            title={p.label}
-            aria-label={p.label}
-            onClick={(e) => {
-              e.stopPropagation();
-              onPointClick(p);
-            }}
-          >
-            {p.isSponsored ? (
-              <span className="globe-event-pin globe-event-pin--sponso" aria-hidden>
-                {SPONSOR_EVENT_ICON}
-              </span>
-            ) : (
-              <EventDayPinIcon dayIndex={p.dayIndex ?? 3} className="globe-event-pin" />
-            )}
-            {p.count && p.count > 1 && (
-              <span className="globe-event-cluster-badge">{p.count}</span>
-            )}
-          </button>
+          <div className="globe-event-marker-anchor">
+            <button
+              type="button"
+              className="globe-event-marker-hit"
+              title={p.label}
+              aria-label={p.label}
+              onClick={(e) => {
+                e.stopPropagation();
+                onPointClick(p);
+              }}
+            >
+              {p.isSponsored ? (
+                <span className="globe-event-pin globe-event-pin--sponso" aria-hidden>
+                  {SPONSOR_EVENT_ICON}
+                </span>
+              ) : (
+                <EventDayPinIcon dayIndex={p.dayIndex ?? 3} className="globe-event-pin" />
+              )}
+              {p.count && p.count > 1 ? (
+                <span className="globe-event-cluster-badge">{p.count}</span>
+              ) : null}
+            </button>
+          </div>
         </GlobeFacingHtml>
       ))}
     </>

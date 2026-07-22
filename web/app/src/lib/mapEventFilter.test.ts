@@ -7,6 +7,7 @@ import {
   filterFeedPostsByEventCriteria,
   filterMapEventsByCriteria,
   filterMapEventsOnCalendarDay,
+  filterMapEventsOnCalendarDays,
   filterMapEventPinsForView,
   getBrowseSheetCalendarDayKeys,
   getTodayDateInputValue,
@@ -318,6 +319,21 @@ describe('filterMapEventsOnCalendarDay', () => {
   });
 });
 
+describe('filterMapEventsOnCalendarDays', () => {
+  it('keeps events occurring on any allowed day', () => {
+    const events = [
+      marker({ id: 'a', latitude: 48.8, longitude: 2.3, eventDate: '2026-07-22T18:00:00.000Z' }),
+      marker({ id: 'b', latitude: 48.9, longitude: 2.4, eventDate: '2026-07-25T18:00:00.000Z' }),
+      marker({ id: 'c', latitude: 49, longitude: 2.5, eventDate: '2026-08-01T18:00:00.000Z' }),
+    ];
+    expect(
+      filterMapEventsOnCalendarDays(events, ['2026-07-22', '2026-07-23', '2026-07-24']).map(
+        (e) => e.id
+      )
+    ).toEqual(['a']);
+  });
+});
+
 describe('filterMapEventPinsForView', () => {
   const merge = (regular: MapEventMarker[], sponsored: MapEventMarker[]) => [
     ...sponsored,
@@ -391,5 +407,28 @@ describe('filterMapEventPinsForView', () => {
       merge,
     });
     expect(result.map((e) => e.id)).toEqual(['sponso-solar', 'regular-paris']);
+  });
+
+  it('uses full event pool when filter is on but no custom criteria pool', () => {
+    const tokyo = marker({
+      id: 'world-tokyo',
+      latitude: 35.6762,
+      longitude: 139.6503,
+      eventDate: '2026-08-01T18:00:00.000Z',
+    });
+    const paris = marker({
+      id: 'regular-paris',
+      latitude: 48.8,
+      longitude: 2.3,
+      eventDate: '2026-07-22T18:00:00.000Z',
+    });
+    const all = [paris, tokyo];
+    const result = filterMapEventPinsForView(all, {
+      eventsFilterOn: true,
+      globeOverview: false,
+      filteredWhenCriteria: undefined,
+      merge,
+    });
+    expect(result.map((e) => e.id)).toEqual(['regular-paris', 'world-tokyo']);
   });
 });

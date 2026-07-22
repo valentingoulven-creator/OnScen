@@ -1,10 +1,9 @@
 import { useMemo } from 'react';
 import { formatEventDateShort } from '../lib/feedEvents';
-import { getEventTypeIcon } from '../lib/eventType';
 import { sortMapEventsForPanel } from '../lib/mapEventClusters';
 import type { MapDetailTier } from '../lib/mapMarkerVisibility';
-import { UserAvatarOnline } from './UserAvatarOnline';
 import { UsernameDisplay } from './UsernameDisplay';
+import { EventMapPinIcon } from './EventMapPinIcon';
 import type { MapEventCityCluster, MapEventMarker } from '../types';
 import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
 
@@ -39,18 +38,7 @@ export function MapEventRow({
         }`}
       >
         <div className={`flex items-start ${compact ? 'gap-1.5' : 'gap-2'}`}>
-          {event.authorId && event.authorUsername ? (
-            <UserAvatarOnline
-              userId={event.authorId}
-              avatarUrl={event.authorAvatarUrl}
-              username={event.authorUsername}
-              size={compact ? 'xs' : 'sm'}
-            />
-          ) : (
-            <span className={`shrink-0 ${compact ? 'text-sm leading-none' : 'text-lg'}`} aria-hidden>
-              {getEventTypeIcon(event.eventType)}
-            </span>
-          )}
+          <EventMapPinIcon marker={event} size={compact ? 'compact' : 'md'} />
           <div className="min-w-0 flex-1 space-y-0.5">
             {event.authorUsername && (
               <UsernameDisplay
@@ -70,11 +58,6 @@ export function MapEventRow({
                 compact ? 'text-[10px] line-clamp-1' : 'text-xs line-clamp-2'
               }`}
             >
-              {event.authorId && event.authorUsername ? (
-                <span className="mr-1" aria-hidden>
-                  {getEventTypeIcon(event.eventType)}
-                </span>
-              ) : null}
               {title}
             </p>
             {event.eventDate && (

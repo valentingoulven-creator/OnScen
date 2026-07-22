@@ -28,10 +28,11 @@ describe('isGlobePointFacingCamera', () => {
 });
 
 describe('htmlMarkerSurfaceRadius', () => {
-  it('lifts markers when the camera is at street altitude', () => {
+  it('returns MARKER_SURFACE_RADIUS (no zoom lift — pins on surface)', () => {
     const street = htmlMarkerSurfaceRadius(altitudeToDistance(0.05));
     const overview = htmlMarkerSurfaceRadius(altitudeToDistance(1.0));
-    expect(street).toBeGreaterThan(overview);
+    expect(street).toBe(overview);
+    expect(street).toBeGreaterThan(EARTH_RADIUS);
   });
 
   it('returns a finite radius for invalid camera distance', () => {

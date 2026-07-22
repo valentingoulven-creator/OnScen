@@ -1158,6 +1158,11 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   user-select: none;
 }
 
+.map-marker.event .event-marker-icon.event-marker-icon--compact .event-day-pin {
+  width: 20px;
+  height: 20px;
+}
+
 .map-marker.event .event-marker-icon .event-sponso-pin {
   display: block;
   line-height: 1;
@@ -2214,22 +2219,32 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 }
 
 /* Globe 3D — pin événement (classes dédiées, pas .map-marker.event de la carte).
-   Pas de distanceFactor sur <Html> (voir SoundyGlobeEventMarkers.tsx) : taille CSS
-   fixe à l'écran à tout niveau de zoom. `center` sur <Html> ancre le point exact
-   lat/lng projeté au centre du bouton — précision constante. */
+   Pas de distanceFactor : taille CSS fixe. Ancrage bas-centre = pointe du pin sur lat/lng
+   (parité carte sombre iconAnchor [24, 26]). */
+.globe-event-marker-anchor {
+  position: relative;
+  line-height: 0;
+  transform: translate(-50%, -100%);
+  transform-origin: 50% 100%;
+  pointer-events: auto;
+}
+
 .globe-event-marker-hit {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   margin: 0;
-  padding: calc(7px * var(--globe-icon-scale, 1));
+  padding: 0;
+  min-width: calc(27px * var(--globe-icon-scale, 1));
+  min-height: calc(27px * var(--globe-icon-scale, 1));
   border: none;
   background: transparent;
   cursor: pointer;
   line-height: 0;
   touch-action: manipulation;
   transform: translate3d(0, 0, 0);
+  transform-origin: 50% 100%;
   transition: transform 0.12s ease;
   pointer-events: auto;
 }
@@ -2251,10 +2266,12 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 }
 
 .globe-event-pin--sponso {
-  width: auto;
-  height: auto;
-  font-size: calc(18px * var(--globe-icon-scale, 1));
-  line-height: 1;
+  display: block;
+  width: calc(13px * var(--globe-icon-scale, 1));
+  height: calc(13px * var(--globe-icon-scale, 1));
+  font-size: calc(13px * var(--globe-icon-scale, 1));
+  line-height: calc(13px * var(--globe-icon-scale, 1));
+  text-align: center;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9))
     drop-shadow(0 0 6px rgba(251, 191, 36, 0.35));
 }
@@ -2353,6 +2370,46 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   border: 1px solid rgba(255, 255, 255, 0.75);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   pointer-events: none;
+}
+
+/* Globe 3D — pin salon (pastille violette, live rouge). */
+.globe-salon-marker-hit {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(14px * var(--globe-icon-scale, 1));
+  height: calc(14px * var(--globe-icon-scale, 1));
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+  transform: translate3d(0, 0, 0);
+  transition: transform 0.12s ease;
+}
+
+.globe-salon-marker-hit:hover,
+.globe-salon-marker-hit:focus-visible {
+  transform: scale(1.1);
+  outline: none;
+}
+
+.globe-salon-dot {
+  position: relative;
+  z-index: 2;
+  width: calc(5px * var(--globe-icon-scale, 1));
+  height: calc(5px * var(--globe-icon-scale, 1));
+  border-radius: 50%;
+  background: #c084fc;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 0 4px rgba(192, 132, 252, 0.55);
+}
+
+.globe-salon-dot--live {
+  background: #ef4444;
+  box-shadow: 0 0 5px rgba(239, 68, 68, 0.75);
 }
 
 /* ── Live indicator (blinking dot) ─────────────────────────────────── */

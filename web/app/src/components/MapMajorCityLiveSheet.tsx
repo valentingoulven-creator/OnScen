@@ -134,14 +134,16 @@ export function MapMajorCityLiveSheet({
               title={t('map.majorCityAnchoredSection')}
               hint={t('map.majorCityAnchoredHint')}
             >
-              {cluster.cityAnchoredSalons.map((salon) => (
+              {cluster.cityAnchoredSalons
+                .filter((salon) => !salon.isLive)
+                .map((salon) => (
                 <SessionRow
                   key={`as-${salon.id}`}
                   hostId={salon.hostId}
                   hostName={salon.hostName}
                   label={salon.title}
                   subtitle={`Salon · ${Math.max(0, salon.listenersCount ?? 0)} spectateurs`}
-                  isLive={salon.isLive === true}
+                  isLive={false}
                   onSelect={() => onSalonClick(salon)}
                 />
               ))}

@@ -30820,3 +30820,669 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 1162 — 2026-07-22
 ================================================================================
+
+================================================================================
+MODIF 1163 — Carte : aucun filtre actif par défaut — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Bouton « Lives » actif au chargement (livesOnly persisté panneau À proximité) ;
+ souhait : aucun filtre carte sélectionné par défaut.
+
+CHANGEMENTS / FIX
+-----
+ HomePage.tsx — showLivesMarkers (session) séparé de nearbyPanelPrefs.livesOnly
+
+FICHIERS MODIFIÉS
+-----
+ HomePage.tsx
+
+================================================================================
+Fin MODIF 1163 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1164 — Sidebar carte : pin événement identique à la carte — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Liste « Événement suivi » (panneau latéral carte) : icône type emoji / avatar au lieu
+ du pin carte (event-marker-icon) utilisé sur les marqueurs Leaflet.
+
+CHANGEMENTS / FIX
+-----
+ EventMapPinIcon.tsx — composant React réutilisant resolveMapEventMarkerPinColor + styles map-marker.event
+ EventDayPinIcon.tsx — prop pinColor optionnelle
+ MapCityEventsPanel.tsx — MapEventRow affiche EventMapPinIcon (compact 20px / md 26px)
+ NearbyPeoplePanel.tsx — en-tête section « Événement suivi » + lignes via MapEventRow
+ index.css — variante event-marker-icon--compact (20px)
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/EventMapPinIcon.tsx → nouveau
+ web/app/src/components/EventDayPinIcon.tsx
+ web/app/src/components/MapCityEventsPanel.tsx
+ web/app/src/components/NearbyPeoplePanel.tsx
+ web/app/src/index.css
+
+================================================================================
+Fin MODIF 1164 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1165 — Sidebar carte : icône ✨ Sponso sur l’en-tête — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En-tête section « Sponso » sans icône ; aligner avec le marqueur carte sponsorisé (✨ map-marker--sponso).
+
+CHANGEMENTS / FIX
+-----
+ NearbyPeoplePanel.tsx — MapSidebarSponsoSection : leadingIcon EventMapPinIcon isSponsored
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/NearbyPeoplePanel.tsx
+
+================================================================================
+Fin MODIF 1165 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1166 — Carrousel Sponso sidebar : retrait hint « Voir sur la carte » — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Carte événement compacte (carrousel Sponso) : libellé « Voir sur la carte » redondant
+ (clic carte entière déjà actif).
+
+CHANGEMENTS / FIX
+-----
+ EventCardMapCompact.tsx — suppression du hint pin + texte en bas de carte (density sidebar)
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/EventCardMapCompact.tsx
+
+================================================================================
+Fin MODIF 1166 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1167 — Sidebar Salon : exclure les directs actifs (live ≠ salon) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Un hôte ne peut pas être en live et en salon simultanément ; la liste Salon affichait
+ des entrées avec badge LIVE (salon.isLive) — confusion avec le filtre Lives.
+
+CHANGEMENTS / FIX
+-----
+ mapSidebarContent.ts — sidebarSalonEntries : exclut isLive des sections salon sidebar
+ NearbyPeoplePanel.tsx — SalonSidebarRow sans badge LIVE / viewers sur avatar
+ mapSidebarContent.test.ts — tests alignés + cas exclusion s-live
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/mapSidebarContent.ts
+ web/app/src/components/NearbyPeoplePanel.tsx
+ web/app/src/lib/mapSidebarContent.test.ts
+
+================================================================================
+Fin MODIF 1167 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1168 — Pins événement : plus de noir, J+4 violet — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Pin noir (J+4 / fallback hors fenêtre) peu lisible sur fond sombre ; souhait :
+ toujours une couleur distincte visible (sidebar MapEventRow, carte, browse).
+
+CHANGEMENTS / FIX
+-----
+ mapEventDayColors.ts — J+4 : #8b5cf6 (violet) à la place de #171717 ; hash stable
+ hors fenêtre browse ; suppression palette « dark pin »
+ mapEventDayColors.test.ts — tests mis à jour
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/mapEventDayColors.ts
+ web/app/src/lib/mapEventDayColors.test.ts
+
+================================================================================
+Fin MODIF 1168 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1169 — Sidebar « Événement suivi » : 3 lignes par défaut + Afficher plus — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Section « Événement suivi » : afficher 12 entrées d’un coup ; souhait : 3 par défaut
+ puis pagination « Afficher plus » / « Afficher moins ».
+
+CHANGEMENTS / FIX
+-----
+ NearbyPeoplePanel.tsx — SIDEBAR_EVENTS_FOLLOWING_PAGE_SIZE = 3 (nfEventsFollowing) ;
+ pageSize par section pour SectionPaginationControls
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/NearbyPeoplePanel.tsx
+
+================================================================================
+Fin MODIF 1169 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1170 — Filtre Lives seul : pins live uniquement (plus salon/personne) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Filtre Lives actif : marqueurs SALON (salon.isLive) et personnes (bots) visibles
+ en plus des lives — live et salon sont exclusifs côté produit.
+
+CHANGEMENTS / FIX
+-----
+ mapMarkerVisibility.ts — livesPinsOnly ; salons/people seulement si filtre Salon
+ co-actif ; filterSalonsForZoom → [] si livesPinsOnly
+ HomePage.tsx — mapPeopleForView vide si Lives seul
+ mapMarkerVisibility.test.ts — tests alignés
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/mapMarkerVisibility.ts
+ web/app/src/pages/HomePage.tsx
+ web/app/src/lib/mapMarkerVisibility.test.ts
+
+================================================================================
+Fin MODIF 1170 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1171 — Filtre Salon seul : pas de lives (symétrie Lives seul) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Filtre Salon actif : feuille grande ville / browse affichait des sessions LIVE
+ (salon.isLive) — live et salon sont exclusifs.
+
+CHANGEMENTS / FIX
+-----
+ mapMarkerVisibility.ts — salonsPinsOnly ; lives masqués ; filterSalonsForZoom exclut isLive
+ MapMajorCityLiveSheet.tsx — salons ancrés hors direct uniquement
+ MapSidebarBrowseSheet.tsx — SalonBrowseCard sans badge live avatar
+ mapMarkerVisibility.test.ts — tests alignés
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/mapMarkerVisibility.ts
+ web/app/src/components/MapMajorCityLiveSheet.tsx
+ web/app/src/components/MapSidebarBrowseSheet.tsx
+ web/app/src/lib/mapMarkerVisibility.test.ts
+
+================================================================================
+Fin MODIF 1171 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1172 — Filtre Salon/Lives seul : masquer pins événement carte — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Filtre Salon (ou Lives) actif sans Événement : pins événement ambiant (aujourd’hui /
+ Sponso) visibles sur la carte — ex. « Jazz à Juan » avec filtre Salon seul.
+
+CHANGEMENTS / FIX
+-----
+ HomePage.tsx — mapEventsBaseForPins vide si anyMapFilterActive && !eventsFilterOn
+ mapMarkerVisibility.ts — eventClusters ambiant seulement sans filtre carte actif
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/HomePage.tsx
+ web/app/src/lib/mapMarkerVisibility.ts
+
+================================================================================
+Fin MODIF 1172 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1176 — Annulation MODIF 1173–1175 (sidebar browse carte) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retour arrière demandé sur les changements sidebar browse (largeur, UI repliable,
+ browse dès Sponso).
+
+CHANGEMENTS / FIX
+-----
+ Restauration NearbyPeoplePanel.tsx + MapEventsBrowseList.tsx (état HEAD) ;
+ HomePage.tsx : retrait sidebarEventsBrowseOn
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/NearbyPeoplePanel.tsx
+ web/app/src/components/MapEventsBrowseList.tsx
+ web/app/src/pages/HomePage.tsx
+
+================================================================================
+Fin MODIF 1176 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1177 — Sidebar globe 3D = carte sombre (filtres explicites) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Vue globe : sidebar browse élargie + sections Lives/Événements « ambiant » ≠ panneau
+ compact Suivi/Live/Salon/SPONSO de la carte sombre sans filtre actif.
+
+CHANGEMENTS / FIX
+-----
+ HomePage.tsx — sidebarLivesFilterOn / sidebarEventsFilterOn = filtres carte explicites
+ uniquement ; pins ambiant globe inchangés sur la carte
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/HomePage.tsx
+
+================================================================================
+Fin MODIF 1177 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1178 — Globe : pins salon HTML fixes (plus sphères 3D violettes) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Salons globe en sphères THREE.js (#c084fc) grossissent au zoom et diffèrent
+ des pastilles overview de la carte sombre.
+
+CHANGEMENTS / FIX
+-----
+ SoundyGlobeSalonMarkers.tsx — overlay Html pastille + badge SALON (live = rouge)
+ SoundyGlobeMarkers.tsx — type salon exclu des sphères
+ SoundyGlobeScene.tsx — rendu composant salon
+ index.css — styles .globe-salon-* (--globe-icon-scale)
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/globe3d/SoundyGlobeSalonMarkers.tsx
+ web/app/src/components/globe3d/SoundyGlobeMarkers.tsx
+ web/app/src/components/globe3d/SoundyGlobeScene.tsx
+ web/app/src/index.css
+
+================================================================================
+Fin MODIF 1178 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1179 — Globe : ancrage bas-centre pins événement (précision lat/lng) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Pins événement / Sponso globe décalés vs coordonnées : `<Html center>` + padding
+ centraient l’icône au lieu de la pointe (carte sombre : iconAnchor bas-centre).
+
+CHANGEMENTS / FIX
+-----
+ SoundyGlobeEventMarkers.tsx — wrapper `.globe-event-marker-anchor` sans `center`
+ index.css — translate(-50%, -100%) ; retrait padding ; Sponso 13px aligné pin jour
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/globe3d/SoundyGlobeEventMarkers.tsx
+ web/app/src/index.css
+
+================================================================================
+Fin MODIF 1179 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1180 — Globe : pins HTML collés à la surface (plus surélévation) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Icônes événement / live / salon « flottent » au-dessus du globe au zoom :
+ htmlMarkerSurfaceRadius montait jusqu’à ×1.045 + init ×1.01.
+
+CHANGEMENTS / FIX
+-----
+ markerVisibility3d.ts — rayon fixe MARKER_SURFACE_RADIUS (100.8)
+ GlobeFacingHtml.tsx — init sans ×1.01
+ markerVisibility3d.test.ts — test aligné
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/globe3d/markerVisibility3d.ts
+ web/app/src/components/globe3d/GlobeFacingHtml.tsx
+ web/app/src/lib/globe3d/markerVisibility3d.test.ts
+
+================================================================================
+Fin MODIF 1180 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1181 — Carte / globe sans filtre : pins suivis uniquement — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sans filtre actif (Lives / Salon / Événement), le globe affichait encore des
+ pins ambiant (lives overview, événements du jour, sponso) au lieu du seul
+ contenu suivi / enregistré (comme la sidebar Suivi).
+
+CHANGEMENTS / FIX
+-----
+ HomePage.tsx
+ ─────────────────
+ • Suppression globeLiveAmbientOn (sonars live overview sans filtre).
+ • rawMapSalonsForView / rawMapLivesForView : uniquement followingMapAmbientOn
+   hors filtre explicite.
+ • mapEventsBaseForPins : sans filtre → événements suivis/enregistrés seulement
+   (plus calendrier ambiant ni pins sponso).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/HomePage.tsx → alignement carte/globe sur sidebar Suivi
+
+================================================================================
+Fin MODIF 1181 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1182 — Globe : pin salon sans badge SALON — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retirer le libellé « SALON » sur l’icône salon du globe 3D (pastille seule).
+
+CHANGEMENTS / FIX
+-----
+ SoundyGlobeSalonMarkers.tsx — suppression span globe-salon-badge
+ index.css — styles badge retirés
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/globe3d/SoundyGlobeSalonMarkers.tsx
+ web/app/src/index.css
+
+================================================================================
+Fin MODIF 1182 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1183 — Seed 50 événements monde hors France — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Créer 50 événements feed répartis dans le monde, exclus de France, pour la carte/globe.
+
+CHANGEMENTS / FIX
+-----
+ botPopulatedCities.ts — FRANCE_POPULATED_CITY_NAMES, NON_FRANCE_POPULATED_CITIES
+ seed-world-random.ts — pickEventCity(), seedWorldEventPosts({ force })
+ scripts/seed-msdev-world-events.ts — CLI msdev
+ package.json — npm run msdev:seed-world-events [-- --force]
+ seed-world-random.test.ts — vérif 0 événement en France
+
+SEED MSdev (exécuté)
+-----
+ npm run msdev:seed-world-events -- --force → 50/50 (feed-world-event-01…50), 0 France
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/botPopulatedCities.ts
+ commun/backend/src/seed-world-random.ts
+ commun/backend/src/scripts/seed-msdev-world-events.ts
+ commun/backend/src/seed-world-random.test.ts
+ commun/backend/package.json
+ commun/msdev/data/store.json (données)
+
+================================================================================
+Fin MODIF 1183 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1184 — Globe sidebar : masquer onglets Autour / Pays événements — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur vue globe 3D, retirer les deux boutons de portée (Autour + France/National)
+ dans le browse événements sidebar — liste Autour seule.
+
+CHANGEMENTS / FIX
+-----
+ MapEventsBrowseList.tsx — prop hideScopeTabs, effectiveTab around
+ NearbyPeoplePanel.tsx — hideScopeTabs si detail.mapStyle === 'globe'
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapEventsBrowseList.tsx
+ web/app/src/components/NearbyPeoplePanel.tsx
+
+================================================================================
+Fin MODIF 1184 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1185 — Globe : géocodage villes monde (feed-world-event) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les 50 événements seed (feed-world-event-*) invisibles sur le globe : le frontend
+ ne géocodait pas les villes type « Music Hall, Kuala Lumpur » (CITY_LOOKUP limité).
+
+CHANGEMENTS / FIX
+-----
+ worldPopulatedCityCoords.ts — 115 agglomérations (aligné botPopulatedCities)
+ mapEventCoords.ts — resolveWorldPopulatedCityCoords avant CITY_LOOKUP
+ mapEventCoords.test.ts — test seeds feed-world-event
+ Re-seed msdev --force (37/50 dates futures au 2026-07-22)
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/worldPopulatedCityCoords.ts (nouveau)
+ web/app/src/lib/mapEventCoords.ts
+ web/app/src/lib/mapEventCoords.test.ts
+
+================================================================================
+Fin MODIF 1185 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1186 — Globe + filtre Événement : pins selon viewport (plus rayon FR) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Avec filtre Événement sur globe, seuls les pins France apparaissaient :
+ • filterMapEventsByCriteria appliquait le lieu profil (30 km) même sans « Appliquer »
+ • le POV globe n’était pas remonté au parent (schedulePovChange gated).
+
+CHANGEMENTS / FIX
+-----
+ HomePage.tsx — filteredWhenCriteria seulement si eventFilterCustomized
+ GlobeView.tsx — POV globe toujours debouncé vers onGlobePovChange (+ en interaction)
+ mapEventFilter.test.ts — test pool complet sans critères custom
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/HomePage.tsx
+ web/app/src/components/GlobeView.tsx
+ web/app/src/lib/mapEventFilter.test.ts
+
+================================================================================
+Fin MODIF 1186 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1187 — Pin jour sidebar : événements clipés au viewport globe/carte — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic pin jour (Aujourd’hui / Demain) : tous les événements du jour s’affichaient
+ sur le globe, sans tenir compte du zoom / POV (skip clip sponso + overview).
+
+CHANGEMENTS / FIX
+-----
+ HomePage.tsx — clip viewport toujours si filtre jour ou tier ≠ overview
+ HomePage.tsx — suppression skipViewportClip quand filtre Événement + sponso
+ Globe overview + pin jour : rayon ~4000 km autour du POV
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/HomePage.tsx
+
+================================================================================
+Fin MODIF 1187 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1188 — Carte : pins événement limités à la fenêtre browse 3 jours — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sans filtre date « Appliquer », des événements après le 24/07 (seeds monde oct.)
+ restaient visibles : MODIF 1186 exposait tout l’à-venir au lieu de la fenêtre sidebar.
+
+CHANGEMENTS / FIX
+-----
+ mapEventFilter.ts — filterMapEventsOnCalendarDays()
+ HomePage.tsx — filtre browse 3 jours si filtre Événement sans critères custom
+ mapEventFilter.test.ts — test fenêtre multi-jours
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/mapEventFilter.ts
+ web/app/src/pages/HomePage.tsx
+ web/app/src/lib/mapEventFilter.test.ts
+
+================================================================================
+Fin MODIF 1188 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1189 — Sidebar browse : liste événements = viewport carte/globe — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Carrousels sidebar (Sponso + sections jour) affichaient des événements hors zone
+ visible (ex. Solar Festival Le Crès alors que le globe est ailleurs) : Sponso
+ n’était pas clipé au viewport contrairement aux pins carte.
+
+CHANGEMENTS / FIX
+-----
+ HomePage.tsx — browseMapVisibleEventIds + browseSidebarSponsoredEventPosts
+ HomePage.tsx — sponsoredEventPosts filtrés (sidebar + sheet browse)
+ useMapEventsBrowseData.ts — onglet Pays : countryUpcoming ∩ aroundEventPosts
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/HomePage.tsx
+ web/app/src/hooks/useMapEventsBrowseData.ts
+
+================================================================================
+Fin MODIF 1189 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1190 — Carte plate : sidebar vide si aucun pin dans le viewport — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Carte Leaflet sans pins visibles mais sidebar browse encore remplie :
+ • fallback « si clip vide → tous les clusters »
+ • zoom overview sans clip bounds quand filtre Événement actif.
+
+CHANGEMENTS / FIX
+-----
+ HomePage.tsx — clip viewport flat dès filtre Événement (+ overview → clip tier city)
+ HomePage.tsx — suppression fallback clusters hors viewport
+ mapMarkerVisibility.ts — suppression fallback globe filterEventClustersInGlobeRegion
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/HomePage.tsx
+ web/app/src/lib/mapMarkerVisibility.ts
+
+================================================================================
+Fin MODIF 1190 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1191 — Sponso sidebar : filtre viewport par coords (multi-pays) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Section Sponso sidebar : afficher les sponsorisés visibles dans la vue actuelle
+ (ex. Italie + France si les deux sont dans le viewport), pas via IDs clusters.
+
+CHANGEMENTS / FIX
+-----
+ mapMarkerVisibility.ts — filterMapEventMarkersInMapView()
+ HomePage.tsx — browseSidebarSponsoredEventPosts via coords mapSponsoredEventMarkers
+ mapMarkerVisibility.test.ts — tests bounds multi-pays
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/mapMarkerVisibility.ts
+ web/app/src/pages/HomePage.tsx
+ web/app/src/lib/mapMarkerVisibility.test.ts
+
+================================================================================
+Fin MODIF 1191 — 2026-07-22
+================================================================================

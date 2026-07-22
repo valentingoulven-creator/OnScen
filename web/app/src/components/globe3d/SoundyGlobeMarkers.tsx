@@ -35,7 +35,7 @@ function markerWorldSize(radius: number, overviewDots: boolean): number {
   return radius * (overviewDots ? 1.8 : 2.6);
 }
 
-const ICON_MARKER_TYPES = new Set(['event', 'live', 'live-cluster', 'user']);
+const ICON_MARKER_TYPES = new Set(['event', 'live', 'live-cluster', 'user', 'salon']);
 
 function FacingSphereInstance({
   point,
@@ -75,7 +75,7 @@ function FacingSphereInstance({
 }
 
 /**
- * Sphères — marqueurs sans overlay DOM (event/live/user via composants dédiés).
+ * Sphères — marqueurs sans overlay DOM (event/live/salon/user via composants dédiés).
  * Masque l'hémisphère arrière (comme GlobeFacingHtml).
  */
 export function SoundyGlobeMarkers({

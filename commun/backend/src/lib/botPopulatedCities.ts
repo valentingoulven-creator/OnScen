@@ -132,4 +132,19 @@ export const POPULATED_CITIES: PopulatedCity[] = [
   { name: 'Auckland', lat: -36.8485, lon: 174.7633, weight: 1.7 },
 ];
 
+/** Villes françaises exclues du seed événements monde. */
+export const FRANCE_POPULATED_CITY_NAMES = new Set([
+  'Paris',
+  'Lyon',
+  'Marseille',
+  'Toulouse',
+  'Bordeaux',
+  'Nice',
+  'Montpellier',
+]);
+
+export const NON_FRANCE_POPULATED_CITIES = POPULATED_CITIES.filter(
+  (city) => !FRANCE_POPULATED_CITY_NAMES.has(city.name)
+);
+
 export const POPULATED_CITY_TOTAL_WEIGHT = POPULATED_CITIES.reduce((sum, c) => sum + c.weight, 0);

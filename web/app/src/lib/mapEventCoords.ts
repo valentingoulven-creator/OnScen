@@ -1,4 +1,5 @@
 import { geocodeQuery } from './geocodeAddress';
+import { resolveWorldPopulatedCityCoords } from './worldPopulatedCityCoords';
 
 /** Lieux connus des seeds feed-event-* / user-event-* (coords venues). */
 const VENUE_LOOKUP: Array<{ match: RegExp; latitude: number; longitude: number }> = [
@@ -88,6 +89,10 @@ export function resolveEventVenueCoordsSync(
 function matchCityLookup(label: string): { latitude: number; longitude: number } | null {
   const loc = label.trim();
   if (!loc) return null;
+
+  const worldCity = resolveWorldPopulatedCityCoords(loc);
+  if (worldCity) return worldCity;
+
   for (const c of CITY_LOOKUP) {
     if (c.match.test(loc)) return { latitude: c.latitude, longitude: c.longitude };
   }
