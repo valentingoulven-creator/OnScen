@@ -100,6 +100,11 @@ function sortClustersByCountDesc(clusters: MapEventCityCluster[]): MapEventCityC
   );
 }
 
+/** Salons sidebar : pièces d’écoute hors direct (un live actif = filtre Lives, pas Salon). */
+function sidebarSalonEntries<T extends { isLive?: boolean }>(salons: T[]): T[] {
+  return salons.filter((s) => !s.isLive);
+}
+
 
 export function isSidebarFollowingEvent(
   e: MapEventMarker,
@@ -235,7 +240,7 @@ export function buildMapSidebarContent(opts: {
         ? sortLivesByViewersDesc(activeLives.filter((l) => followingIds.has(l.hostId)))
         : [];
 
-    const salonPool = allSalons.filter(isPublicSalon);
+    const salonPool = sidebarSalonEntries(allSalons.filter(isPublicSalon));
     const salonsFollowing =
       followingIds.size > 0
         ? sortSalonsByListenersDesc(salonPool.filter((s) => followingIds.has(s.hostId)))
@@ -308,7 +313,7 @@ export function buildMapSidebarContent(opts: {
     salonFilterOn &&
     fetchAnchor != null &&
     shouldClipMapMarkersToViewport(detail, fetchAnchor);
-  const salonPool = salonFilterOn ? salons.filter(isPublicSalon) : salons;
+  const salonPool = sidebarSalonEntries(salonFilterOn ? salons.filter(isPublicSalon) : salons);
   /** Overview : pas de clip viewport (points simplifiés, comme les clusters événements). */
   const salonsInView =
     salonFilterOn && tier !== 'overview' && salonClipGeo && fetchAnchor

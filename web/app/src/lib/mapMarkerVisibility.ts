@@ -195,7 +195,6 @@ export function filterEventClustersInGlobeRegion(
       count: eventsInView.length,
     });
   }
-  if (result.length === 0 && clusters.length > 0) return clusters;
   return result;
 }
 
@@ -226,6 +225,63 @@ export function filterLivesInViewport<T extends { latitude: number; longitude: n
   bounds: MapBounds | null | undefined
 ): T[] {
   return filterMarkersInViewport(lives, bounds);
+}
+
+export interface FilterMapEventMarkersInViewDetail {
+  mapStyle: MapStyleKind;
+  bounds: MapBounds | null | undefined;
+  tier: MapDetailTier;
+  centerLat: number;
+  centerLng: number;
+  globeAltitude: number | null;
+}
+
+export interface FilterMapEventMarkersInViewOpts {
+  eventsFilterOn: boolean;
+  dayPinFilter?: string | null;
+}
+
+/** Marqueurs événement (dont sponso) dans le viewport carte / rayon globe visible. */
+export function filterMapEventMarkersInMapView<
+  T extends { latitude: number; longitude: number },
+>(
+  markers: T[],
+  detail: FilterMapEventMarkersInViewDetail,
+  opts: FilterMapEventMarkersInViewOpts
+): T[] {
+  if (!opts.eventsFilterOn) return markers;
+
+  if (detail.mapStyle === 'globe') {
+    const restrictToViewport =
+      opts.eventsFilterOn ||
+      opts.dayPinFilter != null ||
+      detail.tier !== 'overview';
+    if (!restrictToViewport) return markers;
+
+    const radiusKm = getGlobeCapitalVisibleRadiusKm(detail.globeAltitude ?? 0.6);
+    const effectiveRadius =
+      radiusKm > 0 ? radiusKm : opts.dayPinFilter ? 4000 : 0;
+    if (effectiveRadius <= 0) return markers;
+
+    return markers.filter(
+      (marker) =>
+        isValidLatLng(marker.latitude, marker.longitude) &&
+        getDistanceKm(
+          detail.centerLat,
+          detail.centerLng,
+          marker.latitude,
+          marker.longitude
+        ) <= effectiveRadius
+    );
+  }
+
+  const restrictToViewport =
+    opts.eventsFilterOn ||
+    opts.dayPinFilter != null ||
+    detail.tier !== 'overview';
+  if (!restrictToViewport || !detail.bounds) return markers;
+
+  return filterMarkersInViewport(markers, detail.bounds);
 }
 
 /**
@@ -343,6 +399,10 @@ export interface MapMarkerVisibility {
   salons: boolean;
   lives: boolean;
   people: boolean;
+  /** Filtre Lives seul : aucun pin salon (directs via `lives[]` uniquement). */
+  livesPinsOnly: boolean;
+  /** Filtre Salon seul : salons d’écoute hors direct (pas de pins / lignes live). */
+  salonsPinsOnly: boolean;
   /** overview = simplified dots ; full = album-art markers. */
   density: MapMarkerDensity;
 }
@@ -378,20 +438,25 @@ export function getMapMarkerVisibility(opts: MapMarkerVisibilityOptions): MapMar
   } = opts;
 
   const capitals = !eventsOnly && tier !== 'overview';
-  const eventClusters = eventsFilterOn || hasEventClusters;
+  const anyContentFilter = livesFilterOn || salonFilterOn || eventsFilterOn;
+  /** Pins événement : filtre Événement, ou ambiant si aucun filtre carte actif. */
+  const eventClusters =
+    eventsFilterOn || (!anyContentFilter && hasEventClusters);
+  const livesPinsOnly = livesFilterOn && !salonFilterOn;
+  const salonsPinsOnly = salonFilterOn && !livesFilterOn;
 
   switch (tier) {
     case 'overview':
       return {
         capitals,
         eventClusters,
-        /** Salons toujours visibles en overview (le filtre Salon ne s'applique
-         *  qu'à partir de city/street) — `salonFilterOn` n'a pas d'effet ici,
-         *  le plancher live est géré séparément dans filterSalonsForZoom. */
-        salons: true,
-        /** Sonars live toujours visibles sur la première page globe. */
-        lives: true,
-        people: livesFilterOn === true,
+        /** Salons visibles uniquement avec le filtre Salon actif. */
+        salons: salonFilterOn,
+        /** Lives masqués si filtre Salon seul ; sonars globe si aucun filtre Salon. */
+        lives: !salonsPinsOnly,
+        people: livesFilterOn && salonFilterOn,
+        livesPinsOnly,
+        salonsPinsOnly,
         density: 'overview',
       };
     case 'city':
@@ -399,12 +464,11 @@ export function getMapMarkerVisibility(opts: MapMarkerVisibilityOptions): MapMar
       return {
         capitals,
         eventClusters,
-        /** « Tous les salons » reste piloté par le filtre Salon ; les salons live restent
-         *  toujours visibles (plancher géré dans filterSalonsForZoom, indépendant du filtre). */
-        salons: salonFilterOn || livesFilterOn,
-        /** Les lives géolocalisés sont toujours visibles, indépendamment des filtres carte. */
-        lives: true,
-        people: livesFilterOn,
+        salons: salonFilterOn,
+        lives: !salonsPinsOnly,
+        people: livesFilterOn && salonFilterOn,
+        livesPinsOnly,
+        salonsPinsOnly,
         density: 'full',
       };
   }
@@ -421,15 +485,17 @@ export function filterSalonsForZoom<T extends { isLive?: boolean }>(
   showAllSalonsAtCityZoom: boolean,
   tier: MapDetailTier
 ): T[] {
-  const liveSalons = salons.filter((s) => s.isLive);
+  if (visibility.livesPinsOnly) return [];
+  const pool = visibility.salonsPinsOnly ? salons.filter((s) => !s.isLive) : salons;
+  const liveSalons = pool.filter((s) => s.isLive);
   if (tier === 'overview') {
-    return showAllSalonsAtCityZoom ? salons : liveSalons;
+    return showAllSalonsAtCityZoom ? pool : liveSalons;
   }
   if (tier === 'street') {
-    return visibility.salons || showAllSalonsAtCityZoom ? salons : liveSalons;
+    return visibility.salons || showAllSalonsAtCityZoom ? pool : liveSalons;
   }
   // city
-  return showAllSalonsAtCityZoom ? salons : liveSalons;
+  return showAllSalonsAtCityZoom ? pool : liveSalons;
 }
 
 /** Filtre personnes : au zoom ville, live uniquement ; rue = actives (déjà filtrées en amont). */

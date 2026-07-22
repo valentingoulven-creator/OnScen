@@ -5,6 +5,7 @@ import {
   getMapEventBrowseDayIndex,
   getMapEventDayColor,
   getMapEventDayIndexFromIso,
+  MAP_EVENT_BROWSE_SECTION_COLORS,
   resolveClusterMapPinSponsored,
   resolveEventMapPinHtml,
   resolveMapEventMarkerPinColor,
@@ -24,18 +25,24 @@ describe('mapEventDayColors', () => {
     expect(getMapEventBrowseDayIndex('2026-07-24', from)).toBe(-1);
   });
 
-  it('maps day index to green blue orange black', () => {
+  it('maps day index to green blue orange violet', () => {
     expect(getMapEventDayColor(0)).toBe('#22c55e');
     expect(getMapEventDayColor(1)).toBe('#3b82f6');
     expect(getMapEventDayColor(2)).toBe('#f97316');
-    expect(getMapEventDayColor(3)).toBe('#171717');
+    expect(getMapEventDayColor(3)).toBe('#8b5cf6');
   });
 
   it('cycles distinct browse section colors beyond the default map window', () => {
     expect(getBrowseSectionDayColor(0)).toBe('#22c55e');
-    expect(getBrowseSectionDayColor(3)).toBe('#171717');
+    expect(getBrowseSectionDayColor(3)).toBe('#8b5cf6');
     expect(getBrowseSectionDayColor(4)).toBe('#a855f7');
     expect(getBrowseSectionDayColor(5)).not.toBe(getBrowseSectionDayColor(4));
+  });
+
+  it('never uses black for out-of-window day keys', () => {
+    const color = resolveMapEventPinColor('2026-08-15', dayKeys);
+    expect(color).not.toBe('#171717');
+    expect(MAP_EVENT_BROWSE_SECTION_COLORS as readonly string[]).toContain(color);
   });
 
   it('resolves map pin color from browse day keys', () => {

@@ -5,6 +5,7 @@ import {
   clipLivesForMapView,
   clipSalonsForMapView,
   filterEventClustersInViewport,
+  filterMapEventMarkersInMapView,
   filterLivesInViewport,
   filterPeopleInViewport,
   filterSalonsForSalonMapFilter,
@@ -196,13 +197,14 @@ describe('getMapMarkerVisibility lives at globe tiers', () => {
       livesFilterOn: false,
     });
     expect(visibility.lives).toBe(true);
-    expect(visibility.salons).toBe(true);
+    expect(visibility.salons).toBe(false);
     expect(visibility.people).toBe(false);
+    expect(visibility.livesPinsOnly).toBe(false);
     expect(visibility.capitals).toBe(false);
     expect(visibility.density).toBe('overview');
   });
 
-  it('shows simplified lives and live people at globe overview when Lives filter is on', () => {
+  it('shows simplified lives only at globe overview when Lives filter is on (no salon/person pins)', () => {
     const tier = getGlobeDetailTier(1.0);
     const visibility = getMapMarkerVisibility({
       tier,
@@ -211,7 +213,9 @@ describe('getMapMarkerVisibility lives at globe tiers', () => {
       livesFilterOn: true,
     });
     expect(visibility.lives).toBe(true);
-    expect(visibility.people).toBe(true);
+    expect(visibility.salons).toBe(false);
+    expect(visibility.people).toBe(false);
+    expect(visibility.livesPinsOnly).toBe(true);
     expect(visibility.density).toBe('overview');
   });
 
@@ -235,6 +239,26 @@ describe('getMapMarkerVisibility lives at globe tiers', () => {
     });
     expect(visibility.eventClusters).toBe(true);
     expect(visibility.capitals).toBe(false);
+  });
+
+  it('hides ambient event clusters when Salon filter is on without Events', () => {
+    const visibility = getMapMarkerVisibility({
+      tier: 'city',
+      eventsOnly: false,
+      hasEventClusters: true,
+      salonFilterOn: true,
+      eventsFilterOn: false,
+    });
+    expect(visibility.eventClusters).toBe(false);
+  });
+
+  it('shows ambient event clusters when no map content filter is active', () => {
+    const visibility = getMapMarkerVisibility({
+      tier: 'city',
+      eventsOnly: false,
+      hasEventClusters: true,
+    });
+    expect(visibility.eventClusters).toBe(true);
   });
 
   it('shows lives at globe city and street altitude when Lives filter is on', () => {
@@ -322,7 +346,7 @@ describe('filterSalonsForZoom at overview', () => {
     { id: 'off', isLive: false },
   ];
 
-  it('keeps all salons as overview dots when Salon filter is on', () => {
+  it('keeps offline salons as overview dots when Salon filter is on', () => {
     const visibility = getMapMarkerVisibility({
       tier: 'overview',
       eventsOnly: false,
@@ -330,7 +354,7 @@ describe('filterSalonsForZoom at overview', () => {
       salonFilterOn: true,
     });
     const visible = filterSalonsForZoom(salons, visibility, true, 'overview');
-    expect(visible.map((s) => s.id).sort()).toEqual(['live', 'off']);
+    expect(visible.map((s) => s.id)).toEqual(['off']);
   });
 });
 
@@ -340,30 +364,32 @@ describe('filterSalonsForZoom with combined filters', () => {
     { id: 'off', isLive: false },
   ];
 
-  it('keeps all salons at city zoom when Salon filter is on (even with Lives)', () => {
+  it('keeps offline salons only at city zoom when Salon filter is on (no live salons)', () => {
     const visibility = getMapMarkerVisibility({
       tier: 'city',
       eventsOnly: false,
       hasEventClusters: false,
       salonFilterOn: true,
-      livesFilterOn: true,
     });
+    expect(visibility.salonsPinsOnly).toBe(true);
+    expect(visibility.lives).toBe(false);
     const visible = filterSalonsForZoom(salons, visibility, true, 'city');
-    expect(visible.map((s) => s.id).sort()).toEqual(['live', 'off']);
+    expect(visible.map((s) => s.id)).toEqual(['off']);
   });
 
-  it('keeps live salons only at city zoom when only Lives is on', () => {
+  it('shows no salon markers when only Lives is on (pins via lives array)', () => {
     const visibility = getMapMarkerVisibility({
       tier: 'city',
       eventsOnly: false,
       hasEventClusters: false,
       livesFilterOn: true,
     });
+    expect(visibility.livesPinsOnly).toBe(true);
     const visible = filterSalonsForZoom(salons, visibility, false, 'city');
-    expect(visible.map((s) => s.id)).toEqual(['live']);
+    expect(visible).toEqual([]);
   });
 
-  it('keeps all salons at overview when Salon filter is on', () => {
+  it('keeps offline salons at overview when Salon filter is on', () => {
     const visibility = getMapMarkerVisibility({
       tier: 'overview',
       eventsOnly: false,
@@ -371,10 +397,10 @@ describe('filterSalonsForZoom with combined filters', () => {
       salonFilterOn: true,
     });
     const visible = filterSalonsForZoom(salons, visibility, true, 'overview');
-    expect(visible.map((s) => s.id).sort()).toEqual(['live', 'off']);
+    expect(visible.map((s) => s.id)).toEqual(['off']);
   });
 
-  it('keeps live salons only at overview when salons visible without show-all mode', () => {
+  it('shows live salon floor at overview only without Salon filter', () => {
     const visibility = getMapMarkerVisibility({
       tier: 'overview',
       eventsOnly: false,
@@ -382,7 +408,7 @@ describe('filterSalonsForZoom with combined filters', () => {
       salonFilterOn: true,
     });
     const visible = filterSalonsForZoom(salons, visibility, false, 'overview');
-    expect(visible.map((s) => s.id)).toEqual(['live']);
+    expect(visible).toEqual([]);
   });
 });
 
@@ -415,5 +441,54 @@ describe('capitals progressive disclosure', () => {
     const nearParis = filterCapitalsInGlobeRegion(caps, 48.85, 2.35, 600);
     expect(nearParis.map((c) => c.name)).toContain('Paris');
     expect(nearParis.map((c) => c.name)).not.toContain('Tokyo');
+  });
+});
+
+describe('filterMapEventMarkersInMapView', () => {
+  const franceMarker = {
+    id: 'sponso-fr',
+    latitude: 43.6489,
+    longitude: 3.8567,
+    title: 'Solar Festival',
+  };
+  const italyMarker = {
+    id: 'sponso-it',
+    latitude: 41.9028,
+    longitude: 12.4964,
+    title: 'Roma Sponso',
+  };
+
+  it('flat map with events filter keeps sponso in bounds only', () => {
+    const bounds = { north: 46, south: 41, east: 14, west: 2 };
+    const visible = filterMapEventMarkersInMapView(
+      [franceMarker, italyMarker],
+      {
+        mapStyle: 'flat',
+        bounds,
+        tier: 'overview',
+        centerLat: 43,
+        centerLng: 6,
+        globeAltitude: null,
+      },
+      { eventsFilterOn: true }
+    );
+    expect(visible.map((m) => m.id)).toEqual(['sponso-fr', 'sponso-it']);
+  });
+
+  it('flat map with events filter excludes sponso outside bounds', () => {
+    const bounds = { north: 42.5, south: 41.5, east: 13, west: 11.5 };
+    const visible = filterMapEventMarkersInMapView(
+      [franceMarker, italyMarker],
+      {
+        mapStyle: 'flat',
+        bounds,
+        tier: 'city',
+        centerLat: 42,
+        centerLng: 12.2,
+        globeAltitude: null,
+      },
+      { eventsFilterOn: true }
+    );
+    expect(visible.map((m) => m.id)).toEqual(['sponso-it']);
   });
 });

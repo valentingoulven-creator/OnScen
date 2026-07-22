@@ -6,7 +6,7 @@ import { ensureSalonQueue, ensureSalonProposals } from './lib/salonPlaybackOps';
 import { buildPlatformTrackUrl } from './lib/musicLinks';
 import { dicebearAdventurerAvatar } from './lib/avatarUrl';
 import { isLocalDevEnvironment } from './seed-bots';
-import { POPULATED_CITIES, type PopulatedCity } from './lib/botPopulatedCities';
+import { POPULATED_CITIES, NON_FRANCE_POPULATED_CITIES, type PopulatedCity } from './lib/botPopulatedCities';
 import { schedulePersist } from './lib/persist';
 
 /** Préfixe IDs salons monde (persistés PostgreSQL via pgSalonsLives). */
@@ -106,6 +106,15 @@ function pickCity(slot: number): { city: PopulatedCity; lat: number; lng: number
   const city = POPULATED_CITIES[idx]!;
   const offsetLat = ((stableHash(`olat-${slot}`) % 200) - 100) / 50_000;
   const offsetLng = ((stableHash(`olng-${slot}`) % 200) - 100) / 50_000;
+  return { city, lat: city.lat + offsetLat, lng: city.lon + offsetLng };
+}
+
+/** Événements feed monde — jamais en France (pool NON_FRANCE_POPULATED_CITIES). */
+function pickEventCity(slot: number): { city: PopulatedCity; lat: number; lng: number } {
+  const idx = stableHash(`world-event-city-${slot}`) % NON_FRANCE_POPULATED_CITIES.length;
+  const city = NON_FRANCE_POPULATED_CITIES[idx]!;
+  const offsetLat = ((stableHash(`ev-olat-${slot}`) % 200) - 100) / 50_000;
+  const offsetLng = ((stableHash(`ev-olng-${slot}`) % 200) - 100) / 50_000;
   return { city, lat: city.lat + offsetLat, lng: city.lon + offsetLng };
 }
 
@@ -295,6 +304,81 @@ function upsertHostUser(
   return user;
 }
 
+export interface SeedWorldEventsResult {
+  eventsCreated: number;
+  eventsTotal: number;
+  usersCreated: number;
+  usersUpdated: number;
+  cities: string[];
+}
+
+/** 50 événements feed monde (hors France), IDs feed-world-event-01…50. */
+export function seedWorldEventPosts(opts?: { force?: boolean }): SeedWorldEventsResult {
+  const userStats = { usersCreated: 0, usersUpdated: 0 };
+  if (opts?.force) {
+    db.feedPosts = db.feedPosts.filter((p) => !p.id.startsWith(WORLD_EVENT_POST_ID_PREFIX));
+  }
+
+  const existingEventIds = new Set(
+    db.feedPosts.filter((p) => p.id.startsWith(WORLD_EVENT_POST_ID_PREFIX)).map((p) => p.id)
+  );
+  const now = Date.now();
+  let eventsCreated = 0;
+  const cities: string[] = [];
+
+  for (let i = 1; i <= WORLD_EVENT_COUNT; i++) {
+    const postId = worldEventPostId(i);
+    if (existingEventIds.has(postId)) continue;
+
+    const slot = 200 + i;
+    const { city, lat, lng } = pickEventCity(slot);
+    cities.push(city.name);
+    const userId = worldEventUserId(i);
+    const genres = GENRES_POOL[(i - 1) % GENRES_POOL.length]!;
+    upsertHostUser(
+      userId,
+      userId,
+      city.name,
+      lat,
+      lng,
+      genres,
+      pickPlatform(slot),
+      'les_deux',
+      userStats
+    );
+
+    const venue = EVENT_VENUE_SUFFIXES[(i - 1) % EVENT_VENUE_SUFFIXES.length]!;
+    const eventLocation = `${venue}, ${city.name}`;
+    const content =
+      EVENT_CONTENT_TEMPLATES[(i - 1) % EVENT_CONTENT_TEMPLATES.length]!(city.name, venue);
+    const post: FeedPost = {
+      id: postId,
+      userId,
+      content,
+      imageUrl: UNSPLASH_IMAGES[(i - 1) % UNSPLASH_IMAGES.length],
+      isEvent: true,
+      eventDate: futureEventDateIso(i),
+      eventLocation,
+      eventType: EVENT_TYPES[(i - 1) % EVENT_TYPES.length],
+      createdAt: now - i * 180_000,
+    };
+    db.feedPosts.push(post);
+    eventsCreated++;
+  }
+
+  if (eventsCreated > 0) {
+    schedulePersist();
+  }
+
+  return {
+    eventsCreated,
+    eventsTotal: db.feedPosts.filter((p) => p.id.startsWith(WORLD_EVENT_POST_ID_PREFIX)).length,
+    usersCreated: userStats.usersCreated,
+    usersUpdated: userStats.usersUpdated,
+    cities,
+  };
+}
+
 export interface SeedWorldRandomResult {
   usersCreated: number;
   usersUpdated: number;
@@ -443,59 +527,13 @@ export function seedWorldRandomData(): SeedWorldRandomResult {
     });
   }
 
-  const existingEventIds = new Set(
-    db.feedPosts.filter((p) => p.id.startsWith(WORLD_EVENT_POST_ID_PREFIX)).map((p) => p.id)
-  );
-  const now = Date.now();
-  let eventsCreated = 0;
+  const eventSeed = seedWorldEventPosts();
+  result.eventsCreated = eventSeed.eventsCreated;
+  result.events = eventSeed.eventsTotal;
+  result.usersCreated += eventSeed.usersCreated;
+  result.usersUpdated += eventSeed.usersUpdated;
+  for (const cityName of eventSeed.cities) citySlotsUsed.add(cityName);
 
-  for (let i = 1; i <= WORLD_EVENT_COUNT; i++) {
-    const postId = worldEventPostId(i);
-    if (existingEventIds.has(postId)) continue;
-
-    const slot = 200 + i;
-    const { city } = pickCity(slot);
-    citySlotsUsed.add(city.name);
-    const userId = worldEventUserId(i);
-    const { lat, lng } = pickCity(slot);
-    const genres = GENRES_POOL[(i - 1) % GENRES_POOL.length]!;
-    upsertHostUser(
-      userId,
-      userId,
-      city.name,
-      lat,
-      lng,
-      genres,
-      pickPlatform(slot),
-      'les_deux',
-      result
-    );
-
-    const venue = EVENT_VENUE_SUFFIXES[(i - 1) % EVENT_VENUE_SUFFIXES.length]!;
-    const eventLocation = `${venue}, ${city.name}`;
-    const content =
-      EVENT_CONTENT_TEMPLATES[(i - 1) % EVENT_CONTENT_TEMPLATES.length]!(city.name, venue);
-    const post: FeedPost = {
-      id: postId,
-      userId,
-      content,
-      imageUrl: UNSPLASH_IMAGES[(i - 1) % UNSPLASH_IMAGES.length],
-      isEvent: true,
-      eventDate: futureEventDateIso(i),
-      eventLocation,
-      eventType: EVENT_TYPES[(i - 1) % EVENT_TYPES.length],
-      createdAt: now - i * 180_000,
-    };
-    db.feedPosts.push(post);
-    eventsCreated++;
-  }
-
-  if (eventsCreated > 0) {
-    schedulePersist();
-  }
-
-  result.eventsCreated = eventsCreated;
-  result.events = db.feedPosts.filter((p) => p.id.startsWith(WORLD_EVENT_POST_ID_PREFIX)).length;
   result.uniqueCities = citySlotsUsed.size;
 
   return result;

@@ -1,10 +1,5 @@
 import type { Vector3 } from 'three';
 import { EARTH_RADIUS, MARKER_SURFACE_RADIUS } from './constants';
-import {
-  GLOBE_ALTITUDE_CITY_MAX,
-  GLOBE_ALTITUDE_STREET_MAX,
-} from '../mapMarkerVisibility';
-import { distanceToAltitude } from './cameraMath';
 
 const _markerNormal = { x: 0, y: 0, z: 0 };
 const _cameraDir = { x: 0, y: 0, z: 0 };
@@ -43,16 +38,11 @@ export function isGlobePointFacingCamera(
   );
 }
 
-/** Lift HTML pins slightly when the camera zooms in so they stay above the mesh. */
+/** Rayon surface HTML — collé à la mesh Terre (MARKER_SURFACE_RADIUS), sans surélévation au zoom. */
 export function htmlMarkerSurfaceRadius(
-  cameraDistance: number,
-  earthRadius = EARTH_RADIUS,
+  _cameraDistance: number,
+  _earthRadius = EARTH_RADIUS,
   baseRadius = MARKER_SURFACE_RADIUS
 ): number {
-  const altitude = distanceToAltitude(cameraDistance, earthRadius);
-  if (altitude >= GLOBE_ALTITUDE_CITY_MAX) return baseRadius * 1.01;
-  if (altitude <= GLOBE_ALTITUDE_STREET_MAX) return baseRadius * 1.045;
-  const span = GLOBE_ALTITUDE_CITY_MAX - GLOBE_ALTITUDE_STREET_MAX;
-  const t = (GLOBE_ALTITUDE_CITY_MAX - altitude) / span;
-  return baseRadius * (1.01 + t * 0.035);
+  return baseRadius;
 }

@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, useCallback, type ReactNode } from 'react';
+import { memo, useMemo, useState, useCallback, useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   countMapSidebarItems,
@@ -460,6 +460,12 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
     onPostChange: eventsBrowse?.onPostChange,
   });
 
+  useEffect(() => {
+    if (detail.mapStyle === 'globe' && browse.activeTab !== 'around') {
+      browse.setActiveTab('around');
+    }
+  }, [detail.mapStyle, browse.activeTab, browse.setActiveTab]);
+
   const handleBrowsePostChange = useCallback(
     (postId: string, patch: Partial<FeedPost>) => {
       browse.handlePostChange(postId, patch);
@@ -651,6 +657,7 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
                 selectedMapEventDayKey={eventsBrowse?.selectedMapEventDayKey}
                 onMapEventDayKeySelect={eventsBrowse?.onMapEventDayKeySelect}
                 sponsoredEventPosts={sponsoredEventPosts}
+                hideScopeTabs={detail.mapStyle === 'globe'}
               />
             </li>
           ) : null}

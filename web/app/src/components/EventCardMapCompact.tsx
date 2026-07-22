@@ -38,7 +38,7 @@ export interface EventCardMapCompactProps {
   activateAriaLabel?: string;
   locationNavigable?: boolean;
   locationCoords?: { latitude: number; longitude: number } | null;
-  /** sidebar = hero h-12 + hint « Voir sur la carte » ; map = hero h-10, plus serré */
+  /** sidebar = hero h-12 ; map = hero h-10, plus serré */
   density?: 'sidebar' | 'map';
   /** Événement sponsorisé sidebar — icône ✨. */
   sponsoredVisual?: boolean;
@@ -85,7 +85,6 @@ export function EventCardMapCompact({
   const eventTypeName = sponsoredVisual
     ? t('map.sidebarSponsoCategory', { defaultValue: 'Sponso' })
     : eventTypeLabel(t, post.eventType);
-  const locateLabel = t('map.eventsBrowseViewOnMap', { defaultValue: 'Voir sur la carte' });
 
   const heroHeight = isMap ? 'h-10' : 'h-12';
   const bodyPad = isMap ? 'p-1.5 space-y-1' : 'p-2 space-y-1.5';
@@ -167,11 +166,6 @@ export function EventCardMapCompact({
         <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
           {profileActions}
         </div>
-      ) : !isMap ? (
-        <span className="inline-flex shrink-0 items-center gap-0.5 text-[9px] font-semibold text-purple-300/90">
-          <MapPinIcon className="h-2.5 w-2.5" />
-          {locateLabel}
-        </span>
       ) : null}
     </div>
   );

@@ -148,7 +148,6 @@ function SalonBrowseCard({
           username={salon.hostName}
           avatarUrl={salon.hostAvatarUrl}
           size="sm"
-          isLive={salon.isLive}
         />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-white truncate leading-snug">{salon.title}</p>

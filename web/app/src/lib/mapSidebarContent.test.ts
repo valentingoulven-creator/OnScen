@@ -164,7 +164,26 @@ describe('buildMapSidebarContent', () => {
       favoriteIds: new Set(),
     });
     expect(content.lives).toHaveLength(1);
-    expect(content.salons).toHaveLength(2);
+    expect(content.salons).toHaveLength(1);
+    expect(content.salons.map((s) => s.id)).toEqual(['s-off']);
+  });
+
+  it('excludes active live salons from Salon sidebar (live = Lives filter only)', () => {
+    const content = buildMapSidebarContent({
+      detail: detail('street', 13),
+      eventsFilterOn: false,
+      livesFilterOn: false,
+      salonFilterOn: true,
+      eventsOnly: false,
+      showAllSalonsAtCityZoom: true,
+      mapEvents: [],
+      eventClusters: [],
+      lives: [],
+      salons: [salon('s-live', true), salon('s-off', false)],
+      people: [],
+      favoriteIds: new Set(),
+    });
+    expect(content.salons.map((s) => s.id)).toEqual(['s-off']);
   });
 
   it('unions Lives + Évènement at city zoom', () => {
@@ -202,7 +221,7 @@ describe('buildMapSidebarContent', () => {
       people: [],
       favoriteIds: new Set(),
     });
-    expect(content.salons.map((s) => s.id).sort()).toEqual(['s-live', 's-off']);
+    expect(content.salons.map((s) => s.id).sort()).toEqual(['s-off']);
     expect(content.lives).toHaveLength(1);
   });
 
@@ -412,7 +431,7 @@ describe('buildMapSidebarContent', () => {
       favoriteIds: new Set(),
     });
     expect(content.zoomTooWide).toBe(false);
-    expect(content.salons.map((s) => s.id).sort()).toEqual(['s-live', 's-off']);
+    expect(content.salons.map((s) => s.id)).toEqual(['s-off']);
   });
 
   it('shows salons at overview even outside viewport bounds (no viewport clip)', () => {

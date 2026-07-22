@@ -23,9 +23,7 @@ interface GlobeFacingHtmlProps extends Omit<HtmlProps, 'position' | 'occlude'> {
 export function GlobeFacingHtml({ lat, lng, style, children, ...htmlProps }: GlobeFacingHtmlProps) {
   const groupRef = useRef<Group>(null);
   const visibilityRootRef = useRef<HTMLDivElement>(null);
-  const markerPosRef = useRef(
-    lonLatToVector3(lng, lat, MARKER_SURFACE_RADIUS * 1.01)
-  );
+  const markerPosRef = useRef(lonLatToVector3(lng, lat, MARKER_SURFACE_RADIUS));
 
   useFrame(({ camera }) => {
     const group = groupRef.current;

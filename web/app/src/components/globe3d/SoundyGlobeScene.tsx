@@ -6,6 +6,7 @@ import { CountryBorders } from './CountryBorders';
 import { SoundyGlobeMarkers, type SoundyGlobePoint } from './SoundyGlobeMarkers';
 import { SoundyGlobeEventMarkers } from './SoundyGlobeEventMarkers';
 import { SoundyGlobeLiveMarkers } from './SoundyGlobeLiveMarkers';
+import { SoundyGlobeSalonMarkers } from './SoundyGlobeSalonMarkers';
 import { SoundyGlobeUserMarker } from './SoundyGlobeUserMarker';
 import { SoundyGlobeRings, type SoundyGlobeRing } from './SoundyGlobeRings';
 import { SoundyGlobeCapitalLabels } from './SoundyGlobeCapitalLabels';
@@ -71,6 +72,7 @@ export function SoundyGlobeScene({
       />
       <SoundyGlobeEventMarkers points={points} onPointClick={onPointClick} />
       <SoundyGlobeLiveMarkers points={points} onPointClick={onPointClick} />
+      <SoundyGlobeSalonMarkers points={points} onPointClick={onPointClick} />
       <SoundyGlobeUserMarker points={points} />
       <SoundyGlobeRings
         rings={rings}

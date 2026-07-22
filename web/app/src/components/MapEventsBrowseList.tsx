@@ -150,6 +150,8 @@ export interface MapEventsBrowseListProps {
   onMapEventDayKeySelect?: (dayKey: string) => void;
   /** Événements sponsorisés (section Sponso en tête de liste). */
   sponsoredEventPosts?: FeedPost[];
+  /** Vue globe : masquer onglets Autour / Pays (liste Autour seule). */
+  hideScopeTabs?: boolean;
 }
 
 function SponsoBrowseSection({
@@ -204,10 +206,12 @@ export function MapEventsBrowseList({
   selectedMapEventDayKey,
   onMapEventDayKeySelect,
   sponsoredEventPosts = [],
+  hideScopeTabs = false,
 }: MapEventsBrowseListProps) {
   const { t, i18n } = useTranslation();
   const isSidebar = variant === 'sidebar';
-  const activePosts = activeTab === 'around' ? communityEvents : countryUpcoming;
+  const effectiveTab: MapEventsBrowseTab = hideScopeTabs ? 'around' : activeTab;
+  const activePosts = effectiveTab === 'around' ? communityEvents : countryUpcoming;
   const sponsoredIds = useMemo(
     () => new Set(sponsoredEventPosts.map((post) => post.id)),
     [sponsoredEventPosts]
@@ -242,71 +246,73 @@ export function MapEventsBrowseList({
 
   return (
     <div className={isSidebar ? 'min-w-0' : 'mt-4 space-y-4 min-w-0'}>
-      <div
-        className={
-          isSidebar
-            ? 'px-2 pb-2 border-b border-[var(--ms-border)]/80'
-            : 'shrink-0 px-3 py-2 border-b border-white/10 -mx-3 mb-4'
-        }
-        role="tablist"
-        aria-label={t('map.eventsBrowseTabsAria')}
-      >
+      {!hideScopeTabs ? (
         <div
-          className={`grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#0b0b0f] border border-[#1e1e2f] ${
-            isSidebar ? 'text-[10px]' : ''
-          }`}
+          className={
+            isSidebar
+              ? 'px-2 pb-2 border-b border-[var(--ms-border)]/80'
+              : 'shrink-0 px-3 py-2 border-b border-white/10 -mx-3 mb-4'
+          }
+          role="tablist"
+          aria-label={t('map.eventsBrowseTabsAria')}
         >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'around'}
-            onClick={() => onTabChange('around')}
-            className={`min-h-[44px] px-1.5 py-1.5 rounded-lg transition flex flex-col items-center justify-center gap-0.5 ${
-              activeTab === 'around'
-                ? 'bg-purple-600 text-white shadow-md shadow-purple-900/30'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+          <div
+            className={`grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#0b0b0f] border border-[#1e1e2f] ${
+              isSidebar ? 'text-[10px]' : ''
             }`}
           >
-            <span className="flex items-center gap-1 text-[10px] sm:text-xs font-semibold">
-              <span aria-hidden>📍</span>
-              <span>{t('map.eventsBrowseAroundTab')}</span>
-              <span
-                className={`text-[9px] font-bold px-1 py-0.5 rounded-full tabular-nums ${
-                  activeTab === 'around' ? 'bg-white/20' : 'bg-[#1a1a26] text-gray-500'
-                }`}
-              >
-                {communityEventsVisibleCount}
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'around'}
+              onClick={() => onTabChange('around')}
+              className={`min-h-[44px] px-1.5 py-1.5 rounded-lg transition flex flex-col items-center justify-center gap-0.5 ${
+                activeTab === 'around'
+                  ? 'bg-purple-600 text-white shadow-md shadow-purple-900/30'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+              }`}
+            >
+              <span className="flex items-center gap-1 text-[10px] sm:text-xs font-semibold">
+                <span aria-hidden>📍</span>
+                <span>{t('map.eventsBrowseAroundTab')}</span>
+                <span
+                  className={`text-[9px] font-bold px-1 py-0.5 rounded-full tabular-nums ${
+                    activeTab === 'around' ? 'bg-white/20' : 'bg-[#1a1a26] text-gray-500'
+                  }`}
+                >
+                  {communityEventsVisibleCount}
+                </span>
               </span>
-            </span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'country'}
-            onClick={() => onTabChange('country')}
-            className={`min-h-[44px] px-1.5 py-1.5 rounded-lg transition flex flex-col items-center justify-center gap-0.5 ${
-              activeTab === 'country'
-                ? 'bg-purple-600 text-white shadow-md shadow-purple-900/30'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
-            }`}
-          >
-            <span className="flex items-center gap-1 text-[10px] sm:text-xs font-semibold min-w-0">
-              <span aria-hidden>{countrySectionEmoji}</span>
-              <span className="truncate">{displayCountryName}</span>
-              <span
-                className={`text-[9px] font-bold px-1 py-0.5 rounded-full tabular-nums shrink-0 ${
-                  activeTab === 'country' ? 'bg-white/20' : 'bg-[#1a1a26] text-gray-500'
-                }`}
-              >
-                {countryEventsVisibleCount}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'country'}
+              onClick={() => onTabChange('country')}
+              className={`min-h-[44px] px-1.5 py-1.5 rounded-lg transition flex flex-col items-center justify-center gap-0.5 ${
+                activeTab === 'country'
+                  ? 'bg-purple-600 text-white shadow-md shadow-purple-900/30'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+              }`}
+            >
+              <span className="flex items-center gap-1 text-[10px] sm:text-xs font-semibold min-w-0">
+                <span aria-hidden>{countrySectionEmoji}</span>
+                <span className="truncate">{displayCountryName}</span>
+                <span
+                  className={`text-[9px] font-bold px-1 py-0.5 rounded-full tabular-nums shrink-0 ${
+                    activeTab === 'country' ? 'bg-white/20' : 'bg-[#1a1a26] text-gray-500'
+                  }`}
+                >
+                  {countryEventsVisibleCount}
+                </span>
               </span>
-            </span>
-            <span className={`text-[9px] ${activeTab === 'country' ? 'text-purple-100/80' : 'text-gray-600'}`}>
-              {t('map.eventsBrowseCountryScope')}
-            </span>
-          </button>
+              <span className={`text-[9px] ${activeTab === 'country' ? 'text-purple-100/80' : 'text-gray-600'}`}>
+                {t('map.eventsBrowseCountryScope')}
+              </span>
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {activeLoading && activePosts.length === 0 ? (
         <div className={`space-y-4 ${isSidebar ? 'px-2 py-3' : ''}`}>
@@ -317,7 +323,7 @@ export function MapEventsBrowseList({
             </div>
           ))}
         </div>
-      ) : activeTab === 'country' ? (
+      ) : effectiveTab === 'country' ? (
         <div className={`space-y-3 min-w-0 ${isSidebar ? 'px-2 py-2' : ''}`}>
           <SponsoBrowseSection
             posts={sponsoredEventPosts}
