@@ -32298,3 +32298,537 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 1200 — 2026-07-22
 ================================================================================
+
+================================================================================
+MODIF 1201 — Globe : rotation homogène quel que soit le zoom — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Rotation du globe (drag + autoRotate idle) trop rapide en zoom rapproché :
+ la normalisation REF/dist amplifiait la vitesse angulaire au lieu de la réduire.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/globe3d/cameraMath.ts
+ ─────────────────
+ • globeRotationZoomFactor() — facteur dist/ref clampé [0.35, 1]
+
+ web/app/src/components/globe3d/GlobeCameraBridge.tsx
+ ─────────────────
+ • rotateSpeed / autoRotateSpeed × globeRotationZoomFactor(distance)
+
+ web/app/src/components/globe3d/Clouds.tsx
+ ─────────────────
+ • Parallaxe nuages : même facteur (cohérence visuelle)
+
+ web/app/src/lib/globe3d/cameraMath.test.ts
+ ─────────────────
+ • Tests zoom ref / rapproché / clamp
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/globe3d/cameraMath.ts
+ web/app/src/lib/globe3d/constants.ts (commentaires)
+ web/app/src/components/globe3d/GlobeCameraBridge.tsx
+ web/app/src/components/globe3d/Clouds.tsx
+ web/app/src/lib/globe3d/cameraMath.test.ts (nouveau)
+
+BUILD (si vérifié)
+-----
+ web/app → npm test cameraMath.test.ts → ✅
+
+================================================================================
+Fin MODIF 1201 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1202 — Scripts seed/cleanup compte démo « showcase » production — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande CTO+Dev hybride : créer en production un compte de test « démo »
+ (demo-test@getsoundy.com) avec un écosystème complet (5 salons/5 lives/4 events
+ suivis, 2 albums×3 morceaux, 40 autres users×1 album×2 morceaux, 100 follows,
+ 10 events créés, 10 reels, 30 stories dont 5 suivies, 20 events sponsorisés
+ dont 3 en France) réparti sur une fenêtre de 2 mois, sans déployer de code
+ applicatif — uniquement des données de test, marquées pour nettoyage ultérieur.
+
+ Analyse de risque préalable (voir rapport dev-agent) : l'architecture Soundy
+ charge tout son état en mémoire au démarrage et le resynchronise entièrement
+ vers PostgreSQL toutes les 10 s (avec purge des lignes absentes de la mémoire
+ pour plusieurs tables) — un redémarrage pm2 bref est donc nécessaire pour que
+ les données seedées soient à la fois visibles et non écrasées.
+
+CHANGEMENTS / FIX
+-----
+ commun/scripts/seed/seed_demo_showcase.js (nouveau)
+ ─────────────────
+ • Script Node autonome (pg + bcryptjs + dotenv, zéro dépendance au code TS
+   compilé du backend) — écrit users/salons/lives/albums/compositions/
+   feed_posts(events)/sponsors/user_reels/stories/user_follows/user_favorites/
+   feed_post_favorites, tous préfixés `demo_` (id) / `demo-` (email).
+ • Idempotent : vérifie l'existence de demo_user_test avant écriture
+   (DEMO_SEED_FORCE=1 pour forcer) + ON CONFLICT DO NOTHING partout + une seule
+   transaction (BEGIN/COMMIT, rollback si erreur).
+ • Testé sur staging puis exécuté en production via SSH avec pm2 stop/start
+   (voir rapport dev-agent pour tous les comptages vérifiés par SQL).
+
+ commun/scripts/seed/cleanup_demo_showcase.js (nouveau)
+ ─────────────────
+ • Supprime toute entité préfixée demo_/demo- dans l'ordre FK-safe, transaction
+   unique. Testé sur staging (tous les compteurs reviennent à 0).
+
+ commun/scripts/seed/verify_demo_showcase.js (nouveau)
+ ─────────────────
+ • Script de vérification en lecture (comptages SQL par catégorie).
+
+FICHIERS MODIFIÉS
+-----
+ commun/scripts/seed/seed_demo_showcase.js → nouveau
+ commun/scripts/seed/cleanup_demo_showcase.js → nouveau
+ commun/scripts/seed/verify_demo_showcase.js → nouveau
+ commun/docs/dev-agent/rapports/2026-07-22-demo-showcase-seed-prod.md → nouveau (rapport complet)
+ commun/docs/dev-agent/INDEX.md → entrée ajoutée
+ Production PostgreSQL (soundy-prod) → données de démo créées (126 users, voir rapport)
+ Production filesystem (/opt/soundly/public/uploads/compositions/) → 4 fichiers
+   audio silencieux générés ffmpeg (masters réutilisés par 86 morceaux démo)
+
+BUILD (si vérifié)
+-----
+ Scripts autonomes (CommonJS, hors build TS backend) → node --check → ✅
+ Aucun changement de code applicatif déployé (npm run build non requis)
+
+================================================================================
+Fin MODIF 1202 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1202 — Globe slider : sync zoom max / dézoom max — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le slider zoom globe (MapZoomSlider) se désynchronisait de la caméra : à chaque
+ re-render MapView, globeAltitudeRef était écrasé par le state tier-only (altitude
+ par défaut ~1.55), ce qui empêchait d’atteindre ou de conserver le zoom max (100 %)
+ après molette ou relâchement du slider.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapView.tsx
+ ─────────────────
+ • globeAltitudeRef indépendant du state React (POV live wheel/slider)
+ • syncZoomControlFromView lit getPointOfView() sur GlobeView
+ • handleGlobeAltitudeChange met à jour la ref au changement de tier
+
+ web/app/src/lib/mapZoomControl.ts
+ ─────────────────
+ • MAP_GLOBE_ALT_MIN dérivé de CAMERA_MIN_DISTANCE (source unique OrbitControls)
+
+ web/app/src/components/globe3d/GlobeCameraBridge.tsx
+ ─────────────────
+ • clampGlobeAltitude sur setAltitude / pointOfView / recenter
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapView.tsx
+ web/app/src/lib/mapZoomControl.ts
+ web/app/src/components/globe3d/GlobeCameraBridge.tsx
+
+BUILD (si vérifié)
+-----
+ web/app → npm test mapZoomControl + cameraMath → ✅
+
+================================================================================
+Fin MODIF 1202 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1203 — Globe slider : zoom max bloqué ~40 % (distance OrbitControls) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le slider globe restait bloqué ~40 % en zoom max : la caméra était déjà au
+ minDistance OrbitControls (103) mais l'altitude POV utilisait position.length()
+ (~132 si target décalé), donc le slider sous-estimait le zoom réel et
+ setAltitude ne rapprochait plus la vue.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/globe3d/cameraMath.ts
+ ─────────────────
+ • getPovFromCameraPosition(position, r, target) — distance caméra→target
+ • vector3ToLonLat sur l'offset orbital (pas rayon Terre fixe)
+
+ web/app/src/components/globe3d/GlobeCameraBridge.tsx
+ ─────────────────
+ • enablePan={false} + target (0,0,0) à l'init
+ • setAltitude : distance orbitale depuis target (pas round-trip lat/lng)
+
+ web/app/src/components/MapZoomSlider.tsx
+ ─────────────────
+ • Boutons ± : garde drag (start/end) + sync différée 1 frame
+
+ web/app/src/lib/globe3d/cameraMath.test.ts
+ ─────────────────
+ • Test drift target → slider 100 % au minDistance
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/globe3d/cameraMath.ts
+ web/app/src/components/globe3d/GlobeCameraBridge.tsx
+ web/app/src/components/MapZoomSlider.tsx
+ web/app/src/lib/globe3d/cameraMath.test.ts
+
+BUILD (si vérifié)
+-----
+ web/app → npm test cameraMath + mapZoomControl → ✅
+
+================================================================================
+Fin MODIF 1203 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1204 — Globe 3D : retrait des noms de capitales — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retirer les libellés texte des capitales sur le globe WebGL (canvas Three.js).
+ Les noms restent disponibles sur la carte plate (Leaflet).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/globe3d/SoundyGlobeScene.tsx
+ ─────────────────
+ • Suppression SoundyGlobeCapitalLabels + prop capitalLabels
+
+ web/app/src/components/GlobeView.tsx
+ ─────────────────
+ • Suppression calcul/filter capitales globe (globeCapitalRegion, useMemo labels)
+
+ web/app/src/components/globe3d/SoundyGlobeCapitalLabels.tsx
+ ─────────────────
+ • Fichier supprimé (plus utilisé)
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/globe3d/SoundyGlobeScene.tsx
+ web/app/src/components/GlobeView.tsx
+ web/app/src/components/globe3d/SoundyGlobeCapitalLabels.tsx → supprimé
+
+================================================================================
+Fin MODIF 1204 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1205 — Carte : bouton globe 3D toujours visible (premier dans la barre) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton 🌐 (vue globe 3D) disparaissait ou semblait absent : masqué si WebGL
+ échouait (sessionStorage), ou repoussé hors écran en fin de barre filtres
+ horizontale (quick wins).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • ms-map-globe-row en tête de la barre filtres (visible sans scroll)
+ • Bouton globe toujours affiché (grisé si indisponible, clic = retry)
+ • État globeViewAvailable + libellé « Vue globe 3D »
+
+ web/app/src/lib/webglSupport.ts
+ ─────────────────
+ • tryReEnableGlobeView() — efface le flag session et re-probe WebGL
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/HomePage.tsx
+ web/app/src/lib/webglSupport.ts
+
+================================================================================
+Fin MODIF 1205 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1206 — Annulation MODIF 1204 + 1205 (capitales / bouton globe) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande utilisateur : annuler les deux dernières modifs (retrait noms capitales
+ globe + repositionnement bouton globe 3D / tryReEnableGlobeView).
+
+CHANGEMENTS / FIX
+-----
+ Restauration git (HEAD) :
+ • SoundyGlobeCapitalLabels.tsx, GlobeView.tsx, SoundyGlobeScene.tsx
+ • HomePage.tsx, webglSupport.ts
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/globe3d/SoundyGlobeCapitalLabels.tsx → restauré
+ web/app/src/components/GlobeView.tsx → restauré
+ web/app/src/components/globe3d/SoundyGlobeScene.tsx → restauré
+ web/app/src/pages/HomePage.tsx → restauré
+ web/app/src/lib/webglSupport.ts → restauré
+
+================================================================================
+Fin MODIF 1206 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1207 — Annulation MODIF 1201–1203 (rotation + slider zoom globe) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande utilisateur : revenir encore en arrière (après annulation 1204/1206) —
+ retirer les correctifs rotation globe homogène et sync slider zoom (1201–1203).
+
+CHANGEMENTS / FIX
+-----
+ Restauration git (HEAD) :
+ • MapView.tsx, MapZoomSlider.tsx, mapZoomControl.ts
+ • GlobeCameraBridge.tsx, Clouds.tsx, cameraMath.ts, constants.ts
+ • Suppression cameraMath.test.ts (ajouté par 1201/1203, absent du HEAD)
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapView.tsx → restauré
+ web/app/src/components/MapZoomSlider.tsx → restauré
+ web/app/src/lib/mapZoomControl.ts → restauré
+ web/app/src/components/globe3d/GlobeCameraBridge.tsx → restauré
+ web/app/src/components/globe3d/Clouds.tsx → restauré
+ web/app/src/lib/globe3d/cameraMath.ts → restauré
+ web/app/src/lib/globe3d/constants.ts → restauré
+ web/app/src/lib/globe3d/cameraMath.test.ts → supprimé
+
+================================================================================
+Fin MODIF 1207 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1208 — Globe : rétablir l'accès après échec WebGL (session) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Plus d'accès au globe : un échec WebGL pendant les tests avait posé
+ sessionStorage `soundy_disable_globe=1` et masqué le bouton 🌐.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/webglSupport.ts
+ ─────────────────
+ • reconcileGlobeSessionDisableFlagOnce au chargement (flag obsolète effacé)
+ • tryReEnableGlobeView() — retry manuel
+ • disableGlobeView ne pollue plus le cache WebGL à vie
+
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • Bouton 🌐 si isWebGLSupported() ; toggle appelle tryReEnableGlobeView
+
+ web/app/src/components/MapView.tsx
+ ─────────────────
+ • webglSupportedRef resynchronisé quand mapStyle change
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/webglSupport.ts
+ web/app/src/pages/HomePage.tsx
+ web/app/src/components/MapView.tsx
+
+BUILD (si vérifié)
+-----
+ web/app → npm test webglSupport.test.ts → ✅
+
+================================================================================
+Fin MODIF 1208 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1205 — Compte de test complet en production (demo-test-founder) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande explicite du fondateur (adressée en mode @soundy-cto, requalifiée en tâche
+ d'implémentation → @soundy-dev-agent) : créer un compte de test complet en PRODUCTION
+ avec un cahier des charges chiffré précis (salons/lives/events suivis, événements
+ monde, albums/morceaux, follows, reels, stories, publications, événements
+ sponsorisés), étalé sur une fenêtre de 2 mois, pour valider l'app en conditions
+ réelles.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/scripts/seed-test-account-full.ts
+ ─────────────────
+ • Nouveau script de seed idempotent (non committé par défaut, voir note en fin
+   d'entrée) : crée le compte `demo_test_founder` (id `demo-test-founder`) + 220
+   comptes bots de contenu (préfixe `demo-`), avec salons/lives/événements/
+   albums/compositions/reels/stories/publications/follows/sponsors selon le
+   mapping exact demandé. Manipule directement le store en mémoire (`db.*`)
+   comme les scripts seed-production-* existants, puis persiste via
+   savePersistedStoreToPostgres() + saveSalonsLivesToPostgres() + upserts
+   individuels albums/compositions/reels (dans cet ordre — user_reels porte une
+   FK vers users, migration 029 — voir écueil rencontré ci-dessous).
+ • 12 fichiers audio MP3 réels de 180 s (tonalités sinus, ffmpeg, aucun contenu
+   protégé) déployés sur le VPS sous public/uploads/compositions/, référencés
+   par les 86 lignes user_compositions créées.
+
+ Exécution production (soundy-prod, VPS 51.159.164.100) :
+ ─────────────────
+ • Build local (tsc) → scp du seul fichier compilé dist/scripts/seed-test-
+   account-full.js vers le VPS (aucun autre fichier applicatif modifié/déployé).
+ • node dist/scripts/seed-test-account-full.js (APP_ENV=production) exécuté
+   contre la vraie base soundy-prod.
+ • pm2 restart melosong-backend requis après le seed (le process a son état en
+   RAM chargé au boot ; sans redémarrage, le nouveau compte ne peut pas se
+   connecter — confirmé par un login réel avant/après restart).
+ • Vérification post-exécution par comptage SQL direct (psql) sur chaque table
+   concernée — tous les comptages correspondent exactement à la demande.
+
+DÉCOUVERTE EN COURS DE SESSION
+-----
+ Une session distincte (rapport non committé commun/docs/dev-agent/rapports/
+ 2026-07-22-demo-showcase-seed-prod.md) a créé EN PARALLÈLE un compte quasi
+ identique (`demo_test` / demo-test@getsoundy.com, préfixe `demo_`) répondant au
+ même cahier des charges, avec un mot de passe partagé `DemoShowcase#2026!`.
+ Les deux jeux de données coexistent désormais en prod sans collision (préfixes
+ d'id distincts `demo_...` vs `demo-...`, vérifié par comptage croisé — aucune
+ perte de données de part et d'autre). Le fondateur doit choisir lequel des deux
+ comptes conserver (voir rapport dev-agent pour détail complet).
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/scripts/seed-test-account-full.ts → nouveau (non committé)
+ Production PostgreSQL (soundy-prod) → +221 users, +5 salons, +5 lives,
+   +144 feed_posts (dont 64 événements + 20 sponsorisés), +30 stories,
+   +10 reels, +42 albums, +86 compositions, +100 user_follows, +20 sponsors
+ Production filesystem (/opt/soundly/public/uploads/compositions/) →
+   +12 fichiers audio (demo-seed-track-01..12.mp3)
+
+BUILD
+-----
+ commun/backend/ → npx tsc --noEmit + npm run build → ✅
+
+================================================================================
+Fin MODIF 1205 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1209 — Corrections audit mobile iOS/Android (Capacitor, cert pinning, CI) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLEME
+----
+ Suite audit @soundy-cto du jour (commun/docs/audit/AUDIT-mobile-ios-android.md,
+ jamais commite) : demande "corrige tout". Verification terrain (JDK 21 + Android
+ SDK 36 deja installes sur ce poste) a d'abord invalide le constat le plus grave de
+ l'audit (R1 "projet Android absent, critique") : l'outil de recherche utilise pour
+ l'audit respectait silencieusement .gitignore (android/ entierement gitignore) et
+ concluait a un dossier vide alors qu'il contient un projet Gradle complet et
+ fonctionnel. Un build reel (assembleDebug) a confirme un BUILD SUCCESSFUL. Les
+ vrais gaps corriges dans cette session :
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/package.json
+ ─────────────────
+ • @capacitor/core, /android, /ios, /cli : 8.4.1 → 8.4.2 (fix permissions URI
+   capture image Android, pertinent car @capacitor/camera utilise pour
+   lives/profil).
+ • cap:add:android enchaine desormais patch-android-native.mjs automatiquement.
+
+ commun/scripts/fetch-cert-pins.mjs
+ ─────────────────
+ • BUG corrige : chemin de sortie calcule avec un seul ".." (commun/scripts/ -> 
+   commun/) au lieu de deux (-> racine repo) apres la restructuration monorepo du
+   09/07 — le script n'ecrivait jamais le vrai fichier XML, silencieusement.
+ • Pin unique remplace par pin leaf + pin intermediaire de secours (recommandation
+   OWASP) — le pin leaf commite etait DEJA obsolete (cert Cloudflare deja rotate,
+   expiration reelle 2026-10-13 vs 2026-09-07 documente) : le pinning aurait casse
+   l'app Android au premier build avec l'ancien pin.
+
+ ios/apptel/scripts/patch-android-native.mjs (nouveau)
+ ─────────────────
+ • Reapplique apres "npx cap add android" les personnalisations natives qui
+   n'existaient que sur ce poste (AndroidManifest permissions, deep links
+   /salon //live //profile, FileProvider, targetSdk/compileSdk force a 36 —
+   exigence Google Play 31/08/2026) : rend le projet Android reproductible sur
+   toute machine/CI au lieu de "marche seulement ici".
+
+ .github/workflows/android-capacitor.yml (nouveau)
+ ─────────────────
+ • CI Android (ubuntu-latest, miroir de ios-capacitor.yml) : regenere le projet,
+   patch, pins TLS, build APK debug, upload artifact a chaque push sur
+   ios/apptel/** ou web/app/**.
+
+ ios/apptel/src/pages/HomePage.tsx, DmPage.tsx, ActualiteTabPage.tsx, LivePage.tsx,
+ SalonPage.tsx, components/ChatPanel.tsx, RoomTheaterLayout.tsx, NotificationBell.tsx
+ ─────────────────
+ • Commentaire d'en-tete "PARITE WEB" ajoute (recommandation audit #2) : trace la
+   version web equivalente + le commit de verification, pour detecter les derives
+   futures sur ces gros overrides mobiles.
+
+ TODO-MANUAL.md, commun/docs/audit/AUDIT-mobile-ios-android.md
+ ─────────────────
+ • C5 marque corrige avec details ; correctif ajoute en tete de l'audit errone
+   (constat R1 invalide, cf. ci-dessus) sans reecrire l'historique.
+
+DECOUVERTE NON CORRIGEE (hors scope, signalee)
+-----
+ ios/apptel a 35 erreurs ESLint preexistantes (react-hooks/set-state-in-effect
+ traite en erreur bloquante ici, contrairement a web/app ou c'est un warning) —
+ confirme par baseline avant/apres changements (61 problemes identiques). Dette
+ non liee a cette session, a traiter separement.
+
+CE QUI RESTE BLOQUE (action humaine, pas de code possible)
+-----
+ • APPLE_TEAM_ID toujours en placeholder (Apple Developer Program requis).
+ • FIREBASE_SERVICE_ACCOUNT_JSON absent en prod (compte Firebase requis, push
+   natif no-op en attendant).
+ • Aucune soumission App Store / Play Console effectuee (decision fondateur).
+ • IAP natif StoreKit2/Play Billing non implemente (decision produit, TODO-MANUAL C1).
+
+FICHIERS MODIFIES
+-----
+ ios/apptel/package.json, package-lock.json
+ commun/scripts/fetch-cert-pins.mjs
+ ios/apptel/android/app/src/main/res/xml/network_security_config.xml (regenere)
+ ios/apptel/scripts/patch-android-native.mjs → nouveau
+ .github/workflows/android-capacitor.yml → nouveau
+ ios/apptel/src/pages/{HomePage,DmPage,ActualiteTabPage,LivePage,SalonPage}.tsx
+ ios/apptel/src/components/{ChatPanel,RoomTheaterLayout,NotificationBell}.tsx
+ TODO-MANUAL.md
+ commun/docs/audit/AUDIT-mobile-ios-android.md (non committe, correctif ajoute)
+ android/MeloSong-Mobile/Soundy-debug-prod.apk (rebuild verification, non commit)
+
+BUILD (verifie)
+-----
+ ios/apptel → npm run build (tsc -b && vite build) → ✅
+ ios/apptel → npm run capacitor:build:prod → ✅
+ ios/apptel/android → gradlew assembleDebug → ✅ BUILD SUCCESSFUL (APK 12 Mo)
+ ios/apptel → npm run lint → ⚠️ 35 erreurs preexistantes, identiques avant/apres
+   (baseline verifiee via git stash) — pas de regression introduite.
+
+================================================================================
+Fin MODIF 1209 — 2026-07-22
+================================================================================

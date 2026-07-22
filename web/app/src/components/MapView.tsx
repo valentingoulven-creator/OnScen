@@ -779,6 +779,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
 
   // Skip globe when WebGL is unavailable (GPU off, context limit, low power mode, etc.)
   useEffect(() => {
+    webglSupportedRef.current = canUseGlobeView();
     if (mapStyle === 'globe' && !webglSupportedRef.current) {
       requestGlobeFallback();
     }

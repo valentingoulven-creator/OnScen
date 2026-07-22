@@ -4,6 +4,9 @@ Rapports produits par `@soundy-dev-agent` à chaque session de développement si
 
 | Date | Rapport | Mission | Statut |
 |------|---------|---------|--------|
+| 2026-07-22 | [seed-test-account-full-prod](./rapports/2026-07-22-seed-test-account-full-prod.md) | Compte de test complet en production (`demo_test_founder`, 221 comptes, salons/lives/events/albums/reels/stories/sponsors/follows) — exécuté et vérifié par comptage SQL | ✅ |
+| 2026-07-22 | [demo-showcase-seed-prod](./rapports/2026-07-22-demo-showcase-seed-prod.md) | Compte démo « showcase » complet en production (126 comptes, salons/lives/events/albums/reels/stories/sponsors) + scripts seed/cleanup | ✅ |
+| 2026-07-22 | [audit-mobile-corrections](./rapports/2026-07-22-audit-mobile-corrections.md) | Corrections audit mobile iOS/Android (Capacitor 8.4.2, cert pinning, reproductibilité Android, CI) | ⚠️ |
 | 2026-07-22 | [admin-integrations-configure-button](./rapports/2026-07-22-admin-integrations-configure-button.md) | Bouton "Configurer" mal placé dans la carte provider (onglet Admin Intégrations) | ✅ |
 | 2026-07-22 | [admin-integrations-secrets](./rapports/2026-07-22-admin-integrations-secrets.md) | Onglet Admin « Intégrations » : registre générique clés API tierces + détection d'alertes (clé test-en-prod, manquante, placeholder, format invalide) | ✅ |
 | 2026-07-22 | [admin-stripe-live-config](./rapports/2026-07-22-admin-stripe-live-config.md) | Saisie/mise à jour des clés Stripe live depuis l'admin (sans SSH) | ✅ |

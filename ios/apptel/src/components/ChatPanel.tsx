@@ -1,3 +1,9 @@
+/**
+ * PARITÉ WEB : override partiel (composants chat adaptés bottom-sheet/dock mobile). Voir
+ * web/app/src/components/ChatPanel.tsx pour la version desktop complète.
+ * Vérifié au commit ca9bc509 (2026-07-22) — toute feature web majeure ajoutée sur ce
+ * composant (sécurité, modération, paiement) doit être évaluée pour portage ici.
+ */
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { api } from '../lib/api';

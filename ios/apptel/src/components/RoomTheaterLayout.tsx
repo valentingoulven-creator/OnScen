@@ -1,3 +1,9 @@
+/**
+ * PARITÉ WEB : override total (dock chat mobile flottant/bottom vs colonnes desktop). Voir
+ * web/app/src/components/RoomTheaterLayout.tsx pour la version desktop complète.
+ * Vérifié au commit ca9bc509 (2026-07-22) — toute feature web majeure ajoutée sur ce
+ * composant (sécurité, modération, paiement) doit être évaluée pour portage ici.
+ */
 import { useCallback, useState, type ReactNode } from 'react';
 import { FloatingSalonChat } from './FloatingSalonChat';
 import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys';

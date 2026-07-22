@@ -1,3 +1,9 @@
+/**
+ * PARITÉ WEB : override partiel (layout mobile, chat en dock). Voir
+ * web/app/src/pages/SalonPage.tsx pour la version desktop complète.
+ * Vérifié au commit ca9bc509 (2026-07-22) — toute feature web majeure ajoutée sur cette
+ * page (sécurité, modération, paiement) doit être évaluée pour portage ici.
+ */
 import { useCallback, useEffect, useState } from 'react';
 
 import { useAuth } from '../context/AuthContext';

@@ -1,3 +1,9 @@
+/**
+ * PARITÉ WEB : override partiel (dropdown adapté bottom-sheet mobile). Voir
+ * web/app/src/components/NotificationBell.tsx pour la version desktop complète.
+ * Vérifié au commit ca9bc509 (2026-07-22) — toute feature web majeure ajoutée sur ce
+ * composant (sécurité, modération, paiement) doit être évaluée pour portage ici.
+ */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';

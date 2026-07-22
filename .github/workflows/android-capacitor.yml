@@ -1,0 +1,100 @@
+# Soundy — build Android Capacitor dans le cloud (ubuntu, pas de macOS requis).
+#
+# `ios/apptel/android/` est entièrement gitignoré : ce workflow régénère le projet natif
+# à chaque run via `npx cap add android` + `scripts/patch-android-native.mjs` (permissions,
+# deep links, targetSdk 36) puis régénère les pins TLS (`fetch-cert-pins.mjs`) avant de
+# builder l'APK debug (non signé). Le build release (AAB signé) reste manuel/local
+# (`android/build-android-aab-prod.ps1`, nécessite le keystore local non committé).
+#
+# Secrets GitHub optionnels pour un futur build release signé :
+#   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+
+name: Android Capacitor Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - 'ios/apptel/**'
+      - 'web/app/**'
+      - 'commun/scripts/fetch-cert-pins.mjs'
+      - '.github/workflows/android-capacitor.yml'
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ios/apptel
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            web/app/package-lock.json
+            ios/apptel/package-lock.json
+
+      - name: Install root dependencies
+        working-directory: .
+        run: npm ci --ignore-scripts || npm install --ignore-scripts
+
+      - name: Sync LAN env placeholder
+        working-directory: .
+        run: |
+          mkdir -p commun/msdev
+          if [ ! -f commun/msdev/.env ]; then
+            echo "MOBILE_API_URL=http://127.0.0.1:4080/api" >> commun/msdev/.env
+            echo "MOBILE_SOCKET_URL=http://127.0.0.1:4080" >> commun/msdev/.env
+          fi
+
+      - name: Install app dependencies (shared source fallbacks)
+        working-directory: web/app
+        run: npm ci
+
+      - name: Install apptel dependencies
+        run: npm ci
+
+      - name: Build Capacitor web assets (prod API)
+        working-directory: .
+        run: npm run capacitor:build:prod
+
+      - name: Regenerate native Android project
+        run: npx cap add android
+
+      - name: Patch native Android project (permissions, deep links, targetSdk 36)
+        run: node scripts/patch-android-native.mjs
+
+      - name: Regenerate TLS cert pins
+        working-directory: .
+        run: npm run mobile:cert-pins
+
+      - name: Sync Android project
+        run: npx cap sync android
+
+      - name: Build debug APK (unsigned)
+        working-directory: ios/apptel/android
+        run: ./gradlew assembleDebug --console=plain
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: soundy-android-debug
+          path: ios/apptel/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

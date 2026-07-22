@@ -1,3 +1,9 @@
+/**
+ * PARITÉ WEB : override total (layout dock bas mobile vs colonnes desktop). Voir
+ * web/app/src/pages/DmPage.tsx pour la version desktop complète.
+ * Vérifié au commit ca9bc509 (2026-07-22) — toute feature web majeure ajoutée sur cette
+ * page (sécurité, modération, paiement) doit être évaluée pour portage ici.
+ */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useDmUnread } from '../context/DmUnreadContext';

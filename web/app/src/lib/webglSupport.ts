@@ -95,10 +95,39 @@ export function invalidateWebGLSupportCache(): void {
   cached = null;
 }
 
+let globeDisableReconciled = false;
+
+/**
+ * Au chargement de l'onglet, efface un flag « globe désactivé » obsolète si WebGL
+ * répond encore (échec transient pendant les tests dev). Une seule fois par load.
+ */
+function reconcileGlobeSessionDisableFlagOnce(): void {
+  if (globeDisableReconciled) return;
+  globeDisableReconciled = true;
+  if (!shouldForceFlatMap()) return;
+  invalidateWebGLSupportCache();
+  if (!detectWebGLSupport(true).supported) return;
+  try {
+    sessionStorage.removeItem(MAP_GLOBE_DISABLED_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Efface le flag session et re-probe WebGL (retry manuel après échec globe). */
+export function tryReEnableGlobeView(): boolean {
+  invalidateWebGLSupportCache();
+  if (!detectWebGLSupport(true).supported) return false;
+  try {
+    sessionStorage.removeItem(MAP_GLOBE_DISABLED_KEY);
+  } catch {
+    /* ignore */
+  }
+  return isWebGLSupported() && !shouldForceFlatMap();
+}
+
 /** Persist flat-map preference after a runtime globe failure. */
 export function disableGlobeView(): void {
-  cached = { supported: false, reason: 'context-unavailable' };
-
   let notify: boolean;
   try {
     notify = sessionStorage.getItem(MAP_GLOBE_DISABLED_KEY) !== '1';
@@ -127,6 +156,7 @@ export function canUseGlobeView(): boolean {
   } catch {
     /* web / SSR */
   }
+  reconcileGlobeSessionDisableFlagOnce();
   return isWebGLSupported() && !shouldForceFlatMap();
 }
 
