@@ -186,6 +186,7 @@ export interface Sponsor {
   mapTargetLng?: number;
   /** Sidebar carte : id publication événement (map_sidebar_events). */
   linkedEventPostId?: string;
+  linkedReelId?: string;
   createdAt: number;
   updatedAt: number;
   /** Estimation admin (liste / détail) — utilisateurs actifs 30 j susceptibles de voir le sponsor. */
@@ -1497,6 +1498,8 @@ export interface MapEventMarker {
   authorUsernameColor?: string;
   authorUsernameWaveFrom?: string;
   authorUsernameWaveTo?: string;
+  /** Événement sponsorisé sidebar carte — icône ✨ sur pins / popups. */
+  isSponsored?: boolean;
 }
 
 /** Regroupement carte : un pin par ville, liste d'événements dans le panneau latéral. */

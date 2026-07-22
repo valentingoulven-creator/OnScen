@@ -15,7 +15,7 @@ import {
 } from './DraggableVideoPip';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
-import { UserLikeButton } from './UserLikeButton';
+import { FollowUserButton } from './FollowUserButton';
 import type { Salon } from '../types';
 
 function SalonPipPreviewFloatInner({
@@ -29,9 +29,21 @@ function SalonPipPreviewFloatInner({
   onJoin: () => void;
   onClose: () => void;
 }) {
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const pip = useDraggableVideoPip(true, onJoin, defaultVideoPipPos);
   const videoH = Math.round((VIDEO_PIP_WIDTH * 9) / 16);
+  const [hostFollowing, setHostFollowing] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    void api.getMyFollowing(token).then((r) => {
+      if (!cancelled) setHostFollowing(r.followingIds.includes(salon.hostId));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, salon.hostId]);
   const positionSec = videoId
     ? computePlaybackPositionMs(salon.playbackState) / 1000
     : 0;
@@ -53,11 +65,21 @@ function SalonPipPreviewFloatInner({
         <p className="flex-1 truncate min-w-0 text-[9px] font-bold text-purple-400 uppercase tracking-widest">
           {salon.title}
         </p>
-        {token && user?.id !== salon.hostId && (
-          <div className="shrink-0" onPointerDown={(e) => e.stopPropagation()}>
-            <UserLikeButton userId={salon.hostId} username={salon.hostName} iconOnly showCount />
-          </div>
-        )}
+        <div
+          className="shrink-0 inline-flex items-center self-center"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <FollowUserButton
+            userId={salon.hostId}
+            username={salon.hostName}
+            initialFollowing={hostFollowing}
+            relatedSalon={salon}
+            iconOnly
+            iconStyle="heart"
+            pipHeader
+            onFollowingChange={setHostFollowing}
+          />
+        </div>
         <button
           type="button"
           onPointerDown={(e) => e.stopPropagation()}

@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
-import { splitFeedEventContent } from '../lib/feedEvents';
+import { splitFeedEventContent, getEventDates } from '../lib/feedEvents';
 import { api } from '../lib/api';
 import { dispatchMapSidebarSponsoRefresh } from '../lib/mapUiEvents';
 import {
   buildSponsorPayloadFromAdminForm,
+  computeDisplayDaysFromForm,
   emptySponsorAdminForm,
   sponsorToAdminForm,
+  toDatetimeLocal,
   validateSponsorAdminForm,
   type SponsorAdminFormState,
 } from '../lib/sponsorAdminForm';
@@ -23,11 +25,19 @@ export interface EventDevSponsoModalProps {
 function buildInitialFormFromPost(post: FeedPost): SponsorAdminFormState {
   const { title } = splitFeedEventContent(post.content);
   const name = title.trim() || post.content.trim().split('\n')[0]?.trim() || post.eventLocation?.trim() || 'Événement';
+  const base = emptySponsorAdminForm('map_sidebar_events');
+  const eventDates = getEventDates(post);
+  const lastEventDate = eventDates.length > 0 ? eventDates[eventDates.length - 1] : null;
+  const lastEventTs = lastEventDate ? Date.parse(lastEventDate) : Number.NaN;
+  const endsAt =
+    Number.isFinite(lastEventTs) ? toDatetimeLocal(lastEventTs) : base.endsAt;
   return {
-    ...emptySponsorAdminForm('map_sidebar_events'),
+    ...base,
     name,
     linkedEventPostId: post.id,
     linkUrl: post.eventLinkUrl?.trim() ?? '',
+    endsAt,
+    displayDays: computeDisplayDaysFromForm(base.startsAt, endsAt),
   };
 }
 

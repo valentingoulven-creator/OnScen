@@ -26,6 +26,8 @@ export interface MapSidebarEventsBrowseConfig {
   favoriteAuthorIds?: ReadonlySet<string>;
   eventsFilterOn: boolean;
   filterCriteria?: MapEventFilterCriteria;
+  /** Sheet filtre « Appliquer » — sinon browse = 3 jours + Sponso. */
+  eventFilterCustomized?: boolean;
   viewerId?: string;
   /** Événements filtre carte (rayon fixe) pour l’onglet Autour. */
   aroundEventPosts?: FeedPost[];
@@ -39,15 +41,6 @@ export interface MapSidebarEventsBrowseConfig {
   onPostChange?: (postId: string, patch: Partial<FeedPost>) => void;
   selectedMapEventDayKey?: string | null;
   onMapEventDayKeySelect?: (dayKey: string) => void;
-}
-
-function SponsoBadge() {
-  const { t } = useTranslation();
-  return (
-    <span className="inline-flex items-center rounded-full bg-amber-500/15 border border-amber-500/35 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-300">
-      {t('map.sidebarSponsoBadge', { defaultValue: 'Sponsorisé' })}
-    </span>
-  );
 }
 
 function MapSidebarSponsoSection({
@@ -79,9 +72,9 @@ function MapSidebarSponsoSection({
           <EventsCarousel
             posts={posts}
             size="sidebar"
+            sponsoredVisual
             onOpen={(post) => onOpen?.(post)}
             onPostChange={onPostChange}
-            getExtraBadges={() => <SponsoBadge />}
           />
         </div>
       ) : null}
@@ -461,6 +454,7 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
     favoriteAuthorIds: eventsBrowse?.favoriteAuthorIds,
     eventsFilterOn: eventsBrowse?.eventsFilterOn,
     filterCriteria: eventsBrowse?.filterCriteria,
+    eventFilterCustomized: eventsBrowse?.eventFilterCustomized,
     aroundEventPosts: eventsBrowse?.aroundEventPosts,
     viewerId: eventsBrowse?.viewerId,
     onPostChange: eventsBrowse?.onPostChange,
@@ -669,7 +663,7 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
             {showFollowingOnlyPanel && !showEventsBrowseList && (
               <>
                 <CollapsibleSidebarSection
-                  label={t('map.sidebarEventsFollowing', { defaultValue: 'Événements suivis' })}
+                  label={t('map.sidebarEventsFollowing', { defaultValue: 'Événement suivi' })}
                   items={content.eventsFollowing}
                   emptyText={eventsFollowingEmptyText}
                   {...sectionProps('nfEventsFollowing', content.eventsFollowing.length)}
@@ -683,7 +677,7 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
                   )}
                 />
                 <CollapsibleSidebarSection
-                  label={t('map.sidebarLivesFollowing', { defaultValue: 'Lives suivis' })}
+                  label={t('map.sidebarLivesFollowing', { defaultValue: 'Live suivi' })}
                   items={content.livesFollowing}
                   emptyText={followingEmptyText}
                   {...sectionProps('nfLivesFollowing', content.livesFollowing.length)}
@@ -696,7 +690,7 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
                   )}
                 />
                 <CollapsibleSidebarSection
-                  label={t('map.sidebarSalonsFollowing', { defaultValue: 'Salons suivis' })}
+                  label={t('map.sidebarSalonsFollowing', { defaultValue: 'Salon suivi' })}
                   items={content.salonsFollowing}
                   emptyText={followingEmptyText}
                   {...sectionProps('nfSalonsFollowing', content.salonsFollowing.length)}
@@ -714,7 +708,7 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
 
             {!showEventsBrowseList && livesFilterOn && (
               <CollapsibleSidebarSection
-                label={t('map.sidebarLivesFollowing', { defaultValue: 'Suivi' })}
+                label={t('map.sidebarLivesFollowing', { defaultValue: 'Live suivi' })}
                 items={content.livesFollowing}
                 emptyText={followingEmptyText}
                 {...sectionProps('livesFollowing', content.livesFollowing.length)}
@@ -758,7 +752,7 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
 
             {!showEventsBrowseList && salonFilterOn && (
               <CollapsibleSidebarSection
-                label={t('map.sidebarLivesFollowing', { defaultValue: 'Suivi' })}
+                label={t('map.sidebarSalonsFollowing', { defaultValue: 'Salon suivi' })}
                 items={content.salonsFollowing}
                 emptyText={followingEmptyText}
                 {...sectionProps('salonsFollowing', content.salonsFollowing.length)}

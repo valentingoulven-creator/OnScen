@@ -8,9 +8,10 @@ import { formatEventDateShort } from '../lib/feedEvents';
 import type { Salon, Live, NearbyPerson, MapEventCityCluster, MapEventMarker } from '../types';
 import { buildEventClusterKey, buildSalonLivePeopleKey } from '../lib/mapMarkersKey';
 import {
-  buildEventDayPinHtml,
-  getClusterEventDayIndex,
-  getMapEventMarkerDayIndex,
+  resolveClusterMapPinColor,
+  resolveClusterMapPinSponsored,
+  resolveEventMapPinHtml,
+  resolveMapEventMarkerPinColor,
 } from '../lib/mapEventDayColors';
 import { isValidLatLng, sanitizeLatLngTuple } from '../lib/mapCoords';
 import { DEFAULT_CENTER } from '../lib/livesGeo';
@@ -275,6 +276,9 @@ interface MapViewProps {
   eventsFilterOn?: boolean;
   /** Pin événement mis en avant (clic sidebar) — sans ouvrir le modal. */
   highlightedMapEventId?: string | null;
+  /** Jours browse sidebar — couleurs pins alignées sur les sections jour. */
+  eventBrowseDayKeys?: readonly string[];
+  eventBrowsePinFallbackNearest?: boolean;
 }
 
 function escapeHtml(value: string): string {
@@ -339,6 +343,8 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   salonFilterOn = false,
   eventsFilterOn = false,
   highlightedMapEventId = null,
+  eventBrowseDayKeys,
+  eventBrowsePinFallbackNearest = false,
 }: MapViewProps, ref) {
   const mapRef = useRef<HTMLDivElement>(null);
   const globeViewRef = useRef<GlobeViewHandle | null>(null);
@@ -410,6 +416,10 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   const eventMarkersByIdRef = useRef<Map<string, L.Marker>>(new Map());
   const highlightedMapEventIdRef = useRef(highlightedMapEventId);
   highlightedMapEventIdRef.current = highlightedMapEventId;
+  const eventBrowseDayKeysRef = useRef(eventBrowseDayKeys);
+  eventBrowseDayKeysRef.current = eventBrowseDayKeys;
+  const eventBrowsePinFallbackNearestRef = useRef(eventBrowsePinFallbackNearest);
+  eventBrowsePinFallbackNearestRef.current = eventBrowsePinFallbackNearest;
   const lastRecenterTokenRef = useRef(recenterToken);
   const onFlatMapViewportCenterRef = useRef(onFlatMapViewportCenter);
   onFlatMapViewportCenterRef.current = onFlatMapViewportCenter;
@@ -1317,8 +1327,9 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     [markerVisibility.density, visibleSalons, visibleLives, visiblePeople]
   );
   const eventClusterKey = useMemo(
-    () => buildEventClusterKey(visibleEventClusters, flatDetailTier),
-    [visibleEventClusters, flatDetailTier]
+    () =>
+      `${buildEventClusterKey(visibleEventClusters, flatDetailTier)}:${eventBrowseDayKeys?.join(',') ?? ''}`,
+    [visibleEventClusters, flatDetailTier, eventBrowseDayKeys]
   );
 
   // ── Marker update (salons, lives, people) ────────────────────────────────
@@ -1510,7 +1521,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       if (!isValidLatLng(s.latitude, s.longitude)) return;
       if (s.isLive && isInLiveMultiCluster(Number(s.latitude), Number(s.longitude))) return;
       const botClass = s.isBot ? 'bot' : '';
-      const liveClass = s.isLive ? 'live' : '';
+      const salonClass = 'salon';
       try {
         const lat = Number(s.latitude);
         const lon = Number(s.longitude);
@@ -1537,7 +1548,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
                     const avatarFallback = dicebearAdventurerAvatar(s.hostId);
                     const avatar = s.hostAvatarUrl?.trim() || avatarFallback;
                     const avatarOnError = `this.onerror=null;this.src='${avatarFallback.replace(/'/g, '%27')}';`;
-                    return `<div class="map-marker ${botClass} ${liveClass}">${s.isBot ? '<span class="bot-badge">BOT</span>' : ''}${s.isLive ? '<span class="live-badge">LIVE</span>' : ''}<img src="${escapeHtml(avatar)}" alt="" loading="lazy" decoding="async" onerror="${avatarOnError}"/>${usernameMapLabelHtml(s.hostName, s.hostUsernameColor, { wave: { from: s.hostUsernameWaveFrom, to: s.hostUsernameWaveTo } })}</div>`;
+                    return `<div class="map-marker ${botClass} ${salonClass}">${s.isBot ? '<span class="bot-badge">BOT</span>' : ''}<span class="salon-badge">SALON</span><img src="${escapeHtml(avatar)}" alt="" loading="lazy" decoding="async" onerror="${avatarOnError}"/>${usernameMapLabelHtml(s.hostName, s.hostUsernameColor, { wave: { from: s.hostUsernameWaveFrom, to: s.hostUsernameWaveTo } })}</div>`;
                   })(),
                   iconSize: [56, 56],
                   iconAnchor: [28, 28],
@@ -1718,24 +1729,39 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       opts: {
         lat: number;
         lon: number;
-        dayIndex: number;
         label: string;
         tooltipTitle: string;
         count?: number;
         /** Pin individuel (tier rue) — ouvre le détail sans popup Leaflet. */
         primaryEvent?: MapEventMarker;
+        isSponsored?: boolean;
       }
     ) => {
-      const { lat, lon, dayIndex, label, tooltipTitle, count, primaryEvent } = opts;
+      const { lat, lon, label, tooltipTitle, count, primaryEvent, isSponsored } = opts;
       if (!isValidLatLng(lat, lon)) return;
+      const pinColorOpts = eventBrowsePinFallbackNearestRef.current
+        ? { fallbackNearestDay: true as const }
+        : undefined;
+      const dayColor = isSponsored
+        ? '#fbbf24'
+        : primaryEvent
+          ? resolveMapEventMarkerPinColor(
+              primaryEvent,
+              eventBrowseDayKeysRef.current,
+              pinColorOpts
+            )
+          : resolveClusterMapPinColor(cluster, eventBrowseDayKeysRef.current, pinColorOpts);
       const countBadge =
         count && count > 1
           ? `<span class="event-cluster-badge">${escapeHtml(String(count))}</span>`
           : '';
-      const dayPinHtml = buildEventDayPinHtml(dayIndex);
+      const pinHtml = resolveEventMapPinHtml({
+        pinColor: dayColor,
+        isSponsored,
+      });
       const icon = L.divIcon({
         className: 'event-day-leaflet-icon',
-        html: `<div class="map-marker event"><span class="event-marker-icon" aria-hidden="true">${dayPinHtml}</span>${countBadge}<span class="map-marker-label">${escapeHtml(label)}</span></div>`,
+        html: `<div class="map-marker event${isSponsored ? ' map-marker--sponso' : ''}" style="--event-day-color:${dayColor}"><span class="event-marker-icon" aria-hidden="true">${pinHtml}</span>${countBadge}<span class="map-marker-label">${escapeHtml(label)}</span></div>`,
         iconSize: [48, 52],
         iconAnchor: [24, 26],
       });
@@ -1787,10 +1813,10 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
         addEventMapMarker(cluster, {
           lat: Number(cluster.latitude),
           lon: Number(cluster.longitude),
-          dayIndex: getClusterEventDayIndex(cluster),
           label: shortLabel,
           tooltipTitle: cityLabel,
           count: cluster.count > 1 ? cluster.count : undefined,
+          isSponsored: resolveClusterMapPinSponsored(cluster),
         });
         return;
       }
@@ -1804,10 +1830,10 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
         addEventMapMarker(cluster, {
           lat,
           lon,
-          dayIndex: getMapEventMarkerDayIndex(ev),
           label: pinLabel,
           tooltipTitle: venueLabel,
           primaryEvent: ev,
+          isSponsored: Boolean(ev.isSponsored),
         });
       }
     };

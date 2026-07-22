@@ -38,6 +38,7 @@ import { getPlatformPlanStatus, getUserPlatformPlan } from '../lib/platformPlans
 import { logAdminAction } from '../lib/adminAuditLog';
 import {
   findMapSidebarSponsorForEventPost,
+  findReelsSponsorForReelId,
   listActiveMapSidebarEventPostIds,
   setDevMapSidebarEventSponsorship,
 } from '../lib/sponsors';
@@ -450,6 +451,13 @@ accessRouter.get('/dev/map-sidebar-event-sponsors', authenticateJWT, (req: Reque
 accessRouter.get('/dev/map-sidebar-event-sponsor/:postId', authenticateJWT, (req: Request, res: Response) => {
   if (requireDevStaff(req, res) == null) return;
   const sponsor = findMapSidebarSponsorForEventPost(req.params.postId);
+  res.json({ sponsor: sponsor ?? null });
+});
+
+/** Sponsor Reels lié à un reel — Dev uniquement. */
+accessRouter.get('/dev/reels-sponsor/:reelId', authenticateJWT, (req: Request, res: Response) => {
+  if (requireDevStaff(req, res) == null) return;
+  const sponsor = findReelsSponsorForReelId(req.params.reelId);
   res.json({ sponsor: sponsor ?? null });
 });
 

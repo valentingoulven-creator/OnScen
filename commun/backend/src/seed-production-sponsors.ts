@@ -62,8 +62,9 @@ export const PRODUCTION_SPONSOR_EVENT_SEEDS: ProductionSponsorEventSeed[] = [
   },
 ];
 
-function isProductionEnvironment(): boolean {
-  return process.env.APP_ENV === 'production';
+function isSponsorEventSeedEnvironment(): boolean {
+  const env = process.env.APP_ENV;
+  return env === 'production' || env === 'preproduction' || env === 'msdev';
 }
 
 function resolveSponsorContentAuthor(): User | undefined {
@@ -84,9 +85,9 @@ export interface SeedProductionSponsorEventsResult {
   skippedNoAuthor?: boolean;
 }
 
-/** Événements sponsorisés sur la carte (production uniquement, idempotent). */
+/** Événements sponsorisés carte (prod / preprod / msdev, idempotent). */
 export function seedProductionSponsorEvents(): SeedProductionSponsorEventsResult {
-  if (!isProductionEnvironment()) {
+  if (!isSponsorEventSeedEnvironment()) {
     return { created: 0, total: countProductionSponsorEvents() };
   }
 
@@ -117,6 +118,32 @@ export function seedProductionSponsorEvents(): SeedProductionSponsorEventsResult
   if (created > 0) schedulePersist();
 
   return { created, total: countProductionSponsorEvents() };
+}
+
+/** msdev : repousse les dates seed passées pour garder des Sponso visibles en local. */
+export function refreshMsdevSponsorEventDatesIfStale(): number {
+  if (process.env.APP_ENV !== 'msdev') return 0;
+  const ts = Date.now();
+  const posts = db.feedPosts.filter(
+    (p) => p.id.startsWith(PROD_SPONSOR_EVENT_ID_PREFIX) && p.isEvent
+  );
+  let updated = 0;
+  let dayOffset = 0;
+  for (const post of posts) {
+    const iso = post.eventDate ?? post.eventDates?.[0];
+    const eventTs = iso ? Date.parse(iso) : Number.NaN;
+    if (Number.isFinite(eventTs) && eventTs > ts) continue;
+    const next = new Date(ts);
+    next.setDate(next.getDate() + dayOffset);
+    next.setHours(18, 0, 0, 0);
+    post.eventDate = next.toISOString();
+    delete post.eventDates;
+    delete post.eventEndTimes;
+    dayOffset += 1;
+    updated += 1;
+  }
+  if (updated > 0) schedulePersist();
+  return updated;
 }
 
 export function countProductionSponsorEvents(): number {

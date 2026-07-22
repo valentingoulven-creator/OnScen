@@ -331,13 +331,17 @@ export function FloatingSalonChat({
       };
     };
 
+  const effectiveBgMode: FloatingChatBg = compactHeader ? 'transparent' : bgMode;
+
   const shellClass =
-    bgMode === 'transparent'
-      ? 'bg-black/30 backdrop-blur-md border border-white/10'
-      : 'bg-[#1a1a24]/95 border border-[#2a2a36]';
+    effectiveBgMode === 'transparent'
+      ? 'floating-salon-chat--bg-transparent'
+      : 'floating-salon-chat--bg-gray';
 
   const headerClass =
-    bgMode === 'transparent' ? 'bg-black/25 backdrop-blur-sm border-white/10' : 'bg-[#14141c]/80 border-[#2a2a36]';
+    effectiveBgMode === 'transparent'
+      ? 'floating-salon-chat__header--transparent'
+      : 'floating-salon-chat__header--gray';
 
   const positionStyle: React.CSSProperties =
     pos !== null ? { left: pos.x, top: pos.y } : { visibility: 'hidden' as const };
@@ -346,9 +350,9 @@ export function FloatingSalonChat({
     <div ref={boundsRef} className="floating-salon-chat-bounds pointer-events-none absolute inset-0 z-[50]">
       <div
         ref={windowRef}
-        className={`floating-salon-chat pointer-events-auto absolute flex flex-col rounded-xl shadow-2xl overflow-hidden ${shellClass}${
-          !chromeVisible ? ' floating-salon-chat--chrome-hidden' : ''
-        }`}
+        className={`floating-salon-chat pointer-events-auto absolute flex flex-col overflow-hidden ${shellClass}${
+          compactHeader ? ' floating-salon-chat--live-theater' : ' rounded-xl shadow-2xl'
+        }${!chromeVisible ? ' floating-salon-chat--chrome-hidden' : ''}`}
         style={{
           ...positionStyle,
           width: size.width,

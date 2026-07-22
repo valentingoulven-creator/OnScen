@@ -70,6 +70,7 @@ function LivePipPreviewFloatInner({
             userId={live.hostId}
             username={live.hostName}
             initialFollowing={hostFollowing}
+            relatedLive={live}
             iconOnly
             iconStyle="heart"
             pipHeader

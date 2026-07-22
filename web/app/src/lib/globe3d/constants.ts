@@ -8,11 +8,12 @@ export const ATMOSPHERE_RADIUS = EARTH_RADIUS * 1.15;
 export const MARKER_SURFACE_RADIUS = EARTH_RADIUS * 1.008;
 
 /** Caméra : distance = EARTH_RADIUS * (1 + altitude). */
-export const CAMERA_MAX_DISTANCE = 400;
+/** Dézoom max réel (vue par défaut) ≈ altitude 1.55 — slider globe à 0 %. */
+export const CAMERA_MAX_DISTANCE = EARTH_RADIUS * 2.55;
 /** Vue par défaut = dézoom max (même que OrbitControls maxDistance). */
 export const CAMERA_DEFAULT_DISTANCE = CAMERA_MAX_DISTANCE;
 export const CAMERA_MIN_DISTANCE = EARTH_RADIUS * 1.03;
-/** Altitude POV par défaut (= dézoom max). distance/r - 1 → 3.0 */
+/** Altitude POV par défaut (= dézoom max). distance/r - 1 → 1.55 */
 export const CAMERA_DEFAULT_ALTITUDE = CAMERA_DEFAULT_DISTANCE / EARTH_RADIUS - 1;
 
 /** Distance de référence pour normaliser la vitesse de rotation au zoom (altitude 1.0). */

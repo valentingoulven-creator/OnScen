@@ -180,6 +180,9 @@ export function LivePage({
       onRestoreFullScreen?.();
     }
   }, [liveFullScreen, onRestoreFullScreen, setLivePipActive]);
+  const dismissLivePip = useCallback(() => {
+    setLivePipActive(false);
+  }, [setLivePipActive]);
   const livePip = useDraggableVideoPip(livePipActive, anchorLivePip, defaultVideoPipPos);
   const [viewerPlaybackPaused, setViewerPlaybackPausedState] = useState(getLiveViewerPlaybackPaused);
   const toggleViewerPlaybackPaused = useCallback(() => {
@@ -224,13 +227,14 @@ export function LivePage({
   const handleMinimize = onMinimize ?? onBack;
   const handleLeaveLive = useCallback(() => {
     leavingLiveRef.current = true;
+    setLivePipActive(false);
     emitOnSocket('leave_live', { liveId });
     if (onLeaveLive) {
       onLeaveLive();
     } else {
       onBack();
     }
-  }, [liveId, onBack, onLeaveLive]);
+  }, [liveId, onBack, onLeaveLive, setLivePipActive]);
   const {
     videoRef,
     active: cameraLocalActive,
@@ -1619,98 +1623,89 @@ export function LivePage({
         }
         trailing={
           !isHost && live ? (
-            <button
-              type="button"
-              onClick={() => setReportLiveOpen(true)}
-              className="w-11 h-11 flex items-center justify-center rounded-full text-gray-400 hover:text-red-400 hover:bg-[#1a1a26] transition"
-              aria-label="Signaler ce live"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-                <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
-              </svg>
-            </button>
+            <>
+              {token ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => hostCanReceiveDonations && openDonSheet()}
+                    disabled={!hostCanReceiveDonations}
+                    title={
+                      hostCanReceiveDonations
+                        ? t('live.headerDonate')
+                        : t('live.donationsHostNotConfigured', {
+                            defaultValue: "L'hôte n'a pas configuré les dons",
+                          })
+                    }
+                    aria-label={
+                      hostCanReceiveDonations
+                        ? t('live.headerDonate')
+                        : t('live.donationsHostNotConfigured', {
+                            defaultValue: "L'hôte n'a pas configuré les dons",
+                          })
+                    }
+                    aria-disabled={!hostCanReceiveDonations}
+                    className={`flex items-center justify-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-full text-[11px] font-bold border transition min-h-9 min-w-9 shrink-0 ${
+                      hostCanReceiveDonations
+                        ? 'border-amber-500/35 bg-amber-950/50 text-amber-200 hover:bg-amber-900/60'
+                        : 'border-[#2d2d3d]/80 bg-[#14141c]/80 text-gray-500 opacity-50 pointer-events-none cursor-not-allowed'
+                    }`}
+                  >
+                    <span aria-hidden>🎁</span>
+                    <span className="hidden sm:inline">{t('live.headerDonateShort')}</span>
+                  </button>
+                  <FollowUserButton
+                    userId={live.hostId}
+                    username={live.hostName}
+                    initialFollowing={hostFollowing}
+                    compact
+                    iconStyle="heart"
+                    className="shrink-0"
+                    onFollowingChange={setHostFollowing}
+                  />
+                  {!chatPinned && chatHidden ? (
+                    <>
+                      <LiveParticipantsPopover
+                        liveId={liveId}
+                        token={token}
+                        hostId={live.hostId}
+                        hostName={live.hostName}
+                        hostUsernameColor={live.hostUsernameColor}
+                        vipModeratorIds={live.vipModeratorIds ?? []}
+                        viewersCount={viewers}
+                      />
+                      <LiveVipModeratorsPopover
+                        vipEntries={vipEntries}
+                        chatParticipants={chatParticipants}
+                        onSetVip={setVipModerator}
+                        canManage={isDevModerator}
+                      />
+                    </>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={leaveLive}
+                    className="flex items-center justify-center px-2 sm:px-2.5 py-1.5 bg-[#1a1a26] border border-[#232330] rounded-full text-[11px] text-gray-300 font-bold hover:text-white transition min-h-9 shrink-0"
+                  >
+                    <span className="sm:hidden">{t('live.leaveLiveShort')}</span>
+                    <span className="hidden sm:inline">{t('live.leaveLive')}</span>
+                  </button>
+                </>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setReportLiveOpen(true)}
+                className="w-9 h-9 flex items-center justify-center rounded-full text-gray-400 hover:text-red-400 hover:bg-[#1a1a26] transition shrink-0"
+                aria-label="Signaler ce live"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                  <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </>
           ) : undefined
         }
       />
-
-      {/* Bande 2 : Actions auditeur (non-hôte) */}
-      {!isHost && live && (
-        <div className="live-viewer-action-bar shrink-0 relative z-30 flex items-center justify-between gap-2 w-full min-w-0 px-3 py-2 min-h-[3.25rem] border-b border-[#1e1e2f] bg-[#0b0b0f]">
-          <div className="flex items-center gap-1.5 min-w-0 shrink-0">
-            {token && (
-              <button
-                type="button"
-                onClick={() => hostCanReceiveDonations && openDonSheet()}
-                disabled={!hostCanReceiveDonations}
-                title={
-                  hostCanReceiveDonations
-                    ? t('live.headerDonate')
-                    : t('live.donationsHostNotConfigured', {
-                        defaultValue: "L'hôte n'a pas configuré les dons",
-                      })
-                }
-                aria-label={
-                  hostCanReceiveDonations
-                    ? t('live.headerDonate')
-                    : t('live.donationsHostNotConfigured', {
-                        defaultValue: "L'hôte n'a pas configuré les dons",
-                      })
-                }
-                aria-disabled={!hostCanReceiveDonations}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold border transition min-h-11 shrink-0 ${
-                  hostCanReceiveDonations
-                    ? 'border-amber-500/35 bg-amber-950/50 text-amber-200 hover:bg-amber-900/60'
-                    : 'border-[#2d2d3d]/80 bg-[#14141c]/80 text-gray-500 opacity-50 pointer-events-none cursor-not-allowed'
-                }`}
-              >
-                <span aria-hidden>🎁</span>
-                <span className="sm:hidden">{t('live.headerDonateShort')}</span>
-                <span className="hidden sm:inline">{t('live.headerDonate')}</span>
-              </button>
-            )}
-            {token && (
-              <FollowUserButton
-                userId={live.hostId}
-                username={live.hostName}
-                initialFollowing={hostFollowing}
-                compact
-                iconStyle="heart"
-                className="shrink-0"
-                onFollowingChange={setHostFollowing}
-              />
-            )}
-          </div>
-          <div className="flex items-center gap-1 shrink-0 ml-2">
-            {token && !chatPinned && chatHidden ? (
-              <>
-                <LiveParticipantsPopover
-                  liveId={liveId}
-                  token={token}
-                  hostId={live.hostId}
-                  hostName={live.hostName}
-                  hostUsernameColor={live.hostUsernameColor}
-                  vipModeratorIds={live.vipModeratorIds ?? []}
-                  viewersCount={viewers}
-                />
-                <LiveVipModeratorsPopover
-                  vipEntries={vipEntries}
-                  chatParticipants={chatParticipants}
-                  onSetVip={setVipModerator}
-                  canManage={isDevModerator}
-                />
-              </>
-            ) : null}
-            <button
-              type="button"
-              onClick={leaveLive}
-              className="flex items-center px-3 py-1.5 bg-[#1a1a26] border border-[#232330] rounded-full text-xs text-gray-300 font-bold hover:text-white transition min-h-11 shrink-0"
-            >
-              <span className="sm:hidden">{t('live.leaveLiveShort')}</span>
-              <span className="hidden sm:inline">{t('live.leaveLive')}</span>
-            </button>
-          </div>
-        </div>
-      )}
       </div>
 
       {!isHost && hostCanReceiveDonations && viewerDonationOptions.length > 0 && (
@@ -1826,7 +1821,9 @@ export function LivePage({
               viewerPlaybackPaused={!isHost ? viewerPlaybackPaused : undefined}
               onToggleViewerPlaybackPaused={!isHost ? toggleViewerPlaybackPaused : undefined}
               videoFloat={livePipActive ? livePip : undefined}
+              onDismissPip={dismissLivePip}
               onPipOpen={!isHost ? openLivePip : undefined}
+              onLeaveLive={!isHost ? leaveLive : undefined}
               hostActionsChrome={hostActionsChrome}
               overlay={
                 !isHost && !viewerStreamEnded ? (
@@ -1888,7 +1885,9 @@ export function LivePage({
             viewerPlaybackPaused={!isHost ? viewerPlaybackPaused : undefined}
             onToggleViewerPlaybackPaused={!isHost ? toggleViewerPlaybackPaused : undefined}
             videoFloat={livePipActive ? livePip : undefined}
+            onDismissPip={dismissLivePip}
             onPipOpen={!isHost ? openLivePip : undefined}
+            onLeaveLive={!isHost ? leaveLive : undefined}
             hostActionsChrome={hostActionsChrome}
             overlay={
               <>

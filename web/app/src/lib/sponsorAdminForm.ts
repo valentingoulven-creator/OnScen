@@ -33,9 +33,12 @@ export type SponsorAdminFormState = {
   mapTargetLng: string;
   /** Conservé pour l'édition ; défaut = maintenant à la création. */
   startsAt: string;
+  /** Fin de campagne (datetime-local). */
+  endsAt: string;
   videoUrl: string;
   posterUrl: string;
   linkedEventPostId: string;
+  linkedReelId: string;
 };
 
 export function parseDatetimeLocal(value: string): number | undefined {
@@ -68,6 +71,19 @@ export function computeDisplayDays(startsAt?: number, endsAt?: number): number {
   return Math.max(SPONSOR_DISPLAY_DAYS_MIN, Math.round((endsAt - start) / MS_PER_DAY));
 }
 
+export function computeEndsAtFromForm(startsAt: string, displayDays: string): string {
+  const start = parseDatetimeLocal(startsAt) ?? Date.now();
+  const days = parseDisplayDays(displayDays);
+  return toDatetimeLocal(start + days * MS_PER_DAY);
+}
+
+export function computeDisplayDaysFromForm(startsAt: string, endsAt: string): string {
+  const start = parseDatetimeLocal(startsAt) ?? Date.now();
+  const end = parseDatetimeLocal(endsAt);
+  if (end == null || end <= start) return String(DEFAULT_SPONSOR_DISPLAY_DAYS);
+  return String(computeDisplayDays(start, end));
+}
+
 function parseOptionalCoordField(value: string): number | undefined {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
@@ -76,6 +92,8 @@ function parseOptionalCoordField(value: string): number | undefined {
 }
 
 export function emptySponsorAdminForm(placement: SponsorPlacement): SponsorAdminFormState {
+  const startsAt = nowDatetimeLocal();
+  const displayDays = String(DEFAULT_SPONSOR_DISPLAY_DAYS);
   return {
     name: '',
     description: '',
@@ -83,16 +101,18 @@ export function emptySponsorAdminForm(placement: SponsorPlacement): SponsorAdmin
     bannerImageUrl: '',
     linkUrl: '',
     placement,
-    displayDays: String(DEFAULT_SPONSOR_DISPLAY_DAYS),
+    displayDays,
     displayDurationSec: String(DEFAULT_DISPLAY_DURATION_SEC),
     mapVisibilityScope: 'france',
     mapTargetRegionName: '',
     mapTargetLat: '',
     mapTargetLng: '',
-    startsAt: nowDatetimeLocal(),
+    startsAt,
+    endsAt: computeEndsAtFromForm(startsAt, displayDays),
     videoUrl: '',
     posterUrl: '',
     linkedEventPostId: '',
+    linkedReelId: '',
   };
 }
 
@@ -113,9 +133,16 @@ export function sponsorToAdminForm(sponsor: Sponsor): SponsorAdminFormState {
     mapTargetLat: sponsor.mapTargetLat != null ? String(sponsor.mapTargetLat) : '',
     mapTargetLng: sponsor.mapTargetLng != null ? String(sponsor.mapTargetLng) : '',
     startsAt: toDatetimeLocal(sponsor.startsAt) || nowDatetimeLocal(),
+    endsAt:
+      toDatetimeLocal(sponsor.endsAt) ||
+      computeEndsAtFromForm(
+        toDatetimeLocal(sponsor.startsAt) || nowDatetimeLocal(),
+        String(computeDisplayDays(sponsor.startsAt, sponsor.endsAt))
+      ),
     videoUrl: sponsor.videoUrl ?? '',
     posterUrl: sponsor.posterUrl ?? '',
     linkedEventPostId: sponsor.linkedEventPostId ?? '',
+    linkedReelId: sponsor.linkedReelId ?? '',
   };
 }
 
@@ -127,8 +154,9 @@ export function buildSponsorPayloadFromAdminForm(form: SponsorAdminFormState): P
   const kind: SponsorKind = 'sponsored';
 
   const startsAt = parseDatetimeLocal(form.startsAt) ?? Date.now();
+  const endsAtParsed = parseDatetimeLocal(form.endsAt);
   const displayDays = parseDisplayDays(form.displayDays);
-  const endsAt = startsAt + displayDays * MS_PER_DAY;
+  const endsAt = endsAtParsed ?? startsAt + displayDays * MS_PER_DAY;
 
   const description = form.description.trim();
 
@@ -153,6 +181,10 @@ export function buildSponsorPayloadFromAdminForm(form: SponsorAdminFormState): P
   if (placement === 'map_sidebar_events') {
     payload.linkedEventPostId = form.linkedEventPostId.trim() || undefined;
     payload.kind = 'sponsored';
+  }
+
+  if (placement === 'reels_sponsored') {
+    payload.linkedReelId = form.linkedReelId.trim() || undefined;
   }
 
   if (isMap) {
@@ -220,6 +252,12 @@ export function validateSponsorAdminForm(
   const days = Number(form.displayDays);
   if (!Number.isFinite(days) || days < SPONSOR_DISPLAY_DAYS_MIN || days > SPONSOR_DISPLAY_DAYS_MAX) {
     return t('admin.sponsors.validationDisplayDays');
+  }
+
+  const startsAtTs = parseDatetimeLocal(form.startsAt) ?? Date.now();
+  const endsAtTs = parseDatetimeLocal(form.endsAt);
+  if (endsAtTs != null && endsAtTs <= startsAtTs) {
+    return t('admin.sponsors.validationEndsAtAfterStart');
   }
 
   const sec = Number(form.displayDurationSec);

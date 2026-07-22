@@ -1035,6 +1035,11 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   border-color: #ef4444;
 }
 
+.map-marker.salon img {
+  border-color: #7c3aed;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.55);
+}
+
 .map-marker.person img {
   border-color: #a855f7;
   box-shadow: 0 4px 12px rgba(168, 85, 247, 0.45);
@@ -1121,6 +1126,21 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   border-radius: 4px;
 }
 
+.map-marker .salon-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #7c3aed;
+  color: white;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  box-shadow: 0 0 8px rgba(124, 58, 237, 0.55);
+}
+
 .map-marker.event .event-marker-icon {
   display: block;
   line-height: 0;
@@ -1136,6 +1156,18 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   object-fit: contain;
   pointer-events: none;
   user-select: none;
+}
+
+.map-marker.event .event-marker-icon .event-sponso-pin {
+  display: block;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9));
+}
+
+.map-marker.event.map-marker--sponso .event-marker-icon {
+  filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.45));
 }
 
 .leaflet-div-icon.event-day-leaflet-icon {
@@ -1162,11 +1194,14 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 
 .map-marker.event {
   position: relative;
+  --event-day-color: #9333ea;
 }
 
 .map-marker.event.map-marker--highlighted .event-marker-icon {
-  filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.95))
-    drop-shadow(0 0 18px rgba(192, 132, 252, 0.75));
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.95))
+    drop-shadow(0 0 6px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 10px var(--event-day-color))
+    drop-shadow(0 0 18px var(--event-day-color));
   animation: map-event-pin-highlight-pulse 1.35s ease-in-out infinite;
 }
 
@@ -1180,8 +1215,8 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   margin: 0;
   transform: translate(-50%, -50%);
   border-radius: 999px;
-  border: 2px solid rgba(168, 85, 247, 0.9);
-  box-shadow: 0 0 14px rgba(168, 85, 247, 0.55);
+  border: 2px solid var(--event-day-color);
+  box-shadow: 0 0 14px var(--event-day-color);
   animation: map-event-pin-highlight-ring 1.35s ease-in-out infinite;
   pointer-events: none;
 }
@@ -1260,6 +1295,23 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   border-radius: 4px;
   border: 1px solid rgba(255, 255, 255, 0.45);
   box-shadow: 0 0 8px rgba(239, 68, 68, 0.65);
+  pointer-events: none;
+}
+.map-marker-overview-salon-badge {
+  position: absolute;
+  top: -2px;
+  right: -4px;
+  z-index: 3;
+  background: #7c3aed;
+  color: #fff;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 0 8px rgba(124, 58, 237, 0.55);
   pointer-events: none;
 }
 .map-marker-live-cluster-badge {
@@ -2198,6 +2250,15 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
     drop-shadow(0 0 2px rgba(0, 0, 0, 0.35));
 }
 
+.globe-event-pin--sponso {
+  width: auto;
+  height: auto;
+  font-size: calc(18px * var(--globe-icon-scale, 1));
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9))
+    drop-shadow(0 0 6px rgba(251, 191, 36, 0.35));
+}
+
 .globe-event-cluster-badge {
   position: absolute;
   top: -2px;
@@ -2903,6 +2964,64 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 }
 
 /* ── Salon / Live — chat flottant + languette ───────────────────────── */
+
+.floating-salon-chat {
+  border-width: 1px;
+  border-style: solid;
+}
+
+.floating-salon-chat--bg-gray {
+  background: rgb(26 26 36 / 0.95);
+  border-color: #2a2a36;
+}
+
+.floating-salon-chat--bg-transparent {
+  background: rgb(0 0 0 / 0.3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: rgb(255 255 255 / 0.1);
+}
+
+/* Live théâtre — pas de panneau : messages flottants sur la vidéo */
+.floating-salon-chat--live-theater.floating-salon-chat--bg-transparent {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.floating-salon-chat--live-theater.floating-salon-chat--bg-transparent .floating-salon-chat__body,
+.floating-salon-chat--live-theater.floating-salon-chat--bg-transparent .room-theater-chat-dock__body,
+.floating-salon-chat--live-theater.floating-salon-chat--bg-transparent .chat-messages-scroll {
+  background: transparent;
+}
+
+.floating-salon-chat--live-theater .floating-salon-chat__header--transparent {
+  background: rgb(0 0 0 / 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-color: rgb(255 255 255 / 0.1);
+}
+
+.floating-salon-chat__header--gray {
+  background: rgb(20 20 28 / 0.8);
+  border-color: #2a2a36;
+}
+
+.floating-salon-chat__header--transparent {
+  background: rgb(0 0 0 / 0.25);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border-color: rgb(255 255 255 / 0.1);
+}
+
+.floating-salon-chat--live-theater .floating-salon-chat__header--gray {
+  background: rgb(0 0 0 / 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-color: rgb(255 255 255 / 0.1);
+}
 
 .floating-salon-chat .live-chat-messages {
   max-height: none;
@@ -4056,7 +4175,7 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   justify-content: flex-start;
 }
 
-/* Bandeau actions spectateur live — toujours visible sous le header */
+/* Bandeau actions spectateur live — intégré au header (LiveHostTopBar.trailing) */
 .live-viewer-action-bar {
   flex-shrink: 0;
   position: relative;
@@ -4069,6 +4188,7 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   position: relative;
   z-index: 35;
   isolation: isolate;
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 /* Chat live épinglé à gauche — colonne étroite, flex (pas grille salon 30 %) */
@@ -5547,6 +5667,17 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 [data-design-quick-wins="1"] .map-marker .live-badge {
   background: var(--ms-live);
   box-shadow: 0 0 8px var(--ms-live-glow);
+}
+
+[data-design-quick-wins="1"] .map-marker .salon-badge,
+[data-design-quick-wins="1"] .map-marker-overview-salon-badge {
+  background: var(--ms-salon);
+  box-shadow: 0 0 8px var(--ms-salon-glow);
+}
+
+[data-design-quick-wins="1"] .map-marker.salon img {
+  border-color: var(--ms-salon);
+  box-shadow: 0 4px 12px var(--ms-salon-glow);
 }
 
 [data-design-quick-wins="1"] .map-marker-overview-dot.live,

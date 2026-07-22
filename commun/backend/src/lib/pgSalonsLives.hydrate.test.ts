@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { db, type Salon } from '../models/schema';
 
-const queryMock = vi.fn();
+const { queryMock } = vi.hoisted(() => ({
+  queryMock: vi.fn(),
+}));
 
 vi.mock('../db/pool', () => ({
   isPostgresEnabled: () => true,
@@ -13,6 +15,8 @@ vi.mock('./salonPlaybackOps', () => ({
   ensureSalonProposals: vi.fn(),
   clearSalonPlaybackData: vi.fn(),
 }));
+
+import { getSalonFromStore } from './pgSalonsLives';
 
 describe('getSalonFromStore', () => {
   beforeEach(() => {
@@ -51,7 +55,6 @@ describe('getSalonFromStore', () => {
     db.salons.set(stale.id, stale);
     queryMock.mockResolvedValueOnce({ rows: [{ payload: stale, is_active: false }] });
 
-    const { getSalonFromStore } = await import('./pgSalonsLives');
     const result = await getSalonFromStore('salon_stale');
     expect(result).toBeUndefined();
     expect(db.salons.has('salon_stale')).toBe(false);
@@ -87,7 +90,6 @@ describe('getSalonFromStore', () => {
     };
     queryMock.mockResolvedValueOnce({ rows: [{ payload: salon, is_active: true }] });
 
-    const { getSalonFromStore } = await import('./pgSalonsLives');
     const result = await getSalonFromStore('salon_pg_only');
     expect(result?.id).toBe('salon_pg_only');
     expect(db.salons.get('salon_pg_only')?.title).toBe('Live');

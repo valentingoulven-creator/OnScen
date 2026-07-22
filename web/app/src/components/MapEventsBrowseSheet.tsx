@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { FilterIcon } from './FilterIcon';
 import { MapEventBrowseDetailOverlay } from './MapEventBrowseDetailOverlay';
+import { MapEventFilterForm } from './MapEventFilterForm';
 import { MapEventsBrowseList } from './MapEventsBrowseList';
 import { useMapEventsBrowseData } from '../hooks/useMapEventsBrowseData';
 import type { MapEventFilterCriteria } from '../lib/mapEventFilter';
@@ -16,9 +16,11 @@ export interface MapEventsBrowseSheetProps {
   favoriteAuthorIds?: ReadonlySet<string>;
   eventsFilterOn: boolean;
   filterCriteria: MapEventFilterCriteria;
+  eventFilterCustomized?: boolean;
   aroundEventPosts?: FeedPost[];
   viewerId?: string;
-  onOpenFilter?: () => void;
+  onApplyFilter?: (criteria: MapEventFilterCriteria) => void;
+  onPreviewFilterCity?: (latitude: number, longitude: number, location: string) => void;
   /** Cadre la carte sur les événements de l'onglet actif. */
   onViewOnMap?: (posts: FeedPost[]) => void;
   onOpenEvent?: (post: FeedPost) => void;
@@ -47,9 +49,11 @@ export function MapEventsBrowseSheet({
   favoriteAuthorIds,
   eventsFilterOn,
   filterCriteria,
+  eventFilterCustomized = false,
   aroundEventPosts,
   viewerId,
-  onOpenFilter,
+  onApplyFilter,
+  onPreviewFilterCity,
   onViewOnMap,
   onOpenEvent,
   onOpenEventDetail,
@@ -69,6 +73,7 @@ export function MapEventsBrowseSheet({
     favoriteAuthorIds,
     eventsFilterOn,
     filterCriteria,
+    eventFilterCustomized,
     aroundEventPosts,
     viewerId,
     onPostChange,
@@ -116,6 +121,13 @@ export function MapEventsBrowseSheet({
     [onClose, onOpenEvent]
   );
 
+  const handleApplyFilter = useCallback(
+    (criteria: MapEventFilterCriteria) => {
+      onApplyFilter?.(criteria);
+    },
+    [onApplyFilter]
+  );
+
   if (!open || typeof document === 'undefined') return null;
 
   return createPortal(
@@ -130,44 +142,49 @@ export function MapEventsBrowseSheet({
         className="relative w-full max-w-2xl max-h-[min(90dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-0.5rem))] sm:max-h-[min(36rem,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-2rem))] flex flex-col bg-[#0e0e14] border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="shrink-0 px-4 py-3 border-b border-white/10 flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <h2 id="map-events-browse-title" className="text-base font-bold text-white">
-              {t('map.eventsBrowseTitle')}
-            </h2>
-            <p className="text-[11px] text-purple-300/70 mt-0.5">{t('map.eventsBrowseHint')}</p>
-            <button
-              type="button"
-              onClick={handleViewOnMap}
-              disabled={browse.activeLoading || browse.activePosts.length === 0}
-              className="mt-2 inline-flex items-center gap-1.5 min-h-9 px-2.5 rounded-lg text-[11px] font-semibold text-purple-200 border border-purple-500/35 bg-purple-500/10 hover:bg-purple-500/20 disabled:opacity-40 disabled:pointer-events-none transition"
-            >
-              <MapViewIcon className="w-3.5 h-3.5 shrink-0" />
-              {t('map.eventsBrowseViewOnMap')}
-            </button>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            {onOpenFilter ? (
+        <div className="shrink-0 border-b border-white/10 flex flex-col min-w-0">
+          <div className="px-4 py-3 flex flex-col gap-2 min-w-0">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <h2 id="map-events-browse-title" className="text-base font-bold text-white">
+                  {t('map.eventsBrowseTitle')}
+                </h2>
+                <p className="text-[11px] text-purple-300/70 mt-0.5">{t('map.eventsBrowseHint')}</p>
+              </div>
               <button
                 type="button"
-                onClick={onOpenFilter}
-                title={t('map.eventsBrowseFilter')}
-                aria-label={t('map.eventsBrowseFilterAria')}
-                className="w-11 h-11 flex items-center justify-center rounded-lg text-purple-300 hover:text-white hover:bg-purple-500/15 border border-transparent hover:border-purple-500/30 transition touch-manipulation"
+                onClick={onClose}
+                className="w-11 h-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-[#1e1e2f] transition touch-manipulation shrink-0"
+                aria-label={t('common.close')}
               >
-                <FilterIcon className="w-4 h-4" />
+                <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-11 h-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-[#1e1e2f] transition touch-manipulation"
-              aria-label={t('common.close')}
-            >
-              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            </div>
+            <div className="flex items-center gap-1.5 min-w-0 w-full">
+              {onApplyFilter ? (
+                <MapEventFilterForm
+                  active
+                  layout="inline"
+                  initialCriteria={filterCriteria}
+                  profileCity={profileCity}
+                  onApply={handleApplyFilter}
+                  onPreviewCity={onPreviewFilterCity}
+                  idPrefix="map-events-browse-filter"
+                  className="flex-1 min-w-0"
+                />
+              ) : null}
+              <button
+                type="button"
+                onClick={handleViewOnMap}
+                disabled={browse.activeLoading || browse.activePosts.length === 0}
+                className="inline-flex shrink-0 items-center gap-1.5 min-h-9 px-2.5 rounded-lg text-[11px] font-semibold text-purple-200 border border-purple-500/35 bg-purple-500/10 hover:bg-purple-500/20 disabled:opacity-40 disabled:pointer-events-none transition touch-manipulation ml-auto"
+              >
+                <MapViewIcon className="w-3.5 h-3.5 shrink-0" />
+                {t('map.eventsBrowseViewOnMap')}
+              </button>
+            </div>
           </div>
         </div>
 

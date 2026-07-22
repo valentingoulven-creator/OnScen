@@ -2,13 +2,31 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { FilterIcon } from './FilterIcon';
-import { MapLivesFilterEditor } from './MapCurrentFilterPopup';
-import { LivesBrowseFilterModal } from './LivesBrowseGrid';
+import { MapLocationPicker } from './MapLocationPicker';
 import { UserAvatarOnline } from './UserAvatarOnline';
 import { UsernameDisplay } from './UsernameDisplay';
 import { formatCompactCount } from '../lib/formatCount';
+import {
+  getLivesGeo,
+  hasPersistedMapGeoPrefs,
+  isFixedMapGeoSource,
+  MAP_GEO_CHANGED_EVENT,
+  resolveDefaultLivesGeoPrefs,
+  setLivesGeo,
+  type LivesGeoPrefs,
+} from '../lib/livesGeo';
+import { isValidLatLng } from '../lib/mapCoords';
 import { countSalonsSidebarItems, type MapSidebarContent } from '../lib/mapSidebarContent';
+import { NEARBY_PANEL_CHANGED_EVENT, setNearbyPanelPreferences } from '../lib/nearbyPanelSettings';
+import {
+  formatRadiusKm,
+  getNearbyRadiusKm,
+  setNearbyRadiusKm,
+  SETTINGS_CHANGED_EVENT,
+} from '../lib/settings';
 import type { Live, Salon } from '../types';
+
+const LIVES_RADIUS_PRESETS_KM = [10, 20, 30, 50, 100] as const;
 
 export type MapSidebarBrowseMode = 'lives' | 'salon';
 type BrowseTab = 'following' | 'inView' | 'suggestions';
@@ -156,6 +174,125 @@ function SalonBrowseCard({
   );
 }
 
+function livesBrowseLocationLabel(
+  geo: LivesGeoPrefs,
+  userPosition: [number, number] | null | undefined,
+  t: (key: string, opts?: { defaultValue?: string }) => string
+): string {
+  if (
+    geo.source === 'my_position' &&
+    userPosition &&
+    isValidLatLng(userPosition[0], userPosition[1])
+  ) {
+    return t('sessionLocation.myPosition', { defaultValue: 'Ma position' });
+  }
+  return geo.label.trim() || t('map.livesBrowseLocationPlaceholder');
+}
+
+function LivesBrowseGeoToolbar({
+  profileCity,
+  userPosition,
+}: {
+  profileCity?: string;
+  userPosition?: [number, number] | null;
+}) {
+  const { t } = useTranslation();
+  const [geo, setGeo] = useState<LivesGeoPrefs>(() => getLivesGeo());
+  const [radiusKm, setRadiusKm] = useState(() => getNearbyRadiusKm());
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  useEffect(() => {
+    const persisted = getLivesGeo();
+    if (
+      hasPersistedMapGeoPrefs() &&
+      isFixedMapGeoSource(persisted.source) &&
+      persisted.label.trim()
+    ) {
+      setGeo(persisted);
+      return;
+    }
+
+    const defaults = resolveDefaultLivesGeoPrefs(profileCity, userPosition);
+    const shouldPersist =
+      !hasPersistedMapGeoPrefs() ||
+      (persisted.source === 'my_position' && !userPosition);
+
+    if (shouldPersist && (defaults.label.trim() || defaults.source === 'my_position')) {
+      setLivesGeo(defaults);
+    }
+    setGeo(defaults);
+  }, [profileCity, userPosition]);
+
+  useEffect(() => {
+    const sync = () => {
+      setGeo(getLivesGeo());
+      setRadiusKm(getNearbyRadiusKm());
+    };
+    window.addEventListener(MAP_GEO_CHANGED_EVENT, sync);
+    window.addEventListener(SETTINGS_CHANGED_EVENT, sync);
+    window.addEventListener(NEARBY_PANEL_CHANGED_EVENT, sync);
+    return () => {
+      window.removeEventListener(MAP_GEO_CHANGED_EVENT, sync);
+      window.removeEventListener(SETTINGS_CHANGED_EVENT, sync);
+      window.removeEventListener(NEARBY_PANEL_CHANGED_EVENT, sync);
+    };
+  }, []);
+
+  const persistGeo = useCallback((next: LivesGeoPrefs) => {
+    setGeo(next);
+    setLivesGeo(next);
+  }, []);
+
+  const handleRadiusChange = useCallback((raw: string) => {
+    const km = Number(raw);
+    if (!Number.isFinite(km)) return;
+    setNearbyRadiusKm(km);
+    setNearbyPanelPreferences({ sortBy: 'distance' });
+    setRadiusKm(getNearbyRadiusKm());
+  }, []);
+
+  return (
+    <div className="px-3 pb-3 border-b border-white/5">
+      <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+        <button
+          type="button"
+          onClick={() => setPickerOpen((v) => !v)}
+          aria-expanded={pickerOpen}
+          className="min-w-0 flex-1 max-w-[min(100%,14rem)] inline-flex items-center gap-1.5 min-h-9 px-2.5 rounded-lg text-[11px] font-medium text-red-100 border border-red-500/30 bg-red-500/10 hover:bg-red-500/15 transition touch-manipulation"
+        >
+          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0 text-red-300" fill="currentColor" aria-hidden>
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z" />
+          </svg>
+          <span className="truncate">{livesBrowseLocationLabel(geo, userPosition, t)}</span>
+        </button>
+        <label className="sr-only" htmlFor="lives-browse-radius">
+          {t('map.livesBrowseRadiusLabel')}
+        </label>
+        <select
+          id="lives-browse-radius"
+          value={String(radiusKm)}
+          onChange={(e) => handleRadiusChange(e.target.value)}
+          className="shrink-0 min-h-9 rounded-lg bg-[#0b0b0f] border border-[#2a2a3d] px-2 text-[11px] text-white focus:outline-none focus:ring-2 focus:ring-red-500/40 [color-scheme:dark]"
+        >
+          {LIVES_RADIUS_PRESETS_KM.map((km) => (
+            <option key={km} value={km}>
+              {formatRadiusKm(km)}
+            </option>
+          ))}
+          {LIVES_RADIUS_PRESETS_KM.includes(radiusKm as (typeof LIVES_RADIUS_PRESETS_KM)[number]) ? null : (
+            <option value={radiusKm}>{formatRadiusKm(radiusKm)}</option>
+          )}
+        </select>
+      </div>
+      {pickerOpen ? (
+        <div className="mt-2">
+          <MapLocationPicker mapGeo={geo} onPersist={persistGeo} size="compact" accent="red" />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function BrowseTabBar({
   activeTab,
   onTabChange,
@@ -213,6 +350,8 @@ export interface MapSidebarBrowseSheetProps {
   onClose: () => void;
   content: MapSidebarContent;
   itemCount: number;
+  profileCity?: string;
+  userPosition?: [number, number] | null;
   selectedSalonId?: string | null;
   onOpenFilter?: () => void;
   onViewOnMap?: () => void;
@@ -226,6 +365,8 @@ export function MapSidebarBrowseSheet({
   onClose,
   content,
   itemCount,
+  profileCity,
+  userPosition,
   selectedSalonId,
   onOpenFilter,
   onViewOnMap,
@@ -234,8 +375,7 @@ export function MapSidebarBrowseSheet({
 }: MapSidebarBrowseSheetProps) {
   const { t } = useTranslation();
   const isLives = mode === 'lives';
-  const [livesFilterOpen, setLivesFilterOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<BrowseTab>('following');
+  const [activeTab, setActiveTab] = useState<BrowseTab>('inView');
   const [visibleLimit, setVisibleLimit] = useState(LIST_PAGE_SIZE);
   const openedAtRef = useRef(0);
 
@@ -265,15 +405,18 @@ export function MapSidebarBrowseSheet({
 
   useEffect(() => {
     if (!open) {
-      setLivesFilterOpen(false);
       setVisibleLimit(LIST_PAGE_SIZE);
       return;
     }
     openedAtRef.current = Date.now();
+    if (isLives) {
+      setActiveTab('inView');
+      return;
+    }
     if (tabCounts.following > 0) setActiveTab('following');
     else if (tabCounts.inView > 0) setActiveTab('inView');
     else setActiveTab('suggestions');
-  }, [open, tabCounts.following, tabCounts.inView]);
+  }, [open, isLives, tabCounts.following, tabCounts.inView]);
 
   useEffect(() => {
     setVisibleLimit(LIST_PAGE_SIZE);
@@ -335,25 +478,21 @@ export function MapSidebarBrowseSheet({
     };
   }, [isLives, content.zoomTooWide, t]);
 
-  const activeItems = sectionData[activeTab];
+  const activeItems = isLives ? sectionData.inView : sectionData[activeTab];
   const visibleItems = activeItems.slice(0, visibleLimit);
   const hiddenCount = activeItems.length - visibleItems.length;
 
   const emptyText = useMemo(() => {
+    if (isLives || activeTab === 'inView') return theme.inViewEmpty;
     if (activeTab === 'following') {
       return t('map.sidebarFollowingEmpty', { defaultValue: 'Aucun contenu suivi.' });
     }
-    if (activeTab === 'inView') return theme.inViewEmpty;
     return t('map.sidebarSuggestionsEmpty', { defaultValue: 'Aucune suggestion.' });
-  }, [activeTab, theme.inViewEmpty, t]);
+  }, [activeTab, isLives, theme.inViewEmpty, t]);
 
   const handleFilterClick = useCallback(() => {
-    if (isLives) {
-      setLivesFilterOpen(true);
-      return;
-    }
     onOpenFilter?.();
-  }, [isLives, onOpenFilter]);
+  }, [onOpenFilter]);
 
   const handleBackdropClose = useCallback(() => {
     if (Date.now() - openedAtRef.current < 450) return;
@@ -412,7 +551,7 @@ export function MapSidebarBrowseSheet({
                     <MapViewIcon className="w-4 h-4" />
                   </button>
                 ) : null}
-                {(isLives || onOpenFilter) && (
+                {(onOpenFilter && !isLives) ? (
                   <button
                     type="button"
                     onClick={handleFilterClick}
@@ -422,7 +561,7 @@ export function MapSidebarBrowseSheet({
                   >
                     <FilterIcon className="w-4 h-4" />
                   </button>
-                )}
+                ) : null}
                 <button
                   type="button"
                   onClick={onClose}
@@ -436,13 +575,19 @@ export function MapSidebarBrowseSheet({
               </div>
             </div>
 
-            <BrowseTabBar
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              counts={tabCounts}
-              theme={theme}
-              ariaLabel={t('map.livesBrowseTabsAria', { defaultValue: 'Catégories' })}
-            />
+            {isLives ? (
+              <LivesBrowseGeoToolbar profileCity={profileCity} userPosition={userPosition} />
+            ) : null}
+
+            {!isLives ? (
+              <BrowseTabBar
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                counts={tabCounts}
+                theme={theme}
+                ariaLabel={t('map.livesBrowseTabsAria', { defaultValue: 'Catégories' })}
+              />
+            ) : null}
           </div>
 
           <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain" role="tabpanel">
@@ -493,23 +638,13 @@ export function MapSidebarBrowseSheet({
           ) : null}
         </div>
       </div>
-
-      {isLives && livesFilterOpen ? (
-        <LivesBrowseFilterModal open={livesFilterOpen} onClose={() => setLivesFilterOpen(false)}>
-          <MapLivesFilterEditor onClose={() => setLivesFilterOpen(false)} />
-        </LivesBrowseFilterModal>
-      ) : null}
     </>,
     document.body
   );
 }
 
 export function uniqueLiveCountFromContent(content: MapSidebarContent): number {
-  return new Set([
-    ...content.livesFollowing.map((l) => l.id),
-    ...content.lives.map((l) => l.id),
-    ...content.livesSuggestions.map((l) => l.id),
-  ]).size;
+  return content.lives.length;
 }
 
 export function uniqueSalonCountFromContent(content: MapSidebarContent): number {
@@ -517,15 +652,10 @@ export function uniqueSalonCountFromContent(content: MapSidebarContent): number 
 }
 
 export function collectGeoPointsFromLivesContent(content: MapSidebarContent): { latitude: number; longitude: number }[] {
-  const merged = [...content.livesFollowing, ...content.lives, ...content.livesSuggestions];
-  const seen = new Set<string>();
-  const out: { latitude: number; longitude: number }[] = [];
-  for (const live of merged) {
-    if (seen.has(live.id)) continue;
-    seen.add(live.id);
-    out.push({ latitude: live.latitude, longitude: live.longitude });
-  }
-  return out;
+  return content.lives.map((live) => ({
+    latitude: live.latitude,
+    longitude: live.longitude,
+  }));
 }
 
 export function collectGeoPointsFromSalonContent(content: MapSidebarContent): { latitude: number; longitude: number }[] {

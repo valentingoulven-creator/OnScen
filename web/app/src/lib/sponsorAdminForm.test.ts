@@ -24,9 +24,11 @@ function baseForm(overrides: Partial<SponsorAdminFormState> = {}): SponsorAdminF
     mapTargetLat: '',
     mapTargetLng: '',
     startsAt: '2026-06-22T10:00',
+    endsAt: '2026-06-29T10:00',
     videoUrl: '',
     posterUrl: '',
     linkedEventPostId: '',
+    linkedReelId: '',
     ...overrides,
   };
 }
@@ -73,11 +75,29 @@ describe('validateSponsorAdminForm', () => {
       )
     ).toBe('admin.sponsors.validationRegionCoordsRequired');
   });
+
+  it('rejects end date before start date', () => {
+    expect(
+      validateSponsorAdminForm(
+        baseForm({
+          startsAt: '2026-06-22T10:00',
+          endsAt: '2026-06-21T10:00',
+        }),
+        t
+      )
+    ).toBe('admin.sponsors.validationEndsAtAfterStart');
+  });
 });
 
 describe('buildSponsorPayloadFromAdminForm', () => {
   it('sets image-only map banner defaults and campaign end from display days', () => {
-    const payload = buildSponsorPayloadFromAdminForm(baseForm({ displayDays: '14', displayDurationSec: '12' }));
+    const payload = buildSponsorPayloadFromAdminForm(
+      baseForm({
+        displayDays: '14',
+        displayDurationSec: '12',
+        endsAt: '2026-07-06T10:00',
+      })
+    );
     expect(payload.title).toBe('Partner');
     expect(payload.subtitle).toBe('Description du partenaire');
     expect(payload.bannerDisplayMode).toBe('image_only');
@@ -86,6 +106,17 @@ describe('buildSponsorPayloadFromAdminForm', () => {
     expect(payload.startsAt).toBeDefined();
     expect(payload.endsAt).toBeDefined();
     expect(payload.endsAt! - payload.startsAt!).toBe(14 * 86_400_000);
+  });
+
+  it('uses explicit endsAt when provided', () => {
+    const payload = buildSponsorPayloadFromAdminForm(
+      baseForm({
+        startsAt: '2026-06-22T10:00',
+        endsAt: '2026-07-06T10:00',
+        displayDays: '7',
+      })
+    );
+    expect(payload.endsAt).toBe(Date.parse('2026-07-06T10:00'));
   });
 });
 

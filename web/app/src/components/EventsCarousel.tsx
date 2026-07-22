@@ -12,6 +12,8 @@ export interface EventsCarouselProps {
   onPostChange?: (postId: string, patch: Partial<FeedPost>) => void;
   /** default = fil Actualité ; compact = sheet carte ; sidebar = panneau latéral carte */
   size?: 'default' | 'compact' | 'sidebar';
+  /** Carrousel Sponso : icône ✨ à la place du type d'événement. */
+  sponsoredVisual?: boolean;
 }
 
 /** Carrousel horizontal d'événements (même layout que « Prochains événements »). */
@@ -22,6 +24,7 @@ export function EventsCarousel({
   getExtraBadges,
   onPostChange,
   size = 'default',
+  sponsoredVisual = false,
 }: EventsCarouselProps) {
   const { t } = useTranslation();
   const isCompact = size === 'compact' || size === 'sidebar';
@@ -50,7 +53,8 @@ export function EventsCarousel({
           layout="carousel"
           compact={isCompact}
           density={isSidebar ? 'sidebar' : isCompact ? 'compact' : 'default'}
-          extraBadges={getExtraBadges?.(post)}
+          extraBadges={sponsoredVisual ? undefined : getExtraBadges?.(post)}
+          sponsoredVisual={sponsoredVisual}
           onPostChange={(patch) => onPostChange?.(post.id, patch)}
         />
       ))}

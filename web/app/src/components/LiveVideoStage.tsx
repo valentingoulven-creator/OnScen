@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { VIDEO_PIP_WIDTH, VIDEO_PIP_HEADER_HEIGHT, type VideoPipFloatApi } from './DraggableVideoPip';
 import {
   LIVE_CAMERA_HOST_OBS_STOPPED,
@@ -17,7 +18,11 @@ import { useLiveVideoChromeAutoHide } from '../hooks/useLiveVideoChromeAutoHide'
 import { normalizeBrandText } from '../lib/brandName';
 import { LiveStreamEndedOverlay } from './LiveStreamEndedOverlay';
 import { LiveChatVideoOverlay } from './LiveChatVideoOverlay';
-import { LiveTheaterLiveBadge, LiveVideoStagePlaceholder } from './LiveVideoStagePlaceholder';
+import {
+  LiveTheaterLiveBadge,
+  LiveVideoStageOverlayLeaveButton,
+  LiveVideoStagePlaceholder,
+} from './LiveVideoStagePlaceholder';
 import { LiveTheaterStatusBar, LiveVideoChromeButton } from './LiveVideoTheaterChrome';
 import {
   getLiveVideoAspectRatioClass,
@@ -309,6 +314,8 @@ export type LiveVideoStageProps = {
   streamEndedHint?: string;
   /** PiP flottant in-app : vidéo seule déplaçable, toujours au premier plan. */
   videoFloat?: VideoPipFloatApi;
+  /** Fermer le PiP sans rouvrir le live plein écran. */
+  onDismissPip?: () => void;
   /** Appelé quand l'utilisateur clique sur ⧉ pour activer le PiP. */
   onPipOpen?: () => void;
   videoAspectRatio?: LiveVideoAspectRatioPreset;
@@ -327,6 +334,8 @@ export type LiveVideoStageProps = {
   onToggleViewerPlaybackPaused?: () => void;
   /** Bouton « Actions à faire » hôte (chrome théâtre, après plein écran). */
   hostActionsChrome?: ReactNode;
+  /** Spectateur : quitter le live depuis le placeholder théâtre. */
+  onLeaveLive?: () => void;
 };
 
 export function LiveVideoStage({
@@ -366,6 +375,7 @@ export function LiveVideoStage({
   streamEndedTitle = 'Stream terminé',
   streamEndedHint,
   videoFloat,
+  onDismissPip,
   onPipOpen,
   videoAspectRatio: videoAspectRatioProp,
   floatingChat,
@@ -376,7 +386,9 @@ export function LiveVideoStage({
   viewerPlaybackPaused = false,
   onToggleViewerPlaybackPaused,
   hostActionsChrome,
+  onLeaveLive,
 }: LiveVideoStageProps) {
+  const { t } = useTranslation();
   const videoAspectRatio = getLiveVideoAspectRatioPreset(videoAspectRatioProp);
   const displayPlaybackTitle = normalizeBrandText(playbackTitle);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -389,6 +401,15 @@ export function LiveVideoStage({
 
   const isVideoExpanded = isVideoFullscreen || isLandscapeTheater;
   const { chromeVisible } = useLiveVideoChromeAutoHide(stageAreaRef, enabled && !videoFloat);
+
+  const placeholderLeaveAction =
+    !isHost && onLeaveLive && !videoFloat ? (
+      <LiveVideoStageOverlayLeaveButton
+        onClick={onLeaveLive}
+        label={t('live.leaveLive')}
+        shortLabel={t('live.leaveLiveShort')}
+      />
+    ) : undefined;
 
   const stageState: LiveVideoStageState = streamEnded
     ? 'ended'
@@ -672,28 +693,40 @@ export function LiveVideoStage({
           <p className="text-[9px] font-bold text-purple-400 uppercase tracking-widest flex-1 truncate min-w-0">
             {displayPlaybackTitle}
           </p>
-          <button
-            type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={videoFloat.onClose}
-            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition text-sm"
-            title="Ancrer la vidéo"
-            aria-label="Ancrer la vidéo"
-          >
-            &#x2199;
-          </button>
           {!isHost && onToggleViewerPlaybackPaused ? (
             <button
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onToggleViewerPlaybackPaused}
               className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition"
-              title={viewerPlaybackPaused ? 'Reprendre la lecture' : 'Mettre en pause'}
-              aria-label={viewerPlaybackPaused ? 'Reprendre la lecture' : 'Mettre en pause'}
+              title={viewerPlaybackPaused ? t('live.viewerResumePlayback') : t('live.viewerPausePlayback')}
+              aria-label={viewerPlaybackPaused ? t('live.viewerResumePlayback') : t('live.viewerPausePlayback')}
             >
               {viewerPlaybackPaused ? <LiveVideoPlayIcon /> : <LiveVideoPauseIcon />}
             </button>
           ) : null}
+          {(!isHost && onLeaveLive) || onDismissPip ? (
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={!isHost && onLeaveLive ? onLeaveLive : onDismissPip!}
+              className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-red-500/25 transition text-sm leading-none"
+              title={!isHost && onLeaveLive ? t('live.leaveLive') : t('live.closePip')}
+              aria-label={!isHost && onLeaveLive ? t('live.leaveLive') : t('live.closePip')}
+            >
+              ×
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={videoFloat.onClose}
+            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition text-sm"
+            title={t('live.anchorVideoPip')}
+            aria-label={t('live.anchorVideoPip')}
+          >
+            &#x2199;
+          </button>
         </div>
       )}
 
@@ -735,6 +768,7 @@ export function LiveVideoStage({
               }
               loading={stageState === 'loading'}
               badge={stageState === 'loading' ? <LiveTheaterLiveBadge label="CDN" /> : undefined}
+              topTrailing={placeholderLeaveAction}
             />
           ) : (
             <LiveVideoStagePlaceholder
@@ -743,6 +777,7 @@ export function LiveVideoStage({
               albumArtUrl={albumArtUrl}
               loading={stageState === 'loading'}
               badge={stageState === 'loading' ? <LiveTheaterLiveBadge /> : undefined}
+              topTrailing={placeholderLeaveAction}
               footer={
                 stageState === 'error' ? (
                   <div className="flex flex-col items-center gap-2 w-full">

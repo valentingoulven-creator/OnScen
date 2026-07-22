@@ -4,7 +4,7 @@ import type { TFunction } from 'i18next';
 import { EventsCarousel } from './EventsCarousel';
 import { EventDayPinIcon } from './EventDayPinIcon';
 import { formatEventDateShort } from '../lib/feedEvents';
-import { getMapEventBrowseDayIndex } from '../lib/mapEventDayColors';
+import { getBrowseSectionDayColor } from '../lib/mapEventDayColors';
 import {
   countryEventCategoryEmoji,
   type FeedPostsByCategoryGroup,
@@ -15,7 +15,7 @@ import type { FeedPost } from '../types';
 
 function SectionHeader({
   label,
-  dayIndex,
+  sectionIndex,
   dayKey,
   selectedDayKey,
   onDayKeySelect,
@@ -24,7 +24,7 @@ function SectionHeader({
   compact = false,
 }: {
   label: string;
-  dayIndex?: number;
+  sectionIndex?: number;
   dayKey?: string;
   selectedDayKey?: string | null;
   onDayKeySelect?: (dayKey: string) => void;
@@ -35,6 +35,8 @@ function SectionHeader({
   const { t } = useTranslation();
   const pinInteractive = Boolean(dayKey && onDayKeySelect);
   const pinSelected = pinInteractive && selectedDayKey === dayKey;
+  const dayColor =
+    sectionIndex != null ? getBrowseSectionDayColor(sectionIndex) : getBrowseSectionDayColor(0);
 
   return (
     <div className={`flex items-center gap-1.5 min-w-0 ${compact ? 'px-0.5' : 'px-1'}`}>
@@ -56,16 +58,23 @@ function SectionHeader({
               : t('map.eventsDayPinFilter', { day: label })
           }
           className={`shrink-0 w-11 h-11 -my-2 flex items-center justify-center rounded-lg transition touch-manipulation ${
-            pinSelected
-              ? 'ring-2 ring-purple-500/80 bg-purple-500/15'
-              : 'hover:bg-white/5 active:bg-white/10'
+            pinSelected ? '' : 'hover:bg-white/5 active:bg-white/10'
           }`}
+          style={
+            pinSelected
+              ? {
+                  ['--event-day-color' as string]: dayColor,
+                  boxShadow: `0 0 0 2px ${dayColor}`,
+                  backgroundColor: `${dayColor}26`,
+                }
+              : undefined
+          }
         >
-          <EventDayPinIcon dayIndex={dayIndex ?? 0} className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
+          <EventDayPinIcon sectionIndex={sectionIndex ?? 0} className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
         </button>
       ) : (
         <EventDayPinIcon
-          dayIndex={dayIndex ?? 0}
+          sectionIndex={sectionIndex ?? 0}
           className={`shrink-0 ${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'}`}
         />
       )}
@@ -143,15 +152,6 @@ export interface MapEventsBrowseListProps {
   sponsoredEventPosts?: FeedPost[];
 }
 
-function SponsoBadge() {
-  const { t } = useTranslation();
-  return (
-    <span className="inline-flex items-center rounded-full bg-amber-500/15 border border-amber-500/35 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-300">
-      {t('map.sidebarSponsoBadge')}
-    </span>
-  );
-}
-
 function SponsoBrowseSection({
   posts,
   onOpenPost,
@@ -174,7 +174,7 @@ function SponsoBrowseSection({
         onOpen={onOpenPost}
         onPostChange={onPostChange}
         size={compact ? 'sidebar' : 'compact'}
-        getExtraBadges={() => <SponsoBadge />}
+        sponsoredVisual
       />
     </div>
   );
@@ -353,16 +353,14 @@ export function MapEventsBrowseList({
             onPostChange={onPostChange}
             compact={isSidebar}
           />
-          {filteredEventsByDay.map(({ dayKey, posts }, dayIndex) => {
+          {filteredEventsByDay.map(({ dayKey, posts }, sectionIndex) => {
             const { label, subtitle } = getDaySectionHeader(dayKey, i18n.language, t);
-            const browseDayIndex = getMapEventBrowseDayIndex(dayKey);
-            const resolvedDayIndex = browseDayIndex >= 0 ? browseDayIndex : dayIndex;
             return (
               <div key={dayKey} className="space-y-2 min-w-0">
                 <SectionHeader
                   label={label}
                   dayKey={dayKey}
-                  dayIndex={resolvedDayIndex}
+                  sectionIndex={sectionIndex}
                   selectedDayKey={selectedMapEventDayKey}
                   onDayKeySelect={onMapEventDayKeySelect}
                   subtitle={subtitle}

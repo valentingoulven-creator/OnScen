@@ -24,6 +24,8 @@ export function isFixedMapGeoSource(source: LivesGeoSource): boolean {
   return source === 'city' || source === 'address';
 }
 
+import { normalizeCityLabel } from './eventLocationPresets';
+import { resolveEventCityCoordsSync, resolveEventCoordsSync } from './mapEventCoords';
 import { clampNearbyRadiusKm, getNearbyRadiusKm, setNearbyRadiusKm } from './settings';
 
 /** Point de référence carte / requêtes nearby (source GPS, ville ou adresse). */
@@ -178,6 +180,73 @@ export function getNearbyQueryCenter(
     return [geo.latitude, geo.longitude];
   }
   return [...DEFAULT_CENTER];
+}
+
+export function hasPersistedMapGeoPrefs(): boolean {
+  try {
+    return Boolean(localStorage.getItem(STORAGE_KEY));
+  } catch {
+    return false;
+  }
+}
+
+/** Lieu par défaut browse lives : ville profil → GPS live navigateur ; ignore my_position persisté sans GPS. */
+export function resolveDefaultLivesGeoPrefs(
+  profileCity?: string,
+  userPosition?: [number, number] | null
+): LivesGeoPrefs {
+  const radiusKm = getNearbyRadiusKm();
+  const geo = getLivesGeo();
+
+  if (
+    hasPersistedMapGeoPrefs() &&
+    isFixedMapGeoSource(geo.source) &&
+    geo.label.trim()
+  ) {
+    return { ...geo, radiusKm };
+  }
+
+  if (userPosition && coordsFinite(userPosition[0], userPosition[1])) {
+    return {
+      latitude: userPosition[0],
+      longitude: userPosition[1],
+      radiusKm,
+      label: 'Ma position',
+      source: 'my_position',
+    };
+  }
+
+  const profileLabel = normalizeCityLabel(profileCity ?? '');
+  if (profileLabel) {
+    const coords = resolveEventCoordsSync(profileLabel) ?? resolveEventCityCoordsSync(profileLabel);
+    if (coords && coordsFinite(coords.latitude, coords.longitude)) {
+      return {
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        radiusKm,
+        label: profileLabel,
+        source: 'city',
+      };
+    }
+    const preset = coordsForCityName(profileLabel);
+    if (coordsFinite(preset.latitude, preset.longitude)) {
+      return {
+        latitude: preset.latitude,
+        longitude: preset.longitude,
+        radiusKm,
+        label: preset.label,
+        source: 'city',
+      };
+    }
+  }
+
+  return {
+    latitude: DEFAULT_CENTER[0],
+    longitude: DEFAULT_CENTER[1],
+    radiusKm,
+    label: '',
+    source: 'city',
+  };
 }
 
 export function getLivesGeo(): LivesGeoPrefs {

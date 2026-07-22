@@ -30,7 +30,11 @@ import { api } from '../lib/api';
 import { LiveStreamEndedOverlay } from './LiveStreamEndedOverlay';
 import { LiveChatVideoOverlay } from './LiveChatVideoOverlay';
 import { LiveVideoUnavailableOverlay } from './LiveVideoUnavailableOverlay';
-import { LiveTheaterLiveBadge, LiveVideoStagePlaceholder } from './LiveVideoStagePlaceholder';
+import {
+  LiveTheaterLiveBadge,
+  LiveVideoStageOverlayLeaveButton,
+  LiveVideoStagePlaceholder,
+} from './LiveVideoStagePlaceholder';
 import { LiveTheaterStatusBar, LiveVideoChromeButton } from './LiveVideoTheaterChrome';
 import { useLiveVideoChromeAutoHide } from '../hooks/useLiveVideoChromeAutoHide';
 import {
@@ -404,10 +408,14 @@ export type LiveKitVideoStageProps = {
   onToggleViewerPlaybackPaused?: () => void;
   /** PiP flottant in-app : vidéo seule déplaçable, toujours au premier plan. */
   videoFloat?: VideoPipFloatApi;
+  /** Fermer le PiP sans rouvrir le live plein écran. */
+  onDismissPip?: () => void;
   /** Appelé quand l'utilisateur clique sur ⤢ pour activer le PiP. */
   onPipOpen?: () => void;
   /** Bouton « Actions à faire » hôte (chrome théâtre, après plein écran). */
   hostActionsChrome?: ReactNode;
+  /** Spectateur : quitter le live depuis le placeholder théâtre. */
+  onLeaveLive?: () => void;
 };
 
 export function LiveKitVideoStage({
@@ -440,8 +448,10 @@ export function LiveKitVideoStage({
   viewerPlaybackPaused = false,
   onToggleViewerPlaybackPaused,
   videoFloat,
+  onDismissPip,
   onPipOpen,
   hostActionsChrome,
+  onLeaveLive,
 }: LiveKitVideoStageProps) {
   const videoResolution = getLiveVideoResolutionPreset(videoResolutionProp);
   const videoAspectRatio = getLiveVideoAspectRatioPreset(videoAspectRatioProp);
@@ -456,6 +466,15 @@ export function LiveKitVideoStage({
   const expandedRef = useRef(false);
   const isVideoExpanded = isVideoFullscreen || isLandscapeTheater;
   const { chromeVisible } = useLiveVideoChromeAutoHide(stageAreaRef, enabled && !videoFloat);
+
+  const placeholderLeaveAction =
+    !isHost && onLeaveLive && !videoFloat ? (
+      <LiveVideoStageOverlayLeaveButton
+        onClick={onLeaveLive}
+        label={t('live.leaveLive')}
+        shortLabel={t('live.leaveLiveShort')}
+      />
+    ) : undefined;
   const [session, setSession] = useState<LiveKitSession | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [hostStreamActive, setHostStreamActive] = useState(false);
@@ -801,16 +820,6 @@ export function LiveKitVideoStage({
           <p className="text-[9px] font-bold text-purple-400 uppercase tracking-widest flex-1 truncate min-w-0">
             {displayPlaybackTitle}
           </p>
-          <button
-            type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={videoFloat.onClose}
-            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition text-sm"
-            title="Ancrer la vidéo"
-            aria-label="Ancrer la vidéo"
-          >
-            &#x2199;
-          </button>
           {!isHost && onToggleViewerPlaybackPaused ? (
             <button
               type="button"
@@ -823,6 +832,28 @@ export function LiveKitVideoStage({
               {viewerPlaybackPaused ? <LiveVideoPlayIcon /> : <LiveVideoPauseIcon />}
             </button>
           ) : null}
+          {(!isHost && onLeaveLive) || onDismissPip ? (
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={!isHost && onLeaveLive ? onLeaveLive : onDismissPip!}
+              className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-red-500/25 transition text-sm leading-none"
+              title={!isHost && onLeaveLive ? t('live.leaveLive') : t('live.closePip')}
+              aria-label={!isHost && onLeaveLive ? t('live.leaveLive') : t('live.closePip')}
+            >
+              ×
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={videoFloat.onClose}
+            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition text-sm"
+            title={t('live.anchorVideoPip')}
+            aria-label={t('live.anchorVideoPip')}
+          >
+            &#x2199;
+          </button>
         </div>
       )}
 
@@ -871,6 +902,7 @@ export function LiveKitVideoStage({
             albumArtUrl={albumArtUrl}
             loading={stageState === 'loading'}
             badge={stageState === 'loading' ? <LiveTheaterLiveBadge /> : undefined}
+            topTrailing={placeholderLeaveAction}
           />
         )}
 

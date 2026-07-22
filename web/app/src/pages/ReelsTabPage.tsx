@@ -51,6 +51,9 @@ import {
 import { pauseAllReelsMediaInDom, pauseInactiveReelsMediaInDom } from '../lib/reelsMedia';
 import { filterReelsBySearch } from '../lib/reelsSearch';
 import { ReelsSponsoredSlide } from '../components/ReelsSponsoredSlide';
+import { ReelDevSponsoModal } from '../components/ReelDevSponsoModal';
+import { isDevStaff } from '../lib/adminStaffRoles';
+import { REELS_SPONSO_REFRESH_EVENT } from '../lib/mapUiEvents';
 import {
   DEFAULT_REELS_SPONSOR_CONFIG,
   interleaveReelsSponsors,
@@ -331,6 +334,8 @@ export function ReelsTabPage({
   const pendingReelFetchRef = useRef(false);
   const viewedReelsThisSession = useRef(new Set<string>());
   const [algoSheetOpen, setAlgoSheetOpen] = useState(false);
+  const [sponsoModalOpen, setSponsoModalOpen] = useState(false);
+  const isDev = isDevStaff(user);
   const [createReelOpen, setCreateReelOpen] = useState(false);
   const [pendingPublishReel, setPendingPublishReel] = useState<MusicReel | null>(null);
   const [publishingReel, setPublishingReel] = useState(false);
@@ -408,13 +413,18 @@ export function ReelsTabPage({
 
   useEffect(() => {
     if (!isActive) return;
-    api
-      .getReelsSponsors()
-      .then((r) => {
-        setReelsSponsorAds(r.items);
-        setReelsSponsorConfig(r.config);
-      })
-      .catch(() => undefined);
+    const reloadSponsors = () => {
+      void api
+        .getReelsSponsors()
+        .then((r) => {
+          setReelsSponsorAds(r.items);
+          setReelsSponsorConfig(r.config);
+        })
+        .catch(() => undefined);
+    };
+    reloadSponsors();
+    window.addEventListener(REELS_SPONSO_REFRESH_EVENT, reloadSponsors);
+    return () => window.removeEventListener(REELS_SPONSO_REFRESH_EVENT, reloadSponsors);
   }, [isActive]);
 
   const activeHasSound =
@@ -1412,6 +1422,24 @@ export function ReelsTabPage({
             clearLastTabStartReelId();
             void refreshFeedWithStart({ skipStartIndex: false });
           }}
+          isDev={isDev}
+          activeReel={activeReel}
+          onOpenSponso={
+            isDev && activeReel
+              ? () => {
+                  setAlgoSheetOpen(false);
+                  setSponsoModalOpen(true);
+                }
+              : undefined
+          }
+        />
+      )}
+
+      {sponsoModalOpen && activeReel && (
+        <ReelDevSponsoModal
+          open
+          reel={activeReel}
+          onClose={() => setSponsoModalOpen(false)}
         />
       )}
     </div>
@@ -2128,7 +2156,20 @@ const ReelSlide = memo(
     prev.showPlaybackPaused === next.showPlaybackPaused
 );
 
-function ReelsAlgoSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function ReelsAlgoSheet({
+  onClose,
+  onSaved,
+  isDev = false,
+  activeReel,
+  onOpenSponso,
+}: {
+  onClose: () => void;
+  onSaved: () => void;
+  isDev?: boolean;
+  activeReel?: MusicReel;
+  onOpenSponso?: () => void;
+}) {
+  const { t } = useTranslation();
   const [prefs, setPrefs] = useState<ReelsUserPrefs>(() => readReelsUserPrefs());
   const [showAllGenres, setShowAllGenres] = useState(false);
 
@@ -2332,6 +2373,20 @@ function ReelsAlgoSheet({ onClose, onSaved }: { onClose: () => void; onSaved: ()
             </div>
           </section>
           </div>
+
+          {isDev && activeReel && onOpenSponso ? (
+            <section className="rounded-xl border border-purple-500/40 bg-purple-950/20 p-3 space-y-2">
+              <p className="text-sm font-semibold text-purple-200">{t('reels.sponsoDevSheetTitle')}</p>
+              <p className="text-xs text-gray-400 leading-snug">{t('reels.sponsoDevSheetHint')}</p>
+              <button
+                type="button"
+                onClick={onOpenSponso}
+                className="w-full min-h-[44px] px-3 py-2.5 rounded-xl bg-purple-600/90 hover:bg-purple-500 text-sm font-semibold text-white border border-purple-400/40 transition-colors"
+              >
+                {t('reels.sponsoDev')}
+              </button>
+            </section>
+          ) : null}
         </div>
 
         <div className="flex gap-3 px-4 py-4 border-t border-[#1e1e2f]">

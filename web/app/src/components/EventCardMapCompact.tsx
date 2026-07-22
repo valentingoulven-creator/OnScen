@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import {
-  formatEventTimeShort,
+  formatEventDateTimeShort,
   getEventDates,
   getPrimaryEventDate,
   resolveEventHeroVisual,
 } from '../lib/feedEvents';
-import { getEventTypeIcon, type FeedEventType } from '../lib/eventType';
+import { getMapEventDisplayIcon, type FeedEventType } from '../lib/eventType';
 import type { FeedPost } from '../types';
 import { UserAvatarOnline } from './UserAvatarOnline';
 import { UsernameDisplay } from './UsernameDisplay';
@@ -40,6 +40,8 @@ export interface EventCardMapCompactProps {
   locationCoords?: { latitude: number; longitude: number } | null;
   /** sidebar = hero h-12 + hint « Voir sur la carte » ; map = hero h-10, plus serré */
   density?: 'sidebar' | 'map';
+  /** Événement sponsorisé sidebar — icône ✨. */
+  sponsoredVisual?: boolean;
 }
 
 /** Carte événement compacte (sidebar carousel). */
@@ -53,6 +55,7 @@ export function EventCardMapCompact({
   locationNavigable = false,
   locationCoords = null,
   density = 'sidebar',
+  sponsoredVisual = false,
 }: EventCardMapCompactProps) {
   const { t } = useTranslation();
   const { token } = useAuth();
@@ -74,12 +77,14 @@ export function EventCardMapCompact({
 
   const showHeroImage = hero.type === 'image' && !heroImageFailed;
   const primaryEventDate = getPrimaryEventDate(post);
-  const eventTime = primaryEventDate ? formatEventTimeShort(primaryEventDate) : '';
+  const eventDateTime = primaryEventDate ? formatEventDateTimeShort(primaryEventDate) : '';
   const eventDates = getEventDates(post);
   const title = post.content.trim();
   const location = post.eventLocation?.trim() ?? '';
-  const eventTypeIcon = getEventTypeIcon(post.eventType);
-  const eventTypeName = eventTypeLabel(t, post.eventType);
+  const eventTypeIcon = getMapEventDisplayIcon(post.eventType, { sponsored: sponsoredVisual });
+  const eventTypeName = sponsoredVisual
+    ? t('map.sidebarSponsoCategory', { defaultValue: 'Sponso' })
+    : eventTypeLabel(t, post.eventType);
   const locateLabel = t('map.eventsBrowseViewOnMap', { defaultValue: 'Voir sur la carte' });
 
   const heroHeight = isMap ? 'h-10' : 'h-12';
@@ -200,9 +205,9 @@ export function EventCardMapCompact({
           {eventTypeName}
         </span>
 
-        {eventTime ? (
-          <span className="absolute bottom-1 left-1 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-white backdrop-blur-sm">
-            {eventTime}
+        {eventDateTime ? (
+          <span className="absolute bottom-1 left-1 max-w-[calc(100%-2.5rem)] rounded-md bg-black/55 px-1.5 py-0.5 text-[9px] font-bold tabular-nums text-white backdrop-blur-sm truncate">
+            {eventDateTime}
             {eventDates.length > 1 ? (
               <span className="ml-0.5 font-semibold text-purple-200/90">+{eventDates.length - 1}</span>
             ) : null}

@@ -101,7 +101,7 @@ function sortClustersByCountDesc(clusters: MapEventCityCluster[]): MapEventCityC
 }
 
 
-function isSidebarFollowingEvent(
+export function isSidebarFollowingEvent(
   e: MapEventMarker,
   followingIds: Set<string>,
   savedEventPostIds: Set<string>
@@ -202,6 +202,8 @@ export function buildMapSidebarContent(opts: {
   savedEventPostIds?: Set<string>;
   /** Pool complet pour la section Suivi quand aucun filtre carte actif. */
   allMapEvents?: MapEventMarker[];
+  /** Pool salons nearby (section Suivi sans filtre Salon actif). */
+  allSalons?: Salon[];
   /** Centre de la dernière requête nearby ; si absent, centre des bounds (tests). */
   nearbyFetchCenter?: [number, number] | null;
 }): MapSidebarContent {
@@ -221,6 +223,7 @@ export function buildMapSidebarContent(opts: {
     followingIds = new Set(),
     savedEventPostIds = new Set(),
     allMapEvents = mapEvents,
+    allSalons = salons,
     nearbyFetchCenter,
   } = opts;
 
@@ -232,7 +235,7 @@ export function buildMapSidebarContent(opts: {
         ? sortLivesByViewersDesc(activeLives.filter((l) => followingIds.has(l.hostId)))
         : [];
 
-    const salonPool = salons.filter(isPublicSalon);
+    const salonPool = allSalons.filter(isPublicSalon);
     const salonsFollowing =
       followingIds.size > 0
         ? sortSalonsByListenersDesc(salonPool.filter((s) => followingIds.has(s.hostId)))

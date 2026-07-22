@@ -1,6 +1,10 @@
 import { Instances, Instance } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
+import { useMemo, useRef } from 'react';
+import type { Group } from 'three';
 import { MARKER_SURFACE_RADIUS } from '../../lib/globe3d/constants';
 import { lonLatToVector3 } from '../../lib/globe3d/geoMath';
+import { isGlobePointFacingCamera } from '../../lib/globe3d/markerVisibility3d';
 
 export interface SoundyGlobePoint {
   lat: number;
@@ -14,6 +18,8 @@ export interface SoundyGlobePoint {
   icon?: string;
   /** Index jour browse (0–3) pour la couleur du pin événement. */
   dayIndex?: number;
+  /** Événement sponsorisé sidebar — pin ✨ (Html overlay). */
+  isSponsored?: boolean;
   /** Nombre d'événements regroupés — badge numérique sur l'icône. */
   count?: number;
 }
@@ -31,9 +37,46 @@ function markerWorldSize(radius: number, overviewDots: boolean): number {
 
 const ICON_MARKER_TYPES = new Set(['event', 'live', 'live-cluster', 'user']);
 
+function FacingSphereInstance({
+  point,
+  size,
+  onPointClick,
+}: {
+  point: SoundyGlobePoint;
+  size: number;
+  onPointClick: (point: SoundyGlobePoint) => void;
+}) {
+  const groupRef = useRef<Group>(null);
+  const markerPosRef = useRef(lonLatToVector3(point.lng, point.lat, MARKER_SURFACE_RADIUS));
+
+  useFrame(({ camera }) => {
+    const group = groupRef.current;
+    if (!group) return;
+    markerPosRef.current = lonLatToVector3(point.lng, point.lat, MARKER_SURFACE_RADIUS);
+    group.position.copy(markerPosRef.current);
+    const facing = isGlobePointFacingCamera(markerPosRef.current, camera.position);
+    group.visible = facing;
+  });
+
+  return (
+    <group ref={groupRef} position={markerPosRef.current}>
+      <mesh
+        scale={size}
+        onClick={(e) => {
+          e.stopPropagation();
+          onPointClick(point);
+        }}
+      >
+        <sphereGeometry args={[1, 8, 8]} />
+        <meshStandardMaterial color={point.color} toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
 /**
- * Sphères instanciées — marqueurs sans overlay DOM dédié (event/live/user
- * rendus par SoundyGlobeEventMarkers / SoundyGlobeLiveMarkers / SoundyGlobeUserMarker).
+ * Sphères — marqueurs sans overlay DOM (event/live/user via composants dédiés).
+ * Masque l'hémisphère arrière (comme GlobeFacingHtml).
  */
 export function SoundyGlobeMarkers({
   points,
@@ -41,8 +84,26 @@ export function SoundyGlobeMarkers({
   overviewDots,
   onPointClick,
 }: SoundyGlobeMarkersProps) {
-  const spherePoints = points.filter((p) => !ICON_MARKER_TYPES.has(p.type));
+  const spherePoints = useMemo(
+    () => points.filter((p) => !ICON_MARKER_TYPES.has(p.type)),
+    [points]
+  );
   if (spherePoints.length === 0) return null;
+
+  if (spherePoints.length <= 120) {
+    return (
+      <>
+        {spherePoints.map((p, i) => (
+          <FacingSphereInstance
+            key={`${p.type}-${p.lat}-${p.lng}-${i}`}
+            point={p}
+            size={markerWorldSize(p.radius, overviewDots)}
+            onPointClick={onPointClick}
+          />
+        ))}
+      </>
+    );
+  }
 
   return (
     <Instances limit={spherePoints.length} range={spherePoints.length}>
