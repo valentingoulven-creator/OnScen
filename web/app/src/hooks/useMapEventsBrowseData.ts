@@ -7,6 +7,7 @@ import {
   groupFeedPostsByCalendarDays,
   countFeedPostsInCalendarDays,
   hasUpcomingEventDate,
+  mergeBrowseDayKeysForMapPosts,
 } from '../lib/feedEvents';
 import { groupFeedPostsByCountryCategory } from '../lib/mapEventBrowseCategories';
 import {
@@ -26,6 +27,7 @@ export function useMapEventsBrowseData({
   favoriteAuthorIds,
   eventsFilterOn = false,
   filterCriteria,
+  eventFilterCustomized = false,
   /** Événements carte déjà filtrés par viewport (onglet Autour). */
   aroundEventPosts,
   viewerId,
@@ -37,6 +39,7 @@ export function useMapEventsBrowseData({
   favoriteAuthorIds?: ReadonlySet<string>;
   eventsFilterOn?: boolean;
   filterCriteria?: MapEventFilterCriteria;
+  eventFilterCustomized?: boolean;
   aroundEventPosts?: FeedPost[];
   viewerId?: string;
   onPostChange?: (postId: string, patch: Partial<FeedPost>) => void;
@@ -98,13 +101,14 @@ export function useMapEventsBrowseData({
       return aroundEventPosts;
     }
     const upcoming = getUpcomingUserEvents(communityEventPosts, { favoriteAuthorIds });
-    if (!eventsFilterOn || !filterCriteria) return upcoming;
+    if (!eventsFilterOn || !filterCriteria || !eventFilterCustomized) return upcoming;
     return filterFeedPostsByEventCriteria(upcoming, filterCriteria, { viewerId });
   }, [
     aroundEventPosts,
     communityEventPosts,
     favoriteAuthorIds,
     eventsFilterOn,
+    eventFilterCustomized,
     filterCriteria,
     viewerId,
   ]);
@@ -116,9 +120,9 @@ export function useMapEventsBrowseData({
         (a, b) =>
           new Date(getPrimaryEventDate(a)!).getTime() - new Date(getPrimaryEventDate(b)!).getTime()
       );
-    if (!eventsFilterOn || !filterCriteria) return upcoming;
+    if (!eventsFilterOn || !filterCriteria || !eventFilterCustomized) return upcoming;
     return filterFeedPostsByEventCriteria(upcoming, filterCriteria, { viewerId });
-  }, [countryEventPosts, eventsFilterOn, filterCriteria, viewerId]);
+  }, [countryEventPosts, eventsFilterOn, eventFilterCustomized, filterCriteria, viewerId]);
 
   const displayCountryCode = countryCode ?? EVENTS_COUNTRY_FALLBACK.code;
   const displayCountryName = countryName ?? EVENTS_COUNTRY_FALLBACK.name;
@@ -127,14 +131,22 @@ export function useMapEventsBrowseData({
   const activePosts = activeTab === 'around' ? communityEvents : countryUpcoming;
   const activeLoading = activeTab === 'around' ? communityEventsLoading : countryEventsLoading;
 
-  const browseDayKeys = useMemo(
-    () => getBrowseSheetCalendarDayKeys(filterCriteria, eventsFilterOn),
-    [filterCriteria, eventsFilterOn]
-  );
+  const browseDayKeys = useMemo(() => {
+    const useFilterDays = eventsFilterOn && eventFilterCustomized && filterCriteria;
+    const base = getBrowseSheetCalendarDayKeys(
+      useFilterDays ? filterCriteria : undefined,
+      Boolean(useFilterDays)
+    );
+    if (!eventFilterCustomized || aroundEventPosts === undefined) return base;
+    return mergeBrowseDayKeysForMapPosts(base, aroundEventPosts);
+  }, [filterCriteria, eventsFilterOn, eventFilterCustomized, aroundEventPosts]);
 
   const aroundBrowseDayOpts = useMemo(
-    () => (aroundEventPosts !== undefined ? { fallbackNearestDay: true } : undefined),
-    [aroundEventPosts]
+    () =>
+      eventFilterCustomized && aroundEventPosts !== undefined
+        ? { fallbackNearestDay: true }
+        : undefined,
+    [eventFilterCustomized, aroundEventPosts]
   );
 
   const eventsByDay = useMemo(
@@ -151,13 +163,10 @@ export function useMapEventsBrowseData({
     return groupFeedPostsByCountryCategory(inWindow);
   }, [countryUpcoming, browseDayKeys]);
 
-  /** Badges onglets : Autour viewport = tous les posts carte ; sinon fenêtre jour. */
+  /** Badges onglets : fenêtre jour (3 jours par défaut ; plage filtre si sheet appliquée). */
   const communityEventsVisibleCount = useMemo(
-    () =>
-      aroundEventPosts !== undefined
-        ? communityEvents.length
-        : countFeedPostsInCalendarDays(communityEvents, browseDayKeys),
-    [aroundEventPosts, communityEvents, browseDayKeys]
+    () => countFeedPostsInCalendarDays(communityEvents, browseDayKeys),
+    [communityEvents, browseDayKeys]
   );
   const countryEventsVisibleCount = useMemo(
     () => countFeedPostsInCalendarDays(countryUpcoming, browseDayKeys),

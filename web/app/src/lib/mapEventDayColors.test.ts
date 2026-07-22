@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getBrowseSectionDayColor,
+  getDefaultMapEventBrowseDayKeys,
   getMapEventBrowseDayIndex,
   getMapEventDayColor,
   getMapEventDayIndexFromIso,
+  resolveClusterMapPinSponsored,
+  resolveEventMapPinHtml,
+  resolveMapEventMarkerPinColor,
+  resolveMapEventPinColor,
 } from './mapEventDayColors';
 import { getNextCalendarDayKeys, MAP_EVENTS_BROWSE_DAY_COUNT } from './feedEvents';
 
@@ -25,8 +31,50 @@ describe('mapEventDayColors', () => {
     expect(getMapEventDayColor(3)).toBe('#171717');
   });
 
+  it('cycles distinct browse section colors beyond the default map window', () => {
+    expect(getBrowseSectionDayColor(0)).toBe('#22c55e');
+    expect(getBrowseSectionDayColor(3)).toBe('#171717');
+    expect(getBrowseSectionDayColor(4)).toBe('#a855f7');
+    expect(getBrowseSectionDayColor(5)).not.toBe(getBrowseSectionDayColor(4));
+  });
+
+  it('resolves map pin color from browse day keys', () => {
+    const keys = ['2026-07-22', '2026-07-23', '2026-07-29'];
+    expect(resolveMapEventPinColor('2026-07-29', keys)).toBe(getBrowseSectionDayColor(2));
+    expect(resolveMapEventPinColor('2026-07-29', keys)).toBe('#f97316');
+  });
+
+  it('uses in-window occurrence for marker pin color, not primary date only', () => {
+    const keys = getDefaultMapEventBrowseDayKeys(new Date('2026-07-22T12:00:00'));
+    const tomorrow = keys[1]!;
+    const marker = {
+      eventDate: `${keys[2] ?? '2026-07-24'}T20:00:00`,
+      eventDates: [`${keys[2] ?? '2026-07-24'}T20:00:00`, `${tomorrow}T20:00:00`],
+    };
+    expect(resolveMapEventMarkerPinColor(marker, keys)).toBe(getBrowseSectionDayColor(1));
+  });
+
   it('derives day index from event iso', () => {
     expect(getMapEventDayIndexFromIso(`${dayKeys[0]!}T18:00:00`, from)).toBe(0);
     expect(getMapEventDayIndexFromIso(`${dayKeys[2]!}T18:00:00`, from)).toBe(2);
+  });
+
+  it('uses sparkle pin html for sponsored events', () => {
+    const html = resolveEventMapPinHtml({ dayIndex: 0, isSponsored: true });
+    expect(html).toContain('event-sponso-pin');
+    expect(html).toContain('✨');
+  });
+
+  it('detects sponsored cluster for single sponsored marker', () => {
+    expect(
+      resolveClusterMapPinSponsored({
+        events: [{ id: 'a', latitude: 1, longitude: 2, title: 'A', isSponsored: true }],
+      })
+    ).toBe(true);
+    expect(
+      resolveClusterMapPinSponsored({
+        events: [{ id: 'a', latitude: 1, longitude: 2, title: 'A' }],
+      })
+    ).toBe(false);
   });
 });

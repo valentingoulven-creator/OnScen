@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -10,7 +10,7 @@ import {
   resolveEventHeroVisual,
   splitFeedEventContent,
 } from '../lib/feedEvents';
-import { getEventTypeIcon, type FeedEventType } from '../lib/eventType';
+import { getMapEventDisplayIcon, type FeedEventType } from '../lib/eventType';
 import { storyLinkDisplayLabel } from '../lib/storyLink';
 import { resolveEventCoordsSync } from '../lib/mapEventCoords';
 import type { FeedPost } from '../types';
@@ -94,6 +94,8 @@ export interface EventCardProps {
   locationCoords?: { latitude: number; longitude: number } | null;
   /** Sync upvote (listes carrousel, profil…). */
   onPostChange?: (patch: Partial<FeedPost>) => void;
+  /** Carrousel Sponso sidebar — icône ✨ à la place du type. */
+  sponsoredVisual?: boolean;
 }
 
 export function EventCard({
@@ -111,6 +113,7 @@ export function EventCard({
   locationNavigable = false,
   locationCoords = null,
   onPostChange,
+  sponsoredVisual = false,
 }: EventCardProps) {
   const { t } = useTranslation();
   const { token } = useAuth();
@@ -145,7 +148,12 @@ export function EventCard({
 
   if (isSidebar && isCarousel) {
     return (
-      <EventCardMapSidebar post={post} onOpen={onOpen} onPostChange={onPostChange} />
+      <EventCardMapSidebar
+        post={post}
+        onOpen={onOpen}
+        onPostChange={onPostChange}
+        sponsoredVisual={sponsoredVisual}
+      />
     );
   }
 
@@ -270,8 +278,10 @@ export function EventCard({
     </div>
   ) : null;
 
-  const eventTypeIcon = getEventTypeIcon(post.eventType);
-  const eventTypeName = eventTypeLabel(t, post.eventType);
+  const eventTypeIcon = getMapEventDisplayIcon(post.eventType, { sponsored: sponsoredVisual });
+  const eventTypeName = sponsoredVisual
+    ? t('map.sidebarSponsoCategory', { defaultValue: 'Sponso' })
+    : eventTypeLabel(t, post.eventType);
 
   const heroVisual = (
     <div className={`relative w-full overflow-hidden bg-[#1a1028] ${heroClass}`}>

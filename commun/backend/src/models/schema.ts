@@ -645,6 +645,8 @@ export interface Sponsor {
   mapTargetLng?: number;
   /** Sidebar carte : publication événement (map_sidebar_events). */
   linkedEventPostId?: string;
+  /** Flux Reels : reel source (reels_sponsored, Dev). */
+  linkedReelId?: string;
   createdAt: number;
   updatedAt: number;
 }

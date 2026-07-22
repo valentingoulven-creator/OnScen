@@ -32,7 +32,7 @@ import {
 } from './lib/msdevDemoAccounts';
 import { ensureAccessAdmins, isAccessControlEnabled, loadAccessControlFromPersist } from './lib/accessControl';
 import { ensureDefaultMapSidebarEventSponsors, ensureDefaultSponsors, migrateSponsorMapVisibility, syncDefaultSponsorFields, syncDefaultSponsorScopes } from './lib/sponsors';
-import { ensureProductionSponsorContent } from './seed-production-sponsors';
+import { ensureProductionSponsorContent, refreshMsdevSponsorEventDatesIfStale } from './seed-production-sponsors';
 import { ensureDefaultSponsorPlatformConfig } from './lib/sponsorPlatformConfig';
 import { repairInvalidGeoInDb } from './lib/mapCoords';
 import { loadSalonsLivesFromPostgres } from './lib/pgSalonsLives';
@@ -420,8 +420,15 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
     schedulePersist();
   }
 
-  if (APP_ENV === 'production' || APP_ENV === 'preproduction') {
+  if (APP_ENV === 'production' || APP_ENV === 'preproduction' || APP_ENV === 'msdev') {
     ensureProductionSponsorContent();
+    if (APP_ENV === 'msdev') {
+      const refreshed = refreshMsdevSponsorEventDatesIfStale();
+      if (refreshed > 0) {
+        console.log(`[msdev] Dates événements Sponso repoussées : ${refreshed} publication(s)`);
+        schedulePersist();
+      }
+    }
   }
   const sidebarSponsorsAdded = ensureDefaultMapSidebarEventSponsors();
   if (sidebarSponsorsAdded > 0) {

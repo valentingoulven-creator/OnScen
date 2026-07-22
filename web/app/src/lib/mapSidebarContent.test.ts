@@ -108,6 +108,27 @@ describe('buildMapSidebarContent', () => {
     expect(countMapSidebarItems(content)).toBe(3);
   });
 
+  it('sans filtre carte : Suivi salons via allSalons même si salons viewport vide', () => {
+    const content = buildMapSidebarContent({
+      detail: detail('street'),
+      eventsFilterOn: false,
+      livesFilterOn: false,
+      salonFilterOn: false,
+      eventsOnly: false,
+      showAllSalonsAtCityZoom: false,
+      mapEvents: [],
+      eventClusters: [],
+      lives: [],
+      salons: [],
+      allSalons: [salon('s-pip', false, 'host-pip')],
+      people: [],
+      favoriteIds: new Set(),
+      followingIds: new Set(['host-pip']),
+      savedEventPostIds: new Set(),
+    });
+    expect(content.salonsFollowing.map((s) => s.id)).toEqual(['s-pip']);
+  });
+
   it('returns empty sections when no map filter is active', () => {
     const content = buildMapSidebarContent({
       detail: detail('street'),

@@ -1,4 +1,5 @@
 import { EventDayPinIcon } from '../EventDayPinIcon';
+import { SPONSOR_EVENT_ICON } from '../../lib/eventType';
 import type { SoundyGlobePoint } from './SoundyGlobeMarkers';
 import { GlobeFacingHtml } from './GlobeFacingHtml';
 
@@ -51,10 +52,13 @@ export function SoundyGlobeEventMarkers({ points, onPointClick }: SoundyGlobeEve
               onPointClick(p);
             }}
           >
-            <EventDayPinIcon
-              dayIndex={p.dayIndex ?? 3}
-              className="globe-event-pin"
-            />
+            {p.isSponsored ? (
+              <span className="globe-event-pin globe-event-pin--sponso" aria-hidden>
+                {SPONSOR_EVENT_ICON}
+              </span>
+            ) : (
+              <EventDayPinIcon dayIndex={p.dayIndex ?? 3} className="globe-event-pin" />
+            )}
             {p.count && p.count > 1 && (
               <span className="globe-event-cluster-badge">{p.count}</span>
             )}

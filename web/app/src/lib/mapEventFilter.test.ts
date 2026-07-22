@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   applyEventFilterDraftDefaults,
   createDefaultEventFilter,
@@ -7,13 +7,38 @@ import {
   filterFeedPostsByEventCriteria,
   filterMapEventsByCriteria,
   filterMapEventsOnCalendarDay,
+  filterMapEventPinsForView,
   getBrowseSheetCalendarDayKeys,
   getTodayDateInputValue,
   hasActiveEventFilterCriteria,
   isEventDateInRange,
+  resolveDefaultEventFilterLocation,
   resolveDefaultUserCityLabel,
 } from './mapEventFilter';
 import type { FeedPost, MapEventMarker } from '../types';
+
+function mockLocalStorage(store = new Map<string, string>()) {
+  vi.stubGlobal('localStorage', {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => {
+      store.set(k, v);
+    },
+    removeItem: (k: string) => {
+      store.delete(k);
+    },
+    clear: () => store.clear(),
+    key: () => null,
+    length: 0,
+  });
+}
+
+beforeEach(() => {
+  mockLocalStorage();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 function post(
   partial: Partial<FeedPost> & Pick<FeedPost, 'id' | 'author'>
@@ -149,6 +174,28 @@ describe('resolveDefaultUserCityLabel', () => {
   });
 });
 
+describe('resolveDefaultEventFilterLocation', () => {
+  it('prefers active geolocation over profile city', () => {
+    mockLocalStorage(
+      new Map([
+        [
+          'melosong_lives_geo',
+          JSON.stringify({
+            latitude: 43.6108,
+            longitude: 3.8767,
+            label: 'Ma position',
+            source: 'my_position',
+          }),
+        ],
+      ])
+    );
+    const result = resolveDefaultEventFilterLocation('Paris');
+    expect(result.location).toBe('Montpellier, France');
+    expect(result.latitude).toBeCloseTo(43.6108, 3);
+    expect(result.longitude).toBeCloseTo(3.8767, 3);
+  });
+});
+
 describe('createDefaultEventFilter', () => {
   it('sets dateFrom to today and profile city as location', () => {
     const criteria = createDefaultEventFilter('Montpellier');
@@ -268,5 +315,81 @@ describe('filterMapEventsOnCalendarDay', () => {
       marker({ id: 'b', latitude: 48.9, longitude: 2.4, eventDate: '2026-07-21T18:00:00.000Z' }),
     ];
     expect(filterMapEventsOnCalendarDay(events, '2026-07-20').map((e) => e.id)).toEqual(['a']);
+  });
+});
+
+describe('filterMapEventPinsForView', () => {
+  const merge = (regular: MapEventMarker[], sponsored: MapEventMarker[]) => [
+    ...sponsored,
+    ...regular,
+  ];
+
+  const events = [
+    marker({
+      id: 'regular-tomorrow',
+      latitude: 48.8,
+      longitude: 2.3,
+      eventDate: '2026-07-23T18:00:00.000Z',
+    }),
+    marker({
+      id: 'sponso-tomorrow',
+      latitude: 43.6,
+      longitude: 3.9,
+      eventDate: '2026-07-23T18:00:00.000Z',
+      isSponsored: true,
+    }),
+  ];
+
+  it('keeps sponsored pins on future days while regular pins stay today-only', () => {
+    const result = filterMapEventPinsForView(events, {
+      eventsFilterOn: false,
+      globeOverview: false,
+      merge,
+    });
+    expect(result.map((e) => e.id)).toEqual(['sponso-tomorrow']);
+  });
+
+  it('keeps sponsored pins in globe overview when regular uses today-or-tomorrow', () => {
+    const todayRegular = marker({
+      id: 'regular-today',
+      latitude: 48.8,
+      longitude: 2.3,
+      eventDate: '2026-07-22T18:00:00.000Z',
+    });
+    const pool = [todayRegular, ...events];
+    const result = filterMapEventPinsForView(pool, {
+      eventsFilterOn: false,
+      globeOverview: true,
+      merge,
+    });
+    expect(result.map((e) => e.id)).toEqual([
+      'sponso-tomorrow',
+      'regular-today',
+      'regular-tomorrow',
+    ]);
+  });
+
+  it('keeps sponsored pins when events filter criteria exclude them from the pool', () => {
+    const sponso = marker({
+      id: 'sponso-solar',
+      latitude: 43.6,
+      longitude: 3.9,
+      eventDate: '2026-07-22T18:00:00.000Z',
+      isSponsored: true,
+    });
+    const regularParis = marker({
+      id: 'regular-paris',
+      latitude: 48.8,
+      longitude: 2.3,
+      eventDate: '2026-07-22T18:00:00.000Z',
+    });
+    const all = [regularParis, sponso];
+    const result = filterMapEventPinsForView(all, {
+      eventsFilterOn: true,
+      globeOverview: false,
+      filteredWhenCriteria: [regularParis],
+      merge,
+    });
+    expect(result.map((e) => e.id)).toEqual(['sponso-solar', 'regular-paris']);
   });
 });

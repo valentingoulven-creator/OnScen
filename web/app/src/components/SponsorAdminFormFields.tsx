@@ -14,8 +14,7 @@ import {
   normalizeDisplayDurationSec,
 } from '../lib/sponsorDisplaySpec';
 import {
-  SPONSOR_DISPLAY_DAYS_MAX,
-  SPONSOR_DISPLAY_DAYS_MIN,
+  computeDisplayDaysFromForm,
   type SponsorAdminFormState,
 } from '../lib/sponsorAdminForm';
 import { resolveSponsorLogoSrc } from '../lib/sponsorLogoUpload';
@@ -62,6 +61,7 @@ export interface SponsorAdminFormFieldsProps {
   onSubmit: () => void | Promise<void>;
   lockPlacement?: SponsorPlacement;
   linkedEventPostIdReadOnly?: boolean;
+  linkedReelIdReadOnly?: boolean;
   secondaryAction?: {
     label: string;
     onClick: () => void | Promise<void>;
@@ -80,12 +80,14 @@ export function SponsorAdminFormFields({
   onSubmit,
   lockPlacement,
   linkedEventPostIdReadOnly = false,
+  linkedReelIdReadOnly = false,
   secondaryAction,
 }: SponsorAdminFormFieldsProps) {
   const { t } = useTranslation();
   const placement = lockPlacement ?? form.placement;
   const showMapBanner = placement === 'map_banner';
   const showMapSidebarEvents = placement === 'map_sidebar_events';
+  const showReelsSponsored = placement === 'reels_sponsored';
   const showStoriesBanner = placement === 'stories_banner';
   const imageSpec = SPONSOR_IMAGE_SPECS[placement];
 
@@ -221,6 +223,26 @@ export function SponsorAdminFormFields({
           </label>
         ))}
 
+      {showReelsSponsored &&
+        (linkedReelIdReadOnly ? (
+          <div className="block text-xs text-gray-400">
+            {t('admin.sponsors.fieldLinkedReelId')}
+            <p className="mt-1 rounded-xl border border-[#2d2d3d] bg-[#1a1a26] px-3 py-2 text-sm text-white font-mono break-all">
+              {form.linkedReelId}
+            </p>
+          </div>
+        ) : (
+          <label className="block text-xs text-gray-400">
+            {t('admin.sponsors.fieldLinkedReelId')}
+            <input
+              className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white font-mono"
+              value={form.linkedReelId}
+              onChange={(e) => setForm((f) => ({ ...f, linkedReelId: e.target.value }))}
+              placeholder={t('admin.sponsors.fieldLinkedReelIdPlaceholder')}
+            />
+          </label>
+        ))}
+
       {placement !== 'map_sidebar_events' && (
         <SponsorLogoUploadField
           logoUrl={form.logoUrl}
@@ -292,54 +314,60 @@ export function SponsorAdminFormFields({
         />
       </label>
 
-      <label className="block text-xs text-gray-400">
-        {t('admin.sponsors.fieldStartsAt')}
-        <input
-          type="datetime-local"
-          className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
-          value={form.startsAt}
-          onChange={(e) => setForm((f) => ({ ...f, startsAt: e.target.value }))}
-        />
-      </label>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <label className="block text-xs text-gray-400">
-          {t('admin.sponsors.fieldDisplayDays')}
+          {t('admin.sponsors.fieldStartsAt')}
           <input
-            type="number"
-            min={SPONSOR_DISPLAY_DAYS_MIN}
-            max={SPONSOR_DISPLAY_DAYS_MAX}
+            type="datetime-local"
             className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
-            value={form.displayDays}
-            onChange={(e) => setForm((f) => ({ ...f, displayDays: e.target.value }))}
+            value={form.startsAt}
+            onChange={(e) => {
+              const startsAt = e.target.value;
+              setForm((f) => ({
+                ...f,
+                startsAt,
+                displayDays: computeDisplayDaysFromForm(startsAt, f.endsAt),
+              }));
+            }}
           />
-          <span className="text-[10px] text-gray-500 mt-0.5 block">
-            {t('admin.sponsors.fieldDisplayDaysHint', {
-              min: SPONSOR_DISPLAY_DAYS_MIN,
-              max: SPONSOR_DISPLAY_DAYS_MAX,
-            })}
-          </span>
         </label>
 
         <label className="block text-xs text-gray-400">
-          {t('admin.sponsors.fieldDisplayDuration')}
+          {t('admin.sponsors.fieldEndsAt')}
           <input
-            type="number"
-            min={SPONSOR_DISPLAY_DURATION_MIN_SEC}
-            max={SPONSOR_DISPLAY_DURATION_MAX_SEC}
+            type="datetime-local"
             className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
-            value={form.displayDurationSec}
-            onChange={(e) => setForm((f) => ({ ...f, displayDurationSec: e.target.value }))}
+            value={form.endsAt}
+            onChange={(e) => {
+              const endsAt = e.target.value;
+              setForm((f) => ({
+                ...f,
+                endsAt,
+                displayDays: computeDisplayDaysFromForm(f.startsAt, endsAt),
+              }));
+            }}
           />
-          <span className="text-[10px] text-gray-500 mt-0.5 block">
-            {t('admin.sponsors.fieldDisplayDurationRotationHint', {
-              min: SPONSOR_DISPLAY_DURATION_MIN_SEC,
-              max: SPONSOR_DISPLAY_DURATION_MAX_SEC,
-              default: DEFAULT_DISPLAY_DURATION_SEC,
-            })}
-          </span>
         </label>
       </div>
+
+      <label className="block text-xs text-gray-400">
+        {t('admin.sponsors.fieldDisplayDuration')}
+        <input
+          type="number"
+          min={SPONSOR_DISPLAY_DURATION_MIN_SEC}
+          max={SPONSOR_DISPLAY_DURATION_MAX_SEC}
+          className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
+          value={form.displayDurationSec}
+          onChange={(e) => setForm((f) => ({ ...f, displayDurationSec: e.target.value }))}
+        />
+        <span className="text-[10px] text-gray-500 mt-0.5 block">
+          {t('admin.sponsors.fieldDisplayDurationRotationHint', {
+            min: SPONSOR_DISPLAY_DURATION_MIN_SEC,
+            max: SPONSOR_DISPLAY_DURATION_MAX_SEC,
+            default: DEFAULT_DISPLAY_DURATION_SEC,
+          })}
+        </span>
+      </label>
 
       <SponsorAudienceEstimatePanel form={form} />
 

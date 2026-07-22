@@ -18,3 +18,10 @@ export function dispatchMapEventsRefresh(): void {
 export function dispatchMapSidebarSponsoRefresh(): void {
   window.dispatchEvent(new Event(MAP_SIDEBAR_SPONSO_REFRESH_EVENT));
 }
+
+/** Recharge les sponsors intercalés dans le flux Reels (après promotion Dev). */
+export const REELS_SPONSO_REFRESH_EVENT = 'melosong_reels_sponso_refresh';
+
+export function dispatchReelsSponsoRefresh(): void {
+  window.dispatchEvent(new Event(REELS_SPONSO_REFRESH_EVENT));
+}

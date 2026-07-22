@@ -53,6 +53,31 @@ export function hasUpcomingEventDate(post: Pick<FeedPost, 'eventDate' | 'eventDa
   return getEventDates(post).some((iso) => isUpcomingEvent(iso));
 }
 
+/** Événement entièrement passé (avant aujourd'hui, jour calendaire) — Sponso carte/sidebar. */
+export function isEventPastForMapDisplay(
+  item: Pick<FeedPost, 'eventDate' | 'eventDates'> | Pick<MapEventMarker, 'eventDate' | 'eventDates'>,
+  now = new Date()
+): boolean {
+  const dates =
+    'eventDates' in item && item.eventDates?.length
+      ? getMapEventOccurrenceDates(item as MapEventMarker)
+      : getEventDates(item as FeedPost);
+  if (dates.length === 0) return true;
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  return dates.every((iso) => {
+    const t = new Date(iso).getTime();
+    return !Number.isFinite(t) || t < todayStart.getTime();
+  });
+}
+
+export function isMapEventVisibleAsSponsoPin(
+  marker: Pick<MapEventMarker, 'eventDate' | 'eventDates' | 'isSponsored'>,
+  now = new Date()
+): boolean {
+  return Boolean(marker.isSponsored) && !isEventPastForMapDisplay(marker, now);
+}
+
 export function getPrimaryEventDate(
   post: Pick<FeedPost, 'eventDate' | 'eventDates'>
 ): string | undefined {
@@ -207,6 +232,22 @@ export function sortEventPostsByUpvotes(posts: FeedPost[]): FeedPost[] {
   });
 }
 
+/** Fusionne les jours calendaires des posts carte dans la fenêtre browse sidebar. */
+export function mergeBrowseDayKeysForMapPosts(
+  baseDayKeys: string[],
+  posts: Pick<FeedPost, 'eventDate' | 'eventDates'>[]
+): string[] {
+  const keys = new Set(baseDayKeys);
+  for (const post of posts) {
+    for (const iso of getEventDates(post)) {
+      if (!isUpcomingEvent(iso)) continue;
+      const dayKey = getCalendarDayKey(iso);
+      if (dayKey) keys.add(dayKey);
+    }
+  }
+  return [...keys].sort();
+}
+
 /** Répartit les posts dans les buckets `dayKeys` (ordre conservé, jours vides inclus). */
 export function groupFeedPostsByCalendarDays(
   posts: FeedPost[],
@@ -250,6 +291,16 @@ export function formatEventTimeShort(iso: string): string {
   } catch {
     return '';
   }
+}
+
+/** Jour + heure compacts (ex. « sam. 4 juil. · 16:00 ») — overlay cartes sidebar. */
+export function formatEventDateTimeShort(iso: string): string {
+  const date = formatEventDateShort(iso);
+  const time = formatEventTimeShort(iso);
+  if (!date && !time) return '';
+  if (!time) return date;
+  if (!date) return time;
+  return `${date} · ${time}`;
 }
 
 /** Date courte pour overlay hero (ex. « sam. 7 juin »). */

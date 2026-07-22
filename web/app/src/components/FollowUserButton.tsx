@@ -1,6 +1,8 @@
 import { memo, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import { notifyFollowingChanged, type FollowingChangedContext } from '../lib/followingSync';
+import type { Live, Salon } from '../types';
 
 interface FollowUserButtonProps {
   userId: string;
@@ -16,6 +18,9 @@ interface FollowUserButtonProps {
   variant?: 'default' | 'pill';
   className?: string;
   onFollowingChange?: (following: boolean) => void;
+  /** Salon / live source (PiP) — sidebar Suivi carte. */
+  relatedSalon?: Salon;
+  relatedLive?: Live;
 }
 
 export const FollowUserButton = memo(function FollowUserButton({
@@ -29,13 +34,14 @@ export const FollowUserButton = memo(function FollowUserButton({
   variant = 'default',
   className = '',
   onFollowingChange,
+  relatedSalon,
+  relatedLive,
 }: FollowUserButtonProps) {
   const { user: me, token } = useAuth();
   const [following, setFollowing] = useState(initialFollowing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmUnfollow, setConfirmUnfollow] = useState(false);
-  const [followToast, setFollowToast] = useState<string | null>(null);
 
   useEffect(() => {
     setFollowing(initialFollowing);
@@ -45,20 +51,25 @@ export const FollowUserButton = memo(function FollowUserButton({
 
   const displayName = username?.trim() || 'cet utilisateur';
 
+  const followingContext = (): FollowingChangedContext | undefined => {
+    const ctx: FollowingChangedContext = {};
+    if (relatedSalon) ctx.salon = relatedSalon;
+    if (relatedLive) ctx.live = relatedLive;
+    return ctx.salon || ctx.live ? ctx : undefined;
+  };
+
   const follow = async () => {
     if (loading) return;
     setLoading(true);
     setError(null);
     setFollowing(true);
     onFollowingChange?.(true);
-    setFollowToast(`Vous suivez maintenant ${displayName}`);
-    window.setTimeout(() => setFollowToast(null), 3000);
     try {
       await api.followUser(token, userId);
+      notifyFollowingChanged(userId, true, followingContext());
     } catch (e) {
       setFollowing(false);
       onFollowingChange?.(false);
-      setFollowToast(null);
       setError(e instanceof Error ? e.message : 'Erreur');
     } finally {
       setLoading(false);
@@ -74,6 +85,7 @@ export const FollowUserButton = memo(function FollowUserButton({
     setConfirmUnfollow(false);
     try {
       await api.unfollowUser(token, userId);
+      notifyFollowingChanged(userId, false, followingContext());
     } catch (e) {
       setFollowing(true);
       onFollowingChange?.(true);
@@ -187,9 +199,8 @@ export const FollowUserButton = memo(function FollowUserButton({
           label
         )}
       </button>
-      {error && <p className="text-[10px] text-red-400 mt-1 text-center">{error}</p>}
-      {followToast && (
-        <p className="text-[10px] text-purple-300 mt-1 text-center">{followToast}</p>
+      {error && !pipHeader && (
+        <p className="text-[10px] text-red-400 mt-1 text-center">{error}</p>
       )}
 
       {confirmUnfollow && (

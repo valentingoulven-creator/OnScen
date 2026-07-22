@@ -1,5 +1,5 @@
 import { api } from './api';
-import { hasUpcomingEventDate, getPrimaryEventDate } from './feedEvents';
+import { getPrimaryEventDate, hasUpcomingEventDate, isEventPastForMapDisplay } from './feedEvents';
 import {
   resolveManyEventCoordsRemaining,
   resolveManyEventCoordsSync,
@@ -18,9 +18,30 @@ export function filterPostsForMapEvents(posts: FeedPost[]): FeedPost[] {
   );
 }
 
+/** Posts événement sponsorisés sidebar — masque uniquement les dates entièrement passées. */
+export function filterPostsForMapSponsoredEvents(posts: FeedPost[]): FeedPost[] {
+  return posts.filter(
+    (p) =>
+      p.isEvent &&
+      p.eventLocation?.trim() &&
+      !isEventPastForMapDisplay(p)
+  );
+}
+
+/** Fusionne marqueurs sponso et marqueurs feed sans doublon d'id (sponso prioritaire). */
+export function mergeMapEventMarkers(
+  base: MapEventMarker[],
+  sponsored: MapEventMarker[]
+): MapEventMarker[] {
+  if (sponsored.length === 0) return base;
+  const pinIds = new Set(sponsored.map((m) => m.id));
+  return [...sponsored, ...base.filter((m) => !pinIds.has(m.id))];
+}
+
 function postToMapEventMarker(
   post: FeedPost,
-  coords: { latitude: number; longitude: number }
+  coords: { latitude: number; longitude: number },
+  opts?: { isSponsored?: boolean }
 ): MapEventMarker {
   return {
     id: post.id,
@@ -38,6 +59,7 @@ function postToMapEventMarker(
     authorUsernameColor: post.author.usernameColor,
     authorUsernameWaveFrom: post.author.usernameWaveFrom,
     authorUsernameWaveTo: post.author.usernameWaveTo,
+    ...(opts?.isSponsored ? { isSponsored: true } : {}),
     ...(post.eventTaggedUsers?.length ? { eventTaggedUsers: post.eventTaggedUsers } : {}),
   };
 }
@@ -96,7 +118,8 @@ export function buildMapEventPostsById(posts: FeedPost[]): Map<string, FeedPost>
 function markersFromPostsAndCoords(
   posts: FeedPost[],
   coordsByLocation: ReadonlyMap<string, { latitude: number; longitude: number }>,
-  signal?: { cancelled: boolean }
+  signal?: { cancelled: boolean },
+  markerOpts?: { isSponsored?: boolean }
 ): MapEventMarker[] {
   const markers: MapEventMarker[] = [];
   for (const post of posts) {
@@ -104,9 +127,37 @@ function markersFromPostsAndCoords(
     const location = post.eventLocation!.trim();
     const coords = coordsByLocation.get(location);
     if (!coords || !isValidLatLng(coords.latitude, coords.longitude)) continue;
-    markers.push(postToMapEventMarker(post, coords));
+    markers.push(postToMapEventMarker(post, coords, markerOpts));
   }
   return markers;
+}
+
+/** Marqueurs carte pour événements sponsorisés sidebar (dates à venir uniquement). */
+export async function buildMapEventMarkersFromSponsoredPosts(
+  posts: FeedPost[],
+  opts?: {
+    signal?: { cancelled: boolean };
+    onProgress?: (markers: MapEventMarker[]) => void;
+  }
+): Promise<MapEventMarker[]> {
+  const eligible = filterPostsForMapSponsoredEvents(posts);
+  if (eligible.length === 0) return [];
+
+  const locations = eligible.map((p) => p.eventLocation!.trim());
+  const syncCoords = resolveManyEventCoordsSync(locations);
+  const syncMarkers = markersFromPostsAndCoords(eligible, syncCoords, opts?.signal, {
+    isSponsored: true,
+  });
+  if (syncMarkers.length > 0) opts?.onProgress?.(syncMarkers);
+
+  const allCoords = await resolveManyEventCoordsRemaining(locations, syncCoords, opts);
+  const finalMarkers = markersFromPostsAndCoords(eligible, allCoords, opts?.signal, {
+    isSponsored: true,
+  });
+  if (finalMarkers.length !== syncMarkers.length) {
+    opts?.onProgress?.(finalMarkers);
+  }
+  return finalMarkers;
 }
 
 /** Convertit des publications événement en marqueurs carte (géocodage async). */

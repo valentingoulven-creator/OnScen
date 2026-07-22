@@ -10,19 +10,15 @@ export function buildOverviewGeoMarkerHtml(opts: {
   kind: 'salon' | 'live';
   isLive: boolean;
 }): string {
+  if (opts.kind === 'salon') {
+    return `<div class="map-marker-overview-pin map-marker-overview-pin--salon" role="img"><span class="map-marker-overview-salon-badge">SALON</span><span class="map-marker-overview-dot salon"></span></div>`;
+  }
+
   const liveClass = opts.isLive || opts.kind === 'live' ? ' map-marker-overview-pin--live' : '';
-  const salonClass = opts.kind === 'salon' && !opts.isLive ? ' map-marker-overview-pin--salon' : '';
-  const dotClass =
-    opts.isLive || opts.kind === 'live'
-      ? 'map-marker-overview-dot live'
-      : 'map-marker-overview-dot salon';
+  const dotClass = 'map-marker-overview-dot live';
+  const liveBadge = '<span class="map-marker-overview-live-badge">LIVE</span>';
 
-  const liveBadge =
-    opts.isLive || opts.kind === 'live'
-      ? '<span class="map-marker-overview-live-badge">LIVE</span>'
-      : '';
-
-  return `<div class="map-marker-overview-pin${liveClass}${salonClass}" role="img">${liveBadge}<span class="${dotClass}"></span></div>`;
+  return `<div class="map-marker-overview-pin${liveClass}" role="img">${liveBadge}<span class="${dotClass}"></span></div>`;
 }
 
 /** Pin live regroupé (plusieurs sessions au même lieu) — pastille + compteur. */

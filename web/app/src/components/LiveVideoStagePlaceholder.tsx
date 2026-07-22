@@ -9,6 +9,8 @@ export type LiveVideoStagePlaceholderProps = {
   icon?: ReactNode;
   badge?: ReactNode;
   footer?: ReactNode;
+  /** Action en haut à droite (ex. quitter le live spectateur). */
+  topTrailing?: ReactNode;
   className?: string;
 };
 
@@ -21,14 +23,20 @@ export function LiveVideoStagePlaceholder({
   icon,
   badge,
   footer,
+  topTrailing,
   className = '',
 }: LiveVideoStagePlaceholderProps) {
   return (
     <div
-      className={`live-video-stage-overlay live-video-stage-overlay--theater z-0${className ? ` ${className}` : ''}`}
+      className={`live-video-stage-overlay live-video-stage-overlay--theater relative z-0${className ? ` ${className}` : ''}`}
       role="status"
       aria-live="polite"
     >
+      {topTrailing ? (
+        <div className="live-video-stage-overlay__top-trailing absolute top-3 right-3 z-20 pointer-events-auto">
+          {topTrailing}
+        </div>
+      ) : null}
       {albumArtUrl ? (
         <div
           className="live-video-stage-overlay__bg"
@@ -72,6 +80,27 @@ export function LiveVideoStagePlaceholder({
         {footer ? <div className="live-video-stage-overlay__footer w-full">{footer}</div> : null}
       </div>
     </div>
+  );
+}
+
+export function LiveVideoStageOverlayLeaveButton({
+  onClick,
+  label,
+  shortLabel,
+}: {
+  onClick: () => void;
+  label: string;
+  shortLabel: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center justify-center px-3 py-2 min-h-11 rounded-full text-xs font-bold bg-black/55 backdrop-blur-sm border border-white/20 text-white hover:bg-black/70 active:scale-[0.98] transition touch-manipulation"
+    >
+      <span className="sm:hidden">{shortLabel}</span>
+      <span className="hidden sm:inline">{label}</span>
+    </button>
   );
 }
 

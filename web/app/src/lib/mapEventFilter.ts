@@ -3,16 +3,17 @@ import {
   getEventDates,
   getNextCalendarDayKeys,
   isMapEventOccurringToday,
+  isMapEventVisibleAsSponsoPin,
   MAP_EVENTS_BROWSE_DAY_COUNT,
   MAP_EVENTS_BROWSE_MAX_DAY_COUNT,
 } from './feedEvents';
 import { normalizeCityLabel } from './eventLocationPresets';
 import type { FeedEventType } from './eventType';
 import { normalizeFeedEventType } from './eventType';
-import { getLivesGeo } from './livesGeo';
+import { findNearestMajorCities, getLivesGeo, hasPersistedMapGeoPrefs, isFixedMapGeoSource } from './livesGeo';
 import { extractCityFromLocation, getCityMapView } from './mapEventClusters';
 import { isValidLatLng } from './mapCoords';
-import { resolveEventCoordsSync } from './mapEventCoords';
+import { resolveEventCoordsSync, resolveEventCityCoordsSync } from './mapEventCoords';
 import { getDistanceKm } from './mapMarkerVisibility';
 import type { FeedPost, MapEventMarker } from '../types';
 
@@ -47,34 +48,96 @@ export function getTodayDateInputValue(): string {
 }
 
 /** Ville par défaut : profil utilisateur, sinon ville carte (getLivesGeo source city). */
-export function resolveDefaultUserCityLabel(profileCity?: string): string {
-  const fromProfile = normalizeCityLabel(profileCity ?? '');
-  if (fromProfile) return fromProfile;
-  const geo = getLivesGeo();
-  if (geo.source === 'city' && geo.label.trim()) {
-    return geo.label.trim();
+const DEFAULT_EVENT_FILTER_GEO_LABEL_MAX_KM = 60;
+
+function resolveMyPositionFilterLabel(lat: number, lon: number, storedLabel: string): string {
+  const trimmed = storedLabel.trim();
+  const nearest = findNearestMajorCities(lat, lon, 1)[0];
+  if (nearest && nearest.distanceKm <= DEFAULT_EVENT_FILTER_GEO_LABEL_MAX_KM) {
+    return nearest.label;
   }
-  return '';
+  if (trimmed && trimmed !== 'Ma position') return trimmed;
+  return trimmed || 'Ma position';
 }
 
-/** Default filter state: from today, user's city when known. */
+/** Lieu par défaut filtre événement : GPS actif → profil → ville/adresse carte. */
+export function resolveDefaultEventFilterLocation(profileCity?: string): {
+  location: string;
+  latitude: number | null;
+  longitude: number | null;
+} {
+  const geo = getLivesGeo();
+  const geoSaved = hasPersistedMapGeoPrefs();
+
+  if (
+    geoSaved &&
+    geo.source === 'my_position' &&
+    isValidLatLng(geo.latitude, geo.longitude)
+  ) {
+    return {
+      location: resolveMyPositionFilterLabel(geo.latitude, geo.longitude, geo.label),
+      latitude: geo.latitude,
+      longitude: geo.longitude,
+    };
+  }
+
+  const profileLabel = normalizeCityLabel(profileCity ?? '');
+  if (profileLabel) {
+    const coords = resolveEventCoordsSync(profileLabel) ?? resolveEventCityCoordsSync(profileLabel);
+    return {
+      location: profileLabel,
+      latitude: coords?.latitude ?? null,
+      longitude: coords?.longitude ?? null,
+    };
+  }
+
+  if (
+    geoSaved &&
+    isFixedMapGeoSource(geo.source) &&
+    geo.label.trim() &&
+    isValidLatLng(geo.latitude, geo.longitude)
+  ) {
+    return {
+      location: geo.label.trim(),
+      latitude: geo.latitude,
+      longitude: geo.longitude,
+    };
+  }
+
+  return { location: '', latitude: null, longitude: null };
+}
+
+export function resolveDefaultUserCityLabel(profileCity?: string): string {
+  return resolveDefaultEventFilterLocation(profileCity).location;
+}
+
+/** Default filter state: from today, geo or profile city when known. */
 export function createDefaultEventFilter(profileCity?: string): MapEventFilterCriteria {
+  const { location, latitude, longitude } = resolveDefaultEventFilterLocation(profileCity);
   return {
     ...EMPTY_EVENT_FILTER,
     dateFrom: getTodayDateInputValue(),
-    location: resolveDefaultUserCityLabel(profileCity),
+    location,
+    latitude,
+    longitude,
   };
 }
 
-/** Complète un brouillon (ouverture sheet) : date Du + ville si vides. */
+/** Complète un brouillon (ouverture sheet) : date Du + lieu si vides. */
 export function applyEventFilterDraftDefaults(
   criteria: MapEventFilterCriteria,
   profileCity?: string
 ): MapEventFilterCriteria {
+  const defaults = resolveDefaultEventFilterLocation(profileCity);
+  const hasExplicitLocation = Boolean(criteria.location.trim());
+  const location = criteria.location.trim() || defaults.location;
+
   return {
     ...criteria,
     dateFrom: criteria.dateFrom.trim() || getTodayDateInputValue(),
-    location: criteria.location.trim() || resolveDefaultUserCityLabel(profileCity),
+    location,
+    latitude: hasExplicitLocation ? criteria.latitude : defaults.latitude,
+    longitude: hasExplicitLocation ? criteria.longitude : defaults.longitude,
     radiusKm: criteria.radiusKm || DEFAULT_EVENT_FILTER_RADIUS_KM,
   };
 }
@@ -327,4 +390,33 @@ export function filterMapEventsOccurringTodayOrTomorrow(
       return day === today || day === tomorrowStr;
     })
   );
+}
+
+/**
+ * Pins carte : événements classiques = aujourd'hui (ou demain en globe) ;
+ * Sponso = toute date non passée (campagnes visibles jusqu'au jour J inclus).
+ */
+export function filterMapEventPinsForView(
+  events: MapEventMarker[],
+  opts: {
+    eventsFilterOn: boolean;
+    globeOverview: boolean;
+    filteredWhenCriteria?: MapEventMarker[];
+    merge: (regular: MapEventMarker[], sponsored: MapEventMarker[]) => MapEventMarker[];
+  }
+): MapEventMarker[] {
+  if (opts.eventsFilterOn) {
+    const pool = opts.filteredWhenCriteria ?? events;
+    const regular = pool.filter((event) => !event.isSponsored);
+    /** Sponso : hors critères filtre (toujours visible si date non passée). */
+    const sponsored = events.filter((event) => isMapEventVisibleAsSponsoPin(event));
+    return opts.merge(regular, sponsored);
+  }
+
+  const sponsored = events.filter((event) => isMapEventVisibleAsSponsoPin(event));
+  const regular = events.filter((event) => !event.isSponsored);
+  const filteredRegular = opts.globeOverview
+    ? filterMapEventsOccurringTodayOrTomorrow(regular)
+    : filterMapEventsOccurringToday(regular);
+  return opts.merge(filteredRegular, sponsored);
 }

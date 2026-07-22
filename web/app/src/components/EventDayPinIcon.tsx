@@ -1,15 +1,26 @@
-import { clampMapEventDayIndex, getMapEventDayColor, PIN_SVG_PATH } from '../lib/mapEventDayColors';
+import {
+  clampMapEventDayIndex,
+  getBrowseSectionDayColor,
+  getBrowseSectionDayStroke,
+  getMapEventDayColor,
+  PIN_SVG_PATH,
+} from '../lib/mapEventDayColors';
 
 export function EventDayPinIcon({
   dayIndex,
+  sectionIndex,
   className = 'w-4 h-4 shrink-0',
 }: {
-  dayIndex: number;
+  dayIndex?: number;
+  /** Index dans la liste browse — couleur distincte par section. */
+  sectionIndex?: number;
   className?: string;
 }) {
-  const idx = clampMapEventDayIndex(dayIndex);
-  const color = getMapEventDayColor(idx);
-  const stroke = idx >= 3 ? 'rgba(255,255,255,0.85)' : '#ffffff';
+  const color =
+    sectionIndex != null
+      ? getBrowseSectionDayColor(sectionIndex)
+      : getMapEventDayColor(clampMapEventDayIndex(dayIndex ?? 0));
+  const stroke = getBrowseSectionDayStroke(color);
 
   return (
     <svg

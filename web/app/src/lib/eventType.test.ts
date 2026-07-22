@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getEventTypeIcon, isFeedEventType } from './eventType';
+import { getEventTypeIcon, getMapEventDisplayIcon, isFeedEventType } from './eventType';
 
 describe('getEventTypeIcon', () => {
   it('retourne l’icône selon le type', () => {
@@ -11,6 +11,13 @@ describe('getEventTypeIcon', () => {
   it('défaut ✨ si type absent', () => {
     expect(getEventTypeIcon()).toBe('✨');
     expect(getEventTypeIcon(null)).toBe('✨');
+  });
+});
+
+describe('getMapEventDisplayIcon', () => {
+  it('force ✨ pour les événements sponsorisés', () => {
+    expect(getMapEventDisplayIcon('dance', { sponsored: true })).toBe('✨');
+    expect(getMapEventDisplayIcon('chant', { sponsored: true })).toBe('✨');
   });
 });
 

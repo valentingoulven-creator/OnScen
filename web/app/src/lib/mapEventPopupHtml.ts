@@ -1,5 +1,5 @@
 import { formatEventDateShort } from './feedEvents';
-import { getEventTypeIcon } from './eventType';
+import { getMapEventDisplayIcon } from './eventType';
 import type { MapEventCityCluster, MapEventMarker } from '../types';
 
 function escapeHtml(value: string): string {
@@ -18,7 +18,7 @@ function formatEventTimeForPopup(event: MapEventMarker): string {
 function buildEventPopupRow(event: MapEventMarker): string {
   const title = event.title.trim() || 'Événement';
   const time = formatEventTimeForPopup(event);
-  const icon = getEventTypeIcon(event.eventType);
+  const icon = getMapEventDisplayIcon(event.eventType, { sponsored: event.isSponsored });
   return `<button type="button" class="map-event-popup-item" data-event-id="${escapeHtml(event.id)}">
     <span class="map-event-popup-icon" aria-hidden="true">${icon}</span>
     <span class="map-event-popup-body">

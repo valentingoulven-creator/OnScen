@@ -58,18 +58,18 @@ import {
   createDefaultEventFilter,
   DEFAULT_EVENT_FILTER_RADIUS_KM,
   filterMapEventsByCriteria,
-  filterMapEventsOccurringToday,
-  filterMapEventsOccurringTodayOrTomorrow,
   filterMapEventsOnCalendarDay,
+  filterMapEventPinsForView,
+  getBrowseSheetCalendarDayKeys,
   getEventFilterCityMapRadiusKm,
   hasEventFilterCityLocation,
-  resolveDefaultUserCityLabel,
+  resolveDefaultEventFilterLocation,
   type MapEventFilterCriteria,
 } from '../lib/mapEventFilter';
-import { applySavedEventFavoriteState, feedPostFromMapEventMarker, loadMapEventMarkers, buildMapEventMarkersFromPosts } from '../lib/mapFeedEvents';
-import { getPrimaryEventDate } from '../lib/feedEvents';
+import { applySavedEventFavoriteState, feedPostFromMapEventMarker, loadMapEventMarkers, buildMapEventMarkersFromPosts, buildMapEventMarkersFromSponsoredPosts, mergeMapEventMarkers } from '../lib/mapFeedEvents';
+import { getPrimaryEventDate, isMapEventVisibleAsSponsoPin, mergeBrowseDayKeysForMapPosts } from '../lib/feedEvents';
 import { resolveEventCoords, resolveEventCoordsSync } from '../lib/mapEventCoords';
-import { clusterMapEventsByLocation, extractCityFromLocation, flattenEventClustersToMarkers } from '../lib/mapEventClusters';
+import { clusterMapEventsByLocation, extractCityFromLocation, flattenEventClustersToMarkers, sortMapEventsForPanel } from '../lib/mapEventClusters';
 import {
   getMapSearchFlyRadiusKm,
   MAP_FLY_TO_PLACE_EVENT,
@@ -89,6 +89,7 @@ import {
   countLivesFilterBadge,
   countMapSidebarItems,
   countSalonsSidebarItems,
+  isSidebarFollowingEvent,
 } from '../lib/mapSidebarContent';
 import {
   clipLivesForMapView,
@@ -140,6 +141,11 @@ import {
   sortNearbyPeople,
   sortSalonsForNearby,
 } from '../lib/nearbyPanelSettings';
+import {
+  applyFollowingChanged,
+  FOLLOWING_CHANGED_EVENT,
+  type FollowingChangedDetail,
+} from '../lib/followingSync';
 import { pauseAllReelsMediaInDom } from '../lib/reelsMedia';
 import { releaseAppMediaFocus, requestAppMediaFocus } from '../lib/appMediaFocus';
 import { clearMapInlineListenSession } from '../lib/mapListenSession';
@@ -384,6 +390,8 @@ export function HomePage({
   const [showEventMarkers, setShowEventMarkers] = useState(false);
   const [eventFilterCriteria, setEventFilterCriteria] =
     useState<MapEventFilterCriteria>(createDefaultEventFilter);
+  /** Filtre événement ouvert + Appliquer dans la sheet (plage / type / lieu explicites). */
+  const [eventFilterCustomized, setEventFilterCustomized] = useState(false);
   /** Pin jour sidebar browse : filtre carte/globe sur un seul jour (toggle). */
   const [mapEventDayPinFilter, setMapEventDayPinFilter] = useState<string | null>(null);
   const [showEventFilterSheet, setShowEventFilterSheet] = useState(false);
@@ -398,13 +406,21 @@ export function HomePage({
     if (!showSalonFilterSheet) lastSalonFilterCityFlyRef.current = null;
   }, [showSalonFilterSheet]);
   useEffect(() => {
-    const location = resolveDefaultUserCityLabel(user?.city);
-    if (!location) return;
-    setEventFilterCriteria((prev) => {
-      if (prev.location.trim()) return prev;
-      return { ...prev, location };
-    });
-  }, [user?.city]);
+    if (eventFilterCustomized) return;
+    const applyDefaultLocation = () => {
+      const defaults = resolveDefaultEventFilterLocation(user?.city);
+      if (!defaults.location) return;
+      setEventFilterCriteria((prev) => ({
+        ...prev,
+        location: defaults.location,
+        latitude: defaults.latitude,
+        longitude: defaults.longitude,
+      }));
+    };
+    applyDefaultLocation();
+    window.addEventListener(MAP_GEO_CHANGED_EVENT, applyDefaultLocation);
+    return () => window.removeEventListener(MAP_GEO_CHANGED_EVENT, applyDefaultLocation);
+  }, [user?.city, eventFilterCustomized]);
 
   useEffect(() => {
     const location = eventFilterCriteria.location.trim();
@@ -448,6 +464,7 @@ export function HomePage({
   useEffect(() => {
     mapEventsRef.current = mapEvents;
   }, [mapEvents]);
+  const [mapSponsoredEventMarkers, setMapSponsoredEventMarkers] = useState<MapEventMarker[]>([]);
   const [mapEventsRefreshKey, setMapEventsRefreshKey] = useState(0);
   const eventFilterLongPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventFilterLongPressTriggeredRef = useRef(false);
@@ -540,6 +557,26 @@ export function HomePage({
       )
       .catch(() => setSavedEventPostIds(new Set()));
   }, [isActive, token]);
+
+  useEffect(() => {
+    const onFollowingChanged = (event: Event) => {
+      const detail = (event as CustomEvent<FollowingChangedDetail>).detail;
+      if (!detail?.userId) return;
+      setFollowingIds((prev) => applyFollowingChanged(prev, detail.userId, detail.following));
+      if (detail.salon) {
+        setSalons((prev) =>
+          prev.some((s) => s.id === detail.salon!.id) ? prev : [...prev, detail.salon!]
+        );
+      }
+      if (detail.live && isActiveMapLive(detail.live)) {
+        setLives((prev) =>
+          prev.some((l) => l.id === detail.live!.id) ? prev : [...prev, detail.live!]
+        );
+      }
+    };
+    window.addEventListener(FOLLOWING_CHANGED_EVENT, onFollowingChanged);
+    return () => window.removeEventListener(FOLLOWING_CHANGED_EVENT, onFollowingChanged);
+  }, []);
 
   useEffect(() => {
     if (!savedEventPostIds.size) return;
@@ -693,6 +730,9 @@ export function HomePage({
   const salonFilterOn = showSalonMarkers;
   const eventsFilterOn = showEventMarkers;
   const anyMapFilterActive = livesFilterOn || salonFilterOn || eventsFilterOn;
+  const hasFollowingMapSources = followingIds.size > 0 || savedEventPostIds.size > 0;
+  /** Sans filtre carte : pins des contenus suivis / enregistrés (sidebar Suivi). */
+  const followingMapAmbientOn = !anyMapFilterActive && hasFollowingMapSources;
   /** Rechargement nearby au centre viewport (carte / globe). */
   const mapFilterViewportOn = livesFilterOn || salonFilterOn;
 
@@ -706,7 +746,7 @@ export function HomePage({
   /** Masque capitales globe/carte plate quand seul le filtre Évènement est actif. */
   const mapEventsOnly = eventsFilterOn && !livesFilterOn && !salonFilterOn;
 
-  const showAllSalonsAtCityZoom = shouldShowAllSalonsAtCityZoom(salonFilterOn);
+  const showAllSalonsAtCityZoom = shouldShowAllSalonsAtCityZoom(salonFilterOn) || followingMapAmbientOn;
 
   // Extract individual mapDetailState fields used as useMemo dependencies.
   //
@@ -737,7 +777,7 @@ export function HomePage({
   const sidebarEventsFilterOn = eventsFilterOn || globeEventAmbientOn;
 
   const rawMapSalonsForView = useMemo(() => {
-    if (!anyMapFilterActive && !globeLiveAmbientOn) return [];
+    if (!anyMapFilterActive && !globeLiveAmbientOn && !followingMapAmbientOn) return [];
 
     const merged = new Map<string, Salon>();
     const addSalons = (list: Salon[]) => {
@@ -747,7 +787,9 @@ export function HomePage({
       }
     };
 
-    if (salonFilterOn) {
+    if (followingMapAmbientOn) {
+      addSalons(salons.filter((s) => isPublicSalon(s) && followingIds.has(s.hostId)));
+    } else if (salonFilterOn) {
       const publicSalons = salons.filter(isPublicSalon);
       if (mapDetailTier === 'overview') {
         addSalons(publicSalons);
@@ -776,6 +818,8 @@ export function HomePage({
     return sortSalonsForNearby([...merged.values()], nearbyPanelPrefs.sortBy, nearbySortOptions);
   }, [
     anyMapFilterActive,
+    followingMapAmbientOn,
+    followingIds,
     globeLiveAmbientOn,
     salonFilterOn,
     livesFilterOn,
@@ -790,7 +834,10 @@ export function HomePage({
   ]);
 
   const rawMapLivesForView = useMemo(() => {
-    if (!anyMapFilterActive && !globeLiveAmbientOn) return [];
+    if (!anyMapFilterActive && !globeLiveAmbientOn && !followingMapAmbientOn) return [];
+    if (followingMapAmbientOn && !livesFilterOn && !globeLiveAmbientOn) {
+      return mapLives.filter((l) => followingIds.has(l.hostId));
+    }
     if (!livesFilterOn && !globeLiveAmbientOn) return [];
     if (globeLiveAmbientOn && mapDetailTier === 'overview' && !livesFilterOn) {
       return mapLives;
@@ -802,6 +849,8 @@ export function HomePage({
     );
   }, [
     anyMapFilterActive,
+    followingMapAmbientOn,
+    followingIds,
     globeLiveAmbientOn,
     livesFilterOn,
     mapLives,
@@ -812,7 +861,9 @@ export function HomePage({
   ]);
 
   const liveAudienceFilterActive =
-    !livesFilterOn && (globeLiveAmbientOn || rawMapLivesForView.length > 0);
+    !livesFilterOn &&
+    !followingMapAmbientOn &&
+    (globeLiveAmbientOn || rawMapLivesForView.length > 0);
 
   const globeLiveAudienceFiltered = useMemo(() => {
     if (!liveAudienceFilterActive) return null;
@@ -835,24 +886,55 @@ export function HomePage({
     [globeLiveAudienceFiltered, rawMapSalonsForView]
   );
 
-  const filteredMapEvents = useMemo(
-    () => filterMapEventsByCriteria(mapEvents, eventFilterCriteria, { viewerId: user?.id }),
-    [mapEvents, eventFilterCriteria, user?.id]
+  const mapEventsIncludingSponso = useMemo(
+    () => mergeMapEventMarkers(mapEvents, mapSponsoredEventMarkers),
+    [mapEvents, mapSponsoredEventMarkers]
   );
 
-  /** Événements carte / sidebar (sans filtre jour pin). */
+  const filteredMapEvents = useMemo(
+    () => filterMapEventsByCriteria(mapEventsIncludingSponso, eventFilterCriteria, { viewerId: user?.id }),
+    [mapEventsIncludingSponso, eventFilterCriteria, user?.id]
+  );
+
+  /** Événements carte / sidebar (sans filtre jour pin). Sponso : dates non passées. */
   const mapEventsBaseForPins = useMemo(() => {
-    if (eventsFilterOn) return filteredMapEvents;
-    if (mapDetailMapStyle === 'globe' && mapDetailTier === 'overview') {
-      return filterMapEventsOccurringTodayOrTomorrow(mapEvents);
+    let base: MapEventMarker[];
+    if (followingMapAmbientOn && !eventsFilterOn) {
+      base = sortMapEventsForPanel(
+        mapEvents.filter((event) =>
+          isSidebarFollowingEvent(event, followingIds, savedEventPostIds)
+        ),
+        favoriteIds
+      );
+    } else {
+      base = filterMapEventPinsForView(mapEventsIncludingSponso, {
+        eventsFilterOn,
+        globeOverview: mapDetailMapStyle === 'globe' && mapDetailTier === 'overview',
+        filteredWhenCriteria: filteredMapEvents,
+        merge: mergeMapEventMarkers,
+      });
     }
-    return filterMapEventsOccurringToday(mapEvents);
+
+    const sponso = mapSponsoredEventMarkers.filter((marker) =>
+      isMapEventVisibleAsSponsoPin(marker)
+    );
+    if (sponso.length === 0) return base;
+    return mergeMapEventMarkers(
+      base.filter((marker) => !marker.isSponsored),
+      sponso
+    );
   }, [
     eventsFilterOn,
+    favoriteIds,
     filteredMapEvents,
-    mapEvents,
+    followingIds,
+    followingMapAmbientOn,
     mapDetailMapStyle,
     mapDetailTier,
+    mapEvents,
+    mapEventsIncludingSponso,
+    mapSponsoredEventMarkers,
+    savedEventPostIds,
   ]);
 
   /** Pins carte uniquement — peut restreindre à un jour (bouton pin section sidebar). */
@@ -920,22 +1002,28 @@ export function HomePage({
   /**
    * Clusters visibles sur la carte : viewport + filtre jour pin optionnel.
    */
-  const mapEventClustersForMap = useMemo(
-    () => clipEventClustersToViewport(mapEventClustersOnMap),
-    [clipEventClustersToViewport, mapEventClustersOnMap]
-  );
+  const mapEventClustersForMap = useMemo(() => {
+    const skipViewportClip =
+      (followingMapAmbientOn && !eventsFilterOn) ||
+      (sidebarEventsFilterOn && mapSponsoredEventMarkers.length > 0);
+    if (skipViewportClip) {
+      return mapEventClustersOnMap;
+    }
+    return clipEventClustersToViewport(mapEventClustersOnMap);
+  }, [
+    clipEventClustersToViewport,
+    eventsFilterOn,
+    followingMapAmbientOn,
+    mapEventClustersOnMap,
+    mapSponsoredEventMarkers.length,
+    sidebarEventsFilterOn,
+  ]);
 
-  /** Clusters viewport pour l’onglet Autour sidebar — sans filtre jour pin. */
-  const mapEventClustersForSidebarBrowse = useMemo(
-    () => clipEventClustersToViewport(mapEventClusters),
-    [clipEventClustersToViewport, mapEventClusters]
-  );
-
-  /** Onglet Autour : événements visibles sur la carte / globe (viewport), alignés sur les pins. */
+  /** Onglet Autour : aligné sur les pins carte (même clusters que mapEventClustersForMap). */
   const browseAroundEventPosts = useMemo((): FeedPost[] | undefined => {
     if (!sidebarEventsFilterOn) return undefined;
     void mapEventPostVersion;
-    const markers = flattenEventClustersToMarkers(mapEventClustersForSidebarBrowse);
+    const markers = flattenEventClustersToMarkers(mapEventClustersForMap);
     return markers
       .map((marker) => {
         const cached = mapEventPostsRef.current.get(marker.id);
@@ -949,7 +1037,28 @@ export function HomePage({
         }
         return 0;
       });
-  }, [sidebarEventsFilterOn, mapEventClustersForSidebarBrowse, savedEventPostIds, mapEventPostVersion]);
+  }, [sidebarEventsFilterOn, mapEventClustersForMap, savedEventPostIds, mapEventPostVersion]);
+
+  /** Jours browse — couleurs pins carte (même fenêtre que sidebar / sheet). */
+  const mapEventBrowseDayKeys = useMemo((): string[] | undefined => {
+    if (!eventsFilterOn) return undefined;
+    const useFilterDays = eventFilterCustomized;
+    const base = getBrowseSheetCalendarDayKeys(
+      useFilterDays ? eventFilterCriteria : undefined,
+      useFilterDays
+    );
+    if (!eventFilterCustomized || browseAroundEventPosts === undefined) return base;
+    return mergeBrowseDayKeysForMapPosts(base, browseAroundEventPosts);
+  }, [
+    eventsFilterOn,
+    eventFilterCustomized,
+    eventFilterCriteria,
+    browseAroundEventPosts,
+  ]);
+
+  const mapEventBrowsePinFallbackNearest = Boolean(
+    eventFilterCustomized && browseAroundEventPosts !== undefined
+  );
 
   /** Panneau ville : événements filtrés par viewport au zoom ville / rue. */
   const selectedEventClusterForPanel = useMemo(() => {
@@ -984,6 +1093,7 @@ export function HomePage({
         followingIds,
         savedEventPostIds,
         allMapEvents: mapEvents,
+        allSalons: salons,
         nearbyFetchCenter,
       }),
     [
@@ -999,6 +1109,7 @@ export function HomePage({
       mapEventClusters,
       mapLives,
       mapSalonsForView,
+      salons,
       mapPeople,
       favoriteIds,
       followingIds,
@@ -1102,6 +1213,36 @@ export function HomePage({
   const { startError: liveStartError, dismissStartError: dismissLiveStartError } = liveStartFlow;
 
   const sidebarSponsoredEvents = useMapSidebarSponsoredEvents(token);
+  const sponsoredEventPostIdsKey = useMemo(
+    () => sidebarSponsoredEvents.posts.map((post) => post.id).join(','),
+    [sidebarSponsoredEvents.posts]
+  );
+
+  useEffect(() => {
+    if (!token || sidebarSponsoredEvents.posts.length === 0) {
+      setMapSponsoredEventMarkers([]);
+      return;
+    }
+
+    for (const post of sidebarSponsoredEvents.posts) {
+      mapEventPostsRef.current.set(post.id, post);
+    }
+    setMapEventPostVersion((v) => v + 1);
+
+    let cancelled = false;
+    void buildMapEventMarkersFromSponsoredPosts(sidebarSponsoredEvents.posts, {
+      signal: { cancelled },
+      onProgress: (partial) => {
+        if (!cancelled && partial.length > 0) setMapSponsoredEventMarkers(partial);
+      },
+    }).then((markers) => {
+      if (!cancelled) setMapSponsoredEventMarkers(markers);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, sponsoredEventPostIdsKey, sidebarSponsoredEvents.posts]);
 
   useEffect(() => {
     if (!liveStartError) return;
@@ -1134,6 +1275,7 @@ export function HomePage({
     setShowEventFilterSheet(false);
     setShowEventsBrowseSheet(false);
     setMapEventDayPinFilter(null);
+    setEventFilterCustomized(false);
     setEventFilterCriteria(createDefaultEventFilter(user?.city));
   }, [user?.city]);
 
@@ -1353,6 +1495,7 @@ export function HomePage({
       return;
     }
     deactivateMapContentFiltersExcept('events');
+    setEventFilterCustomized(false);
     setShowEventMarkers(true);
     setShowEventFilterSheet(false);
     setNearbyPeopleVisible(true);
@@ -1599,6 +1742,7 @@ export function HomePage({
   const applyEventFilter = useCallback(
     (criteria: MapEventFilterCriteria) => {
       deactivateMapContentFiltersExcept('events');
+      setEventFilterCustomized(true);
       setEventFilterCriteria(criteria);
       setShowEventMarkers(true);
       setShowEventFilterSheet(false);
@@ -2480,6 +2624,7 @@ export function HomePage({
       favoriteAuthorIds: favoriteIds,
       eventsFilterOn,
       filterCriteria: eventFilterCriteria,
+      eventFilterCustomized,
       aroundEventPosts: browseAroundEventPosts,
       viewerId: user?.id,
       onZoomEventOnMap: handleBrowseEventZoomOnMap,
@@ -2498,6 +2643,7 @@ export function HomePage({
     user?.id,
     favoriteIds,
     eventFilterCriteria,
+    eventFilterCustomized,
     browseAroundEventPosts,
     handleBrowseEventZoomOnMap,
     handleBrowseEventOpen,
@@ -3117,9 +3263,11 @@ export function HomePage({
           favoriteAuthorIds={favoriteIds}
           eventsFilterOn={eventsFilterOn}
           filterCriteria={eventFilterCriteria}
+          eventFilterCustomized={eventFilterCustomized}
           aroundEventPosts={browseAroundEventPosts}
           viewerId={user?.id}
-          onOpenFilter={openEventFilterSheet}
+          onApplyFilter={applyEventFilter}
+          onPreviewFilterCity={previewEventFilterCity}
           onViewOnMap={handleBrowseViewOnMap}
           onOpenEvent={handleBrowseEventOpen}
           onOpenEventDetail={handleBrowseEventDetailOpen}
@@ -3138,6 +3286,8 @@ export function HomePage({
           onClose={() => setShowLivesBrowseSheet(false)}
           content={mapSidebarContent}
           itemCount={uniqueLiveCountFromContent(mapSidebarContent)}
+          profileCity={user?.city}
+          userPosition={userPosition}
           onViewOnMap={handleBrowseLivesViewOnMap}
           onLiveClick={handleSidebarLiveClick}
         />
@@ -3369,7 +3519,7 @@ export function HomePage({
           lives={mapLivesForView}
           people={mapPeopleForView}
           eventClusters={mapEventClustersForMap}
-          hasEventClusters={mapEventClusters.length > 0}
+          hasEventClusters={mapEventClustersForMap.length > 0}
           eventsOnly={mapEventsOnly}
           showAllSalonsAtCityZoom={showAllSalonsAtCityZoom}
           center={center}
@@ -3398,6 +3548,8 @@ export function HomePage({
           salonFilterOn={salonFilterOn}
           eventsFilterOn={eventsFilterOn}
           highlightedMapEventId={highlightedMapEventId}
+          eventBrowseDayKeys={mapEventBrowseDayKeys}
+          eventBrowsePinFallbackNearest={mapEventBrowsePinFallbackNearest}
         />
         </div>
         {mapStyle === 'globe' && (
@@ -3530,7 +3682,7 @@ export function HomePage({
 
         {token && !mapProfileOpen && (
           <MapEventSearchBar
-            markers={mapEvents}
+            markers={mapEventsIncludingSponso}
             postsById={mapEventPostsMap}
             onSelectEvent={handleMapSearchSelectEvent}
             onSelectOrganizer={handleMapSearchSelectOrganizer}

@@ -1,5 +1,7 @@
 import { db, type Sponsor, type SponsorAccent, type SponsorBannerDisplayMode, type SponsorKind, type SponsorMapVisibilityScope, type SponsorPlacement } from '../models/schema';
 import { getPublicFeedEventPostsByIds, type PublicFeedPost } from './feedPosts';
+import { isFeedEventVisibleForMapSponso } from './feedEventVisibility';
+import { isValidReelId } from './reels';
 import { assertValidSponsorBannerUrl } from './sponsorBannerAssets';
 import { assertValidSponsorLogoUrl } from './sponsorLogoAssets';
 
@@ -448,7 +450,9 @@ export function listActiveMapSidebarEventPosts(viewerId = '', at = now()): Publi
   const postIds = sponsors
     .map((s) => s.linkedEventPostId?.trim())
     .filter((id): id is string => Boolean(id));
-  return getPublicFeedEventPostsByIds(viewerId, postIds);
+  return getPublicFeedEventPostsByIds(viewerId, postIds).filter((post) =>
+    isFeedEventVisibleForMapSponso(post, at)
+  );
 }
 
 /** Filtre les sponsors carte par viewport (France toujours + région si zoom/portée OK). */
@@ -581,6 +585,7 @@ export type SponsorInput = {
   mapTargetLat?: number | null;
   mapTargetLng?: number | null;
   linkedEventPostId?: string | null;
+  linkedReelId?: string | null;
 };
 
 function normalizeInput(input: SponsorInput, existing?: Sponsor): Sponsor {
@@ -613,6 +618,10 @@ function normalizeInput(input: SponsorInput, existing?: Sponsor): Sponsor {
     ? String(linkedEventPostIdRaw).trim() || undefined
     : undefined;
 
+  const linkedReelIdRaw =
+    input.linkedReelId !== undefined ? input.linkedReelId : existing?.linkedReelId;
+  const linkedReelId = linkedReelIdRaw ? String(linkedReelIdRaw).trim() || undefined : undefined;
+
   if (isMapSidebarEvent) {
     if (!linkedEventPostId) {
       throw new Error('Identifiant de publication événement requis pour la sidebar carte');
@@ -624,6 +633,10 @@ function normalizeInput(input: SponsorInput, existing?: Sponsor): Sponsor {
     if (linkedPost.adminBlocked) {
       throw new Error('Cette publication événement est bloquée par la modération');
     }
+  }
+
+  if (placement === 'reels_sponsored' && linkedReelId && !isValidReelId(linkedReelId)) {
+    throw new Error('Reel introuvable ou identifiant invalide');
   }
 
   const actionRaw = input.actionId !== undefined ? input.actionId : existing?.actionId;
@@ -744,6 +757,7 @@ function normalizeInput(input: SponsorInput, existing?: Sponsor): Sponsor {
     mapTargetLng:
       placement === 'map_banner' && mapVisibilityScope === 'region' ? mapTargetLng : undefined,
     linkedEventPostId: isMapSidebarEvent ? linkedEventPostId : undefined,
+    linkedReelId: placement === 'reels_sponsored' ? linkedReelId : undefined,
     createdAt: existing?.createdAt ?? ts,
     updatedAt: ts,
   };
@@ -998,6 +1012,12 @@ export function findMapSidebarSponsorForEventPost(postId: string): Sponsor | und
   return db.sponsors.find(
     (s) => s.placement === 'map_sidebar_events' && s.linkedEventPostId === id
   );
+}
+
+export function findReelsSponsorForReelId(reelId: string): Sponsor | undefined {
+  const id = String(reelId || '').trim();
+  if (!id) return undefined;
+  return db.sponsors.find((s) => s.placement === 'reels_sponsored' && s.linkedReelId === id);
 }
 
 export function listActiveMapSidebarEventPostIds(at = now()): string[] {

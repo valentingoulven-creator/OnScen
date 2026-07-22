@@ -89,7 +89,7 @@ export function LiveHostTopBar({
       ) : null}
 
       {/* Actions droite */}
-      <div className="shrink-0 flex items-center gap-0.5">
+      <div className="shrink-0 flex items-center gap-0.5 max-w-[min(52vw,16rem)] sm:max-w-none overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {trailing}
         {hostControls}
         <button

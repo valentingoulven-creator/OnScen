@@ -121,6 +121,13 @@ export const sponsorsApi = {
       token
     ),
 
+  getDevReelsSponsor: (token: string, reelId: string) =>
+    request<{ sponsor: import('../../types').Sponsor | null }>(
+      `/access/dev/reels-sponsor/${encodeURIComponent(reelId)}`,
+      { cache: 'no-store' },
+      token
+    ),
+
   setDevMapSidebarEventSponsor: (token: string, postId: string, sponsored: boolean) =>
     request<{ sponsor: import('../../types').Sponsor | null; sponsored: boolean }>(
       '/access/dev/map-sidebar-event-sponsor',

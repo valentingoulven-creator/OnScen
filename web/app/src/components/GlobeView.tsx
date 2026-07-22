@@ -17,8 +17,9 @@ import {
   getClusterEventDayIndex,
   getMapEventDayColor,
   getMapEventMarkerDayIndex,
+  resolveClusterMapPinSponsored,
 } from '../lib/mapEventDayColors';
-import { getEventTypeIcon } from '../lib/eventType';
+import { getMapEventDisplayIcon } from '../lib/eventType';
 import { isValidLatLng } from '../lib/mapCoords';
 import { isWebGLError } from '../lib/webglSupport';
 import { getCityMapView } from '../lib/mapEventClusters';
@@ -60,6 +61,8 @@ interface GlobePoint {
   icon?: string;
   /** Index jour browse (0–3) pour la couleur du pin événement. */
   dayIndex?: number;
+  /** Événement sponsorisé — pin ✨ (globe). */
+  isSponsored?: boolean;
   /** Nombre d'événements regroupés — affiché en badge sur l'icône (globe). */
   count?: number;
 }
@@ -200,7 +203,7 @@ function buildEventClusterGlobeLabel(cluster: MapEventCityCluster): string {
 
 function buildIndividualEventGlobeLabel(ev: MapEventMarker): string {
   const title = ev.title.trim() || 'Événement';
-  const parts = [`${getEventTypeIcon(ev.eventType)} ${title}`];
+  const parts = [`${getMapEventDisplayIcon(ev.eventType, { sponsored: ev.isSponsored })} ${title}`];
   if (ev.eventDate) parts.push(formatEventDateShort(ev.eventDate));
   return parts.join(' · ');
 }
@@ -610,15 +613,15 @@ export const GlobeView = memo(
           const lat = Number(s.latitude);
           const lng = Number(s.longitude);
           if (!isValidLatLng(lat, lng)) return;
-          const liveSuffix = s.isLive ? ' · LIVE' : '';
+          const liveSuffix = s.isLive ? ' · actif' : '';
           pts.push({
             lat,
             lng,
             type: 'salon',
-            color: s.isLive ? '#f87171' : '#c084fc',
-            radius: overviewDots ? (s.isLive ? 0.34 : 0.3) : s.isLive ? 0.52 : 0.48,
+            color: '#c084fc',
+            radius: overviewDots ? 0.3 : 0.48,
             label: overviewDots
-              ? `${s.isLive ? '🔴' : '🎵'} ${s.hostName}${liveSuffix}`
+              ? `🎵 ${s.hostName}${liveSuffix}`
               : `🎵 ${s.hostName}${liveSuffix}`,
             entity: s,
           });
@@ -672,6 +675,7 @@ export const GlobeView = memo(
               radius: 0.52,
               label: buildIndividualEventGlobeLabel(ev),
               dayIndex,
+              isSponsored: Boolean(ev.isSponsored),
               // `entity` = l'événement précis (pas le cluster ville) : le clic
               // sur ce pin doit ouvrir le détail de CET événement, pas la
               // liste de la ville — cf. handlePointClick.
@@ -694,6 +698,7 @@ export const GlobeView = memo(
             label: buildEventClusterGlobeLabel(cluster),
             entity: cluster,
             dayIndex,
+            isSponsored: resolveClusterMapPinSponsored(cluster),
             count: cluster.count > 1 ? cluster.count : undefined,
           });
         });
