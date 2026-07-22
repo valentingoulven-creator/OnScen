@@ -651,7 +651,7 @@ export function ReelsTabPage({
     if (!activeReel) return;
     void loadStats(activeReel.id);
     setCommentsOpen(false);
-  }, [activeReel?.id, loadStats]);
+  }, [activeReel, loadStats]);
 
   const loadStatsRef = useRef(loadStats);
   loadStatsRef.current = loadStats;
@@ -671,7 +671,7 @@ export function ReelsTabPage({
       socket.emit('leave_reel', { reelId });
       socket.off('reel_comment', onComment);
     };
-  }, [activeReel?.id, token]);
+  }, [activeReel, token]);
 
   const isActiveRef = useRef(isActive);
   isActiveRef.current = isActive;
@@ -1002,12 +1002,14 @@ export function ReelsTabPage({
   }, [isActive, playActiveReel]);
 
   useEffect(() => {
+    const videoRefs = videoRefsById.current;
+    const audioRefs = audioRefsById.current;
     return () => {
       if (playScheduleRef.current) clearTimeout(playScheduleRef.current);
       if (scrollSettleTimerRef.current) clearTimeout(scrollSettleTimerRef.current);
       stopAllReelsMedia();
-      videoRefsById.current.clear();
-      audioRefsById.current.clear();
+      videoRefs.clear();
+      audioRefs.clear();
     };
   }, [stopAllReelsMedia]);
 
@@ -1080,7 +1082,7 @@ export function ReelsTabPage({
     } catch {
       /* ignore */
     }
-  }, [token, activeReel?.id]);
+  }, [token, activeReel]);
 
   const reelShareUrl = activeReel
     ? `${window.location.origin}${window.location.pathname}?reel=${activeReel.id}`
@@ -1775,7 +1777,7 @@ const ReelSlide = memo(
   }) {
   const { t } = useTranslation();
   const separateAudio = !!reel.audioUrl?.trim();
-  const wantMuted = () => resolveMuted?.() ?? muted;
+  const wantMuted = useCallback(() => resolveMuted?.() ?? muted, [resolveMuted, muted]);
   const isImageOnly = reel.mediaType === 'image' || !reel.videoUrl;
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const pairedAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -1812,7 +1814,7 @@ const ReelSlide = memo(
     const m = wantMuted();
     if (localVideoRef.current) applyVideoAudio(localVideoRef.current, m, separateAudio);
     if (pairedAudioRef.current) applyReelAudio(pairedAudioRef.current, m);
-  }, [muted, separateAudio, isActive]);
+  }, [muted, separateAudio, isActive, wantMuted]);
 
   useEffect(() => {
     if (isActive) {

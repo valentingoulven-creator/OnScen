@@ -451,7 +451,7 @@ export function LivesBrowseGrid({
         onLivesChange?.(active);
       })
       .finally(() => setLoading(false));
-  }, [token, geo.latitude, geo.longitude, geo.radiusKm, panelPrefs.sortBy, onLivesChange]);
+  }, [token, geo.latitude, geo.longitude, geo.radiusKm, onLivesChange]);
 
   useVisibleInterval(loadLives, 12_000, isActive);
 

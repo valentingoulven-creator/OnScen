@@ -69,12 +69,7 @@ export function useSalonPlaybackSync({
     setPlaybackState(initialState);
     setDisplayPositionMs(computePlaybackPositionMs(initialState));
   }, [
-    initialState.updatedAt,
-    initialState.trackId,
-    initialState.isPlaying,
-    initialState.startedAt,
-    initialState.title,
-    initialState.showVideo,
+    initialState,
     isHost,
   ]);
 

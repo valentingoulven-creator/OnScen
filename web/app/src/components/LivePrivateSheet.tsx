@@ -39,7 +39,7 @@ export function LivePrivateSheet({ target, onClose, onOpenProfile }: LivePrivate
     return () => {
       socket.off('dm', onDm);
     };
-  }, [token, user?.id, target.id]);
+  }, [token, user, target.id]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });

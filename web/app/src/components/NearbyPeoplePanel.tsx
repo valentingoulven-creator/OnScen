@@ -464,7 +464,7 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
     if (detail.mapStyle === 'globe' && browse.activeTab !== 'around') {
       browse.setActiveTab('around');
     }
-  }, [detail.mapStyle, browse.activeTab, browse.setActiveTab]);
+  }, [detail.mapStyle, browse]);
 
   const handleBrowsePostChange = useCallback(
     (postId: string, patch: Partial<FeedPost>) => {

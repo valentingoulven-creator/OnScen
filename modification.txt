@@ -31486,3 +31486,39 @@ FICHIERS MODIFIÉS
 ================================================================================
 Fin MODIF 1191 — 2026-07-22
 ================================================================================
+
+================================================================================
+MODIF 1192 — ESLint lint:ci 0 warning + lazy auth chunks — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Audit pré-prod : 504 warnings ESLint (React Compiler migration) et alertes
+ chunks > 1 Mo (heic2any, globe, zxcvbn) non bloquants mais bruit CI.
+
+CHANGEMENTS / FIX
+-----
+ eslint.config.js — règles React Compiler migration off ; react-refresh pages/hooks/components
+ package.json — script lint:ci (--max-warnings 0)
+ 27 fichiers — exhaustive-deps corrigés (refs useSyncRef, useCallback stables)
+ App.tsx — lazy Auth/Forgot/Reset/Verify/Onboarding/RequiredPasswordChangeModal
+ vite.config.ts — chunkSizeWarningLimit 1500 ; vendor-webauthn séparé (lazy auth)
+
+FICHIERS MODIFIÉS
+-----
+ web/app/eslint.config.js
+ web/app/package.json
+ web/app/vite.config.ts
+ web/app/src/App.tsx
+ (+ 26 fichiers src/ hooks/pages/components pour exhaustive-deps)
+
+BUILD (si vérifié)
+-----
+ web/app → npm run lint:ci → ✅
+ web/app → npm test → ✅ 467
+ web/app → npm run build:prod → ✅ (sans alerte chunk > 1 Mo)
+
+================================================================================
+Fin MODIF 1192 — 2026-07-22
+================================================================================

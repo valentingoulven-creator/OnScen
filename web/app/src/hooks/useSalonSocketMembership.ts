@@ -67,7 +67,7 @@ export function useSalonSocketMembership(
       socket.off('salon_ended', onEnded);
       // Intentionally no leave_salon — membership survives SalonPage/HomePage unmount.
     };
-  }, [salonId, user?.id, user?.username]);
+  }, [salonId, user]);
 
   useEffect(() => {
     if (salonId) return;

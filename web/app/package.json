@@ -11,6 +11,7 @@
     "build:preprod": "tsc -b && vite build --mode preproduction",
     "pwa:icons": "node commun/scripts/generate-pwa-icons.mjs",
     "lint": "eslint .",
+    "lint:ci": "eslint . --max-warnings 0",
     "preview": "vite preview",
     "test": "vitest run --config vitest.config.ts",
     "test:e2e": "playwright test",

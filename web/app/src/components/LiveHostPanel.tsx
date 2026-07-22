@@ -1027,18 +1027,17 @@ export function LiveHostPanel({
       slowModeSeconds: initialChatConfig.slowModeSeconds ?? 0,
       subscribersOnly: initialChatConfig.subscribersOnly ?? false,
     });
-  }, [
-    initialChatConfig?.noLinksForParticipants,
-    initialChatConfig?.slowModeSeconds,
-    initialChatConfig?.subscribersOnly,
-  ]);
+  }, [initialChatConfig]);
 
-  const goalStats: GoalProgressStats = {
-    totalDonations,
-    donationCount,
-    viewers,
-    startedAt: startedAtRef.current,
-  };
+  const goalStats: GoalProgressStats = useMemo(
+    () => ({
+      totalDonations,
+      donationCount,
+      viewers,
+      startedAt: startedAtRef.current,
+    }),
+    [totalDonations, donationCount, viewers]
+  );
 
   const { session: hostSession } = useLiveHostSession(liveId);
   const goalsWithProgress = useMemo(

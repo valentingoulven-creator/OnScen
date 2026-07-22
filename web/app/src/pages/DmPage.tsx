@@ -511,14 +511,14 @@ export function DmPage({
     api.getMatches(token).then((r) => setMatches(r.matches));
   }, [token]);
 
-  const loadPresence = () => {
+  const loadPresence = useCallback(() => {
     if (!token) return;
     api.getDmPresence(token).then((r) => {
       setOnlineIds(new Set(r.onlineUserIds));
       setLiveIds(new Set(r.liveUserIds ?? []));
       setLiveViewersByUserId(r.liveViewersByUserId ?? {});
     });
-  };
+  }, [token]);
 
   const loadConversations = useCallback(() => {
     if (!token) return;
@@ -636,10 +636,10 @@ export function DmPage({
   }, [loadMatches, loadConversations]);
   useMatchCreated(handleMatchCreated, Boolean(token));
 
-  const loadBlocked = () => {
+  const loadBlocked = useCallback(() => {
     if (!token) return;
     api.getBlockedUsers(token).then((r) => setBlockedUsers(r.blocked));
-  };
+  }, [token]);
 
   // Use a bail-out functional update so React doesn't schedule a re-render when
   // the selection was already empty (avoids the spurious render that effect [view]
@@ -702,7 +702,7 @@ export function DmPage({
     blockUsers(ids, names);
   };
 
-  const openThread = async (contact: DmContact) => {
+  const openThread = useCallback(async (contact: DmContact) => {
     if (!token || selectionCount > 0) return;
     try {
       isNearBottomRef.current = true;
@@ -727,9 +727,9 @@ export function DmPage({
       alert(e instanceof Error ? e.message : 'Conversation indisponible');
       setView('list');
     }
-  };
+  }, [token, selectionCount, isOnline, refreshUnread, refreshMuted, setActivePeer, setActiveGroup]);
 
-  const openGroupThread = async (groupId: string) => {
+  const openGroupThread = useCallback(async (groupId: string) => {
     if (!token || selectionCount > 0) return;
     try {
       isNearBottomRef.current = true;
@@ -749,7 +749,7 @@ export function DmPage({
       alert(e instanceof Error ? e.message : 'Groupe indisponible');
       setView('list');
     }
-  };
+  }, [token, selectionCount, refreshUnread, setActivePeer, setActiveGroup]);
 
   const createGroup = async () => {
     if (!token || creatingGroup) return;
@@ -778,15 +778,15 @@ export function DmPage({
     }
   };
 
-  const loadContacts = () => {
+  const loadContacts = useCallback(() => {
     if (!token) return;
     api.getDmContacts(token).then((r) => setContacts(r.contacts));
-  };
+  }, [token]);
 
-  const loadPendingRequests = () => {
+  const loadPendingRequests = useCallback(() => {
     if (!token) return;
     api.getDmRequests(token).then((r) => setPendingRequests(r.requests)).catch(() => {});
-  };
+  }, [token]);
 
   const acceptRequest = async (senderId: string) => {
     if (!token || acceptingRequest) return;
@@ -832,7 +832,16 @@ export function DmPage({
     loadMatches();
     loadPendingRequests();
     setLoading(false);
-  }, [isActive, token]);
+  }, [
+    isActive,
+    token,
+    loadPresence,
+    loadConversations,
+    loadActiveSupport,
+    loadBlocked,
+    loadMatches,
+    loadPendingRequests,
+  ]);
 
   useEffect(() => {
     if (!isActive || !token) return;
@@ -879,13 +888,23 @@ export function DmPage({
             };
     void openThread(peer);
     onOpenPeerConsumed?.();
-  }, [openPeerId, token, loading]);
+  }, [
+    openPeerId,
+    token,
+    loading,
+    contacts,
+    conversations,
+    isOnline,
+    matches,
+    onOpenPeerConsumed,
+    openThread,
+  ]);
 
   useEffect(() => {
     if (!openGroupId || !token || loading) return;
     void openGroupThread(openGroupId);
     onOpenGroupConsumed?.();
-  }, [openGroupId, token, loading]);
+  }, [openGroupId, token, loading, onOpenGroupConsumed, openGroupThread]);
 
   useEffect(() => {
     if (view === 'supportThread' && !activeSupportTicket) {
@@ -910,13 +929,13 @@ export function DmPage({
       }
       onOpenSupportConsumed?.();
     })();
-  }, [openSupportMessageId, token, loading]);
+  }, [openSupportMessageId, token, loading, onOpenSupportConsumed, openSupportThread]);
 
   useEffect(() => {
     if (!isActive || !token) return;
     const timer = window.setInterval(() => loadPresence(), 30_000);
     return () => window.clearInterval(timer);
-  }, [isActive, token]);
+  }, [isActive, token, loadPresence]);
 
   useEffect(() => {
     clearSelection();
@@ -928,7 +947,7 @@ export function DmPage({
     if (view !== 'thread' && view !== 'groupThread') {
       setPendingAttachment(null);
     }
-  }, [view]);
+  }, [view, clearSelection]);
 
   useEffect(() => {
     if (view === 'new' || view === 'createGroup') searchInputRef.current?.focus();
@@ -944,7 +963,7 @@ export function DmPage({
       markSupportSeen(activeSupportTicket.id);
       supportThreadEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [view, activeSupportTicket?.id, activeSupportTicket?.thread?.length, activeSupportTicket?.adminReply]);
+  }, [view, activeSupportTicket]);
 
   useEffect(() => {
     if (!isActive || !token || !user) return;
@@ -1084,7 +1103,17 @@ export function DmPage({
       socket.off('dm_request_refused', onDmRequestRefused);
       socket.off('dm_reaction', onDmReaction);
     };
-  }, [isActive, token, user?.id, view, activeUser?.id, activeGroup?.id]);
+  }, [
+    isActive,
+    token,
+    user,
+    view,
+    activeUser,
+    activeGroup,
+    loadConversations,
+    refreshUnread,
+    setActiveGroup,
+  ]);
 
   const handleMessagesScroll = useCallback(() => {
     const el = messagesScrollRef.current;
@@ -1283,13 +1312,13 @@ export function DmPage({
       }
       onOpenSalon?.(salon.id);
     },
-    [token, t, view, activeUser, activeGroup, onOpenSalon]
+    [token, t, view, activeUser, activeGroup, onOpenSalon, loadConversations]
   );
 
   const salonGeo = useMemo(() => {
     const geo = getLivesGeo();
     return { latitude: geo.latitude, longitude: geo.longitude };
-  }, [createSalonOpen]);
+  }, []);
 
   const renderCreateSalonModal = () => {
     if (!token || !user) return null;
@@ -1608,7 +1637,7 @@ export function DmPage({
       setNewDmGroupName('');
       setNewDmCreating(false);
     }
-  }, [showNewDmSheet, token]);
+  }, [showNewDmSheet, token, loadContacts]);
 
   const blockedUserIds = useMemo(() => new Set(blockedUsers.map((b) => b.id)), [blockedUsers]);
 
@@ -1777,6 +1806,7 @@ export function DmPage({
     isOnline,
     loadConversations,
     openGroupThread,
+    openThread,
   ]);
 
   const renderNewDmUserRow = (user: NewDmPick, keyPrefix: string, showHeart = false) => {

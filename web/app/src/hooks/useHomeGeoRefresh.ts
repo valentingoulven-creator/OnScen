@@ -148,6 +148,7 @@ export function useHomeGeoRefresh(options: {
     setSafeCenter,
     applyMapViewportCenter,
     setUserPosition,
+    mapExploredRef,
   ]);
 
   useEffect(() => {

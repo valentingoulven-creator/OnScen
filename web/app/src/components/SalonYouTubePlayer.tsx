@@ -375,7 +375,7 @@ export function SalonYouTubePlayer({
     const ro = new ResizeObserver(() => syncPlayerSize());
     ro.observe(el);
     return () => ro.disconnect();
-  }, [playerReady, fillContainer, showVideo, floatActive]);
+  }, [playerReady, fillContainer, showVideo, floatActive, syncPlayerSize]);
 
   useEffect(() => {
     if (!playbackActive) {
@@ -444,7 +444,7 @@ export function SalonYouTubePlayer({
       },
     });
     return () => setMediaSessionHandlers(null);
-  }, [playerReady, videoId, showLocalControls]);
+  }, [playerReady, videoId, showLocalControls, _isHost]);
 
   useEffect(() => {
     const onVisibility = () => {
@@ -480,6 +480,7 @@ export function SalonYouTubePlayer({
     let destroyed = false;
     setPlayerReady(false);
     loadedVideoRef.current = null;
+    const container = containerRef.current;
 
     if (lastMountedVideoRef.current !== videoId) {
       lastKnownSecRef.current = 0;
@@ -494,7 +495,7 @@ export function SalonYouTubePlayer({
     const sizeEl = sizeRef.current;
     const initialW = Math.max(1, Math.round(sizeEl?.clientWidth ?? 640));
     const initialH = Math.max(1, Math.round(sizeEl?.clientHeight ?? 360));
-    new window.YT!.Player(containerRef.current, {
+    new window.YT!.Player(container, {
       videoId,
       width: initialW,
       height: initialH,
@@ -591,12 +592,23 @@ export function SalonYouTubePlayer({
       }
       playerRef.current = null;
       loadedVideoRef.current = null;
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
+      if (container) {
+        container.innerHTML = '';
       }
     };
     // Recreate when video changes or mount moves (PiP portal ↔ inline).
-  }, [apiReady, videoId, floatActive]);
+  }, [
+    apiReady,
+    videoId,
+    floatActive,
+    applyVolume,
+    detectLiveStream,
+    notifyIsLive,
+    playbackState,
+    rememberPlaybackSec,
+    respectLocalPause,
+    syncPlayerSize,
+  ]);
 
   useEffect(() => {
     const player = playerRef.current;
@@ -671,11 +683,7 @@ export function SalonYouTubePlayer({
     applySync(player, playbackState, forceSeek, respectLocalPause, true);
     if (forceSeek) lastSeekAtRef.current = Date.now();
   }, [
-    playbackState.isPlaying,
-    playbackState.progressMs,
-    playbackState.startedAt,
-    playbackState.updatedAt,
-    playbackState.trackId,
+    playbackState,
     playerReady,
     videoId,
     respectLocalPause,
@@ -709,14 +717,11 @@ export function SalonYouTubePlayer({
     effectiveAutoplayAllowed,
     playbackActive,
     playerReady,
-    playbackState.updatedAt,
-    playbackState.trackId,
-    playbackState.isPlaying,
-    playbackState.progressMs,
-    playbackState.startedAt,
+    playbackState,
     mayDrivePlayback,
     respectLocalPause,
     applyVolume,
+    pauseAndMutePlayer,
   ]);
 
   useEffect(() => {

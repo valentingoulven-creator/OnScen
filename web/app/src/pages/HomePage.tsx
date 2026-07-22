@@ -625,7 +625,7 @@ export function HomePage({
   const mapEventPostsMap = useMemo(() => {
     void mapEventPostVersion;
     return new Map(mapEventPostsRef.current);
-  }, [mapEventPostVersion, mapEvents]);
+  }, [mapEventPostVersion]);
 
   const viewerTastes = useMemo(
     () => ({
@@ -658,7 +658,7 @@ export function HomePage({
       releaseAppMediaFocus('reels');
       requestAppMediaFocus('salon');
     }
-  }, [selected?.id, mapPlaybackActive]);
+  }, [selected, mapPlaybackActive]);
 
   useEffect(() => {
     if (selected) {
@@ -670,7 +670,7 @@ export function HomePage({
     } else {
       onMapSalonActive?.(null);
     }
-  }, [selected?.id, selected?.title, selected?.hostId, user?.id, onMapSalonActive]);
+  }, [selected, user?.id, onMapSalonActive]);
 
   const prevActiveSalonSessionIdRef = useRef<string | null>(activeSalonSessionId);
   useEffect(() => {
@@ -694,11 +694,7 @@ export function HomePage({
   }, [
     nearbyPeople,
     salons,
-    nearbyPanelPrefs.livesOnly,
-    nearbyPanelPrefs.sortBy,
-    nearbyPanelPrefs.musicalAffinitiesOnly,
-    nearbyPanelPrefs.salonAffinityGenres,
-    nearbyPanelPrefs.salonAffinityGenreOptions,
+    nearbyPanelPrefs,
     viewerTastes,
     nearbySortOptions,
   ]);
@@ -1118,11 +1114,11 @@ export function HomePage({
         people: mapPeople,
         favoriteIds,
         followingIds,
-        savedEventPostIds,
-        allMapEvents: mapEvents,
-        allSalons: salons,
-        nearbyFetchCenter,
-      }),
+      savedEventPostIds,
+      allMapEvents: mapEvents,
+      allSalons: salons,
+      nearbyFetchCenter,
+    }),
     [
       mapDetailTier,
       mapDetailMapStyle,
@@ -1141,6 +1137,7 @@ export function HomePage({
       favoriteIds,
       followingIds,
       savedEventPostIds,
+      mapEvents,
       nearbyFetchCenter,
     ]
   );
@@ -1219,7 +1216,7 @@ export function HomePage({
 
   const nearbyQueryCenter = useMemo(
     () => getNearbyQueryCenter(userPosition, center),
-    [userPosition, center, mapGeo.latitude, mapGeo.longitude, mapGeo.source]
+    [userPosition, center]
   );
 
   const mapLiveStartGeo = useMemo(
@@ -1920,7 +1917,7 @@ export function HomePage({
       setMapViewportCenter(sanitizeLatLngTuple(lat, lng, DEFAULT_CENTER));
       setTimeout(doSelect, MAP_GLOBE_FLAT_DO_SELECT_MS);
     },
-    []
+    [setMapViewportCenter]
   );
 
   const handleAutoSwitchToGlobe = useCallback(() => {
@@ -2111,7 +2108,7 @@ export function HomePage({
     };
     window.addEventListener(MAP_GEO_CHANGED_EVENT, onMapGeo);
     return () => window.removeEventListener(MAP_GEO_CHANGED_EVENT, onMapGeo);
-  }, [isActive, token, user?.city, applyMapViewportCenter]);
+  }, [isActive, token, user?.city, applyMapViewportCenter, loadNearby]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -2753,7 +2750,7 @@ export function HomePage({
       }
     }
     return true;
-  }, [user?.id, user?.connectedPlatforms, token, onCloseMapProfile, t]);
+  }, [user?.id, user?.connectedPlatforms, token, onCloseMapProfile]);
 
   const resolveSalonById = useCallback(async (salonId: string): Promise<Salon | null> => {
     const local = salons.find((s) => s.id === salonId);
@@ -3122,7 +3119,7 @@ export function HomePage({
         setEventPublishing(false);
       }
     },
-    [token, eventPublishing, t]
+    [token, eventPublishing, t, setMapViewportCenter]
   );
 
   const openExistingHostedSalon = useCallback(
@@ -3171,7 +3168,7 @@ export function HomePage({
       socket.off('salon_updated', onSalonUpdated);
       socket.off('salon_playback', onPlaybackSync);
     };
-  }, [selected?.id, selected?.canJoin, user?.id, token]);
+  }, [selected, user, token]);
 
   /** Retire un salon terminé de la carte sans attendre l'expiration du cache nearby. */
   useEffect(() => {
@@ -3277,7 +3274,7 @@ export function HomePage({
       clearMapInlineListenSession(salonId);
       onOpenSalon(salonId, selected?.id === salonId ? selected.title : undefined, isHost);
     },
-    [onOpenSalon, selected, user, t]
+    [onOpenSalon, selected, user]
   );
 
   const openHostProfileFromSheet = useCallback(() => {

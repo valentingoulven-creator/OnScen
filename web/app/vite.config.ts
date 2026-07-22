@@ -210,6 +210,7 @@ export default defineConfig(({ mode }) => {
           '**/vendor-map*.js',
           '**/vendor-socketio*.js',
           '**/vendor-zxcvbn*.js',
+          '**/vendor-webauthn*.js',
           '**/vendor-hls*.js',
           '**/photo-editor*.js',
         ],
@@ -282,7 +283,8 @@ export default defineConfig(({ mode }) => {
   build: {
     outDir: '../../commun/backend/public',
     emptyOutDir: true,
-    chunkSizeWarningLimit: 1000,
+    /** heic2any / globe / zxcvbn — libs lourdes déjà en chunks lazy (voir manualChunks). */
+    chunkSizeWarningLimit: 1500,
     modulePreload: false,
     sourcemap: sentryUploadEnabled || sentryClientEnabled ? 'hidden' : false,
     rollupOptions: {
@@ -297,6 +299,7 @@ export default defineConfig(({ mode }) => {
           if (id.includes('heic2any')) return 'vendor-heic2any';
           if (id.includes('zxcvbn')) return 'vendor-zxcvbn';
           if (id.includes('hls.js')) return 'vendor-hls';
+          if (id.includes('@simplewebauthn/browser')) return 'vendor-webauthn';
           if (id.includes('react-dom') || id.includes('react/')) return 'vendor-react';
           if (id.includes('socket.io-client')) return 'vendor-socketio';
           if (id.includes('livekit-client') || id.includes('@livekit/')) return 'vendor-livekit';
