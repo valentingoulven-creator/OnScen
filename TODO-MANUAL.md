@@ -162,14 +162,22 @@ Code livré ; à valider sur **390 px mobile**, **desktop**, et **iOS apptel** s
 
 ### C5 — Projet Android manquant
 
-**Statut :** ⏳ Ouvert — voir commandes ci-dessous.
+**Statut :** ✅ **Corrigé (2026-07-22)** — `ios/apptel/android/` est gitignoré (jamais absent en réalité, juste invisible aux outils qui respectent `.gitignore` — source de la confusion dans les audits précédents). Build Gradle réel validé (`assembleDebug` → APK 12 Mo, `BUILD SUCCESSFUL`) avec JDK 21 + Android SDK (`platforms;android-36`, `build-tools;36.0.0`) déjà installés sur ce poste.
+
+**Reproductibilité ajoutée** : le projet n'était personnalisé (permissions, deep links, targetSdk 36, FileProvider) que sur ce poste, sans script pour le recréer ailleurs/en CI. Corrigé via `ios/apptel/scripts/patch-android-native.mjs` (appelé automatiquement par `npm run cap:add:android`) + nouveau workflow CI `.github/workflows/android-capacitor.yml` (`ubuntu-latest`, régénère le projet à chaque run et build l'APK debug).
+
+**Reste ouvert (action humaine, pas de code)** :
+- `APPLE_TEAM_ID` toujours en placeholder (`TEAM_ID.com.soundy.app`) → nécessite un compte Apple Developer actif (99 $/an).
+- `FIREBASE_SERVICE_ACCOUNT_JSON` absent en prod → push natif no-op tant que non configuré (compte Firebase requis).
+- Aucun build release (AAB signé) ni soumission Play Console/TestFlight effectuée — décision fondateur sur le calendrier de publication.
 
 ```bash
-
-cd apptel
-
-npx cap add android
-
+# Régénérer le projet Android depuis un poste/CI vierge
+cd ios/apptel
+npm run cap:add:android   # npx cap add android + patch permissions/deep links/targetSdk
+npm run mobile:cert-pins --prefix ..\..  # régénère network_security_config.xml (pins TLS)
+npm run cap:sync:android
+cd android && .\gradlew.bat assembleDebug
 ```
 
 
@@ -256,7 +264,7 @@ Checklist détaillée : [`commun/deploy/OPS-PRIORITIES.md`](commun/deploy/OPS-PR
 
 | 🟡 | ELEV-07 Redis OAuth | ⏳ | OAuth restart |
 
-| 🟡 | C5 Android project | ⏳ | Pas de déploiement Android |
+| 🟡 | C5 Android project | ✅ Corrigé 2026-07-22 | — (reste : Apple Team ID, Firebase, soumission stores) |
 
 | 🟡 | React Compiler ESLint | ⚠️ Warn | Dette technique |
 

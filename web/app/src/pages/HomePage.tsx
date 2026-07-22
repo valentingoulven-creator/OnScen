@@ -162,6 +162,8 @@ import {
   canUseGlobeView,
   disableGlobeView,
   GLOBE_UNAVAILABLE_EVENT,
+  isWebGLSupported,
+  tryReEnableGlobeView,
   MAP_STYLE_STORAGE_KEY,
   shouldForceFlatMap,
 } from '../lib/webglSupport';
@@ -1286,8 +1288,10 @@ export function HomePage({
   const toggleMapStyle = useCallback(() => {
     const next: MapStyle = mapStyle === 'flat' ? 'globe' : 'flat';
     if (next === 'globe' && !canUseGlobeView()) {
-      setToastMsg(t('map.globeUnavailable'));
-      return;
+      if (!tryReEnableGlobeView()) {
+        setToastMsg(t('map.globeUnavailable'));
+        return;
+      }
     }
     setMapStyle(next);
     localStorage.setItem(MAP_STYLE_KEY, next);
@@ -3834,7 +3838,7 @@ export function HomePage({
             >
               <FilterIcon className="w-3.5 h-3.5" />
             </button>
-            {canUseGlobeView() && (
+            {isWebGLSupported() && (
             <button
               type="button"
               onClick={toggleMapStyle}
