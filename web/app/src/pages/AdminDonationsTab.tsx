@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { useAdminDonationUpdates } from '../hooks/useAdminDonationsRealtime';
 import { AdminStripePlatformCard } from '../components/AdminStripePlatformCard';
+import { AdminStripeConfigCard } from '../components/AdminStripeConfigCard';
 import type { AdminDonationEntry } from '../types';
 
 function formatDateTime(ts: number, locale: string): string {
@@ -71,6 +72,7 @@ export function AdminDonationsTab() {
 
   return (
     <div className="space-y-4">
+      <AdminStripeConfigCard />
       <AdminStripePlatformCard />
 
       <div className="flex items-start justify-between gap-3">

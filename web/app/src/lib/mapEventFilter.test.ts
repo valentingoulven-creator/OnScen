@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('./api', () => ({
+  api: { getFeedPosts: vi.fn() },
+}));
+
 import {
   applyEventFilterDraftDefaults,
+  applyMapEventDayPinFilterForMap,
+  buildMapEventsBaseForPins,
   createDefaultEventFilter,
   DEFAULT_EVENT_FILTER_RADIUS_KM,
   EMPTY_EVENT_FILTER,
@@ -16,6 +23,7 @@ import {
   resolveDefaultEventFilterLocation,
   resolveDefaultUserCityLabel,
 } from './mapEventFilter';
+import { mergeMapEventMarkers, mergeMapEventsWithSponso } from './mapFeedEvents';
 import type { FeedPost, MapEventMarker } from '../types';
 
 function mockLocalStorage(store = new Map<string, string>()) {
@@ -430,5 +438,88 @@ describe('filterMapEventPinsForView', () => {
       merge,
     });
     expect(result.map((e) => e.id)).toEqual(['regular-paris', 'world-tokyo']);
+  });
+});
+
+describe('buildMapEventsBaseForPins', () => {
+  const fixedNow = new Date('2026-07-22T12:00:00.000Z');
+  const merge = mergeMapEventMarkers;
+
+  const solarFeed: MapEventMarker = {
+    id: 'prod-sponso-evt-solar-festival-2026',
+    latitude: 43.6489,
+    longitude: 3.8567,
+    title: 'Solar Festival',
+    eventDate: '2026-07-22T18:00:00.000Z',
+    eventLocation: 'Solar Festival, Le Crès, France',
+    authorId: 'author-solar',
+  };
+
+  function includingSponso(markers: MapEventMarker[] = [solarFeed]) {
+    return mergeMapEventsWithSponso(markers, [], new Set([solarFeed.id]));
+  }
+
+  it('shows tagged sponso pins without any map filter when user is not following', () => {
+    const pins = buildMapEventsBaseForPins({
+      anyMapFilterActive: false,
+      eventsFilterOn: false,
+      followingMapAmbientOn: false,
+      mapEventsIncludingSponso: includingSponso(),
+      followingIds: new Set(),
+      savedEventPostIds: new Set(),
+      favoriteIds: new Set(),
+      eventsFilterCustomized: false,
+      filteredMapEvents: [],
+      globeOverview: false,
+      merge,
+      now: fixedNow,
+    });
+
+    expect(pins).toHaveLength(1);
+    expect(pins[0]).toMatchObject({
+      id: solarFeed.id,
+      isSponsored: true,
+    });
+  });
+
+  it('tags sponso in following ambient mode instead of using raw feed markers', () => {
+    const pins = buildMapEventsBaseForPins({
+      anyMapFilterActive: false,
+      eventsFilterOn: false,
+      followingMapAmbientOn: true,
+      mapEventsIncludingSponso: includingSponso(),
+      followingIds: new Set(['author-solar']),
+      savedEventPostIds: new Set(),
+      favoriteIds: new Set(),
+      eventsFilterCustomized: false,
+      filteredMapEvents: [],
+      globeOverview: false,
+      merge,
+      now: fixedNow,
+    });
+
+    expect(pins.find((pin) => pin.id === solarFeed.id)?.isSponsored).toBe(true);
+  });
+});
+
+describe('applyMapEventDayPinFilterForMap', () => {
+  it('keeps sponso pins when day pin filter targets another day', () => {
+    const sponso = marker({
+      id: 'sponso-future',
+      latitude: 43.6,
+      longitude: 3.9,
+      eventDate: '2026-07-25T18:00:00.000Z',
+      isSponsored: true,
+    });
+    const regular = marker({
+      id: 'regular-today',
+      latitude: 48.8,
+      longitude: 2.3,
+      eventDate: '2026-07-22T18:00:00.000Z',
+    });
+
+    const result = applyMapEventDayPinFilterForMap([sponso, regular], '2026-07-22');
+
+    expect(result.map((event) => event.id)).toEqual(['sponso-future', 'regular-today']);
   });
 });

@@ -54,6 +54,18 @@ export function getMsdevEnvPath(): string {
   return candidates[0];
 }
 
+/**
+ * Fichier .env réellement chargé au démarrage du process (dotenv.config()).
+ * En prod/preprod, PM2 fixe cwd=ROOT et env_file=ROOT/.env (voir
+ * commun/deploy/ecosystem.config.cjs) — getAppRoot() résout donc bien ROOT/.env.
+ * Même résolution que getMsdevEnvPath() (candidats identiques), exposée sous
+ * un nom neutre pour les usages hors msdev (ex. mise à jour clé Stripe live
+ * depuis l'admin, sans redéploiement).
+ */
+export function getActiveEnvFilePath(): string {
+  return getMsdevEnvPath();
+}
+
 export function getMsdevConfigPath(): string {
   const candidates = [
     path.join(getAppRoot(), 'config.json'),

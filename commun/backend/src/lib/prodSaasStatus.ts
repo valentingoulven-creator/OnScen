@@ -1,4 +1,6 @@
 import { isAcrCloudConfigured, isAcrCloudEnabled, isMsdevRuntime } from './acrCloudConfig';
+import { EXTERNAL_SECRET_PROVIDERS } from './externalSecretsRegistry';
+import { getProviderIssues } from './externalSecretsAlerts';
 import { isCloudflareStreamConfigured } from './cloudflareStream';
 import { isStripeConfigured } from './donations';
 import { isEmailConfigured } from './emailSend';
@@ -24,6 +26,8 @@ export interface ProdSaasAlert {
   id: string;
   severity: ProdSaasAlertSeverity;
   messageKey: string;
+  /** Paramètres bruts pour interpolation i18n côté frontend (provider id, nom de variable — jamais une valeur). */
+  params?: Record<string, string>;
 }
 
 export interface ProdSaasServiceReport {
@@ -155,6 +159,26 @@ function buildAlerts(env: ProdSaasEnvironment): ProdSaasAlert[] {
       severity: 'info',
       messageKey: 'admin.costs.saas.alerts.sentryMissing',
     });
+  }
+
+  // Généralisation de stripe_test_on_production : remonte les problèmes
+  // détectés sur les clés d'API tierces du registre Intégrations
+  // (externalSecretsAlerts.ts). Visible uniquement en environnement déployé
+  // (prod/preprod) pour éviter le bruit sur un poste de dev local — le
+  // détecteur "test_mode_in_production" est de toute façon déjà limité à
+  // isProductionEnv() en amont. Jamais une valeur en clair, uniquement le
+  // provider et le nom de la variable concernée.
+  if (env === 'production' || env === 'preproduction') {
+    for (const providerDef of EXTERNAL_SECRET_PROVIDERS) {
+      for (const providerIssue of getProviderIssues(providerDef)) {
+        alerts.push({
+          id: `external_secret_${providerDef.id}_${providerIssue.type}_${providerIssue.field}`,
+          severity: providerIssue.severity,
+          messageKey: providerIssue.messageKey,
+          params: { provider: providerDef.id, field: providerIssue.field },
+        });
+      }
+    }
   }
 
   return alerts;

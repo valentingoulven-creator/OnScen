@@ -7,7 +7,8 @@ export type AdminPrimaryTabId =
   | 'analytics'
   | 'support'
   | 'sponsors'
-  | 'agents';
+  | 'agents'
+  | 'integrations';
 
 export type AdminPrimaryTab = {
   id: AdminPrimaryTabId;

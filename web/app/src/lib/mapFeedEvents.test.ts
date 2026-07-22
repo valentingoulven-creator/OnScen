@@ -5,9 +5,12 @@ import {
   filterPostsForMapEvents,
   filterPostsForMapSponsoredEvents,
   mergeMapEventMarkers,
+  mergeMapEventsWithSponso,
+  tagMapEventMarkersAsSponsored,
 } from './mapFeedEvents';
+import { filterMapEventPinsForView } from './mapEventFilter';
 import * as mapEventCoords from './mapEventCoords';
-import type { FeedPost } from '../types';
+import type { FeedPost, MapEventMarker } from '../types';
 
 vi.mock('./api', () => ({
   api: { getFeedPosts: vi.fn() },
@@ -115,6 +118,78 @@ describe('mergeMapEventMarkers', () => {
     );
     expect(merged.map((m) => m.id)).toEqual(['b', 'a']);
     expect(merged[0]!.title).toBe('B sponso');
+  });
+});
+
+describe('tagMapEventMarkersAsSponsored', () => {
+  it('tags feed markers whose id is in the admin sponso list', () => {
+    const tagged = tagMapEventMarkersAsSponsored(
+      [
+        { id: 'a', latitude: 1, longitude: 2, title: 'A' },
+        { id: 'b', latitude: 3, longitude: 4, title: 'B' },
+      ],
+      new Set(['b'])
+    );
+    expect(tagged[0]!.isSponsored).toBeUndefined();
+    expect(tagged[1]!.isSponsored).toBe(true);
+  });
+});
+
+describe('mergeMapEventsWithSponso', () => {
+  const solar: MapEventMarker = {
+    id: 'prod-sponso-evt-solar-festival-2026',
+    latitude: 43.6489,
+    longitude: 3.8567,
+    title: 'Solar Festival',
+    eventDate: '2026-07-25T18:00:00.000Z',
+    eventLocation: 'Solar Festival, Le Crès, France',
+  };
+
+  it('tags feed markers before downstream map filters run', () => {
+    const merged = mergeMapEventsWithSponso(
+      [solar],
+      [],
+      new Set(['prod-sponso-evt-solar-festival-2026'])
+    );
+    expect(merged[0]!.isSponsored).toBe(true);
+  });
+
+  it('keeps admin sponso visible when event filter criteria exclude the venue', () => {
+    const merged = mergeMapEventsWithSponso(
+      [solar],
+      [],
+      new Set(['prod-sponso-evt-solar-festival-2026'])
+    );
+
+    const pins = filterMapEventPinsForView(merged, {
+      eventsFilterOn: true,
+      globeOverview: false,
+      filteredWhenCriteria: [],
+      merge: mergeMapEventMarkers,
+    });
+
+    expect(pins).toHaveLength(1);
+    expect(pins[0]).toMatchObject({
+      id: 'prod-sponso-evt-solar-festival-2026',
+      isSponsored: true,
+    });
+  });
+
+  it('prefers geocoded sponso markers over feed duplicates', () => {
+    const geocoded: MapEventMarker = {
+      ...solar,
+      isSponsored: true,
+      title: 'Solar Festival ✨',
+    };
+    const merged = mergeMapEventsWithSponso(
+      [{ ...solar, title: 'Solar feed copy' }],
+      [geocoded],
+      new Set(['prod-sponso-evt-solar-festival-2026'])
+    );
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]!.title).toBe('Solar Festival ✨');
+    expect(merged[0]!.isSponsored).toBe(true);
   });
 });
 

@@ -4,6 +4,9 @@ Rapports produits par `@soundy-dev-agent` à chaque session de développement si
 
 | Date | Rapport | Mission | Statut |
 |------|---------|---------|--------|
+| 2026-07-22 | [admin-integrations-configure-button](./rapports/2026-07-22-admin-integrations-configure-button.md) | Bouton "Configurer" mal placé dans la carte provider (onglet Admin Intégrations) | ✅ |
+| 2026-07-22 | [admin-integrations-secrets](./rapports/2026-07-22-admin-integrations-secrets.md) | Onglet Admin « Intégrations » : registre générique clés API tierces + détection d'alertes (clé test-en-prod, manquante, placeholder, format invalide) | ✅ |
+| 2026-07-22 | [admin-stripe-live-config](./rapports/2026-07-22-admin-stripe-live-config.md) | Saisie/mise à jour des clés Stripe live depuis l'admin (sans SSH) | ✅ |
 | 2026-07-21 | [settings-accordion-ux](./rapports/2026-07-21-settings-accordion-ux.md) | Paramètres : accordéon 6 sections + sous-accordéons légal | ✅ |
 | 2026-07-21 | [dm-group-system-cto-recos](./rapports/2026-07-21-dm-group-system-cto-recos.md) | Messages groupe : recommandations CTO P0–P3 (sécurité, i18n, tests, création) | ✅ |
 | 2026-07-21 | [reels-feed-cache-pagination](./rapports/2026-07-21-reels-feed-cache-pagination.md) | Reels : cache court du classement feed + pagination additive (suite audit CTO) | ✅ |

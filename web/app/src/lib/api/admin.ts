@@ -192,6 +192,28 @@ export const adminApi = {
   getStripePlatformStatus: (token: string) =>
     request<import('../../types').StripePlatformStatusReport>('/admin/stripe-platform', {}, token),
 
+  getStripeConfig: (token: string) =>
+    request<import('../../types').StripeConfigStatus>('/admin/stripe-config', {}, token),
+
+  updateStripeConfig: (
+    token: string,
+    input: { secretKey: string; publishableKey: string; webhookSecret?: string }
+  ) =>
+    request<import('../../types').StripeConfigStatus>('/admin/stripe-config', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }, token),
+
+  getExternalSecretsStatus: (token: string) =>
+    request<import('../../types').ExternalSecretsStatusResponse>('/admin/external-secrets', {}, token),
+
+  updateExternalSecretProvider: (token: string, providerId: string, values: Record<string, string>) =>
+    request<import('../../types').ExternalSecretProviderStatus>(
+      `/admin/external-secrets/${encodeURIComponent(providerId)}`,
+      { method: 'PUT', body: JSON.stringify({ values }) },
+      token
+    ),
+
   getDonationsHistory: (
     token: string,
     opts: { limit?: number; offset?: number } = {}

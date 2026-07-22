@@ -1475,6 +1475,8 @@
       "sponsors": "Sponsors",
       "agents": "Agents IA",
       "agentsShort": "Agents",
+      "integrations": "Intégrations",
+      "integrationsShort": "Clés API",
       "donations": "Dons"
     },
     "tabHints": {
@@ -1484,7 +1486,8 @@
       "analytics": "Coûts infra, VPS et statistiques",
       "support": "Messages et signalements",
       "sponsors": "Campagnes et bannières",
-      "agents": "Agents IA internes (CEO, dev, ops)"
+      "agents": "Agents IA internes (CEO, dev, ops)",
+      "integrations": "Clés d'API tierces (sans SSH)"
     },
     "donations": {
       "title": "Historique des dons live",
@@ -1526,6 +1529,166 @@
       "openFees": "Commissions plateforme",
       "refresh": "Actualiser",
       "refreshing": "Actualisation…"
+    },
+    "stripeConfig": {
+      "title": "Clés Stripe live",
+      "hint": "Colle les clés Stripe live pour activer les vrais paiements en production — sans SSH.",
+      "loading": "Chargement de la config Stripe…",
+      "loadError": "Impossible de charger la config Stripe",
+      "currentTitle": "Configuration active",
+      "modeLive": "Live",
+      "modeTest": "Test",
+      "modeUnknown": "Non configuré",
+      "secretKeyLabel": "Clé secrète (Secret key)",
+      "publishableKeyLabel": "Clé publique (Publishable key)",
+      "webhookSecretLabel": "Secret webhook (optionnel)",
+      "secretKeyCurrent": "Actuelle",
+      "notSet": "Non définie",
+      "webhookNotConfigured": "Aucun secret webhook configuré",
+      "secretKeyPlaceholder": "sk_live_…",
+      "publishableKeyPlaceholder": "pk_live_…",
+      "webhookSecretPlaceholder": "whsec_… (laisser vide pour ne pas changer)",
+      "show": "Afficher",
+      "hide": "Masquer",
+      "apply": "Appliquer",
+      "applying": "Application…",
+      "successMessage": "Config Stripe mise à jour — appliquée immédiatement, aucun redémarrage requis.",
+      "genericError": "Erreur lors de la mise à jour de la config Stripe",
+      "hotReloadNote": "Effet immédiat : le backend recharge automatiquement le client Stripe dès l'enregistrement (pas de redémarrage PM2 nécessaire).",
+      "writeOnlyNote": "La clé secrète et le secret webhook ne sont jamais réaffichés en clair après saisie — seuls les 4 derniers caractères restent visibles.",
+      "testOnProdWarning": "⚠️ Clé Stripe en mode TEST alors que l'app tourne en production — les vrais paiements sont désactivés.",
+      "envFileMissing": "Fichier .env introuvable sur ce serveur — vérifie le déploiement (SSH) avant d'appliquer une clé.",
+      "validation": {
+        "secretKey": "Format invalide — attendu sk_live_… ou sk_test_…",
+        "publishableKey": "Format invalide — attendu pk_live_… ou pk_test_…",
+        "webhookSecret": "Format invalide — attendu whsec_…",
+        "mode": "La clé secrète et la clé publique doivent être du même mode (live ou test)",
+        "required": "Champ requis"
+      }
+    },
+    "integrations": {
+      "title": "Intégrations & clés API",
+      "hint": "Centralise la saisie des clés d'accès aux services tiers (OAuth, modération, stockage, lives…) — sans SSH, masqué après saisie.",
+      "loading": "Chargement des intégrations…",
+      "loadError": "Impossible de charger les intégrations",
+      "envFileMissing": "Fichier .env introuvable sur ce serveur — vérifie le déploiement (SSH) avant d'appliquer une clé.",
+      "writeOnlyNote": "Les clés secrètes ne sont jamais réaffichées en clair après saisie — seuls quelques caractères restent visibles. Effet immédiat : aucun redémarrage PM2 n'est nécessaire pour ces variables.",
+      "alertBannerTitle": "{{count}} intégration(s) nécessitent une action",
+      "alertBannerItem": "{{provider}} — {{count}} problème(s) détecté(s)",
+      "issues": {
+        "partialConfig": "{{provider}} : configuration incomplète — variable obligatoire manquante ({{field}})",
+        "placeholderValue": "{{provider}} : la valeur de {{field}} ressemble à un exemple/placeholder connu — vérifiez qu'il s'agit bien de la vraie clé",
+        "invalidFormat": "{{provider}} : format de {{field}} invalide — vérifiez qu'il n'a pas été modifié/tronqué manuellement (.env)",
+        "testModeInProduction": "{{provider}} : {{field}} pointe vers un mode test/sandbox alors que l'app tourne en production"
+      },
+      "card": {
+        "configured": "Configuré",
+        "notConfigured": "Non configuré",
+        "badgeOk": "✅ OK",
+        "badgeActionRequired": "⚠️ Action requise",
+        "badgeUnconfigured": "○ Non configuré",
+        "notSet": "Non définie",
+        "configure": "Configurer",
+        "cancel": "Annuler",
+        "optional": "optionnel",
+        "show": "Afficher",
+        "hide": "Masquer",
+        "apply": "Appliquer",
+        "applying": "Application…",
+        "successMessage": "Configuration mise à jour — appliquée immédiatement.",
+        "genericError": "Erreur lors de la mise à jour de la configuration",
+        "requiredMissing": "Merci de renseigner tous les champs obligatoires.",
+        "invalidField": "Format invalide pour {{field}}",
+        "openConsole": "Ouvrir la console du provider →"
+      },
+      "providers": {
+        "google_oauth": {
+          "title": "Google OAuth (connexion + YouTube)",
+          "hint": "Connexion sociale Google et liaison de compte YouTube. console.cloud.google.com → APIs & Services → Credentials."
+        },
+        "youtube_data_api": {
+          "title": "YouTube Data API v3",
+          "hint": "Recherche et import de playlists YouTube publiques dans les salons (clé serveur, indépendante d'OAuth)."
+        },
+        "facebook_instagram": {
+          "title": "Facebook / Instagram",
+          "hint": "Connexion sociale Facebook et liaison de compte Instagram (Graph API). developers.facebook.com."
+        },
+        "cloudflare_stream": {
+          "title": "Cloudflare Stream",
+          "hint": "Lives en RTMP ingest → HLS/CDN (remplace le mesh WebRTC pour les spectateurs)."
+        },
+        "livekit": {
+          "title": "LiveKit Cloud",
+          "hint": "Lives caméra navigateur (style Instagram) — prioritaire sur Cloudflare si les deux sont configurés."
+        },
+        "sightengine": {
+          "title": "Sightengine",
+          "hint": "Modération NSFW automatique des images/vidéos publiées par les utilisateurs."
+        },
+        "acrcloud": {
+          "title": "ACRCloud",
+          "hint": "Empreinte audio anti-upload de musique commerciale (catalogue ~150M morceaux)."
+        },
+        "s3_scaleway": {
+          "title": "Object Storage S3 / Scaleway",
+          "hint": "Stockage des médias uploadés (logos sponsors, etc.) hors du disque du serveur."
+        },
+        "resend_email": {
+          "title": "Resend (emails)",
+          "hint": "Envoi des emails transactionnels et alertes admin via l'API HTTP Resend."
+        },
+        "ai_agents": {
+          "title": "Agents IA (Anthropic / OpenAI)",
+          "hint": "Alimente le chat CEO IA / Dev Agent de l'onglet Agents. Une seule des deux clés suffit."
+        },
+        "web_push": {
+          "title": "Web Push (VAPID)",
+          "hint": "Notifications navigateur. Générer une paire avec : npx web-push generate-vapid-keys"
+        },
+        "turn": {
+          "title": "Serveur TURN",
+          "hint": "Relai WebRTC pour le mesh lives (utilisé si LiveKit et Cloudflare Stream sont absents)."
+        }
+      },
+      "fields": {
+        "GOOGLE_CLIENT_ID": "Client ID",
+        "GOOGLE_CLIENT_SECRET": "Client Secret",
+        "GOOGLE_CALLBACK_URL": "URL de callback (Google)",
+        "YOUTUBE_CALLBACK_URL": "URL de callback (YouTube)",
+        "YOUTUBE_API_KEY": "Clé API YouTube",
+        "FACEBOOK_APP_ID": "App ID",
+        "FACEBOOK_APP_SECRET": "App Secret",
+        "FACEBOOK_CALLBACK_URL": "URL de callback (Facebook)",
+        "INSTAGRAM_CALLBACK_URL": "URL de callback (Instagram)",
+        "CLOUDFLARE_ACCOUNT_ID": "Account ID",
+        "CLOUDFLARE_STREAM_API_TOKEN": "API Token Stream",
+        "CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN": "Sous-domaine client",
+        "LIVEKIT_URL": "URL WebSocket du projet",
+        "LIVEKIT_API_KEY": "API Key",
+        "LIVEKIT_API_SECRET": "API Secret",
+        "SIGHTENGINE_API_USER": "API User",
+        "SIGHTENGINE_API_SECRET": "API Secret",
+        "ACRCLOUD_ACCESS_KEY": "Access Key",
+        "ACRCLOUD_ACCESS_SECRET": "Access Secret",
+        "ACRCLOUD_HOST": "Host (endpoint régional)",
+        "S3_BUCKET": "Bucket",
+        "S3_REGION": "Région",
+        "S3_ENDPOINT": "Endpoint",
+        "S3_ACCESS_KEY_ID": "Access Key ID",
+        "S3_SECRET_ACCESS_KEY": "Secret Access Key",
+        "S3_PUBLIC_BASE_URL": "URL publique (CDN)",
+        "RESEND_API_KEY": "Clé API",
+        "RESEND_FROM": "Adresse d'expédition",
+        "ANTHROPIC_API_KEY": "Clé API Anthropic",
+        "OPENAI_API_KEY": "Clé API OpenAI",
+        "VAPID_PUBLIC_KEY": "Clé publique VAPID",
+        "VAPID_PRIVATE_KEY": "Clé privée VAPID",
+        "VAPID_SUBJECT": "Contact (mailto: ou URL)",
+        "TURN_URL": "URL(s) du serveur TURN",
+        "TURN_USERNAME": "Identifiant",
+        "TURN_CREDENTIAL": "Mot de passe / credential"
+      }
     },
     "agents": {
       "loading": "Chargement des agents…",

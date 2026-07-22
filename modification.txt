@@ -1,4 +1,381 @@
 ﻿================================================================================
+MODIF 762 — Admin Intégrations : bouton "Configurer" mal placé (carte provider)
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Dans `AdminExternalSecretProviderCard` (onglet Admin → Intégrations,
+ MODIF 760/761), le bouton "Configurer" des providers non configurés était
+ rendu isolé, en bas de carte, après le bloc des champs (`dl`) et le lien
+ d'aide optionnel — sans lien visuel avec le header (nom du provider +
+ badge de statut). Dans la grille `grid-cols-1 lg:grid-cols-2` de l'onglet,
+ le bouton apparaissait donc à une hauteur incohérente selon le nombre de
+ champs/issues de chaque provider, et semblait flotter au milieu/en bas de
+ la carte plutôt que d'être une action groupée avec le titre.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/AdminExternalSecretProviderCard.tsx
+ ─────────────────
+ • Bouton "Configurer" déplacé dans le header de carte : nouveau conteneur
+   `flex flex-col items-end gap-2 shrink-0` regroupant le badge de statut
+   et le bouton, aligné à droite du titre du provider (même ligne que le
+   badge), au lieu d'un bloc séparé après les champs
+ • Ancien bouton plein-largeur (`w-full sm:w-auto`) en bas de carte retiré ;
+   conservé `min-h-[44px]` (touch target 44px) et le style existant
+   (`bg-[#1a1a26]`, `text-purple-300`, `border-purple-500/20`, `rounded-xl`)
+ • Comportement inchangé (toggle `expanded` masque le bouton et affiche le
+   formulaire) ; cohérent dans les 3 états de badge (OK / action requise /
+   non configuré) — le bouton n'apparaît que si `!expanded`, quel que soit
+   le badge affiché
+
+FICHIERS MODIFIÉS
+-----
+ AdminExternalSecretProviderCard.tsx → bouton "Configurer" regroupé avec le
+ header (titre + badge) au lieu d'être isolé en bas de carte
+
+BUILD (si vérifié)
+-----
+ web/app → npm run build → ✅
+
+================================================================================
+Fin MODIF 762 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 761 — Admin Intégrations : détection d'alertes clés à changer
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suite à MODIF 760 (onglet Admin Intégrations), le fondateur veut être
+ notifié quand une clé d'API tierce a besoin d'être changée — généralise le
+ principe de l'alerte existante `stripe_test_on_production`
+ (prodSaasStatus.ts) aux 11 providers du registre générique.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/externalSecretsRegistry.ts
+ ─────────────────
+ • FORMAT_VALIDATORS exporté (déplacé depuis externalSecretsAdmin.ts) —
+   une seule source de vérité des regex de format, réutilisée à la saisie
+   ET à la lecture (détection de dérive)
+
+ commun/backend/src/lib/externalSecretsAlerts.ts
+ ─────────────────
+ • Nouveau — getProviderIssues(providerDef), 4 règles conservatrices (aucun
+   faux positif) :
+   1. test_mode_in_production — signal documenté (.env.production.example) :
+      RESEND_FROM contenant "resend.dev" alors que APP_ENV=production
+   2. partial_config — variable requise manquante, UNIQUEMENT si le
+      provider est déjà partiellement renseigné (config cassée) ; un
+      provider entièrement vide reste "non configuré" (pas une alerte)
+   3. invalid_format — valeur en place ne respecte plus le format déclaré
+      (édition manuelle du .env par SSH, valeur tronquée…), réutilise
+      FORMAT_VALIDATORS du registre
+   4. placeholder_value — valeur strictement identique (insensible à la
+      casse) à un exemple/placeholder connu (changez_moi, devkey/secret
+      LiveKit --dev, etc.) — comparaison EXACTE, jamais une sous-chaîne
+ • Chaque ExternalSecretIssue = { type, severity, field, messageKey } —
+   jamais une valeur en clair
+
+ commun/backend/src/lib/externalSecretsAdmin.ts
+ ─────────────────
+ • ExternalSecretProviderStatus +issues: ExternalSecretIssue[] (calculé par
+   getProviderStatus) — exposé automatiquement par GET /api/admin/
+   external-secrets existant, aucun nouvel endpoint créé
+
+ commun/backend/src/lib/prodSaasStatus.ts
+ ─────────────────
+ • ProdSaasAlert +params?: Record<string,string> (provider/field bruts,
+   jamais une valeur)
+ • buildAlerts() : remonte un ProdSaasAlert par ExternalSecretIssue détecté,
+   uniquement en environnement déployé (prod/preprod) — visible dès la
+   connexion admin (Analytics → Costs), même emplacement que
+   stripe_test_on_production
+
+ web/app/src/components/AdminExternalSecretProviderCard.tsx
+ ─────────────────
+ • Badge 3 états : ✅ OK / ⚠️ Action requise / ○ Non configuré (priorité aux
+   issues sur le simple statut configured)
+ • Liste des problèmes détectés affichée dans la carte (couleur par sévérité)
+
+ web/app/src/pages/AdminIntegrationsTab.tsx
+ ─────────────────
+ • Bannière récapitulative en tête d'onglet si ≥1 provider a un problème
+
+ web/app/src/pages/AdminCostsTab.tsx
+ ─────────────────
+ • ProdSaasAlerts résout les params (provider/field) en libellés traduits
+   avant interpolation i18n
+
+ web/app/src/types.ts
+ ─────────────────
+ • +ExternalSecretIssue/ExternalSecretIssueType/ExternalSecretIssueSeverity
+ • ProdSaasAlert +params?: Record<string,string>
+
+ web/app/src/locales/fr.json, en.json
+ ─────────────────
+ • admin.integrations.issues.* (4 messages), admin.integrations.card.badge*,
+   admin.integrations.alertBannerTitle/Item
+
+ commun/backend/src/lib/externalSecretsAlerts.test.ts (nouveau, 10 tests)
+ ─────────────────
+ • OK sans issue, non-configuré sans issue, partial_config, placeholder
+   (exact vs sous-chaîne non flaggée), invalid_format, test-in-prod
+   (avec/sans APP_ENV=production, domaine légitime non flaggé), non-fuite
+   de valeur en clair
+
+FICHIERS MODIFIÉS
+-----
+ externalSecretsRegistry.ts → FORMAT_VALIDATORS exporté
+ externalSecretsAlerts.ts / .test.ts → nouveau détecteur (10 tests)
+ externalSecretsAdmin.ts → +issues dans ExternalSecretProviderStatus
+ prodSaasStatus.ts → alertes globales génériques + params
+ AdminExternalSecretProviderCard.tsx, AdminIntegrationsTab.tsx → badges + bannière
+ AdminCostsTab.tsx → résolution params i18n
+ types.ts, locales/fr.json, locales/en.json → types + i18n
+
+BUILD (si vérifié)
+-----
+ commun/backend → npm test → ✅ (447/447, 90 fichiers dont 10 nouveaux)
+ commun/backend → npx tsc --noEmit → ✅
+ web/app → npx tsc --noEmit → ✅
+ web/app → npm run build → ✅
+ web/app → npx vitest run → ✅ (473/473 ; même échec pré-existant hors sujet
+   mapSearchIntent.test.ts, sans lien avec cette session)
+
+================================================================================
+Fin — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 760 — Admin : onglet Intégrations (clés API tierces généralisées)
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suite à MODIF précédente (config Stripe live depuis l'admin), le fondateur
+ veut le même principe (write-only, masqué, appliqué à chaud sans SSH) pour
+ TOUTES les clés d'API tierces de l'app (Google/YouTube, Facebook/Instagram,
+ Cloudflare Stream, LiveKit, Sightengine, ACRCloud, S3/Scaleway, Resend,
+ Anthropic/OpenAI, Web Push, TURN), dans un onglet Admin dédié « Intégrations »
+ plutôt que dispersé dans Donations. Stripe reste géré par son module dédié
+ déjà testé (16 tests) — non dupliqué.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/externalSecretsRegistry.ts
+ ─────────────────
+ • Nouveau — registre des 11 providers (hors Stripe) : liste des variables
+   d'env par provider, format de validation, sensible/public, requis/optionnel
+ • EXTERNAL_SECRET_WHITELIST — whitelist stricte dérivée du registre (seule
+   source de vérité des variables éditables via ce moteur ; jamais de
+   variable "cœur système" : DATABASE_URL, JWT_SECRET, ENCRYPTION_KEY,
+   OPS_HEALTH_TOKEN, TOTP_ENCRYPTION_KEY, PROD_ADMIN_*, REDIS_URL…)
+
+ commun/backend/src/lib/externalSecretsAdmin.ts
+ ─────────────────
+ • Nouveau — moteur générique factorisé sur upsertEnvFileKeys (déjà générique,
+   réutilisé tel quel) : getExternalSecretsStatus, validateProviderInput,
+   applyProviderConfig (rejette toute clé hors whitelist du provider, refuse
+   si .env introuvable, n'écrase jamais un champ optionnel laissé vide)
+ • maskExternalSecretValue — masquage générique (4 premiers + 4 derniers
+   caractères) pour tout champ "secret"
+
+ commun/backend/src/routes/adminExternalSecrets.ts
+ ─────────────────
+ • Nouveau — GET/PUT /api/admin/external-secrets(/:provider), authenticateJWT
+   + requireDevStaff + rate limit Redis (20/15min, skip msdev) + audit log
+   masqué (admin_audit_log, action=external_secrets_update)
+
+ commun/backend/src/server.ts
+ ─────────────────
+ • Montage adminExternalSecretsRouter sous /api/admin
+
+ web/app/src/components/AdminExternalSecretProviderCard.tsx
+ ─────────────────
+ • Nouveau — carte générique par provider (formulaire toujours vide, masquage,
+   badge configuré/non configuré, toggle visibilité par champ, bouton
+   Configurer/Appliquer), pilotée par le statut renvoyé par le backend
+
+ web/app/src/pages/AdminIntegrationsTab.tsx
+ ─────────────────
+ • Nouveau — onglet : réutilise AdminStripeConfigCard (existant, inchangé)
+   + une AdminExternalSecretProviderCard par provider du registre
+
+ web/app/src/pages/AdminPage.tsx, components/AdminPrimaryNav.tsx,
+ lib/adminStaffRoles.ts
+ ─────────────────
+ • Nouvel onglet 'integrations' (icône 🔑), réservé Dev staff (comme access/
+   analytics/agents)
+
+ web/app/src/lib/api/admin.ts, types.ts
+ ─────────────────
+ • +getExternalSecretsStatus/updateExternalSecretProvider
+ • +ExternalSecretFieldStatus/ExternalSecretProviderStatus/ExternalSecretsStatusResponse
+
+ web/app/src/locales/fr.json, en.json
+ ─────────────────
+ • admin.tabs.integrations(Short), admin.tabHints.integrations,
+   admin.integrations.* (title, hint, card.*, providers.*, fields.*)
+
+ commun/backend/src/lib/externalSecretsRegistry.test.ts (nouveau, 9 tests)
+ commun/backend/src/lib/externalSecretsAdmin.test.ts (nouveau, 19 tests)
+ ─────────────────
+ • Whitelist n'expose jamais de variable système, rejet clé non whitelistée,
+   validation par format, hot reload .env, refus si .env introuvable,
+   non-écrasement des champs optionnels vides, provider "configuré" à partir
+   d'au moins un champ si aucun champ requis (cas ai_agents)
+
+FICHIERS MODIFIÉS
+-----
+ externalSecretsRegistry.ts / .test.ts → nouveau registre + whitelist
+ externalSecretsAdmin.ts / .test.ts → moteur générique (28 tests au total)
+ adminExternalSecrets.ts → nouvelles routes GET/PUT
+ server.ts → montage router
+ AdminExternalSecretProviderCard.tsx, AdminIntegrationsTab.tsx → nouveau frontend
+ AdminPage.tsx, AdminPrimaryNav.tsx, adminStaffRoles.ts → nouvel onglet Dev-only
+ lib/api/admin.ts, types.ts, locales/fr.json, locales/en.json → API + i18n
+
+BUILD (si vérifié)
+-----
+ commun/backend → npm test → ✅ (437/437, 89 fichiers dont 28 nouveaux)
+ commun/backend → npx tsc --noEmit → ✅
+ web/app → npx tsc --noEmit → ✅
+ web/app → npm run build → ✅
+ web/app → npx vitest run → ✅ (473/473 ; 1 échec pré-existant hors sujet :
+   mapSearchIntent.test.ts, "localStorage is not defined", sans lien avec
+   cette session)
+
+================================================================================
+Fin — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 759 — Pin Sponso carte : pool pins sans filtre + filtre jour
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Malgré MODIF 757–758, Solar Festival (sidebar ✨ Sponso) restait en pin vert
+ sur la carte plate : mapEventsBaseForPins utilisait mapEvents brut (sans
+ isSponsored) en mode ambient/suivi, et excluait totalement les sponso sans
+ filtre carte. applyMapEventDayPinFilter retirait aussi les sponso hors jour
+ sélectionné.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/mapEventFilter.ts
+ ─────────────────
+ • buildMapEventsBaseForPins() — sponso toujours inclus (tagués via
+   mapEventsIncludingSponso), mode suivi sans filtre corrigé
+ • applyMapEventDayPinFilterForMap() — sponso exemptés du filtre jour pin
+
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • mapEventsBaseForPins / mapEventsForMapPins délégués aux helpers ci-dessus
+
+ web/app/src/lib/mapEventFilter.test.ts
+ ─────────────────
+ • Régressions : sponso sans filtre, mode suivi tagué, jour pin
+
+FICHIERS MODIFIÉS
+-----
+ mapEventFilter.ts → buildMapEventsBaseForPins + day pin sponso
+ HomePage.tsx → pipeline pins carte unifié
+ mapEventFilter.test.ts → 3 tests régression sponso carte
+
+BUILD (si vérifié)
+-----
+ web/app → npm test mapMarkersKey mapEventDayColors mapFeedEvents mapEventFilter → ✅ (54 tests)
+
+================================================================================
+Fin — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 758 — Pin Sponso carte : tagging avant filtres (follow-up MODIF 757)
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Malgré MODIF 757 (clé cluster incluant isSponsored), le pin Leaflet restait
+ vert : tagMapEventMarkersAsSponsored s’exécutait après filterMapEventPinsForView
+ et le filtre calendrier browse. Les événements admin étaient traités comme
+ réguliers, exclus du pool (critères / jours) avant d’être marqués isSponsored.
+ La sidebar Sponso (source API séparée) affichait ✨ ; la couche carte non.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/mapFeedEvents.ts
+ ─────────────────
+ • mergeMapEventsWithSponso() — merge feed + sponso + tag ids admin en amont
+
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • mapEventsIncludingSponso via mergeMapEventsWithSponso (tag avant filtres)
+ • mapEventsBaseForPins : calendrier browse exempte isMapEventVisibleAsSponsoPin
+ • suppression du re-tag / re-merge tardif (redondant)
+
+ web/app/src/lib/mapFeedEvents.test.ts
+ ─────────────────
+ • Tests mergeMapEventsWithSponso + régression filtre critères vide
+
+FICHIERS MODIFIÉS
+-----
+ mapFeedEvents.ts → mergeMapEventsWithSponso
+ HomePage.tsx → pipeline sponso en amont
+ mapFeedEvents.test.ts → régression tagging avant filtres
+
+BUILD (si vérifié)
+-----
+ web/app → npm test mapMarkersKey mapEventDayColors mapFeedEvents mapEventFilter → ✅
+
+================================================================================
+Fin — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 757 — Pin événement sponsorisé carte Leaflet (✨)
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Un événement affiché « Sponso » dans la sidebar conservait le pin jour (couleur
+ calendaire) sur la carte plate Leaflet après chargement asynchrone du statut
+ sponsorisé — le marqueur n’était pas reconstruit.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/mapMarkersKey.ts
+ ─────────────────
+ • buildEventClusterKey inclut isSponsored (pin ✨ / map-marker--sponso).
+
+ web/app/src/lib/mapMarkersKey.test.ts
+ ─────────────────
+ • Tests : clé street + overview change quand isSponsored bascule.
+
+FICHIERS MODIFIÉS
+-----
+ mapMarkersKey.ts → clé marqueurs inclut sponsorship
+ mapMarkersKey.test.ts → régression clé sponso
+
+BUILD (si vérifié)
+-----
+ web/app → npm test mapMarkersKey + mapEventDayColors + mapFeedEvents → ✅
+
+================================================================================
+Fin — 2026-07-22
+================================================================================
+
+================================================================================
 MODIF 756 — Sidebar carte : libellés Live / Salon / Événement suivi
 Date : 2026-07-21
 ================================================================================
@@ -31521,4 +31898,403 @@ BUILD (si vérifié)
 
 ================================================================================
 Fin MODIF 1192 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1193 — Pin carte Sponso ✨ (feed sans isSponsored) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Événements admin Sponso affichés sur la carte Leaflet avec l’icône jour (SVG)
+ au lieu du pin ✨ : le feed carte ne portait pas toujours isSponsored: true
+ alors que la sidebar Sponso les listait correctement.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/mapFeedEvents.ts
+ ─────────────────
+ • tagMapEventMarkersAsSponsored() — marque isSponsored sur les ids admin
+
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • mapSponsoredPostIds depuis useMapSidebarSponsoredEvents (hook remonté)
+ • mapEventsBaseForPins : tagging après merge feed/sponso
+
+ web/app/src/index.css
+ ─────────────────
+ • .map-marker--sponso.map-marker--highlighted — halo doré cohérent sidebar
+
+ web/app/src/lib/mapFeedEvents.test.ts
+ ─────────────────
+ • test unitaire tagMapEventMarkersAsSponsored
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/mapFeedEvents.ts → tag sponso par id admin
+ web/app/src/pages/HomePage.tsx → application sur pins carte
+ web/app/src/index.css → highlight sponso
+ web/app/src/lib/mapFeedEvents.test.ts → test
+
+BUILD (si vérifié)
+-----
+ web/app → npm test mapFeedEvents → ✅ 12
+
+================================================================================
+Fin MODIF 1193 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1194 — Business Plan Premium investisseurs (18 sections) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Document stratégie existant à enrichir en business plan complet, haut de gamme,
+ présentable investisseurs / banques / partenaires (style cabinet conseil).
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/BUSINESS-PLAN-PREMIUM.md
+ ─────────────────
+ • 18 sections : couverture, sommaire, executive summary, SWOT, prévisions,
+   financement, risques, conclusion…
+ • Contenu consolidé depuis ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES
+ • Hypothèses signalées (équipe, coûts M24–M36)
+
+ commun/docs/strategie/business-plan-premium.css
+ ─────────────────
+ • Mise en page premium bleu marine / gris / blanc (IBM Plex)
+ • Encadrés insight / hypothèse, SWOT, KPI, simulateur tarifaire
+
+ commun/docs/strategie/generate-pdfs.mjs
+ ─────────────────
+ • kind premium → BUSINESS-PLAN-PREMIUM.html + .pdf
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/strategie/BUSINESS-PLAN-PREMIUM.md (nouveau)
+ commun/docs/strategie/business-plan-premium.css (nouveau)
+ commun/docs/strategie/generate-pdfs.mjs
+ commun/docs/strategie/README.md
+
+BUILD (si vérifié)
+-----
+ commun/docs/strategie → npm run pdf → ✅ BUSINESS-PLAN-PREMIUM.pdf
+
+================================================================================
+Fin MODIF 1194 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1195 — Priorités immédiates : dev + tests app — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Aligner les documents stratégie sur les priorités produit réelles : finaliser
+ le développement et lancer les tests utilisateurs avant la commercialisation.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.md
+ ─────────────────
+ • §5 Priorités immédiates : P0 « Finaliser le développement de l'application »
+ • P0 « Faire tester l'application (beta, early users) »
+
+ commun/docs/strategie/BUSINESS-PLAN-PREMIUM.md
+ ─────────────────
+ • Même tableau Priorités immédiates (plan opérationnel)
+ • Callout « Prochaine étape » : dev + tests en tête des jalons P0
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/strategie/ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.md → priorités P0
+ commun/docs/strategie/BUSINESS-PLAN-PREMIUM.md → alignement + prochaine étape
+ commun/docs/strategie/*.html + *.pdf → régénérés
+
+BUILD (si vérifié)
+-----
+ commun/docs/strategie → npm run pdf → ✅
+
+================================================================================
+Fin MODIF 1195 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1196 — Glossaire produit Soundy (étude + premium) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Enrichir le glossaire des documents stratégie : termes produit Soundy et
+ packages commerciaux, en plus des acronymes déjà présents.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.md
+ ─────────────────
+ • §6 renommé « Glossaire » (plus « acronymes » seuls)
+ • Groupes Produit Soundy, Packages & commercial + acronymes existants
+
+ commun/docs/strategie/BUSINESS-PLAN-PREMIUM.md
+ ─────────────────
+ • Section Glossaire ajoutée (section 19)
+
+ commun/docs/strategie/business-plan-premium.css
+ ─────────────────
+ • Styles glossary-grid pour doc premium
+
+ commun/docs/strategie/generate-pdfs.mjs
+ ─────────────────
+ • Sommaires étude + premium mis à jour (entrée Glossaire)
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/strategie/ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.md
+ commun/docs/strategie/BUSINESS-PLAN-PREMIUM.md
+ commun/docs/strategie/business-plan-premium.css
+ commun/docs/strategie/generate-pdfs.mjs
+ commun/docs/strategie/*.html + *.pdf → régénérés
+
+BUILD (si vérifié)
+-----
+ commun/docs/strategie → npm run pdf → ✅
+
+================================================================================
+Fin MODIF 1196 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1197 — Détail des 3 abonnements (Supporter, Super fan, Soundy+) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Documenter les 3 types d'abonnement avec tarifs, avantages et statut produit,
+ alignés sur le code (subscriptions.ts, platformPlans.ts).
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.md
+ ─────────────────
+ • §2.1 : cartes tarifaires + tableau détaillé (Supporter 4,99 €, Super fan 9,99 €, Soundy+ 9,99 €)
+ • Glossaire : groupe Abonnements (Supporter, Super fan, Soundy+)
+
+ commun/docs/strategie/BUSINESS-PLAN-PREMIUM.md
+ ─────────────────
+ • Business Model : même tableau des 3 abonnements + glossaire aligné
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/strategie/ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.md
+ commun/docs/strategie/BUSINESS-PLAN-PREMIUM.md
+ commun/docs/strategie/*.html + *.pdf → régénérés
+
+BUILD (si vérifié)
+-----
+ commun/docs/strategie → npm run pdf → ✅
+
+================================================================================
+Fin MODIF 1197 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1198 — Forfaits plateforme (Gratuit, Soundy+, SoundyUltra) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Aligner la doc stratégie sur l'écran produit « Comparer les forfaits » (capture
+ app) plutôt que sur les seuls abonnements créateur Supporter / Super fan.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.md
+ ─────────────────
+ • §2.1 : tableau Gratuit / Soundy+ (9,99 €) / SoundyUltra (19,99 €)
+ • Quotas live, diffusion LiveKit vs OBS Cloudflare
+ • Abonnements créateurs en sous-section complémentaire
+ • Glossaire : groupes Forfaits plateforme + Abonnements créateurs
+
+ commun/docs/strategie/BUSINESS-PLAN-PREMIUM.md
+ ─────────────────
+ • Même alignement Business Model + glossaire + priorité P2
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/strategie/ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.md
+ commun/docs/strategie/BUSINESS-PLAN-PREMIUM.md
+ commun/docs/strategie/*.html + *.pdf → régénérés
+
+BUILD (si vérifié)
+-----
+ commun/docs/strategie → npm run pdf → ✅
+
+================================================================================
+Fin MODIF 1198 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1199 — Vision Europe → international + visibilité événements — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Préciser la vision géographique (européenne puis internationale) et mettre
+ en avant la visibilité des événements musicaux sur la carte.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.md
+ ─────────────────
+ • Résumé exécutif : paragraphe Vision France → Europe → international
+ • Proposition, atouts, phase M25–M36, glossaire « Visibilité des événements »
+
+ commun/docs/strategie/BUSINESS-PLAN-PREMIUM.md
+ ─────────────────
+ • Vision / mission / valeurs / produits / plan An 4–5 / conclusion alignés
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/strategie/ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.md
+ commun/docs/strategie/BUSINESS-PLAN-PREMIUM.md
+ commun/docs/strategie/*.html + *.pdf → régénérés
+
+BUILD (si vérifié)
+-----
+ commun/docs/strategie → npm run pdf → ✅
+
+================================================================================
+Fin MODIF 1199 — 2026-07-22
+================================================================================
+
+================================================================================
+MODIF 1200 — Config Stripe live depuis l'admin (sans SSH) — Soundy Dev
+Date : 2026-07-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Audit CTO : STRIPE_SECRET_KEY/STRIPE_PUBLISHABLE_KEY en mode test (sk_test_)
+ alors que APP_ENV=production et DONATIONS_ENABLED=1 (alerte
+ `stripe_test_on_production` déjà détectée dans prodSaasStatus.ts). Aucune clé
+ live nulle part dans l'infra. Objectif : permettre à un founder/admin (Dev
+ staff) de saisir/mettre à jour les clés Stripe live depuis l'onglet Admin,
+ sans SSH ni édition manuelle du .env sur le VPS.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/paths.ts
+ ─────────────────
+ • getActiveEnvFilePath() : alias de getMsdevEnvPath() exposé sous un nom
+   neutre (utilisé aussi en prod/preprod — PM2 charge ROOT/.env, résolu via
+   getAppRoot()/.env).
+
+ commun/backend/src/lib/envFileWriter.ts (nouveau)
+ ─────────────────
+ • upsertEnvFileKeys(envPath, updates) : remplace ou ajoute des clés dans un
+   .env existant sans toucher aux autres lignes (même logique que
+   updateEnvFile de msdevLanConfig.ts, généralisée).
+
+ commun/backend/src/lib/stripeConfigAdmin.ts (nouveau)
+ ─────────────────
+ • validateStripeConfigInput() : format sk_live_/sk_test_, pk_live_/pk_test_,
+   whsec_ + cohérence de mode (secret et publishable doivent être du même
+   mode live/test).
+ • maskStripeSecret() : aperçu masqué type `sk_live_••••1234` — jamais la
+   valeur en clair.
+ • getStripeConfigStatus() : statut masqué (mode, configured, envFileFound).
+ • applyStripeConfig() : persiste dans le .env actif (upsertEnvFileKeys) +
+   met à jour process.env immédiatement. Refuse si le .env résolu n'existe
+   pas (jamais de création d'un .env incomplet).
+ • Rechargement à chaud confirmé : stripeClient.ts recrée son instance Stripe
+   dès que STRIPE_SECRET_KEY change (cache par clé) ; STRIPE_PUBLISHABLE_KEY
+   et STRIPE_WEBHOOK_SECRET sont lus depuis process.env à chaque requête
+   (routes/donations.ts, routes/subscriptions.ts) → AUCUN redémarrage PM2
+   nécessaire après application.
+
+ commun/backend/src/routes/adminStripeConfig.ts (nouveau)
+ ─────────────────
+ • GET /api/admin/stripe-config : statut masqué (Dev staff uniquement).
+ • PUT /api/admin/stripe-config : applique la config (Dev staff + rate limit
+   10/15min, cluster-safe Redis via createRateLimitStore, skip en msdev).
+ • Audit trail via logAdminAction (admin_audit_log) — jamais la clé en clair
+   dans les logs (masquage systématique).
+
+ commun/backend/src/server.ts
+ ─────────────────
+ • app.use('/api/admin', adminStripeConfigRouter)
+
+ web/app/src/components/AdminStripeConfigCard.tsx (nouveau)
+ ─────────────────
+ • Formulaire Secret key / Publishable key / Webhook secret (optionnel),
+   validation de format côté front, champs masqués par défaut (toggle
+   Afficher/Masquer), affichage du statut actuel masqué (4 derniers
+   caractères), badge de mode Live/Test/Non configuré, avertissement si
+   mode test détecté en prod.
+ • Champs vidés après application réussie (write-only, jamais réaffiché).
+
+ web/app/src/pages/AdminDonationsTab.tsx
+ ─────────────────
+ • Intègre <AdminStripeConfigCard /> au-dessus de AdminStripePlatformCard
+   (Admin → Analytics → Donations).
+
+ web/app/src/lib/api/admin.ts, web/app/src/types.ts
+ ─────────────────
+ • getStripeConfig() / updateStripeConfig() + types StripeConfigStatus /
+   StripeConfigFieldError.
+
+ web/app/src/locales/fr.json, web/app/src/locales/en.json
+ ─────────────────
+ • Clés admin.stripeConfig.* (FR/EN).
+
+TESTS
+-----
+ commun/backend/src/lib/envFileWriter.test.ts (nouveau, 3 tests)
+ commun/backend/src/lib/stripeConfigAdmin.test.ts (nouveau, 13 tests)
+ → validation format/mode, masquage, statut, persistance .env + hot reload
+   process.env, refus si .env introuvable.
+
+LIMITATIONS CONNUES
+-----
+ • Stockage en clair dans le .env serveur (pas de chiffrement DB dédié — le
+   projet n'a pas de mécanisme de secrets chiffrés en DB à ce jour ; cohérent
+   avec tous les autres secrets déjà gérés ainsi : SIGHTENGINE_*, SCW_*...).
+ • applyStripeConfig() refuse d'agir si le .env résolu n'existe pas (sécurité
+   volontaire) — l'admin doit avoir un .env déjà déployé (SSH une première
+   fois pour bootstrap, cf infra-access.mdc).
+ • Pas de rotation/versioning des anciennes clés (écrasement direct).
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/paths.ts → +getActiveEnvFilePath()
+ commun/backend/src/lib/envFileWriter.ts → nouveau
+ commun/backend/src/lib/stripeConfigAdmin.ts → nouveau
+ commun/backend/src/lib/envFileWriter.test.ts → nouveau
+ commun/backend/src/lib/stripeConfigAdmin.test.ts → nouveau
+ commun/backend/src/routes/adminStripeConfig.ts → nouveau
+ commun/backend/src/server.ts → route montée
+ web/app/src/components/AdminStripeConfigCard.tsx → nouveau
+ web/app/src/pages/AdminDonationsTab.tsx → carte intégrée
+ web/app/src/lib/api/admin.ts → +getStripeConfig/updateStripeConfig
+ web/app/src/types.ts → +StripeConfigStatus/StripeConfigFieldError
+ web/app/src/locales/fr.json, en.json → admin.stripeConfig.*
+
+BUILD (si vérifié)
+-----
+ commun/backend → npm test → ✅ (409 tests, 87 fichiers, dont 16 nouveaux)
+ web/app → npx tsc --noEmit → ✅ (fichiers touchés) ; npm run build bloqué
+   par un fichier préexistant non lié (src/lib/mapMarkersKey.test.ts, non
+   commité, hors périmètre de cette session)
+
+================================================================================
+Fin MODIF 1200 — 2026-07-22
 ================================================================================

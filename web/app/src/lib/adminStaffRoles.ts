@@ -15,6 +15,7 @@ export const ADMIN_DEV_ONLY_TAB_IDS: AdminPrimaryTabId[] = [
   'access',
   'analytics',
   'agents',
+  'integrations',
 ];
 
 export function resolveStaffRole(user: {
