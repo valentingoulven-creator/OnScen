@@ -9,6 +9,7 @@ import { AdminContentTab } from './AdminContentTab';
 import { AdminSupportTab, type SupportSubTab } from './AdminSupportTab';
 import { AdminSponsorsTab } from './AdminSponsorsTab';
 import { AdminAgentsTab } from './AdminAgentsTab';
+import { AdminIntegrationsTab } from './AdminIntegrationsTab';
 import { AnalyticsPage, type AnalyticsSubTab } from './AnalyticsPage';
 
 type AdminTab = AdminPrimaryTabId;
@@ -106,6 +107,13 @@ export function AdminPage({
         shortLabel: t('admin.tabs.agentsShort'),
         hint: t('admin.tabHints.agents'),
       },
+      {
+        id: 'integrations',
+        icon: '🔑',
+        label: t('admin.tabs.integrations'),
+        shortLabel: t('admin.tabs.integrationsShort'),
+        hint: t('admin.tabHints.integrations'),
+      },
     ],
     [t],
   );
@@ -169,6 +177,7 @@ export function AdminPage({
         )}
         {tab === 'sponsors' && <AdminSponsorsTab />}
         {tab === 'agents' && <AdminAgentsTab />}
+        {tab === 'integrations' && <AdminIntegrationsTab />}
       </div>
     </div>
   );

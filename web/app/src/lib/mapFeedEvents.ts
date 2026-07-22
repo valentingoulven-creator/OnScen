@@ -38,6 +38,27 @@ export function mergeMapEventMarkers(
   return [...sponsored, ...base.filter((m) => !pinIds.has(m.id))];
 }
 
+/** Marqueurs carte sidebar Sponso (admin) — pin ✨ même si le feed n'a pas isSponsored. */
+export function tagMapEventMarkersAsSponsored(
+  markers: MapEventMarker[],
+  sponsoredPostIds: ReadonlySet<string>
+): MapEventMarker[] {
+  if (sponsoredPostIds.size === 0) return markers;
+  return markers.map((marker) =>
+    sponsoredPostIds.has(marker.id) ? { ...marker, isSponsored: true } : marker
+  );
+}
+
+/** Feed + marqueurs sponso géocodés + ids admin — isSponsored avant filtres carte. */
+export function mergeMapEventsWithSponso(
+  mapEvents: MapEventMarker[],
+  mapSponsoredEventMarkers: MapEventMarker[],
+  sponsoredPostIds: ReadonlySet<string>
+): MapEventMarker[] {
+  const merged = mergeMapEventMarkers(mapEvents, mapSponsoredEventMarkers);
+  return tagMapEventMarkersAsSponsored(merged, sponsoredPostIds);
+}
+
 function postToMapEventMarker(
   post: FeedPost,
   coords: { latitude: number; longitude: number },

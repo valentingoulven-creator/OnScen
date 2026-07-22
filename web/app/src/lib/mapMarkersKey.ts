@@ -1,5 +1,9 @@
 import type { Salon, Live, NearbyPerson, MapEventCityCluster } from '../types';
-import { getClusterEventDayIndex, getMapEventMarkerDayIndex } from './mapEventDayColors';
+import {
+  getClusterEventDayIndex,
+  getMapEventMarkerDayIndex,
+  resolveClusterMapPinSponsored,
+} from './mapEventDayColors';
 import type { MapDetailTier } from './mapMarkerVisibility';
 
 /** Stable content key for salon / live / person map layers (globe + flat). */
@@ -26,7 +30,8 @@ export function buildEventClusterKey(
   const clusterPart = clusters
     .map((c) => {
       const dayIdx = getClusterEventDayIndex(c, from);
-      return `${c.cityKey}:${c.count}:${dayIdx}:${c.latitude},${c.longitude}`;
+      const sponso = resolveClusterMapPinSponsored(c) ? 1 : 0;
+      return `${c.cityKey}:${c.count}:${dayIdx}:${sponso}:${c.latitude},${c.longitude}`;
     })
     .join('|');
   if (tier === 'overview') return `c:${clusterPart}`;
@@ -34,7 +39,8 @@ export function buildEventClusterKey(
     .flatMap((c) =>
       c.events.map((e) => {
         const dayIdx = getMapEventMarkerDayIndex(e, from);
-        return `${e.id}:${dayIdx}:${e.eventType ?? 'autre'}:${e.latitude},${e.longitude}`;
+        const sponso = e.isSponsored ? 1 : 0;
+        return `${e.id}:${dayIdx}:${e.eventType ?? 'autre'}:${sponso}:${e.latitude},${e.longitude}`;
       })
     )
     .join('|');

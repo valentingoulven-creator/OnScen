@@ -1474,6 +1474,8 @@
       "sponsors": "Sponsors",
       "agents": "AI Agents",
       "agentsShort": "Agents",
+      "integrations": "Integrations",
+      "integrationsShort": "API keys",
       "donations": "Donations"
     },
     "tabHints": {
@@ -1483,7 +1485,8 @@
       "analytics": "Infra costs, VPS and stats",
       "support": "Messages and reports",
       "sponsors": "Campaigns and banners",
-      "agents": "Internal AI agents (CEO, dev, ops)"
+      "agents": "Internal AI agents (CEO, dev, ops)",
+      "integrations": "Third-party API keys (no SSH)"
     },
     "donations": {
       "title": "Live donation history",
@@ -1525,6 +1528,166 @@
       "openFees": "Platform fees",
       "refresh": "Refresh",
       "refreshing": "Refreshing…"
+    },
+    "stripeConfig": {
+      "title": "Live Stripe keys",
+      "hint": "Paste the live Stripe keys to enable real payments in production — no SSH needed.",
+      "loading": "Loading Stripe config…",
+      "loadError": "Could not load Stripe config",
+      "currentTitle": "Active configuration",
+      "modeLive": "Live",
+      "modeTest": "Test",
+      "modeUnknown": "Not configured",
+      "secretKeyLabel": "Secret key",
+      "publishableKeyLabel": "Publishable key",
+      "webhookSecretLabel": "Webhook secret (optional)",
+      "secretKeyCurrent": "Current",
+      "notSet": "Not set",
+      "webhookNotConfigured": "No webhook secret configured",
+      "secretKeyPlaceholder": "sk_live_…",
+      "publishableKeyPlaceholder": "pk_live_…",
+      "webhookSecretPlaceholder": "whsec_… (leave blank to keep unchanged)",
+      "show": "Show",
+      "hide": "Hide",
+      "apply": "Apply",
+      "applying": "Applying…",
+      "successMessage": "Stripe config updated — applied immediately, no restart needed.",
+      "genericError": "Error while updating Stripe config",
+      "hotReloadNote": "Immediate effect: the backend automatically reloads the Stripe client on save (no PM2 restart needed).",
+      "writeOnlyNote": "The secret key and webhook secret are never shown in clear text again after entry — only the last 4 characters remain visible.",
+      "testOnProdWarning": "⚠️ Stripe key is in TEST mode while the app runs in production — real payments are disabled.",
+      "envFileMissing": "No .env file found on this server — check the deployment (SSH) before applying a key.",
+      "validation": {
+        "secretKey": "Invalid format — expected sk_live_… or sk_test_…",
+        "publishableKey": "Invalid format — expected pk_live_… or pk_test_…",
+        "webhookSecret": "Invalid format — expected whsec_…",
+        "mode": "The secret key and publishable key must be the same mode (live or test)",
+        "required": "Required field"
+      }
+    },
+    "integrations": {
+      "title": "Integrations & API keys",
+      "hint": "Centralizes access keys for third-party services (OAuth, moderation, storage, live streaming…) — no SSH, masked after entry.",
+      "loading": "Loading integrations…",
+      "loadError": "Could not load integrations",
+      "envFileMissing": "No .env file found on this server — check the deployment (SSH) before applying a key.",
+      "writeOnlyNote": "Secret keys are never shown again in clear text after entry — only a few characters remain visible. Effect is immediate: no PM2 restart is needed for these variables.",
+      "alertBannerTitle": "{{count}} integration(s) need action",
+      "alertBannerItem": "{{provider}} — {{count}} issue(s) detected",
+      "issues": {
+        "partialConfig": "{{provider}}: incomplete configuration — required variable missing ({{field}})",
+        "placeholderValue": "{{provider}}: the value of {{field}} looks like a known example/placeholder — check it's the real key",
+        "invalidFormat": "{{provider}}: invalid format for {{field}} — check it wasn't manually edited/truncated (.env)",
+        "testModeInProduction": "{{provider}}: {{field}} points to a test/sandbox mode while the app is running in production"
+      },
+      "card": {
+        "configured": "Configured",
+        "notConfigured": "Not configured",
+        "badgeOk": "✅ OK",
+        "badgeActionRequired": "⚠️ Action required",
+        "badgeUnconfigured": "○ Not configured",
+        "notSet": "Not set",
+        "configure": "Configure",
+        "cancel": "Cancel",
+        "optional": "optional",
+        "show": "Show",
+        "hide": "Hide",
+        "apply": "Apply",
+        "applying": "Applying…",
+        "successMessage": "Configuration updated — applied immediately.",
+        "genericError": "Error while updating the configuration",
+        "requiredMissing": "Please fill in all required fields.",
+        "invalidField": "Invalid format for {{field}}",
+        "openConsole": "Open provider console →"
+      },
+      "providers": {
+        "google_oauth": {
+          "title": "Google OAuth (login + YouTube)",
+          "hint": "Google social login and YouTube account linking. console.cloud.google.com → APIs & Services → Credentials."
+        },
+        "youtube_data_api": {
+          "title": "YouTube Data API v3",
+          "hint": "Search and import public YouTube playlists in salons (server key, independent from OAuth)."
+        },
+        "facebook_instagram": {
+          "title": "Facebook / Instagram",
+          "hint": "Facebook social login and Instagram account linking (Graph API). developers.facebook.com."
+        },
+        "cloudflare_stream": {
+          "title": "Cloudflare Stream",
+          "hint": "Live streaming via RTMP ingest → HLS/CDN (replaces the WebRTC mesh for viewers)."
+        },
+        "livekit": {
+          "title": "LiveKit Cloud",
+          "hint": "Browser camera live streaming (Instagram-style) — takes priority over Cloudflare when both are configured."
+        },
+        "sightengine": {
+          "title": "Sightengine",
+          "hint": "Automatic NSFW moderation of images/videos posted by users."
+        },
+        "acrcloud": {
+          "title": "ACRCloud",
+          "hint": "Audio fingerprinting to block commercial music uploads (~150M track catalog)."
+        },
+        "s3_scaleway": {
+          "title": "S3 / Scaleway Object Storage",
+          "hint": "Storage for uploaded media (sponsor logos, etc.) outside the server disk."
+        },
+        "resend_email": {
+          "title": "Resend (emails)",
+          "hint": "Sends transactional emails and admin alerts via the Resend HTTP API."
+        },
+        "ai_agents": {
+          "title": "AI Agents (Anthropic / OpenAI)",
+          "hint": "Powers the CEO AI / Dev Agent chat in the Agents tab. Either key is enough."
+        },
+        "web_push": {
+          "title": "Web Push (VAPID)",
+          "hint": "Browser notifications. Generate a key pair with: npx web-push generate-vapid-keys"
+        },
+        "turn": {
+          "title": "TURN server",
+          "hint": "WebRTC relay for the live mesh (used when LiveKit and Cloudflare Stream are absent)."
+        }
+      },
+      "fields": {
+        "GOOGLE_CLIENT_ID": "Client ID",
+        "GOOGLE_CLIENT_SECRET": "Client Secret",
+        "GOOGLE_CALLBACK_URL": "Callback URL (Google)",
+        "YOUTUBE_CALLBACK_URL": "Callback URL (YouTube)",
+        "YOUTUBE_API_KEY": "YouTube API key",
+        "FACEBOOK_APP_ID": "App ID",
+        "FACEBOOK_APP_SECRET": "App Secret",
+        "FACEBOOK_CALLBACK_URL": "Callback URL (Facebook)",
+        "INSTAGRAM_CALLBACK_URL": "Callback URL (Instagram)",
+        "CLOUDFLARE_ACCOUNT_ID": "Account ID",
+        "CLOUDFLARE_STREAM_API_TOKEN": "Stream API Token",
+        "CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN": "Customer subdomain",
+        "LIVEKIT_URL": "Project WebSocket URL",
+        "LIVEKIT_API_KEY": "API Key",
+        "LIVEKIT_API_SECRET": "API Secret",
+        "SIGHTENGINE_API_USER": "API User",
+        "SIGHTENGINE_API_SECRET": "API Secret",
+        "ACRCLOUD_ACCESS_KEY": "Access Key",
+        "ACRCLOUD_ACCESS_SECRET": "Access Secret",
+        "ACRCLOUD_HOST": "Host (regional endpoint)",
+        "S3_BUCKET": "Bucket",
+        "S3_REGION": "Region",
+        "S3_ENDPOINT": "Endpoint",
+        "S3_ACCESS_KEY_ID": "Access Key ID",
+        "S3_SECRET_ACCESS_KEY": "Secret Access Key",
+        "S3_PUBLIC_BASE_URL": "Public URL (CDN)",
+        "RESEND_API_KEY": "API key",
+        "RESEND_FROM": "From address",
+        "ANTHROPIC_API_KEY": "Anthropic API key",
+        "OPENAI_API_KEY": "OpenAI API key",
+        "VAPID_PUBLIC_KEY": "VAPID public key",
+        "VAPID_PRIVATE_KEY": "VAPID private key",
+        "VAPID_SUBJECT": "Contact (mailto: or URL)",
+        "TURN_URL": "TURN server URL(s)",
+        "TURN_USERNAME": "Username",
+        "TURN_CREDENTIAL": "Password / credential"
+      }
     },
     "agents": {
       "loading": "Loading agents…",

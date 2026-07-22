@@ -207,7 +207,13 @@ function CostsSubTabBar({
   );
 }
 
-function ProdSaasAlerts({ alerts, t }: { alerts: ProdSaasAlert[]; t: (key: string) => string }) {
+function ProdSaasAlerts({
+  alerts,
+  t,
+}: {
+  alerts: ProdSaasAlert[];
+  t: (key: string, opts?: Record<string, unknown>) => string;
+}) {
   if (!alerts.length) return null;
   return (
     <ul className="space-y-2">
@@ -218,9 +224,25 @@ function ProdSaasAlerts({ alerts, t }: { alerts: ProdSaasAlert[]; t: (key: strin
             : alert.severity === 'warning'
               ? 'bg-amber-950/30 border-amber-900/40 text-amber-200'
               : 'bg-[#1a1a26] border-[#2d2d3d] text-gray-400';
+        // Alertes génériques Intégrations (externalSecretsAlerts.ts) : le backend
+        // envoie l'id/nom de variable bruts (jamais une valeur) — on résout ici
+        // les libellés traduits avant interpolation.
+        const params = alert.params
+          ? {
+              ...alert.params,
+              provider: alert.params.provider
+                ? t(`admin.integrations.providers.${alert.params.provider}.title`, {
+                    defaultValue: alert.params.provider,
+                  })
+                : undefined,
+              field: alert.params.field
+                ? t(`admin.integrations.fields.${alert.params.field}`, { defaultValue: alert.params.field })
+                : undefined,
+            }
+          : undefined;
         return (
           <li key={alert.id} className={`text-xs rounded-xl px-3 py-2 border ${className}`}>
-            {t(alert.messageKey)}
+            {t(alert.messageKey, params)}
           </li>
         );
       })}

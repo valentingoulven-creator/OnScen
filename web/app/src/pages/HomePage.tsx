@@ -57,20 +57,19 @@ import { useCompactMapViewport } from '../hooks/usePhoneWebViewport';
 import {
   createDefaultEventFilter,
   DEFAULT_EVENT_FILTER_RADIUS_KM,
+  applyMapEventDayPinFilterForMap,
+  buildMapEventsBaseForPins,
   filterMapEventsByCriteria,
-  filterMapEventsOnCalendarDay,
-  filterMapEventsOnCalendarDays,
-  filterMapEventPinsForView,
   getBrowseSheetCalendarDayKeys,
   getEventFilterCityMapRadiusKm,
   hasEventFilterCityLocation,
   resolveDefaultEventFilterLocation,
   type MapEventFilterCriteria,
 } from '../lib/mapEventFilter';
-import { applySavedEventFavoriteState, feedPostFromMapEventMarker, loadMapEventMarkers, buildMapEventMarkersFromPosts, buildMapEventMarkersFromSponsoredPosts, mergeMapEventMarkers } from '../lib/mapFeedEvents';
+import { applySavedEventFavoriteState, feedPostFromMapEventMarker, loadMapEventMarkers, buildMapEventMarkersFromPosts, buildMapEventMarkersFromSponsoredPosts, mergeMapEventMarkers, mergeMapEventsWithSponso } from '../lib/mapFeedEvents';
 import { getPrimaryEventDate, isMapEventVisibleAsSponsoPin, mergeBrowseDayKeysForMapPosts } from '../lib/feedEvents';
 import { resolveEventCoords, resolveEventCoordsSync } from '../lib/mapEventCoords';
-import { clusterMapEventsByLocation, extractCityFromLocation, flattenEventClustersToMarkers, sortMapEventsForPanel } from '../lib/mapEventClusters';
+import { clusterMapEventsByLocation, extractCityFromLocation, flattenEventClustersToMarkers } from '../lib/mapEventClusters';
 import {
   getMapSearchFlyRadiusKm,
   MAP_FLY_TO_PLACE_EVENT,
@@ -90,7 +89,6 @@ import {
   countLivesFilterBadge,
   countMapSidebarItems,
   countSalonsSidebarItems,
-  isSidebarFollowingEvent,
 } from '../lib/mapSidebarContent';
 import {
   clipLivesForMapView,
@@ -306,6 +304,11 @@ export function HomePage({
   const bottomMapList = appa2 || compactMapLayout;
   const nearbyLayout = bottomMapList ? ('bottom' as const) : ('side' as const);
   const { user, token, authBootPending, setUserFromProfile } = useAuth();
+  const sidebarSponsoredEvents = useMapSidebarSponsoredEvents(token);
+  const mapSponsoredPostIds = useMemo(
+    () => new Set(sidebarSponsoredEvents.posts.map((post) => post.id)),
+    [sidebarSponsoredEvents.posts]
+  );
   const [salons, setSalons] = useState<Salon[]>([]);
   const [lives, setLives] = useState<Live[]>([]);
   const [nearbyPeople, setNearbyPeople] = useState<NearbyPerson[]>([]);
@@ -875,8 +878,8 @@ export function HomePage({
   );
 
   const mapEventsIncludingSponso = useMemo(
-    () => mergeMapEventMarkers(mapEvents, mapSponsoredEventMarkers),
-    [mapEvents, mapSponsoredEventMarkers]
+    () => mergeMapEventsWithSponso(mapEvents, mapSponsoredEventMarkers, mapSponsoredPostIds),
+    [mapEvents, mapSponsoredEventMarkers, mapSponsoredPostIds]
   );
 
   const filteredMapEvents = useMemo(
@@ -885,70 +888,40 @@ export function HomePage({
   );
 
   /** Événements carte / sidebar (sans filtre jour pin). Sponso : dates non passées. */
-  const mapEventsBaseForPins = useMemo(() => {
-    /** Filtre Salon/Lives sans Événement : pas de pins événement sur la carte. */
-    if (anyMapFilterActive && !eventsFilterOn) {
-      return [];
-    }
-
-    /** Sans filtre carte : événements suivis / enregistrés uniquement (pas d'ambiant ni sponso). */
-    if (!anyMapFilterActive && !eventsFilterOn) {
-      if (!followingMapAmbientOn) return [];
-      return sortMapEventsForPanel(
-        mapEvents.filter((event) =>
-          isSidebarFollowingEvent(event, followingIds, savedEventPostIds)
-        ),
-        favoriteIds
-      );
-    }
-
-    const base = filterMapEventPinsForView(mapEventsIncludingSponso, {
+  const mapEventsBaseForPins = useMemo(
+    () =>
+      buildMapEventsBaseForPins({
+        anyMapFilterActive,
+        eventsFilterOn,
+        followingMapAmbientOn,
+        mapEventsIncludingSponso,
+        followingIds,
+        savedEventPostIds,
+        favoriteIds,
+        eventsFilterCustomized: eventFilterCustomized,
+        filteredMapEvents,
+        globeOverview: mapDetailMapStyle === 'globe' && mapDetailTier === 'overview',
+        merge: mergeMapEventMarkers,
+      }),
+    [
+      anyMapFilterActive,
       eventsFilterOn,
-      globeOverview: mapDetailMapStyle === 'globe' && mapDetailTier === 'overview',
-      /** Sans filtre « Appliquer » : fenêtre browse 3 jours (pas tout l’à-venir). */
-      filteredWhenCriteria: eventFilterCustomized ? filteredMapEvents : undefined,
-      merge: mergeMapEventMarkers,
-    });
-
-    let pins = base;
-    if (eventsFilterOn && !eventFilterCustomized) {
-      const browseDayKeys = getBrowseSheetCalendarDayKeys(undefined, false);
-      const regular = pins.filter((event) => !event.isSponsored);
-      const sponsored = pins.filter((event) => event.isSponsored);
-      pins = mergeMapEventMarkers(
-        filterMapEventsOnCalendarDays(regular, browseDayKeys),
-        sponsored
-      );
-    }
-
-    const sponso = mapSponsoredEventMarkers.filter((marker) =>
-      isMapEventVisibleAsSponsoPin(marker)
-    );
-    if (sponso.length === 0) return pins;
-    return mergeMapEventMarkers(
-      pins.filter((marker) => !marker.isSponsored),
-      sponso
-    );
-  }, [
-    anyMapFilterActive,
-    eventsFilterOn,
-    favoriteIds,
-    filteredMapEvents,
-    followingIds,
-    followingMapAmbientOn,
-    mapDetailMapStyle,
-    mapDetailTier,
-    mapEvents,
-    mapEventsIncludingSponso,
-    mapSponsoredEventMarkers,
-    savedEventPostIds,
-    eventFilterCustomized,
-  ]);
+      favoriteIds,
+      filteredMapEvents,
+      followingIds,
+      followingMapAmbientOn,
+      mapDetailMapStyle,
+      mapDetailTier,
+      mapEventsIncludingSponso,
+      savedEventPostIds,
+      eventFilterCustomized,
+    ]
+  );
 
   /** Pins carte uniquement — peut restreindre à un jour (bouton pin section sidebar). */
   const mapEventsForMapPins = useMemo(() => {
     if (mapEventDayPinFilter && eventsFilterOn) {
-      return filterMapEventsOnCalendarDay(mapEventsBaseForPins, mapEventDayPinFilter);
+      return applyMapEventDayPinFilterForMap(mapEventsBaseForPins, mapEventDayPinFilter);
     }
     return mapEventsBaseForPins;
   }, [mapEventsBaseForPins, mapEventDayPinFilter, eventsFilterOn]);
@@ -1236,7 +1209,6 @@ export function HomePage({
   });
   const { startError: liveStartError, dismissStartError: dismissLiveStartError } = liveStartFlow;
 
-  const sidebarSponsoredEvents = useMapSidebarSponsoredEvents(token);
   const sponsoredEventPostIdsKey = useMemo(
     () => sidebarSponsoredEvents.posts.map((post) => post.id).join(','),
     [sidebarSponsoredEvents.posts]

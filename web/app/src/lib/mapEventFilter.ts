@@ -11,7 +11,9 @@ import { normalizeCityLabel } from './eventLocationPresets';
 import type { FeedEventType } from './eventType';
 import { normalizeFeedEventType } from './eventType';
 import { findNearestMajorCities, getLivesGeo, hasPersistedMapGeoPrefs, isFixedMapGeoSource } from './livesGeo';
-import { extractCityFromLocation, getCityMapView } from './mapEventClusters';
+import { extractCityFromLocation, getCityMapView, sortMapEventsForPanel } from './mapEventClusters';
+import { mergeMapEventMarkers } from './mapFeedEvents';
+import { isSidebarFollowingEvent } from './mapSidebarContent';
 import { isValidLatLng } from './mapCoords';
 import { resolveEventCoordsSync, resolveEventCityCoordsSync } from './mapEventCoords';
 import { getDistanceKm } from './mapMarkerVisibility';
@@ -404,6 +406,91 @@ export function filterMapEventsOccurringTodayOrTomorrow(
       return day === today || day === tomorrowStr;
     })
   );
+}
+
+/** Filtre jour pin sidebar — les sponso restent visibles (aligné browse sheet). */
+export function applyMapEventDayPinFilterForMap(
+  pins: MapEventMarker[],
+  dayKey: string
+): MapEventMarker[] {
+  const regular = pins.filter((event) => !event.isSponsored);
+  const sponsored = pins.filter((event) => isMapEventVisibleAsSponsoPin(event));
+  return mergeMapEventMarkers(filterMapEventsOnCalendarDay(regular, dayKey), sponsored);
+}
+
+export interface BuildMapEventsBaseForPinsOpts {
+  anyMapFilterActive: boolean;
+  eventsFilterOn: boolean;
+  followingMapAmbientOn: boolean;
+  mapEventsIncludingSponso: MapEventMarker[];
+  followingIds: ReadonlySet<string>;
+  savedEventPostIds: ReadonlySet<string>;
+  favoriteIds: ReadonlySet<string>;
+  eventsFilterCustomized: boolean;
+  filteredMapEvents: MapEventMarker[];
+  globeOverview: boolean;
+  merge: (regular: MapEventMarker[], sponsored: MapEventMarker[]) => MapEventMarker[];
+  now?: Date;
+}
+
+/**
+ * Pool de pins carte (sidebar + clustering) — inclut toujours les sponso admin tagués.
+ * Sans filtre carte : sponso + éventuels suivis/enregistrés (pas seulement le feed brut).
+ */
+export function buildMapEventsBaseForPins(opts: BuildMapEventsBaseForPinsOpts): MapEventMarker[] {
+  const {
+    anyMapFilterActive,
+    eventsFilterOn,
+    followingMapAmbientOn,
+    mapEventsIncludingSponso,
+    followingIds,
+    savedEventPostIds,
+    favoriteIds,
+    eventsFilterCustomized,
+    filteredMapEvents,
+    globeOverview,
+    merge,
+    now,
+  } = opts;
+
+  if (anyMapFilterActive && !eventsFilterOn) {
+    return [];
+  }
+
+  const visibleSponso = mapEventsIncludingSponso.filter((event) =>
+    isMapEventVisibleAsSponsoPin(event, now)
+  );
+
+  if (!anyMapFilterActive && !eventsFilterOn) {
+    if (!followingMapAmbientOn) return visibleSponso;
+    const following = mapEventsIncludingSponso.filter((event) =>
+      isSidebarFollowingEvent(
+        event,
+        followingIds as Set<string>,
+        savedEventPostIds as Set<string>
+      )
+    );
+    return merge(
+      sortMapEventsForPanel(following, favoriteIds as Set<string>),
+      visibleSponso
+    );
+  }
+
+  const base = filterMapEventPinsForView(mapEventsIncludingSponso, {
+    eventsFilterOn,
+    globeOverview,
+    filteredWhenCriteria: eventsFilterCustomized ? filteredMapEvents : undefined,
+    merge,
+  });
+
+  if (eventsFilterOn && !eventsFilterCustomized) {
+    const browseDayKeys = getBrowseSheetCalendarDayKeys(undefined, false, now);
+    const regular = base.filter((event) => !event.isSponsored);
+    const sponsored = base.filter((event) => isMapEventVisibleAsSponsoPin(event, now));
+    return merge(filterMapEventsOnCalendarDays(regular, browseDayKeys), sponsored);
+  }
+
+  return base;
 }
 
 /**

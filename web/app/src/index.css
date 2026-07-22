@@ -1175,6 +1175,17 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.45));
 }
 
+.map-marker.event.map-marker--sponso.map-marker--highlighted .event-marker-icon {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.95))
+    drop-shadow(0 0 8px rgba(251, 191, 36, 0.55))
+    drop-shadow(0 0 14px rgba(251, 191, 36, 0.75));
+}
+
+.map-marker.event.map-marker--sponso.map-marker--highlighted .event-marker-icon::after {
+  border-color: #fbbf24;
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.85);
+}
+
 .leaflet-div-icon.event-day-leaflet-icon {
   background: transparent !important;
   border: none !important;

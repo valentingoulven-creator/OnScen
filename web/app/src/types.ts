@@ -450,6 +450,79 @@ export interface StripePlatformStatusReport {
   error: string | null;
 }
 
+export interface StripeConfigStatus {
+  configured: boolean;
+  mode: 'live' | 'test' | 'unknown';
+  secretKeyMasked: string | null;
+  publishableKeyMasked: string | null;
+  webhookSecretConfigured: boolean;
+  webhookSecretMasked: string | null;
+  donationsEnabled: boolean;
+  subscriptionsEnabled: boolean;
+  envFileFound: boolean;
+  hotReload: true;
+}
+
+export type StripeConfigFieldErrorField = 'secretKey' | 'publishableKey' | 'webhookSecret' | 'mode';
+
+export interface StripeConfigFieldError {
+  field: StripeConfigFieldErrorField;
+  message: string;
+}
+
+// ── Intégrations / clés API tierces génériques (admin → Intégrations) ──────
+// Même principe que StripeConfigStatus (write-only, masqué) mais générique à
+// tout provider déclaré côté backend (registre externalSecretsRegistry.ts).
+
+export type ExternalSecretFieldKind = 'secret' | 'public';
+export type ExternalSecretFieldFormat = 'token' | 'id' | 'httpUrl' | 'wsUrl' | 'mailtoOrUrl' | 'freeText';
+
+export interface ExternalSecretFieldStatus {
+  key: string;
+  kind: ExternalSecretFieldKind;
+  format: ExternalSecretFieldFormat;
+  required: boolean;
+  placeholder?: string;
+  configured: boolean;
+  /** Valeur en clair — uniquement pour les champs "public" configurés. */
+  value: string | null;
+  /** Aperçu masqué — uniquement pour les champs "secret" configurés. */
+  masked: string | null;
+}
+
+export type ExternalSecretIssueType =
+  | 'partial_config'
+  | 'placeholder_value'
+  | 'invalid_format'
+  | 'test_mode_in_production';
+export type ExternalSecretIssueSeverity = 'critical' | 'warning' | 'info';
+
+export interface ExternalSecretIssue {
+  type: ExternalSecretIssueType;
+  severity: ExternalSecretIssueSeverity;
+  /** Nom de la variable concernée — jamais sa valeur. */
+  field: string;
+  messageKey: string;
+}
+
+export interface ExternalSecretProviderStatus {
+  id: string;
+  configured: boolean;
+  helpUrl?: string;
+  fields: ExternalSecretFieldStatus[];
+  issues: ExternalSecretIssue[];
+}
+
+export interface ExternalSecretsStatusResponse {
+  providers: ExternalSecretProviderStatus[];
+  envFileFound: boolean;
+}
+
+export interface ExternalSecretFieldError {
+  field: string;
+  message: string;
+}
+
 export type ProdSaasEnvironment = 'production' | 'preproduction' | 'msdev' | 'development';
 export type ProdSaasServiceStatus = 'configured' | 'missing' | 'external' | 'disabled';
 
@@ -470,6 +543,7 @@ export interface ProdSaasAlert {
   id: string;
   severity: ProdSaasAlertSeverity;
   messageKey: string;
+  params?: Record<string, string>;
 }
 
 export interface ProdSaasServiceReport {
