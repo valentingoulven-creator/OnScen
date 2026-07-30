@@ -21,7 +21,8 @@ export function readPersistedSalonSession(): ActiveSalonSession | null {
     if (!parsed?.id || typeof parsed.id !== 'string') return null;
     const viewMode =
       parsed.viewMode === 'full' || parsed.viewMode === 'minimized' ? parsed.viewMode : undefined;
-    const isHost = parsed.isHost === true ? true : undefined;
+    const isHost =
+      parsed.isHost === true ? true : parsed.isHost === false ? false : undefined;
     // The PiP float state is held in memory only and is lost on page refresh.
     // A minimised session is therefore restored as full-screen so the YouTube
     // theater reopens automatically — the user can minimise again if needed.

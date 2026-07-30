@@ -52,6 +52,7 @@ const MIXKIT_DURATION_SEC: Record<number, number> = {
   425: 30,
   4344: 13,
   344: 14,
+  42825: 20,
 };
 
 function mixkit(id: number): { videoUrl: string; posterUrl: string; durationSec?: number } {
@@ -71,6 +72,13 @@ function mixkitMusic(id: number): { audioUrl: string; hasAudio: true } {
   };
 }
 
+/** Liens album démo (vinyle cliquable sur le reel). */
+const REEL_DEMO_ALBUM_LINKS: Partial<Record<string, string>> = {
+  'reel-vinyl': 'https://open.spotify.com/album/4LH4d3eAUQHVnovOeE5odr',
+  'reel-singer':
+    'http://localhost:5173/profile/user_listener?tab=compositions&album=msdev_showcase_album_01',
+};
+
 /** Démos publiques — alignées sur app/src/content/reels.ts (MUSIC_REELS) */
 export const DEMO_REELS = REEL_CATALOG_ENTRIES.map((entry) => ({
   id: entry.id,
@@ -80,6 +88,7 @@ export const DEMO_REELS = REEL_CATALOG_ENTRIES.map((entry) => ({
   mediaType: 'video' as const,
   ...mixkit(entry.videoId),
   ...mixkitMusic(entry.musicId),
+  ...(REEL_DEMO_ALBUM_LINKS[entry.id] ? { link: REEL_DEMO_ALBUM_LINKS[entry.id] } : {}),
 }));
 
 export type PublicReel =
@@ -176,6 +185,11 @@ function canonicalPublicReel(reel: ReturnType<typeof publicUserReel>): ReturnTyp
       ...(audioUrl ? { audioUrl } : {}),
       ...('hasAudio' in demo && demo.hasAudio ? { hasAudio: true as const } : {}),
       ...('durationSec' in demo && demo.durationSec != null ? { durationSec: demo.durationSec } : {}),
+      ...(reel.link?.trim()
+        ? { link: reel.link.trim() }
+        : 'link' in demo && demo.link?.trim()
+          ? { link: demo.link.trim() }
+          : {}),
       authorId: reel.authorId,
       createdAt: reel.createdAt,
       visibility: 'public' as const,
@@ -350,6 +364,7 @@ export function getAccessibleUserReel(
     ...(audioUrl ? { audioUrl } : {}),
     ...('hasAudio' in demo && demo.hasAudio ? { hasAudio: true as const } : {}),
     ...('durationSec' in demo && demo.durationSec != null ? { durationSec: demo.durationSec } : {}),
+    ...('link' in demo && demo.link?.trim() ? { link: demo.link.trim() } : {}),
     authorId: '',
     createdAt: 0,
     visibility: 'public' as ReelVisibility,

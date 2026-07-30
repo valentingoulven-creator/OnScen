@@ -3,7 +3,15 @@ import {
   buildMapSidebarContent,
   countLivesFilterBadge,
   countMapSidebarItems,
+  followedOfflineSalonsForMap,
 } from './mapSidebarContent';
+import {
+  filterSalonsForZoom,
+  getMapMarkerVisibility,
+  resolveMapViewMarkerFilterFlags,
+  shouldSkipMapEventViewportClip,
+} from './mapMarkerVisibility';
+import { splitSalonsForMapMarkers } from './mapLiveSalonMarkers';
 import type { Live, MapEventCityCluster, MapEventMarker, NearbyPerson, Salon } from '../types';
 import type { MapViewDetailState } from './mapMarkerVisibility';
 
@@ -678,5 +686,149 @@ describe('buildMapSidebarContent', () => {
 
     expect(content.eventsFollowing.map((e) => e.id)).toEqual(['e-saved']);
     expect(content.eventsSuggestions.map((e) => e.id)).toEqual(['e-other']);
+  });
+});
+
+describe('followedOfflineSalonsForMap', () => {
+  it('returns followed offline public salons with valid coordinates', () => {
+    const following = new Set(['host-a', 'host-b']);
+    const result = followedOfflineSalonsForMap(
+      [
+        salon('s-off', false, 'host-a'),
+        salon('s-live', true, 'host-b'),
+        salon('s-priv', false, 'host-a', false),
+        { ...salon('s-bad', false, 'host-a'), latitude: null as unknown as number },
+      ],
+      following
+    );
+    expect(result.map((s) => s.id)).toEqual(['s-off']);
+  });
+
+  it('returns empty when no following ids', () => {
+    expect(followedOfflineSalonsForMap([salon('s1')], new Set())).toEqual([]);
+  });
+
+  it('sidebar Salon chip shows at least followed offline salon pins on map', () => {
+    const following = new Set(['host-a']);
+    const salons = [
+      salon('s-off', false, 'host-a'),
+      salon('s-live', true, 'host-a'),
+    ];
+    const mapSalons = followedOfflineSalonsForMap(salons, following);
+    expect(mapSalons.map((s) => s.id)).toEqual(['s-off']);
+
+    const flags = resolveMapViewMarkerFilterFlags({
+      livesFilterOn: false,
+      salonFilterOn: false,
+      eventsFilterOn: false,
+      sidebarMapFilterLivesFollowing: false,
+      sidebarMapFilterSalonsFollowing: true,
+      sidebarMapFilterEventsFollowing: false,
+      sidebarMapFilterSponso: false,
+      followingMapAmbientOn: false,
+    });
+    const visibility = getMapMarkerVisibility({
+      tier: 'city',
+      eventsOnly: false,
+      hasEventClusters: false,
+      showAllSalonsAtCityZoom: flags.showAllSalonsAtCityZoom,
+      livesFilterOn: flags.livesFilterOn,
+      salonFilterOn: flags.salonFilterOn,
+      eventsFilterOn: flags.eventsFilterOn,
+    });
+    const visible = filterSalonsForZoom(
+      mapSalons,
+      visibility,
+      flags.showAllSalonsAtCityZoom,
+      'city'
+    );
+    expect(visible.map((s) => s.id)).toEqual(['s-off']);
+  });
+
+  it('sidebar Salon chip feeds offline salons to globe overview marker pool', () => {
+    const following = new Set(['host-a']);
+    const salons = [
+      salon('s-off', false, 'host-a'),
+      salon('s-live', true, 'host-a'),
+    ];
+    const mapSalons = followedOfflineSalonsForMap(salons, following);
+    expect(mapSalons.map((s) => s.id)).toEqual(['s-off']);
+
+    const flags = resolveMapViewMarkerFilterFlags({
+      livesFilterOn: false,
+      salonFilterOn: false,
+      eventsFilterOn: false,
+      sidebarMapFilterLivesFollowing: false,
+      sidebarMapFilterSalonsFollowing: true,
+      sidebarMapFilterEventsFollowing: false,
+      sidebarMapFilterSponso: false,
+      followingMapAmbientOn: false,
+    });
+    const visibility = getMapMarkerVisibility({
+      tier: 'overview',
+      eventsOnly: false,
+      hasEventClusters: false,
+      showAllSalonsAtCityZoom: flags.showAllSalonsAtCityZoom,
+      livesFilterOn: flags.livesFilterOn,
+      salonFilterOn: flags.salonFilterOn,
+      eventsFilterOn: flags.eventsFilterOn,
+    });
+    const visible = filterSalonsForZoom(
+      mapSalons,
+      visibility,
+      flags.showAllSalonsAtCityZoom,
+      'overview'
+    );
+    const { offlineSalons } = splitSalonsForMapMarkers(visible);
+    expect(offlineSalons.map((s) => s.id)).toEqual(['s-off']);
+  });
+
+  it('sidebar Événement chip skips viewport clip and shows followed event pins', () => {
+    const following = new Set(['host-a']);
+    const saved = new Set<string>();
+    const events: MapEventMarker[] = [
+      {
+        id: 'ev-paris',
+        authorId: 'host-a',
+        latitude: 48.85,
+        longitude: 2.35,
+        location: 'Paris',
+        title: 'Concert',
+      } as MapEventMarker,
+    ];
+    const followed = events.filter(
+      (e) => saved.has(e.id) || (e.authorId != null && following.has(e.authorId))
+    );
+    expect(followed.map((e) => e.id)).toEqual(['ev-paris']);
+
+    expect(
+      shouldSkipMapEventViewportClip({
+        followingMapAmbientOn: false,
+        effectiveEventsFilterOn: true,
+        sidebarMapFilterEventsFollowing: true,
+        mapEventDayPinFilter: null,
+      })
+    ).toBe(true);
+
+    const flags = resolveMapViewMarkerFilterFlags({
+      livesFilterOn: false,
+      salonFilterOn: false,
+      eventsFilterOn: false,
+      sidebarMapFilterLivesFollowing: false,
+      sidebarMapFilterSalonsFollowing: false,
+      sidebarMapFilterEventsFollowing: true,
+      sidebarMapFilterSponso: false,
+      followingMapAmbientOn: false,
+    });
+    const visibility = getMapMarkerVisibility({
+      tier: 'city',
+      eventsOnly: true,
+      hasEventClusters: followed.length > 0,
+      showAllSalonsAtCityZoom: flags.showAllSalonsAtCityZoom,
+      livesFilterOn: flags.livesFilterOn,
+      salonFilterOn: flags.salonFilterOn,
+      eventsFilterOn: flags.eventsFilterOn,
+    });
+    expect(visibility.eventClusters).toBe(true);
   });
 });

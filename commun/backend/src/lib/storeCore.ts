@@ -36,6 +36,11 @@ import {
 } from './accessControl';
 import { restoreAnalyticsBuckets, snapshotAnalyticsBuckets } from './analytics';
 import { purgeUnboundedChatHistory } from './chatHistory';
+import {
+  restoreDevMapMarkerPositions,
+  snapshotDevMapMarkerPositions,
+  type DevMapMarkerPositionEntry,
+} from './devMapMarkerPositions';
 
 type MapOfSets = Record<string, string[]>;
 
@@ -84,6 +89,8 @@ export interface PersistedStore {
   compositionPlays?: CompositionPlay[];
   /** Reels utilisateur (dev / store.json ; prod utilise aussi user_reels PostgreSQL). */
   userReels?: UserReel[];
+  /** Positions marqueurs carte repositionnées par Dev (showcase msdev). */
+  devMapMarkerPositions?: DevMapMarkerPositionEntry[];
 }
 
 function setsToRecord(map: Map<string, Set<string>>): MapOfSets {
@@ -167,6 +174,7 @@ export function snapshotStore(): PersistedStore {
     compositionUpvotes: [...db.compositionUpvotes],
     compositionPlays: [...db.compositionPlays],
     userReels: [...db.userReels],
+    devMapMarkerPositions: snapshotDevMapMarkerPositions(),
   };
 }
 
@@ -299,6 +307,8 @@ export function restoreStore(data: PersistedStore): void {
 
   db.userReels.length = 0;
   db.userReels.push(...(data.userReels ?? []));
+
+  restoreDevMapMarkerPositions(data.devMapMarkerPositions);
 }
 
 function isNonEmptyString(v: unknown): v is string {

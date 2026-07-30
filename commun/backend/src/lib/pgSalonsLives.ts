@@ -155,6 +155,7 @@ function logPgLiveError(label: string, err: unknown): void {
 
 /** Upsert d'un salon utilisateur — persistance immédiate pour récupérer après redémarrage. */
 export async function upsertSalonToPg(salon: Salon): Promise<void> {
+  if (!isPostgresEnabled()) return;
   const queue = ensureSalonQueue(salon.id);
   purgeStaleYoutubeMetadataForStorage(salon, queue);
   await upsertSalon(getPool(), salon);

@@ -1,7 +1,8 @@
-import { Suspense, useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { ACESFilmicToneMapping, SRGBColorSpace } from 'three';
 import { CAMERA_DEFAULT_DISTANCE } from '../../lib/globe3d/constants';
+import { GlobeDevDragProvider } from './DevDraggableGlobeMarker';
 import { SoundyGlobeScene, type SoundyGlobeSceneProps } from './SoundyGlobeScene';
 
 interface SoundyGlobeCanvasProps extends Omit<SoundyGlobeSceneProps, 'cameraRef'> {
@@ -32,6 +33,7 @@ export function SoundyGlobeCanvas({
 }: SoundyGlobeCanvasProps) {
   const readyRef = useRef(false);
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
+  const [controlsEnabled, setControlsEnabled] = useState(true);
 
   useEffect(() => {
     const canvas = canvasElRef.current;
@@ -58,35 +60,41 @@ export function SoundyGlobeCanvas({
   const dpr = isInteracting ? interactionMaxPixelRatio : maxPixelRatio;
 
   return (
-    <Canvas
-      dpr={dpr}
-      style={{ width, height, touchAction: 'none' }}
-      camera={{ position: [0, 0, CAMERA_DEFAULT_DISTANCE], fov: 45, near: 0.01, far: 2000 }}
-      gl={{
-        antialias,
-        alpha: true,
-        powerPreference: sceneProps.lowPower ? 'default' : 'high-performance',
-        preserveDrawingBuffer: false,
-      }}
-      onCreated={({ gl }) => {
-        canvasElRef.current = gl.domElement;
-        gl.setClearColor(backgroundColor);
-        gl.toneMapping = ACESFilmicToneMapping;
-        gl.toneMappingExposure = sceneProps.lowPower ? 1.62 : 1.82;
-        gl.outputColorSpace = SRGBColorSpace;
-        if (!readyRef.current) {
-          readyRef.current = true;
-          onGlobeReady?.();
-        }
-      }}
+    <GlobeDevDragProvider
+      devMarkerDragEnabled={sceneProps.devMarkerDragEnabled ?? false}
+      onDevMarkerDragEnd={sceneProps.onDevMarkerDragEnd}
+      setControlsEnabled={setControlsEnabled}
     >
-      <ambientLight intensity={1.25} color="#6b7ea0" />
-      <directionalLight position={[5, 2.5, 5]} intensity={0.9} color="#fff6e8" />
-      <directionalLight position={[-5, -2, -4]} intensity={0.75} color="#dce8ff" />
+      <Canvas
+        dpr={dpr}
+        style={{ width, height, touchAction: 'none' }}
+        camera={{ position: [0, 0, CAMERA_DEFAULT_DISTANCE], fov: 45, near: 0.01, far: 2000 }}
+        gl={{
+          antialias,
+          alpha: true,
+          powerPreference: sceneProps.lowPower ? 'default' : 'high-performance',
+          preserveDrawingBuffer: false,
+        }}
+        onCreated={({ gl }) => {
+          canvasElRef.current = gl.domElement;
+          gl.setClearColor(backgroundColor);
+          gl.toneMapping = ACESFilmicToneMapping;
+          gl.toneMappingExposure = sceneProps.lowPower ? 1.62 : 1.82;
+          gl.outputColorSpace = SRGBColorSpace;
+          if (!readyRef.current) {
+            readyRef.current = true;
+            onGlobeReady?.();
+          }
+        }}
+      >
+        <ambientLight intensity={1.25} color="#6b7ea0" />
+        <directionalLight position={[5, 2.5, 5]} intensity={0.9} color="#fff6e8" />
+        <directionalLight position={[-5, -2, -4]} intensity={0.75} color="#dce8ff" />
 
-      <Suspense fallback={null}>
-        <SoundyGlobeScene {...sceneProps} cameraRef={cameraRef} />
-      </Suspense>
-    </Canvas>
+        <Suspense fallback={null}>
+          <SoundyGlobeScene {...sceneProps} cameraRef={cameraRef} controlsEnabled={controlsEnabled} />
+        </Suspense>
+      </Canvas>
+    </GlobeDevDragProvider>
   );
 }

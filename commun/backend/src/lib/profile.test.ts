@@ -116,11 +116,18 @@ describe('publicProfile age privacy', () => {
     expect(publicProfile(user, true, user.id).hideBirthDateOnProfile).toBe(true);
   });
 
-  it('masque birthDate et age aux visiteurs si hideBirthDateOnProfile', () => {
-    const user = makeUser({ birthDate: '1990-01-01', age: 35, hideBirthDateOnProfile: true });
+  it('masque age aux visiteurs si hideBirthDateOnProfile et showAge false', () => {
+    const user = makeUser({ birthDate: '1990-01-01', age: 35, hideBirthDateOnProfile: true, showAge: false });
     const view = publicProfile(user, false, 'other');
     expect(view.birthDate).toBeUndefined();
     expect(view.age).toBeUndefined();
+  });
+
+  it('expose age aux visiteurs si showAge true même si hideBirthDateOnProfile', () => {
+    const user = makeUser({ birthDate: '1990-01-01', age: 35, hideBirthDateOnProfile: true, showAge: true });
+    const view = publicProfile(user, false, 'other');
+    expect(view.birthDate).toBeUndefined();
+    expect(view.age).toBe(computeAgeFromBirthDate('1990-01-01'));
   });
 
   it('expose age (pas birthDate) aux visiteurs si non masqué', () => {
@@ -138,12 +145,14 @@ describe('publicProfile age privacy', () => {
     expect(view.age).toBe(computeAgeFromBirthDate('1990-01-01'));
   });
 
-  it('sync hideBirthDateOnProfile depuis showAge', () => {
+  it('applyAgeSettings ne synchronise plus hideBirthDateOnProfile et showAge', () => {
     const user = makeUser();
     applyAgeSettings(user, { showAge: true });
-    expect(user.hideBirthDateOnProfile).toBe(false);
+    expect(user.showAge).toBe(true);
+    expect(user.hideBirthDateOnProfile).toBeUndefined();
     applyAgeSettings(user, { hideBirthDateOnProfile: true });
-    expect(user.showAge).toBe(false);
+    expect(user.hideBirthDateOnProfile).toBe(true);
+    expect(user.showAge).toBe(true);
   });
 
   it('expose age au propriétaire même si showAge false (legacy sans birthDate)', () => {

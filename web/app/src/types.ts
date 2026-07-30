@@ -874,6 +874,8 @@ export interface User {
   profilePhotos?: string[];
   isGhostMode: boolean;
   bio?: string;
+  /** Masquer la bio aux visiteurs (défaut : false). */
+  hideBioOnProfile?: boolean;
   interests?: string[];
   favoriteGenres?: string[];
   favoriteArtists?: string[];
@@ -1279,6 +1281,8 @@ export interface Live {
   videoDelaySeconds?: number;
   /** Format d'image du flux hôte (cadre spectateurs). */
   videoAspectRatio?: '16:9' | '9:16' | '4:3';
+  /** msdev : flux HLS simulé pour démo présentation. */
+  presentationDemoStream?: boolean;
 }
 
 export interface ChatMessage {

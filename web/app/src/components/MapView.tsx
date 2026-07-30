@@ -14,6 +14,10 @@ import {
   resolveMapEventMarkerPinColor,
 } from '../lib/mapEventDayColors';
 import { isValidLatLng, sanitizeLatLngTuple } from '../lib/mapCoords';
+import {
+  attachLeafletDevMarkerDrag,
+  type DevMapMarkerRef,
+} from '../lib/devMapMarkerDrag';
 import { DEFAULT_CENTER } from '../lib/livesGeo';
 import { DEFAULT_EVENT_FILTER_RADIUS_KM } from '../lib/mapEventFilter';
 import { WORLD_CAPITALS } from '../lib/worldCapitals';
@@ -40,9 +44,16 @@ import { buildEventLocationKey } from '../lib/mapEventClusters';
 import { buildLiveClusterPopupHtml } from '../lib/mapLivePopupHtml';
 import {
   buildMajorCityHubMarkerHtml,
+  buildFlatLiveMarkerHtml,
+  buildFlatSalonMarkerHtml,
   buildOverviewGeoMarkerHtml,
   buildLiveClusterOverviewMarkerHtml,
 } from '../lib/mapOverviewMarkerHtml';
+import {
+  linkedSalonIdsForLiveDedup,
+  mergeLivesWithLiveSalons,
+  splitSalonsForMapMarkers,
+} from '../lib/mapLiveSalonMarkers';
 import type { MapUserPositionKind } from '../lib/mapUserPosition';
 import { canUseGlobeView } from '../lib/webglSupport';
 import { CAMERA_DEFAULT_ALTITUDE } from '../lib/globe3d/constants';
@@ -279,6 +290,9 @@ interface MapViewProps {
   /** Jours browse sidebar — couleurs pins alignées sur les sections jour. */
   eventBrowseDayKeys?: readonly string[];
   eventBrowsePinFallbackNearest?: boolean;
+  /** Compte Dev : repositionner les marqueurs sur la carte sombre. */
+  devMarkerDragEnabled?: boolean;
+  onDevMarkerDragEnd?: (ref: DevMapMarkerRef, lat: number, lng: number) => void;
 }
 
 function escapeHtml(value: string): string {
@@ -345,6 +359,8 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   highlightedMapEventId = null,
   eventBrowseDayKeys,
   eventBrowsePinFallbackNearest = false,
+  devMarkerDragEnabled = false,
+  onDevMarkerDragEnd,
 }: MapViewProps, ref) {
   const mapRef = useRef<HTMLDivElement>(null);
   const globeViewRef = useRef<GlobeViewHandle | null>(null);
@@ -394,6 +410,10 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   onSelectMapEventRef.current = onSelectMapEvent;
   const onSelectMajorCityClusterRef = useRef(onSelectMajorCityCluster);
   onSelectMajorCityClusterRef.current = onSelectMajorCityCluster;
+  const devMarkerDragEnabledRef = useRef(devMarkerDragEnabled);
+  devMarkerDragEnabledRef.current = devMarkerDragEnabled;
+  const onDevMarkerDragEndRef = useRef(onDevMarkerDragEnd);
+  onDevMarkerDragEndRef.current = onDevMarkerDragEnd;
   const onSelectLiveClusterRef = useRef(onSelectLiveCluster);
   onSelectLiveClusterRef.current = onSelectLiveCluster;
   const onAutoSwitchToGlobeRef = useRef(onAutoSwitchToGlobe);
@@ -1370,10 +1390,13 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     salonLayer.clearLayers();
     majorCityLayerRef.current?.clearLayers();
 
-    const linkedSalonIds = new Set(visibleSalons.map((s) => s.id));
+    const { offlineSalons: offlineVisibleSalons, liveSalons: liveVisibleSalons } =
+      splitSalonsForMapMarkers(visibleSalons);
+    const mergedVisibleLives = mergeLivesWithLiveSalons(visibleLives, liveVisibleSalons);
+    const linkedSalonIds = linkedSalonIdsForLiveDedup(visibleSalons);
 
-    let salonsToDraw: typeof visibleSalons;
-    let livesToDraw: typeof visibleLives;
+    let salonsToDraw: typeof offlineVisibleSalons;
+    let livesToDraw: typeof mergedVisibleLives;
     let isInLiveMultiCluster: (lat: number, lng: number) => boolean = () => false;
 
     // Salons/lives ancrés sur une grande ville (sans GPS précis, coords = centre ville)
@@ -1381,23 +1404,19 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     // pour éviter plusieurs marqueurs empilés exactement au même point.
     {
       const { cityClusters } = clusterSalonsLivesByMajorCity(
-        visibleSalons,
-        visibleLives,
+        offlineVisibleSalons,
+        mergedVisibleLives,
         linkedSalonIds
       );
       const individual = filterOverviewIndividualMarkers(
-        visibleSalons,
-        visibleLives,
+        offlineVisibleSalons,
+        mergedVisibleLives,
         linkedSalonIds
       );
       salonsToDraw = individual.salons;
       livesToDraw = individual.lives;
 
-      const liveLocationClusters = clusterLiveMapMarkers(
-        salonsToDraw.filter((s) => s.isLive),
-        livesToDraw,
-        linkedSalonIds
-      );
+      const liveLocationClusters = clusterLiveMapMarkers([], livesToDraw, linkedSalonIds);
       const liveMultiClusterKeys = new Set(
         liveLocationClusters.filter((c) => c.count > 1).map((c) => c.id)
       );
@@ -1514,15 +1533,12 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     // recevait EN PLUS un point "person" séparé au même endroit : 2 points
     // superposés sur la carte pour un seul live/salon.
     const mapActivityHostIds = new Set([
-      ...visibleSalons.map((s) => s.hostId),
-      ...visibleLives.map((l) => l.hostId),
+      ...offlineVisibleSalons.map((s) => s.hostId),
+      ...livesToDraw.map((l) => l.hostId),
     ]);
 
     salonsToDraw.forEach((s) => {
       if (!isValidLatLng(s.latitude, s.longitude)) return;
-      if (s.isLive && isInLiveMultiCluster(Number(s.latitude), Number(s.longitude))) return;
-      const botClass = s.isBot ? 'bot' : '';
-      const salonClass = 'salon';
       try {
         const lat = Number(s.latitude);
         const lon = Number(s.longitude);
@@ -1533,26 +1549,24 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
                 className: '',
                 html: buildOverviewGeoMarkerHtml({
                   kind: 'salon',
-                  isLive: s.isLive === true,
+                  isLive: false,
                 }),
                 iconSize: [28, 28],
                 iconAnchor: [14, 14],
               }),
-              zIndexOffset: s.isLive ? 120 : 80,
+              zIndexOffset: 80,
             })
           : L.marker(
               [lat, lon],
               {
                 icon: L.divIcon({
                   className: '',
-                  html: (() => {
-                    const avatarFallback = dicebearAdventurerAvatar(s.hostId);
-                    const avatar = s.hostAvatarUrl?.trim() || avatarFallback;
-                    const avatarOnError = `this.onerror=null;this.src='${avatarFallback.replace(/'/g, '%27')}';`;
-                    return `<div class="map-marker ${botClass} ${salonClass}">${s.isBot ? '<span class="bot-badge">BOT</span>' : ''}<span class="salon-badge">SALON</span><img src="${escapeHtml(avatar)}" alt="" loading="lazy" decoding="async" onerror="${avatarOnError}"/>${usernameMapLabelHtml(s.hostName, s.hostUsernameColor, { wave: { from: s.hostUsernameWaveFrom, to: s.hostUsernameWaveTo } })}</div>`;
-                  })(),
-                  iconSize: [56, 56],
-                  iconAnchor: [28, 28],
+                  html: buildFlatSalonMarkerHtml(s.hostName, s.hostUsernameColor, {
+                    from: s.hostUsernameWaveFrom,
+                    to: s.hostUsernameWaveTo,
+                  }, { isBot: s.isBot, listenersCount: s.listenersCount }),
+                  iconSize: [56, 44],
+                  iconAnchor: [28, 12],
                 }),
               }
             );
@@ -1588,14 +1602,12 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
               {
                 icon: L.divIcon({
                   className: '',
-                  html: (() => {
-                    const avatarFallback = dicebearAdventurerAvatar(l.hostId);
-                    const avatar = l.hostAvatarUrl?.trim() || avatarFallback;
-                    const avatarOnError = `this.onerror=null;this.src='${avatarFallback.replace(/'/g, '%27')}';`;
-                    return `<div class="map-marker live"><span class="live-badge">LIVE</span><img src="${escapeHtml(avatar)}" alt="" loading="lazy" decoding="async" onerror="${avatarOnError}"/>${usernameMapLabelHtml(l.hostName, l.hostUsernameColor, { wave: { from: l.hostUsernameWaveFrom, to: l.hostUsernameWaveTo } })}</div>`;
-                  })(),
-                  iconSize: [56, 56],
-                  iconAnchor: [28, 28],
+                  html: buildFlatLiveMarkerHtml(l.hostName, l.hostUsernameColor, {
+                    from: l.hostUsernameWaveFrom,
+                    to: l.hostUsernameWaveTo,
+                  }, { viewersCount: l.viewersCount }),
+                  iconSize: [56, 44],
+                  iconAnchor: [28, 12],
                 }),
               }
             );
@@ -1721,6 +1733,11 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     layer.clearLayers();
     eventMarkersByIdRef.current.clear();
 
+    const dragEnabled = devMarkerDragEnabledRef.current && !!onDevMarkerDragEndRef.current;
+    const bindDevDrag = (marker: L.Marker, ref: DevMapMarkerRef) => {
+      attachLeafletDevMarkerDrag(marker, ref, dragEnabled, onDevMarkerDragEndRef.current);
+    };
+
     const registerEventMarker = (eventId: string, marker: L.Marker) => {
       eventMarkersByIdRef.current.set(eventId, marker);
     };
@@ -1766,9 +1783,14 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
         iconSize: [48, 52],
         iconAnchor: [24, 26],
       });
-      const m = L.marker([lat, lon], { icon, zIndexOffset: 200 }).addTo(layer);
+      const m = L.marker([lat, lon], {
+        icon,
+        zIndexOffset: 200,
+        draggable: dragEnabled && !!primaryEvent,
+      }).addTo(layer);
       if (primaryEvent) {
         registerEventMarker(primaryEvent.id, m);
+        bindDevDrag(m, { kind: 'event', id: primaryEvent.id });
       } else {
         for (const ev of cluster.events) {
           registerEventMarker(ev.id, m);
@@ -1904,6 +1926,8 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
               livesFilterOn={livesFilterOn}
               salonFilterOn={salonFilterOn}
               eventsFilterOn={eventsFilterOn}
+              devMarkerDragEnabled={devMarkerDragEnabled}
+              onDevMarkerDragEnd={onDevMarkerDragEnd}
             />
           </GlobeErrorBoundary>
         </Suspense>

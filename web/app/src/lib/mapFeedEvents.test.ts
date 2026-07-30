@@ -138,10 +138,10 @@ describe('tagMapEventMarkersAsSponsored', () => {
 describe('mergeMapEventsWithSponso', () => {
   const solar: MapEventMarker = {
     id: 'prod-sponso-evt-solar-festival-2026',
-    latitude: 43.6489,
-    longitude: 3.8567,
+    latitude: 43.6405,
+    longitude: 3.9395,
     title: 'Solar Festival',
-    eventDate: '2026-07-25T18:00:00.000Z',
+    eventDate: new Date(Date.now() + 30 * 86_400_000).toISOString(),
     eventLocation: 'Solar Festival, Le Crès, France',
   };
 

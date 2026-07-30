@@ -23,6 +23,14 @@ export const REEL_CATALOG_ENTRIES: ReelCatalogEntry[] = [
     "genre": "Rock"
   },
   {
+    "id": "reel-singer",
+    "videoId": 42825,
+    "musicId": 787,
+    "title": "Session voix",
+    "artist": "Vocal Live",
+    "genre": "Chant"
+  },
+  {
     "id": "reel-dj",
     "videoId": 830,
     "musicId": 989,
@@ -885,13 +893,5 @@ export const REEL_CATALOG_ENTRIES: ReelCatalogEntry[] = [
     "title": "Beat libre #4442",
     "artist": "Velvet Sound",
     "genre": "Indie"
-  },
-  {
-    "id": "reel-mk-4451",
-    "videoId": 4451,
-    "musicId": 1110,
-    "title": "Flow musical #4451",
-    "artist": "Pulse Unit",
-    "genre": "Techno"
   }
 ];

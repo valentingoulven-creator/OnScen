@@ -57,7 +57,9 @@ export function computeAgeFromBirthDate(birthDate: string, refDate = new Date())
 }
 
 /** Retourne une clé d'erreur i18n profile.* ou null si valide / vide. */
-export function validateBirthDate(birthDate: string): 'birthDateInvalid' | 'birthDateFuture' | 'ageRangeError' | null {
+export function validateBirthDate(
+  birthDate: string
+): 'birthDateInvalid' | 'birthDateFuture' | 'underMinAge' | 'overMaxAge' | null {
   const trimmed = birthDate.trim();
   if (!trimmed) return null;
   if (!ISO_DATE_RE.test(trimmed)) return 'birthDateInvalid';
@@ -70,8 +72,25 @@ export function validateBirthDate(birthDate: string): 'birthDateInvalid' | 'birt
   today.setHours(0, 0, 0, 0);
   if (birth > today) return 'birthDateFuture';
   const age = computeAgeFromBirthDate(trimmed);
-  if (age == null || age < MIN_PROFILE_AGE || age > MAX_PROFILE_AGE) return 'ageRangeError';
+  if (age == null) return 'birthDateInvalid';
+  if (age < MIN_PROFILE_AGE) return 'underMinAge';
+  if (age > MAX_PROFILE_AGE) return 'overMaxAge';
   return null;
+}
+
+export function birthDateErrorMessage(
+  error: NonNullable<ReturnType<typeof validateBirthDate>>
+): string {
+  switch (error) {
+    case 'birthDateInvalid':
+      return 'Date de naissance invalide.';
+    case 'birthDateFuture':
+      return 'La date de naissance ne peut pas être dans le futur.';
+    case 'underMinAge':
+      return 'Vous devez avoir au moins 13 ans pour utiliser Soundy. La création du compte n’est pas autorisée.';
+    case 'overMaxAge':
+      return "L'âge doit être entre 13 et 120 ans.";
+  }
 }
 
 export function todayIsoDate(): string {

@@ -464,6 +464,7 @@ authRouter.patch('/profile', authenticateJWT, profilePhotoUploadLimiter, async (
     age,
     showAge,
     hideBirthDateOnProfile,
+    hideBioOnProfile,
     shareDistance,
     locationPrecision,
     usernameColor,
@@ -489,6 +490,13 @@ authRouter.patch('/profile', authenticateJWT, profilePhotoUploadLimiter, async (
     invalidateGlobalSearchIndex();
   }
   if (bio !== undefined) user.bio = sanitizePlainText(String(bio).slice(0, 500));
+  if (hideBioOnProfile !== undefined) {
+    if (typeof hideBioOnProfile !== 'boolean') {
+      res.status(400).json({ error: 'hideBioOnProfile doit être un booléen.' });
+      return;
+    }
+    user.hideBioOnProfile = hideBioOnProfile;
+  }
   if (Array.isArray(interests)) user.interests = interests.map(String).slice(0, 12);
   if (Array.isArray(favoriteGenres)) user.favoriteGenres = favoriteGenres.map(String).slice(0, 10);
   if (Array.isArray(favoriteArtists)) user.favoriteArtists = favoriteArtists.map(String).slice(0, 10);

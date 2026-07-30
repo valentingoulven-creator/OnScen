@@ -235,6 +235,8 @@ export function SalonYouTubePlayer({
   const volume = salonVolumeControlled ? salonVolume : internalVolume;
   const muted = salonVolumeControlled ? (salonMuted ?? false) : internalMuted;
   const [localPaused, setLocalPaused] = useState(false);
+  const localPausedRef = useRef(localPaused);
+  localPausedRef.current = localPaused;
   const [embedErrorCode, setEmbedErrorCode] = useState<number | null>(null);
   const embedError = embedErrorCode !== null;
   const volumeRef = useRef(volume);
@@ -478,6 +480,7 @@ export function SalonYouTubePlayer({
     if (!apiReady || !containerRef.current || !isValidYoutubeVideoId(videoId)) return;
 
     let destroyed = false;
+    let embedErrorHandled = false;
     setPlayerReady(false);
     loadedVideoRef.current = null;
     const container = containerRef.current;
@@ -485,7 +488,7 @@ export function SalonYouTubePlayer({
     if (lastMountedVideoRef.current !== videoId) {
       lastKnownSecRef.current = 0;
     }
-    const computedSec = computePlaybackPositionMs(playbackState) / 1000;
+    const computedSec = computePlaybackPositionMs(stateRef.current) / 1000;
     const resumeSec =
       lastMountedVideoRef.current === videoId ? Math.max(computedSec, lastKnownSecRef.current) : computedSec;
     const startSec = Math.floor(resumeSec);
@@ -524,12 +527,13 @@ export function SalonYouTubePlayer({
             getAppMediaOwner() !== 'live';
           applyVolume(e.target, volumeRef.current, mutedRef.current);
           rememberPlaybackSec(resumeSec);
+          const respectPause = isHostRef.current && localPausedRef.current;
           if (allowPlay) {
-            applySync(e.target, playbackState, true, respectLocalPause, true);
+            applySync(e.target, stateRef.current, true, respectPause, true);
           } else if (playbackActiveRef.current) {
-            applySilentPositionSync(e.target, playbackState, true);
+            applySilentPositionSync(e.target, stateRef.current, true);
           }
-          if (allowPlay && playbackState.isPlaying && !respectLocalPause) {
+          if (allowPlay && stateRef.current.isPlaying && !respectPause) {
             try {
               requestAppMediaFocus('salon');
               e.target.playVideo();
@@ -570,7 +574,10 @@ export function SalonYouTubePlayer({
           // onEmbedError only fires for embedding-restriction errors (101 / 150),
           // not for "video unavailable" (100) or bad params (2).
           if (e.data === 101 || e.data === 150) {
-            onEmbedErrorRef.current?.();
+            if (!embedErrorHandled) {
+              embedErrorHandled = true;
+              onEmbedErrorRef.current?.();
+            }
           }
         },
       },
@@ -597,18 +604,7 @@ export function SalonYouTubePlayer({
       }
     };
     // Recreate when video changes or mount moves (PiP portal ↔ inline).
-  }, [
-    apiReady,
-    videoId,
-    floatActive,
-    applyVolume,
-    detectLiveStream,
-    notifyIsLive,
-    playbackState,
-    rememberPlaybackSec,
-    respectLocalPause,
-    syncPlayerSize,
-  ]);
+  }, [apiReady, videoId, floatActive]);
 
   useEffect(() => {
     const player = playerRef.current;

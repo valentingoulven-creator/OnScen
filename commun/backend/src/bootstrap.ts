@@ -15,6 +15,14 @@ import { seedBotsAtStartup } from './seed-bots';
 import { seedWorldRandomAtStartup } from './seed-world-random';
 import { seedHomeFeed } from './seed-home-feed';
 import { seedMsdevStories } from './seed-msdev-stories';
+import { seedMsdevShowcase } from './seed-msdev-showcase';
+import { ensureMsdevPresentationLive, seedMsdevPresentationLive } from './seed-msdev-presentation-live';
+import {
+  PRESENTATION_LIVE_ID,
+  startPresentationDemoChatTicker,
+  stopPresentationDemoChatTicker,
+} from './lib/presentationDemoLive';
+import { db } from './models/schema';
 import {
   loadPersistedStore,
   loadPersistedStoreAsync,
@@ -131,9 +139,10 @@ function shutdown(): Promise<void> {
       void stopPersistLoop()
         .then(() => closePool())
         .finally(() => {
-          stopSessionLimitScheduler();
-          stopDataRetentionScheduler();
-          stopServerMonitor();
+      stopSessionLimitScheduler();
+      stopDataRetentionScheduler();
+      stopServerMonitor();
+      stopPresentationDemoChatTicker();
           httpServer = null;
           ioServer = null;
           clearIo();
@@ -326,6 +335,18 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
         console.warn('[soundy] Échec chargement salons/lives PostgreSQL:', e);
       }
       try {
+        const presLive = db.lives.get(PRESENTATION_LIVE_ID);
+        if (presLive?.presentationDemoStream && presLive.isActive) {
+          const pres = seedMsdevPresentationLive();
+          startPresentationDemoChatTicker();
+          console.log(
+            `[soundy] Live présentation démo : ${pres.viewersCount} spectateurs, ${pres.chatMessages} message(s)`
+          );
+        }
+      } catch (e) {
+        console.warn('[soundy] Live présentation démo ignoré:', e);
+      }
+      try {
         const reelStats = await loadReelsFromPg();
         if (reelStats.reels > 0) {
           console.log(
@@ -393,7 +414,13 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
       console.log(`[soundy] ${admins} compte(s) administrateur synchronisé(s)`);
     }
     if (isAccessControlEnabled()) {
-      console.log('[soundy] Contrôle d’accès actif — validation admin pour les nouveaux comptes');
+      if (APP_ENV === 'production') {
+        console.log(
+          '[soundy] Contrôle d’accès production actif — inscriptions fermées (comptes existants uniquement)'
+        );
+      } else {
+        console.log('[soundy] Contrôle d’accès actif — validation admin pour les nouveaux comptes');
+      }
     }
     startPersistLoop();
   }
@@ -450,6 +477,24 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
         `[msdev] Stories seed : ${storiesSeed.created} story(s) pour ${storiesSeed.authorIds.length} auteur(s) favori(s) (${storiesSeed.authorsWithStories} auteurs avec story)`
       );
     }
+    const showcaseSeed = seedMsdevShowcase({
+      force: process.env.MSDEV_FORCE_SEED === '1',
+    });
+    if (
+      showcaseSeed.followsAdded > 0 ||
+      showcaseSeed.reelsCreated > 0 ||
+      showcaseSeed.eventsCreated > 0 ||
+      showcaseSeed.salonsCreated > 0 ||
+      showcaseSeed.profileUpdated
+    ) {
+      console.log(
+        `[msdev] Showcase listener : ${showcaseSeed.followsAdded} abonnement(s), ` +
+          `${showcaseSeed.reelsCreated} reel(s), ${showcaseSeed.eventsCreated} événement(s), ` +
+          `${showcaseSeed.salonsCreated} salon(s), ${showcaseSeed.livesCreated} live(s)`
+      );
+    }
+    ensureMsdevPresentationLive();
+    startPresentationDemoChatTicker();
   }
   const relationshipMigrated = migrateAllUsersRelationshipStatus();
   if (relationshipMigrated > 0) {

@@ -20,7 +20,9 @@ import {
   mapBoundsEqual,
   mapSidebarDetailEqual,
   shouldClipMapMarkersToViewport,
+  resolveMapViewMarkerFilterFlags,
   shouldShowAllSalonsAtCityZoom,
+  shouldSkipMapEventViewportClip,
   type MapViewDetailState,
 } from './mapMarkerVisibility';
 
@@ -86,6 +88,168 @@ describe('shouldShowAllSalonsAtCityZoom', () => {
   it('is true whenever Salon filter is on', () => {
     expect(shouldShowAllSalonsAtCityZoom(true)).toBe(true);
     expect(shouldShowAllSalonsAtCityZoom(false)).toBe(false);
+  });
+});
+
+describe('resolveMapViewMarkerFilterFlags', () => {
+  const baseInput = {
+    livesFilterOn: false,
+    salonFilterOn: false,
+    eventsFilterOn: false,
+    sidebarMapFilterLivesFollowing: false,
+    sidebarMapFilterSalonsFollowing: false,
+    sidebarMapFilterEventsFollowing: false,
+    sidebarMapFilterSponso: false,
+    followingMapAmbientOn: false,
+  };
+
+  it('activates salon map visibility for sidebar Salon suivi chip', () => {
+    const flags = resolveMapViewMarkerFilterFlags({
+      ...baseInput,
+      sidebarMapFilterSalonsFollowing: true,
+    });
+    expect(flags.salonFilterOn).toBe(true);
+    expect(flags.showAllSalonsAtCityZoom).toBe(true);
+    expect(flags.livesFilterOn).toBe(false);
+  });
+
+  it('keeps lives off when only sidebar salon following is active', () => {
+    const flags = resolveMapViewMarkerFilterFlags({
+      ...baseInput,
+      sidebarMapFilterSalonsFollowing: true,
+    });
+    expect(flags.livesFilterOn).toBe(false);
+  });
+
+  it('activates events map visibility for sidebar Événement suivi chip', () => {
+    const flags = resolveMapViewMarkerFilterFlags({
+      ...baseInput,
+      sidebarMapFilterEventsFollowing: true,
+    });
+    expect(flags.eventsFilterOn).toBe(true);
+    expect(flags.livesFilterOn).toBe(false);
+    expect(flags.salonFilterOn).toBe(false);
+  });
+});
+
+describe('shouldSkipMapEventViewportClip', () => {
+  it('skips viewport clip for sidebar Événement suivi chip (global pins)', () => {
+    expect(
+      shouldSkipMapEventViewportClip({
+        followingMapAmbientOn: false,
+        effectiveEventsFilterOn: true,
+        sidebarMapFilterEventsFollowing: true,
+        mapEventDayPinFilter: null,
+      })
+    ).toBe(true);
+  });
+
+  it('clips when day pin filter is active on sidebar events chip', () => {
+    expect(
+      shouldSkipMapEventViewportClip({
+        followingMapAmbientOn: false,
+        effectiveEventsFilterOn: true,
+        sidebarMapFilterEventsFollowing: true,
+        mapEventDayPinFilter: '2026-07-28',
+      })
+    ).toBe(false);
+  });
+
+  it('skips clip for following ambient mode without explicit events filter', () => {
+    expect(
+      shouldSkipMapEventViewportClip({
+        followingMapAmbientOn: true,
+        effectiveEventsFilterOn: false,
+        sidebarMapFilterEventsFollowing: false,
+        mapEventDayPinFilter: null,
+      })
+    ).toBe(true);
+  });
+});
+
+describe('sidebar events following map pins', () => {
+  it('shows event clusters when sidebar chip uses effective events filter', () => {
+    const flags = resolveMapViewMarkerFilterFlags({
+      livesFilterOn: false,
+      salonFilterOn: false,
+      eventsFilterOn: false,
+      sidebarMapFilterLivesFollowing: false,
+      sidebarMapFilterSalonsFollowing: false,
+      sidebarMapFilterEventsFollowing: true,
+      sidebarMapFilterSponso: false,
+      followingMapAmbientOn: false,
+    });
+    const visibility = getMapMarkerVisibility({
+      tier: 'city',
+      eventsOnly: true,
+      hasEventClusters: true,
+      showAllSalonsAtCityZoom: flags.showAllSalonsAtCityZoom,
+      livesFilterOn: flags.livesFilterOn,
+      salonFilterOn: flags.salonFilterOn,
+      eventsFilterOn: flags.eventsFilterOn,
+    });
+    expect(visibility.eventClusters).toBe(true);
+    expect(visibility.salons).toBe(false);
+    expect(visibility.lives).toBe(true);
+  });
+
+  it('hides event clusters without effective events filter (regression)', () => {
+    const visibility = getMapMarkerVisibility({
+      tier: 'city',
+      eventsOnly: false,
+      hasEventClusters: false,
+      showAllSalonsAtCityZoom: false,
+      livesFilterOn: false,
+      salonFilterOn: false,
+      eventsFilterOn: false,
+    });
+    expect(visibility.eventClusters).toBe(false);
+  });
+});
+
+describe('sidebar salon following map pins', () => {
+  it('renders followed offline salon pins when sidebar chip uses effective salon filter', () => {
+    const flags = resolveMapViewMarkerFilterFlags({
+      livesFilterOn: false,
+      salonFilterOn: false,
+      eventsFilterOn: false,
+      sidebarMapFilterLivesFollowing: false,
+      sidebarMapFilterSalonsFollowing: true,
+      sidebarMapFilterEventsFollowing: false,
+      sidebarMapFilterSponso: false,
+      followingMapAmbientOn: false,
+    });
+    const mapSalons = [{ id: 's-off', isLive: false as const }];
+    const visibility = getMapMarkerVisibility({
+      tier: 'overview',
+      eventsOnly: false,
+      hasEventClusters: false,
+      showAllSalonsAtCityZoom: flags.showAllSalonsAtCityZoom,
+      livesFilterOn: flags.livesFilterOn,
+      salonFilterOn: flags.salonFilterOn,
+      eventsFilterOn: flags.eventsFilterOn,
+    });
+    expect(visibility.salons).toBe(true);
+    expect(visibility.salonsPinsOnly).toBe(true);
+    expect(
+      filterSalonsForZoom(mapSalons, visibility, flags.showAllSalonsAtCityZoom, 'overview')
+    ).toEqual(mapSalons);
+  });
+
+  it('hides offline salon pins without effective salon filter (regression)', () => {
+    const visibility = getMapMarkerVisibility({
+      tier: 'overview',
+      eventsOnly: false,
+      hasEventClusters: false,
+      showAllSalonsAtCityZoom: false,
+      livesFilterOn: false,
+      salonFilterOn: false,
+      eventsFilterOn: false,
+    });
+    const mapSalons = [{ id: 's-off', isLive: false as const }];
+    expect(
+      filterSalonsForZoom(mapSalons, visibility, false, 'overview')
+    ).toEqual([]);
   });
 });
 
@@ -377,7 +541,7 @@ describe('filterSalonsForZoom with combined filters', () => {
     expect(visible.map((s) => s.id)).toEqual(['off']);
   });
 
-  it('shows no salon markers when only Lives is on (pins via lives array)', () => {
+  it('keeps live salons for MapView merge when only Lives is on (no offline salons)', () => {
     const visibility = getMapMarkerVisibility({
       tier: 'city',
       eventsOnly: false,
@@ -386,7 +550,7 @@ describe('filterSalonsForZoom with combined filters', () => {
     });
     expect(visibility.livesPinsOnly).toBe(true);
     const visible = filterSalonsForZoom(salons, visibility, false, 'city');
-    expect(visible).toEqual([]);
+    expect(visible.map((s) => s.id)).toEqual(['live']);
   });
 
   it('keeps offline salons at overview when Salon filter is on', () => {
@@ -447,8 +611,8 @@ describe('capitals progressive disclosure', () => {
 describe('filterMapEventMarkersInMapView', () => {
   const franceMarker = {
     id: 'sponso-fr',
-    latitude: 43.6489,
-    longitude: 3.8567,
+    latitude: 43.6405,
+    longitude: 3.9395,
     title: 'Solar Festival',
   };
   const italyMarker = {

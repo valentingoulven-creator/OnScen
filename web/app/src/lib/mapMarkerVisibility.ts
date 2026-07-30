@@ -427,6 +427,55 @@ export function shouldShowAllSalonsAtCityZoom(salonFilterOn: boolean): boolean {
   return salonFilterOn;
 }
 
+export interface MapViewMarkerFilterInput {
+  livesFilterOn: boolean;
+  salonFilterOn: boolean;
+  eventsFilterOn: boolean;
+  sidebarMapFilterLivesFollowing: boolean;
+  sidebarMapFilterSalonsFollowing: boolean;
+  sidebarMapFilterEventsFollowing: boolean;
+  sidebarMapFilterSponso: boolean;
+  followingMapAmbientOn: boolean;
+}
+
+export interface MapViewMarkerFilterFlags {
+  livesFilterOn: boolean;
+  salonFilterOn: boolean;
+  eventsFilterOn: boolean;
+  showAllSalonsAtCityZoom: boolean;
+}
+
+/** Filtres carte effectifs pour MapView (chips sidebar section Suivi inclus). */
+export function resolveMapViewMarkerFilterFlags(
+  input: MapViewMarkerFilterInput
+): MapViewMarkerFilterFlags {
+  return {
+    livesFilterOn: input.livesFilterOn || input.sidebarMapFilterLivesFollowing,
+    salonFilterOn: input.salonFilterOn || input.sidebarMapFilterSalonsFollowing,
+    eventsFilterOn:
+      input.eventsFilterOn ||
+      input.sidebarMapFilterEventsFollowing ||
+      input.sidebarMapFilterSponso,
+    showAllSalonsAtCityZoom:
+      shouldShowAllSalonsAtCityZoom(input.salonFilterOn) ||
+      input.followingMapAmbientOn ||
+      input.sidebarMapFilterSalonsFollowing,
+  };
+}
+
+/** Chip Événement suivi : pins globaux (pas de clip viewport), comme Salon suivi. */
+export function shouldSkipMapEventViewportClip(input: {
+  followingMapAmbientOn: boolean;
+  effectiveEventsFilterOn: boolean;
+  sidebarMapFilterEventsFollowing: boolean;
+  mapEventDayPinFilter: string | null;
+}): boolean {
+  if (input.sidebarMapFilterEventsFollowing && input.mapEventDayPinFilter == null) {
+    return true;
+  }
+  return input.followingMapAmbientOn && !input.effectiveEventsFilterOn;
+}
+
 export function getMapMarkerVisibility(opts: MapMarkerVisibilityOptions): MapMarkerVisibility {
   const {
     tier,
@@ -485,7 +534,8 @@ export function filterSalonsForZoom<T extends { isLive?: boolean }>(
   showAllSalonsAtCityZoom: boolean,
   tier: MapDetailTier
 ): T[] {
-  if (visibility.livesPinsOnly) return [];
+  /** Lives seul : salons live pour mergeLivesWithLiveSalons (pins LIVE, pas SALON). */
+  if (visibility.livesPinsOnly) return salons.filter((s) => s.isLive);
   const pool = visibility.salonsPinsOnly ? salons.filter((s) => !s.isLive) : salons;
   const liveSalons = pool.filter((s) => s.isLive);
   if (tier === 'overview') {

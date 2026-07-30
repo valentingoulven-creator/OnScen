@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { formatSalonAudienceLabel } from '../lib/salonAudience';
+import { ConfirmModal } from './ConfirmModal';
 import type { Live } from '../types';
 
 interface ActiveLiveBannerProps {
@@ -10,6 +11,10 @@ interface ActiveLiveBannerProps {
   token: string;
   isHost?: boolean;
   onReturn: () => void;
+  /** Spectateur : quitter le live (leave_live + fin session). */
+  onLeaveLive?: () => void;
+  /** Hôte : arrêter le live (API stop + fin session). */
+  onStopLive?: () => void | Promise<void>;
 }
 
 function ViewerEyeIcon() {
@@ -48,11 +53,20 @@ function LiveCameraIcon() {
   );
 }
 
-/** Bandeau global — live hôte actif (hors page live plein écran). Permet de reprendre le live. */
-export function ActiveLiveBanner({ liveId, token, isHost = false, onReturn }: ActiveLiveBannerProps) {
+/** Bandeau global — live actif (hôte ou spectateur) hors page live plein écran. */
+export function ActiveLiveBanner({
+  liveId,
+  token,
+  isHost = false,
+  onReturn,
+  onLeaveLive,
+  onStopLive,
+}: ActiveLiveBannerProps) {
   const { t } = useTranslation();
   const [live, setLive] = useState<Live | null>(null);
   const [viewersCount, setViewersCount] = useState(0);
+  const [showStopConfirm, setShowStopConfirm] = useState(false);
+  const [stopping, setStopping] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,52 +106,115 @@ export function ActiveLiveBanner({ liveId, token, isHost = false, onReturn }: Ac
   const title = live?.title?.trim() || t('live.title', { defaultValue: 'Direct' });
   const thumbnailUrl = live?.playbackState?.albumArtUrl?.trim() || null;
   const audienceLabel = formatSalonAudienceLabel(viewersCount, t).replace(/^👥\s*/, '');
+  const canLeave = Boolean(isHost ? onStopLive : onLeaveLive);
+  const leaveShortLabel = isHost
+    ? t('live.stopLiveShort', { defaultValue: 'Arrêter' })
+    : t('live.leaveLiveShort');
+  const leaveFullLabel = isHost
+    ? t('live.stopLive', { defaultValue: 'Arrêter le live' })
+    : t('live.leaveLive');
+
+  const handleLeaveClick = () => {
+    if (isHost && onStopLive) {
+      setShowStopConfirm(true);
+      return;
+    }
+    onLeaveLive?.();
+  };
+
+  const handleConfirmStop = async () => {
+    if (!onStopLive) return;
+    setStopping(true);
+    try {
+      await onStopLive();
+      setShowStopConfirm(false);
+    } finally {
+      setStopping(false);
+    }
+  };
 
   return (
-    <button
-      type="button"
-      onClick={onReturn}
-      aria-label={t('live.returnToLive', { defaultValue: 'Reprendre le live' })}
-      className="active-live-banner shrink-0 z-30 w-full pointer-events-auto"
-    >
-      <span className="active-live-banner__accent" aria-hidden />
+    <>
+      <div className="active-live-banner shrink-0 z-30 w-full pointer-events-auto">
+        <button
+          type="button"
+          onClick={onReturn}
+          aria-label={t('live.returnToLive', { defaultValue: 'Reprendre le live' })}
+          className="active-live-banner__main"
+        >
+          <span className="active-live-banner__accent" aria-hidden />
 
-      <span className="active-live-banner__thumb" aria-hidden>
-        {thumbnailUrl ? (
-          <img src={thumbnailUrl} alt="" loading="lazy" />
-        ) : (
-          <span className="active-live-banner__thumb-fallback">
-            <LiveCameraIcon />
+          <span className="active-live-banner__thumb" aria-hidden>
+            {thumbnailUrl ? (
+              <img src={thumbnailUrl} alt="" loading="lazy" />
+            ) : (
+              <span className="active-live-banner__thumb-fallback">
+                <LiveCameraIcon />
+              </span>
+            )}
           </span>
-        )}
-      </span>
 
-      <span className="active-live-banner__live" aria-hidden>
-        <span className="active-live-banner__live-dot live-indicator-dot" />
-        {t('live.liveBadge', { defaultValue: 'EN DIRECT' })}
-      </span>
-
-      <span className="active-live-banner__body">
-        <span className="active-live-banner__title">{title}</span>
-        <span className="active-live-banner__subtitle">
-          {isHost
-            ? t('live.activeBannerSubtitle', { defaultValue: 'Votre live est en cours' })
-            : t('live.activeBannerSubtitleViewer', { defaultValue: 'Le direct continue en arrière-plan' })}
-        </span>
-      </span>
-
-      <span className="active-live-banner__meta">
-        {viewersCount > 0 ? (
-          <span className="active-live-banner__viewers">
-            <ViewerEyeIcon />
-            <span>{audienceLabel}</span>
+          <span className="active-live-banner__live" aria-hidden>
+            <span className="active-live-banner__live-dot live-indicator-dot" />
+            {t('live.liveBadge', { defaultValue: 'EN DIRECT' })}
           </span>
-        ) : null}
 
-        <span className="active-live-banner__cta">
-          {t('live.returnToLiveBtn', { defaultValue: 'Reprendre' })}
-        </span>
-      </span>
-    </button>
+          <span className="active-live-banner__body">
+            <span className="active-live-banner__title">{title}</span>
+            <span className="active-live-banner__subtitle">
+              {isHost
+                ? t('live.activeBannerSubtitle', { defaultValue: 'Votre live est en cours' })
+                : t('live.activeBannerSubtitleViewer', {
+                    defaultValue: 'Le direct continue en arrière-plan',
+                  })}
+            </span>
+          </span>
+
+          {viewersCount > 0 ? (
+            <span className="active-live-banner__viewers">
+              <ViewerEyeIcon />
+              <span>{audienceLabel}</span>
+            </span>
+          ) : null}
+        </button>
+
+        <div className="active-live-banner__actions">
+          <button
+            type="button"
+            onClick={onReturn}
+            className="active-live-banner__cta"
+          >
+            {t('live.returnToLiveBtn', { defaultValue: 'Reprendre' })}
+          </button>
+
+          {canLeave ? (
+            <button
+              type="button"
+              onClick={handleLeaveClick}
+              aria-label={leaveFullLabel}
+              className="active-live-banner__leave"
+            >
+              {leaveShortLabel}
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {isHost && onStopLive ? (
+        <ConfirmModal
+          open={showStopConfirm}
+          title={t('live.stopLiveConfirmTitle', { defaultValue: 'Arrêter le live ?' })}
+          description={t('live.stopLiveConfirmDescription', {
+            defaultValue:
+              'Le live sera coupé pour tous les spectateurs. Cette action est définitive.',
+          })}
+          confirmLabel={t('live.stopLive', { defaultValue: 'Arrêter le live' })}
+          loading={stopping}
+          loadingLabel={t('live.stopLiveStopping', { defaultValue: 'Arrêt…' })}
+          onCancel={() => setShowStopConfirm(false)}
+          onConfirm={() => void handleConfirmStop()}
+        />
+      ) : null}
+    </>
   );
 }

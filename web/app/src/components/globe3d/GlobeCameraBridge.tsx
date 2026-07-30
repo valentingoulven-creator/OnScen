@@ -30,6 +30,7 @@ export interface RecenterRequest {
 
 interface GlobeCameraBridgeProps {
   autoRotateEnabled?: boolean;
+  controlsEnabled?: boolean;
   onInteractionStart: () => void;
   onInteractionEnd: () => void;
   onControlsChange: () => void;
@@ -45,7 +46,7 @@ interface FlyState {
 
 export const GlobeCameraBridge = forwardRef<GlobeCameraBridgeHandle, GlobeCameraBridgeProps>(
   function GlobeCameraBridge(
-    { autoRotateEnabled = false, onInteractionStart, onInteractionEnd, onControlsChange, recenterRequest },
+    { autoRotateEnabled = false, controlsEnabled = true, onInteractionStart, onInteractionEnd, onControlsChange, recenterRequest },
     ref
   ) {
     const { camera } = useThree();
@@ -132,6 +133,7 @@ export const GlobeCameraBridge = forwardRef<GlobeCameraBridgeHandle, GlobeCamera
     return (
       <OrbitControls
         ref={controlsRef}
+        enabled={controlsEnabled}
         enableDamping
         dampingFactor={0.08}
         rotateSpeed={GLOBE_DRAG_ROTATE_BASE_SPEED}

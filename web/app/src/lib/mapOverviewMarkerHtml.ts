@@ -1,3 +1,6 @@
+import { formatCompactCount } from './formatCount';
+import { usernameMapLabelHtml, type UsernameWaveTint } from './usernameColor';
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -10,7 +13,7 @@ export function buildOverviewGeoMarkerHtml(opts: {
   kind: 'salon' | 'live';
   isLive: boolean;
 }): string {
-  if (opts.kind === 'salon') {
+  if (opts.kind === 'salon' && !opts.isLive) {
     return `<div class="map-marker-overview-pin map-marker-overview-pin--salon" role="img"><span class="map-marker-overview-salon-badge">SALON</span><span class="map-marker-overview-dot salon"></span></div>`;
   }
 
@@ -19,6 +22,39 @@ export function buildOverviewGeoMarkerHtml(opts: {
   const liveBadge = '<span class="map-marker-overview-live-badge">LIVE</span>';
 
   return `<div class="map-marker-overview-pin${liveClass}" role="img">${liveBadge}<span class="${dotClass}"></span></div>`;
+}
+
+function buildParticipantCountHtml(count: number | undefined, kind: 'live' | 'salon'): string {
+  if (count == null || !Number.isFinite(count)) return '';
+  const safe = Math.max(0, Math.floor(count));
+  const kindClass = kind === 'live' ? 'map-marker-participant-count--live' : 'map-marker-participant-count--salon';
+  return `<span class="map-marker-participant-count ${kindClass}">${escapeHtml(formatCompactCount(safe))}</span>`;
+}
+
+/** Marqueur live zoom ville/rue — point rouge + pseudo (sans avatar). */
+export function buildFlatLiveMarkerHtml(
+  hostName: string,
+  usernameColor?: string | null,
+  wave?: UsernameWaveTint | null,
+  opts?: { viewersCount?: number }
+): string {
+  const count = buildParticipantCountHtml(opts?.viewersCount, 'live');
+  const label = usernameMapLabelHtml(hostName, usernameColor, { wave: wave ?? undefined });
+  return `<div class="map-marker live"><div class="map-marker-dot-row"><span class="map-marker-live-dot" aria-hidden="true"></span>${count}</div>${label}</div>`;
+}
+
+/** Marqueur salon zoom ville/rue — point violet + pseudo (sans avatar). */
+export function buildFlatSalonMarkerHtml(
+  hostName: string,
+  usernameColor?: string | null,
+  wave?: UsernameWaveTint | null,
+  opts?: { isBot?: boolean; listenersCount?: number }
+): string {
+  const botBadge = opts?.isBot ? '<span class="bot-badge">BOT</span>' : '';
+  const botClass = opts?.isBot ? ' bot' : '';
+  const count = buildParticipantCountHtml(opts?.listenersCount, 'salon');
+  const label = usernameMapLabelHtml(hostName, usernameColor, { wave: wave ?? undefined });
+  return `<div class="map-marker salon${botClass}">${botBadge}<div class="map-marker-dot-row"><span class="map-marker-salon-dot" aria-hidden="true"></span>${count}</div>${label}</div>`;
 }
 
 /** Pin live regroupé (plusieurs sessions au même lieu) — pastille + compteur. */

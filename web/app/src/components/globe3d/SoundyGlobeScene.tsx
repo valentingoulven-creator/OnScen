@@ -13,6 +13,7 @@ import { SoundyGlobeCapitalLabels } from './SoundyGlobeCapitalLabels';
 import { GlobeCameraBridge, type GlobeCameraBridgeHandle, type RecenterRequest } from './GlobeCameraBridge';
 import type { PreparedCountry } from '../../lib/globe3d/types';
 import type { GlobeCapitalLabel } from '../../lib/worldCapitals';
+import type { DevMapMarkerRef } from '../../lib/devMapMarkerDrag';
 
 export interface SoundyGlobeSceneProps {
   countries: PreparedCountry[];
@@ -33,6 +34,9 @@ export interface SoundyGlobeSceneProps {
   onInteractionEnd: () => void;
   onControlsChange: () => void;
   autoRotateEnabled?: boolean;
+  controlsEnabled?: boolean;
+  devMarkerDragEnabled?: boolean;
+  onDevMarkerDragEnd?: (ref: DevMapMarkerRef, lat: number, lng: number) => void;
 }
 
 export function SoundyGlobeScene({
@@ -54,6 +58,7 @@ export function SoundyGlobeScene({
   onInteractionEnd,
   onControlsChange,
   autoRotateEnabled = false,
+  controlsEnabled = true,
 }: SoundyGlobeSceneProps) {
   return (
     <>
@@ -85,6 +90,7 @@ export function SoundyGlobeScene({
       <GlobeCameraBridge
         ref={cameraRef}
         autoRotateEnabled={autoRotateEnabled}
+        controlsEnabled={controlsEnabled}
         recenterRequest={recenterRequest}
         onInteractionStart={onInteractionStart}
         onInteractionEnd={onInteractionEnd}

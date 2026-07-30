@@ -276,6 +276,7 @@ geoRouter.get('/nearby', nearbyAnonLimiter, authenticateJWT, nearbyAuthLimiter, 
       const host = db.users.get(l.hostId);
       return {
         id: l.id,
+        salonId: l.salonId,
         hostId: l.hostId,
         hostName: l.hostName,
         hostUsernameColor: host?.usernameColor,
@@ -288,6 +289,12 @@ geoRouter.get('/nearby', nearbyAnonLimiter, authenticateJWT, nearbyAuthLimiter, 
         longitude: coords.longitude,
         viewersCount: l.viewersCount,
         isActive: true,
+        // Champs stream requis pour le routage carte (live HLS vs salon YouTube).
+        // Ne pas défaut streamMode à 'webrtc' ici — les lives seed salon-sync n'en ont pas.
+        ...(l.streamMode ? { streamMode: l.streamMode } : {}),
+        ...(l.cloudflarePlaybackUrl ? { cloudflarePlaybackUrl: l.cloudflarePlaybackUrl } : {}),
+        ...(l.presentationDemoStream === true ? { presentationDemoStream: true as const } : {}),
+        ...(l.cameraActive ? { cameraActive: true as const } : {}),
       };
     });
 

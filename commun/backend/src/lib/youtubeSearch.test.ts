@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { isCompleteYoutubeSearchResult, searchYoutube } from './youtubeSearch';
+import { isCompleteYoutubeSearchResult, searchYoutube, sortYoutubeSearchResultsForEmbed } from './youtubeSearch';
 
 describe('isCompleteYoutubeSearchResult', () => {
   const base = {
@@ -18,6 +18,17 @@ describe('isCompleteYoutubeSearchResult', () => {
     expect(isCompleteYoutubeSearchResult({ ...base, title: 'Vidéo YouTube' })).toBe(false);
     expect(isCompleteYoutubeSearchResult({ ...base, title: 'Sans titre' })).toBe(false);
     expect(isCompleteYoutubeSearchResult({ ...base, title: '' })).toBe(false);
+  });
+});
+
+describe('sortYoutubeSearchResultsForEmbed', () => {
+  it('priorise les pistes Audio avant les clips officiels', () => {
+    const sorted = sortYoutubeSearchResultsForEmbed([
+      { title: 'GIMS - Changer (Clip officiel)', videoId: 'a' },
+      { title: 'GIMS - Changer (Audio)', videoId: 'b' },
+      { title: 'Maitre Gims-Changer PAROLES', videoId: 'c' },
+    ]);
+    expect(sorted[0].videoId).toBe('b');
   });
 });
 

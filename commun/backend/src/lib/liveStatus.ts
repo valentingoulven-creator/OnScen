@@ -1,4 +1,18 @@
-import { db } from '../models/schema';
+import { db, type Live } from '../models/schema';
+
+/** Live actif lié à un salon : clé partagée (live.id === salonId) ou legacy salonId. */
+export function getActiveLiveForSalon(salonId: string): Live | undefined {
+  const byId = db.lives.get(salonId);
+  if (byId?.isActive) return byId;
+  for (const live of db.lives.values()) {
+    if (live.isActive && live.salonId === salonId) return live;
+  }
+  return undefined;
+}
+
+export function isSalonLiveActive(salonId: string): boolean {
+  return getActiveLiveForSalon(salonId) != null;
+}
 
 /** Utilisateur qui anime un live actif (salon ou live autonome). */
 export function isUserHostingLive(userId: string): boolean {

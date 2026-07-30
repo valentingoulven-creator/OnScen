@@ -70,6 +70,41 @@ function filterCompleteResults(items: YoutubeSearchResult[]): YoutubeSearchResul
   return items.filter(isCompleteYoutubeSearchResult);
 }
 
+/** Favorise les pistes Audio / Topic plutôt que les clips officiels souvent non intégrables. */
+export function sortYoutubeSearchResultsForEmbed<T extends { title: string }>(results: T[]): T[] {
+  const score = (title: string) => {
+    const t = title.toLowerCase();
+    let s = 0;
+    if (/\baudio\b/.test(t) || /\btopic\b/.test(t)) s += 8;
+    if (/\bparoles\b/.test(t) || /\blyrics\b/.test(t)) s += 4;
+    if (/\bclip officiel\b/.test(t) || /\bofficial video\b/.test(t)) s -= 6;
+    if (/\bvevo\b/.test(t)) s -= 4;
+    return s;
+  };
+  return [...results].sort((a, b) => score(b.title) - score(a.title));
+}
+
+async function prioritizeEmbeddableSearchResults(
+  results: YoutubeSearchResult[],
+  accessToken?: string
+): Promise<YoutubeSearchResult[]> {
+  if (results.length <= 1) return results;
+  const sorted = sortYoutubeSearchResultsForEmbed(results);
+  if (isYoutubeRemoteFallbackAllowed()) return sorted;
+
+  try {
+    const { filterEmbeddableVideoIdsViaDataApi } = await import('./youtubeDataApi');
+    const orderedIds = await filterEmbeddableVideoIdsViaDataApi(
+      sorted.map((r) => r.videoId),
+      accessToken
+    );
+    const byId = new Map(sorted.map((r) => [r.videoId, r]));
+    return orderedIds.map((id) => byId.get(id)).filter((x): x is YoutubeSearchResult => Boolean(x));
+  } catch {
+    return sorted;
+  }
+}
+
 export async function searchYoutube(
   query: string,
   accessToken?: string
@@ -145,5 +180,6 @@ export async function searchYoutube(
     toResult(entry.youtube!.trackId, entry.title, entry.artist)
   );
 
-  return filterCompleteResults(dedupeResults([...remoteHits, ...catalogHits])).slice(0, 15);
+  const merged = filterCompleteResults(dedupeResults([...remoteHits, ...catalogHits])).slice(0, 15);
+  return prioritizeEmbeddableSearchResults(merged, accessToken);
 }

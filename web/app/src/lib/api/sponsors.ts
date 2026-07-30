@@ -135,6 +135,26 @@ export const sponsorsApi = {
       token
     ),
 
+  getDevMapMarkerPositions: (token: string) =>
+    request<{ positions: import('../devMapMarkerDrag').DevMapMarkerPosition[] }>(
+      '/access/dev/map-marker-positions',
+      { cache: 'no-store' },
+      token
+    ),
+
+  setDevMapMarkerPosition: (
+    token: string,
+    kind: import('../devMapMarkerDrag').DevMapMarkerKind,
+    id: string,
+    latitude: number,
+    longitude: number
+  ) =>
+    request<{ position: import('../devMapMarkerDrag').DevMapMarkerPosition & { updatedAt?: number } }>(
+      '/access/dev/map-marker-position',
+      { method: 'POST', body: JSON.stringify({ kind, id, latitude, longitude }) },
+      token
+    ),
+
   getAdminSponsorsConfig: (token: string) =>
     request<{ config: import('../../types').SponsorPlatformConfig }>(
       '/access/admin/sponsors/config',

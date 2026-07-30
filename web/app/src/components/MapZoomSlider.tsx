@@ -1,4 +1,5 @@
 import { memo, useCallback, useRef } from 'react';
+import type { MapStyle } from './MapView';
 import type { MapZoomMode } from '../lib/mapZoomControl';
 
 interface MapZoomSliderProps {
@@ -9,6 +10,11 @@ interface MapZoomSliderProps {
   onInteractionEnd?: () => void;
   disabled?: boolean;
   className?: string;
+  /** Bascule carte 2D / globe — affiché au-dessus du zoom +. */
+  mapStyle?: MapStyle;
+  onToggleMapStyle?: () => void;
+  mapStyleFlatLabel?: string;
+  mapStyleGlobeLabel?: string;
 }
 
 const BTN_CLASS =
@@ -22,6 +28,10 @@ export const MapZoomSlider = memo(function MapZoomSlider({
   onInteractionEnd,
   disabled = false,
   className = '',
+  mapStyle,
+  onToggleMapStyle,
+  mapStyleFlatLabel = 'Vue globe satellite',
+  mapStyleGlobeLabel = 'Vue carte sombre',
 }: MapZoomSliderProps) {
   const draggingRef = useRef(false);
 
@@ -51,11 +61,31 @@ export const MapZoomSlider = memo(function MapZoomSlider({
       ? 'Zoom globe'
       : 'Zoom carte';
 
+  const showMapStyleToggle = Boolean(onToggleMapStyle && mapStyle);
+  const mapStyleToggleTitle =
+    mapStyle === 'globe' ? mapStyleGlobeLabel : mapStyleFlatLabel;
+
   return (
     <div
       className={`ms-map-zoom-slider flex flex-col items-center gap-1.5 pointer-events-auto ${className}`}
       aria-label={label}
     >
+      {showMapStyleToggle ? (
+        <button
+          type="button"
+          onClick={onToggleMapStyle}
+          title={mapStyleToggleTitle}
+          aria-label={mapStyleToggleTitle}
+          className={`${BTN_CLASS} text-sm leading-none ${
+            mapStyle === 'globe'
+              ? 'border-indigo-500 text-indigo-300'
+              : 'hover:border-indigo-500/60 text-white/70 hover:text-white'
+          }`}
+        >
+          {mapStyle === 'globe' ? '🗺️' : '🌐'}
+        </button>
+      ) : null}
+
       <button
         type="button"
         disabled={disabled || value >= 1}

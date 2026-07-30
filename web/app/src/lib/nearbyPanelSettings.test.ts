@@ -86,6 +86,13 @@ describe('nearbyPanelSettings favorites', () => {
     expect(resolveNearbyDistanceFilterForMap(prefs, false)).toBe(true);
   });
 
+  it('resolveNearbyDistanceFilterForMap désactive le rayon en mode Lives', () => {
+    setNearbyPanelPreferences({ sortBy: 'distance' });
+    const prefs = getNearbyPanelPreferences();
+    expect(resolveNearbyDistanceFilterForMap(prefs, false, true)).toBe(false);
+    expect(resolveNearbyDistanceFilterForMap(prefs, false, false)).toBe(true);
+  });
+
   it('persiste sortBy none', () => {
     setNearbyPanelPreferences({ sortBy: 'none' });
     expect(getNearbyPanelPreferences().sortBy).toBe('none');

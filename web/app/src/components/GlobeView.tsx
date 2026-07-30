@@ -30,6 +30,11 @@ import { CAMERA_DEFAULT_ALTITUDE } from '../lib/globe3d/constants';
 import type { PreparedCountry } from '../lib/globe3d/types';
 import { clusterLiveMapMarkers, type MapLiveLocationCluster } from '../lib/mapLiveClusters';
 import {
+  linkedSalonIdsForLiveDedup,
+  mergeLivesWithLiveSalons,
+  splitSalonsForMapMarkers,
+} from '../lib/mapLiveSalonMarkers';
+import {
   filterPeopleForZoom,
   filterSalonsForZoom,
   filterCapitalsInGlobeRegion,
@@ -42,6 +47,7 @@ import { toGlobeCapitalLabels, type GlobeCapitalLabel } from '../lib/worldCapita
 import type { Salon, Live, NearbyPerson, MapEventCityCluster, MapEventMarker } from '../types';
 import type { GlobeCameraBridgeHandle, RecenterRequest } from './globe3d/GlobeCameraBridge';
 import type { SoundyGlobePoint } from './globe3d/SoundyGlobeMarkers';
+import type { DevMapMarkerRef } from '../lib/devMapMarkerDrag';
 
 const SoundyGlobeCanvas = lazy(() =>
   import('./globe3d/SoundyGlobeCanvas').then((m) => ({ default: m.SoundyGlobeCanvas }))
@@ -180,6 +186,9 @@ export interface GlobeViewProps {
   onPrepareFlatMap?: (lat: number, lng: number, zoom?: number, radiusKm?: number) => void;
   onMapExplored?: () => void;
   onGlobeAltitudeLive?: (altitude: number) => void;
+  /** Compte Dev : repositionner les marqueurs sur le globe. */
+  devMarkerDragEnabled?: boolean;
+  onDevMarkerDragEnd?: (ref: DevMapMarkerRef, lat: number, lng: number) => void;
 }
 
 export interface GlobeViewHandle {
@@ -237,6 +246,8 @@ export const GlobeView = memo(
       onPrepareFlatMap,
       onMapExplored,
       onGlobeAltitudeLive,
+      devMarkerDragEnabled = false,
+      onDevMarkerDragEnd,
     }: GlobeViewProps,
     ref
   ) {
@@ -468,7 +479,10 @@ export const GlobeView = memo(
       }
     }, [syncTierAndPovFromGlobe, schedulePovChange]);
 
-    const salonIds = useMemo(() => new Set(salons.map((s) => s.id)), [salons]);
+    const salonIds = useMemo(
+      () => linkedSalonIdsForLiveDedup(salons),
+      [salons]
+    );
 
     const eventClustersActive = hasEventClusters ?? eventClusters.length > 0;
     const markerVisibility = useMemo(
@@ -508,13 +522,24 @@ export const GlobeView = memo(
           .slice(0, GLOBE_PEOPLE_CAP),
       [people, markerVisibility, globeDetailTier]
     );
-    const cappedSalonsForGlobe = useMemo(
-      () => visibleSalons.slice(0, GLOBE_OVERVIEW_CAP),
+
+    const { offlineSalons: offlineVisibleSalons, liveSalons: liveVisibleSalons } = useMemo(
+      () => splitSalonsForMapMarkers(visibleSalons),
       [visibleSalons]
     );
+
+    const mergedVisibleLives = useMemo(
+      () => mergeLivesWithLiveSalons(visibleLives, liveVisibleSalons),
+      [visibleLives, liveVisibleSalons]
+    );
+
+    const cappedSalonsForGlobe = useMemo(
+      () => offlineVisibleSalons.slice(0, GLOBE_OVERVIEW_CAP),
+      [offlineVisibleSalons]
+    );
     const cappedLivesForGlobe = useMemo(
-      () => visibleLives.slice(0, GLOBE_OVERVIEW_CAP),
-      [visibleLives]
+      () => mergedVisibleLives.slice(0, GLOBE_OVERVIEW_CAP),
+      [mergedVisibleLives]
     );
     const mapActivityHostIds = useMemo(
       () =>
@@ -527,13 +552,9 @@ export const GlobeView = memo(
     const liveLocationClusters = useMemo(
       () =>
         markerVisibility.lives
-          ? clusterLiveMapMarkers(
-              cappedSalonsForGlobe.filter((s) => s.isLive),
-              cappedLivesForGlobe,
-              salonIds
-            )
+          ? clusterLiveMapMarkers([], cappedLivesForGlobe, salonIds)
           : [],
-      [markerVisibility.lives, cappedSalonsForGlobe, cappedLivesForGlobe, salonIds]
+      [markerVisibility.lives, cappedLivesForGlobe, salonIds]
     );
     const useLiveClusters = markerVisibility.lives && liveLocationClusters.length > 0;
     const visibleEventClusters = useMemo(
@@ -595,43 +616,37 @@ export const GlobeView = memo(
             count: multi ? cluster.count : undefined,
           });
         });
-        cappedSalonsForGlobe
-          .filter((s) => !s.isLive)
-          .forEach((s) => {
-            const lat = Number(s.latitude);
-            const lng = Number(s.longitude);
-            if (!isValidLatLng(lat, lng)) return;
-            pts.push({
-              lat,
-              lng,
-              type: 'salon',
-              color: '#c084fc',
-              radius: overviewDots ? 0.3 : 0.48,
-              label: overviewDots ? `🎵 ${s.hostName}` : `🎵 ${s.hostName}`,
-              entity: s,
-            });
-          });
-      } else {
         cappedSalonsForGlobe.forEach((s) => {
           const lat = Number(s.latitude);
           const lng = Number(s.longitude);
           if (!isValidLatLng(lat, lng)) return;
-          const liveSuffix = s.isLive ? ' · actif' : '';
           pts.push({
             lat,
             lng,
             type: 'salon',
             color: '#c084fc',
             radius: overviewDots ? 0.3 : 0.48,
-            label: overviewDots
-              ? `🎵 ${s.hostName}${liveSuffix}`
-              : `🎵 ${s.hostName}${liveSuffix}`,
+            label: overviewDots ? `🎵 ${s.hostName}` : `🎵 ${s.hostName}`,
+            entity: s,
+          });
+        });
+      } else {
+        cappedSalonsForGlobe.forEach((s) => {
+          const lat = Number(s.latitude);
+          const lng = Number(s.longitude);
+          if (!isValidLatLng(lat, lng)) return;
+          pts.push({
+            lat,
+            lng,
+            type: 'salon',
+            color: '#c084fc',
+            radius: overviewDots ? 0.3 : 0.48,
+            label: overviewDots ? `🎵 ${s.hostName}` : `🎵 ${s.hostName}`,
             entity: s,
           });
         });
 
         cappedLivesForGlobe.forEach((l) => {
-          if (salonIds.has(l.id)) return;
           const lat = Number(l.latitude);
           const lng = Number(l.longitude);
           if (!isValidLatLng(lat, lng)) return;
@@ -939,6 +954,8 @@ export const GlobeView = memo(
               onControlsChange={handleControlsChange}
               onGlobeReady={() => syncTierAndPovFromGlobe(false)}
               onGlobeUnavailable={reportGlobeUnavailable}
+              devMarkerDragEnabled={devMarkerDragEnabled}
+              onDevMarkerDragEnd={onDevMarkerDragEnd}
             />
           </Suspense>
         )}

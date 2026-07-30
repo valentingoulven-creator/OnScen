@@ -2,6 +2,10 @@
 
 ## Cursor Cloud
 
+- **Setup complet :** [`commun/docs/CURSOR-CLOUD-AGENTS.md`](./commun/docs/CURSOR-CLOUD-AGENTS.md)
+- **Config repo :** `.cursor/environment.json` · sync `npm run cloud:sync` · hook `npm run cloud:sync:install-hook`
+- **Secrets :** dashboard [Cloud Agents](https://cursor.com/dashboard/cloud-agents) — clés listées dans `.cursor/cloud-secrets.manifest.json` (valeurs depuis `commun/msdev/.env` local, jamais Git)
+- **Smoke test cloud :** [`.cursor/cloud-agent-prompts/01-smoke-msdev-boot.md`](./.cursor/cloud-agent-prompts/01-smoke-msdev-boot.md)
 - Dev local : `npm run dev` → http://localhost:5173 (API :4080)
 - Infra agent : `commun/scripts/verify-full-access.ps1` · `commun/scripts/setup-infra-access.ps1` · règle `.cursor/rules/infra-access.mdc`
 - Preprod : `commun/scripts/deploy-preprod.ps1` → staging.getsoundy.com

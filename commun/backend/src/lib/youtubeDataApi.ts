@@ -326,4 +326,43 @@ export async function fetchVideoSnippetsViaDataApi(
   return out;
 }
 
+/** Réordonne les IDs : vidéos intégrables en tête (videos.list status.embeddable). */
+export async function filterEmbeddableVideoIdsViaDataApi(
+  videoIds: string[],
+  accessToken?: string
+): Promise<string[]> {
+  const unique = [...new Set(videoIds.filter((id) => id && id !== 'demo'))];
+  if (unique.length <= 1) return videoIds;
+
+  const key = apiKey();
+  if (!key && !accessToken) return videoIds;
+
+  try {
+    const params = new URLSearchParams({ part: 'status', id: unique.slice(0, 20).join(',') });
+    if (key) params.set('key', key);
+
+    const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?${params}`, {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+      signal: AbortSignal.timeout(10000),
+    });
+    await parseYoutubeApiResponse(res);
+
+    const data = (await res.json()) as {
+      items?: Array<{ id?: string; status?: { embeddable?: boolean } }>;
+    };
+
+    const embeddable = new Set<string>();
+    for (const item of data.items ?? []) {
+      if (item.id && item.status?.embeddable !== false) embeddable.add(item.id);
+    }
+
+    const playable = videoIds.filter((id) => embeddable.has(id));
+    if (playable.length === 0) return videoIds;
+    const rest = videoIds.filter((id) => !embeddable.has(id));
+    return [...playable, ...rest];
+  } catch {
+    return videoIds;
+  }
+}
+
 export { YoutubeDataApiError };

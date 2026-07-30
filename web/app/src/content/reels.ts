@@ -47,6 +47,7 @@ const MIXKIT_DURATION_SEC: Record<number, number> = {
   425: 30,
   4344: 13,
   344: 14,
+  42825: 20,
 };
 
 /** URLs Mixkit stables : assets.mixkit.co/videos/{id}/{id}-720.mp4 (b-roll sans piste audio) */
@@ -79,6 +80,13 @@ export function mixkitMusic(id: number): Pick<MusicReel, 'audioUrl' | 'hasAudio'
 /** Nombre de reels vidéo du catalogue démo (Mixkit). */
 export const REELS_DEMO_VIDEO_COUNT = REEL_CATALOG_ENTRIES.length;
 
+/** Liens album démo (vinyle cliquable sur le reel). */
+const REEL_DEMO_ALBUM_LINKS: Partial<Record<string, string>> = {
+  'reel-vinyl': 'https://open.spotify.com/album/4LH4d3eAUQHVnovOeE5odr',
+  'reel-singer':
+    'http://localhost:5173/profile/user_listener?tab=compositions&album=msdev_showcase_album_01',
+};
+
 export const MUSIC_REELS: MusicReel[] = REEL_CATALOG_ENTRIES.map((entry) => ({
   id: entry.id,
   title: entry.title,
@@ -87,4 +95,5 @@ export const MUSIC_REELS: MusicReel[] = REEL_CATALOG_ENTRIES.map((entry) => ({
   mediaType: 'video' as const,
   ...mixkit(entry.videoId),
   ...mixkitMusic(entry.musicId),
+  ...(REEL_DEMO_ALBUM_LINKS[entry.id] ? { link: REEL_DEMO_ALBUM_LINKS[entry.id] } : {}),
 }));

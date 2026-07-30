@@ -10,6 +10,7 @@ import { resolveNearbyRadiusKm } from './geoLimits';
 import { isInBounds, isValidLatLng, type LatLngBounds } from './mapCoords';
 import type { NearbyGeoCandidates } from './pgGeoNearby';
 import { loadNearbyGeoCandidates } from './pgGeoNearby';
+import { getActiveLiveForSalon } from './liveStatus';
 
 export interface NearbyPersonDto {
   id: string;
@@ -271,13 +272,13 @@ export function getNearbyPeople(
     const hostPos = getUserPublicCoords(host, viewerId);
     const d = hostDistanceKm(lat, lon, host, viewerId);
     if (d == null || !hostPos || !withinGeo(hostPos.lat, hostPos.lon, d)) continue;
-    const live = db.lives.get(s.id);
+    const live = getActiveLiveForSalon(s.id);
     upsert(host, d, {
       salonId: s.id,
       salonTitle: s.title,
-      isLive: Boolean(live?.isActive),
-      liveId: live?.isActive ? live.id : undefined,
-      liveViewersCount: live?.isActive ? live.viewersCount : undefined,
+      isLive: Boolean(live),
+      liveId: live?.id,
+      liveViewersCount: live?.viewersCount,
       listenersCount: s.listenersCount,
       platform: s.platform,
       currentListening: listeningFromSalon(s.id),

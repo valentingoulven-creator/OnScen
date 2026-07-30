@@ -1,7 +1,6 @@
 import { memo, useMemo, useState, useCallback, useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  countMapSidebarItems,
   countEventsSidebarItems,
   countSalonsSidebarItems,
   mapDetailTierLabel,
@@ -49,26 +48,41 @@ function MapSidebarSponsoSection({
   onPostChange,
   retracted,
   onToggleRetracted,
+  mapFilterSponsoOn,
+  onToggleMapFilterSponso,
 }: {
   posts: FeedPost[];
   onOpen?: (post: FeedPost) => void;
   onPostChange?: (postId: string, patch: Partial<FeedPost>) => void;
   retracted: boolean;
   onToggleRetracted: () => void;
+  mapFilterSponsoOn?: boolean;
+  onToggleMapFilterSponso?: () => void;
 }) {
   const { t } = useTranslation();
   if (posts.length === 0) return null;
+  const sponsoFilterTitle = mapFilterSponsoOn
+    ? t('map.sidebarSponsoFilterDisable', {
+        defaultValue: 'Masquer les Sponso sur la carte',
+      })
+    : t('map.sidebarSponsoFilterEnable', {
+        defaultValue: 'Afficher les Sponso sur la carte',
+      });
 
   return (
-    <li className="border-b border-[var(--ms-border)]/80 list-none">
+    <>
       <CollapsibleSectionHeader
         label={t('map.sidebarSponsoCategory', { defaultValue: 'Sponso' })}
         count={posts.length}
         retracted={retracted}
         onToggle={onToggleRetracted}
+        filterKind={onToggleMapFilterSponso ? 'sponso' : undefined}
+        filterActive={mapFilterSponsoOn}
+        onFilterToggle={onToggleMapFilterSponso}
+        filterTitle={sponsoFilterTitle}
       />
       {!retracted ? (
-        <div className="px-1.5 sm:px-2 pb-2 min-w-0">
+        <li className="list-none px-1.5 sm:px-2 pb-2 min-w-0">
           <EventsCarousel
             posts={posts}
             size="sidebar"
@@ -76,9 +90,9 @@ function MapSidebarSponsoSection({
             onOpen={(post) => onOpen?.(post)}
             onPostChange={onPostChange}
           />
-        </div>
+        </li>
       ) : null}
-    </li>
+    </>
   );
 }
 
@@ -104,6 +118,136 @@ interface NearbyPeoplePanelProps {
   sponsoredEventPosts?: FeedPost[];
   onSponsoredEventOpen?: (post: FeedPost) => void;
   onSponsoredEventPostChange?: (postId: string, patch: Partial<FeedPost>) => void;
+  /** Filtres carte section suivi — contenu suivi uniquement, sidebar inchangée. */
+  mapFilterLivesFollowingOn?: boolean;
+  mapFilterSalonsFollowingOn?: boolean;
+  mapFilterEventsFollowingOn?: boolean;
+  mapFilterSponsoOn?: boolean;
+  onToggleMapFilterLivesFollowing?: () => void;
+  onToggleMapFilterSalonsFollowing?: () => void;
+  onToggleMapFilterEventsFollowing?: () => void;
+  onToggleMapFilterSponso?: () => void;
+}
+
+type SidebarSectionFilterKind = 'events' | 'lives' | 'salon' | 'sponso';
+
+const SIDEBAR_HEADER_FILTER_BASE =
+  'shrink-0 min-h-[28px] px-2 rounded-full border text-[8px] font-bold leading-none whitespace-nowrap flex items-center justify-center gap-0.5 active:scale-95 transition overflow-visible';
+
+const SIDEBAR_HEADER_FILTER_STYLES: Record<
+  SidebarSectionFilterKind,
+  { active: string; inactive: string }
+> = {
+  lives: {
+    active: 'bg-red-950/80 border-red-500 text-red-400',
+    inactive:
+      'bg-[var(--ms-surface-elevated)] border-[var(--ms-border)] text-[var(--ms-text-muted)] hover:border-red-500/50 hover:text-red-300',
+  },
+  salon: {
+    active: 'bg-fuchsia-950/80 border-fuchsia-500 text-fuchsia-200',
+    inactive:
+      'bg-[var(--ms-surface-elevated)] border-[var(--ms-border)] text-[var(--ms-text-muted)] hover:border-fuchsia-500/60 hover:text-fuchsia-200',
+  },
+  events: {
+    active: 'bg-purple-950/80 border-purple-500 text-purple-200',
+    inactive:
+      'bg-[var(--ms-surface-elevated)] border-[var(--ms-border)] text-[var(--ms-text-muted)] hover:border-purple-500/60 hover:text-purple-200',
+  },
+  sponso: {
+    active: 'bg-amber-950/80 border-amber-500 text-amber-200',
+    inactive:
+      'bg-[var(--ms-surface-elevated)] border-[var(--ms-border)] text-[var(--ms-text-muted)] hover:border-amber-500/60 hover:text-amber-200',
+  },
+};
+
+const SIDEBAR_FILTER_SHORT_LABEL_KEYS: Record<SidebarSectionFilterKind, string> = {
+  lives: 'map.sidebarFilterLivesShort',
+  salon: 'map.sidebarFilterSalonShort',
+  events: 'map.sidebarFilterEventsShort',
+  sponso: 'map.sidebarFilterSponsoShort',
+};
+
+const SIDEBAR_FILTER_SHORT_LABEL_DEFAULTS: Record<SidebarSectionFilterKind, string> = {
+  lives: 'Lives',
+  salon: 'Salon',
+  events: 'Évènement',
+  sponso: 'Sponso',
+};
+
+function SidebarSectionFilterChipIcon({
+  kind,
+  active,
+}: {
+  kind: SidebarSectionFilterKind;
+  active: boolean;
+}) {
+  switch (kind) {
+    case 'lives':
+      return (
+        <span className="relative flex h-2 w-2 shrink-0">
+          {active ? (
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+          ) : null}
+          <span
+            className={`relative inline-flex rounded-full h-2 w-2 ${active ? 'bg-red-500' : 'bg-white/25'}`}
+          />
+        </span>
+      );
+    case 'salon':
+      return (
+        <span aria-hidden className="shrink-0 flex h-2 w-2 items-center justify-center text-[8px] leading-none">
+          🎵
+        </span>
+      );
+    case 'events':
+      return (
+        <span aria-hidden className="shrink-0 flex h-2 w-2 items-center justify-center text-[8px] leading-none">
+          📅
+        </span>
+      );
+    case 'sponso':
+      return (
+        <span aria-hidden className="shrink-0 flex h-2 w-2 items-center justify-center text-[8px] leading-none">
+          ✨
+        </span>
+      );
+    default:
+      return null;
+  }
+}
+
+function SidebarSectionFilterChip({
+  kind,
+  active,
+  onToggle,
+  title,
+}: {
+  kind: SidebarSectionFilterKind;
+  active: boolean;
+  onToggle: () => void;
+  title: string;
+}) {
+  const { t } = useTranslation();
+  const styles = SIDEBAR_HEADER_FILTER_STYLES[kind];
+  const shortLabel = t(SIDEBAR_FILTER_SHORT_LABEL_KEYS[kind], {
+    defaultValue: SIDEBAR_FILTER_SHORT_LABEL_DEFAULTS[kind],
+  });
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+      aria-pressed={active}
+      aria-label={title}
+      title={title}
+      className={`${SIDEBAR_HEADER_FILTER_BASE} ${active ? styles.active : styles.inactive}`}
+    >
+      <SidebarSectionFilterChipIcon kind={kind} active={active} />
+      {shortLabel}
+    </button>
+  );
 }
 
 function CollapsibleSectionHeader({
@@ -111,43 +255,63 @@ function CollapsibleSectionHeader({
   count,
   retracted,
   onToggle,
+  filterKind,
+  filterActive,
+  onFilterToggle,
+  filterTitle,
 }: {
   label: string;
   count: number;
   retracted: boolean;
   onToggle: () => void;
+  filterKind?: SidebarSectionFilterKind;
+  filterActive?: boolean;
+  onFilterToggle?: () => void;
+  filterTitle?: string;
 }) {
   const { t } = useTranslation();
   return (
     <li className="border-b border-[var(--ms-border)]/80">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={!retracted}
-        aria-label={
-          retracted
-            ? t('map.sidebarExpandCategory', { label, defaultValue: `Déplier ${label}` })
-            : t('map.sidebarCollapseCategory', { label, defaultValue: `Replier ${label}` })
-        }
-        className="w-full min-h-[44px] flex items-center justify-between gap-2 px-2.5 sm:px-3 py-1.5 text-left hover:bg-[var(--ms-surface-elevated)] transition"
-      >
-        <span className="text-[9px] font-bold uppercase tracking-wider text-gray-500">{label}</span>
-        <span className="flex items-center gap-1.5 shrink-0">
-          {count > 0 ? (
-            <span className="text-[9px] font-semibold tabular-nums text-purple-400/80">{count}</span>
-          ) : null}
-          <svg
-            className={`w-3 h-3 text-gray-500 transition-transform ${retracted ? '' : 'rotate-180'}`}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            aria-hidden
-          >
-            <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </span>
-      </button>
+      <div className="flex items-center gap-1 min-h-[44px] px-2 sm:px-2.5 py-1">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={!retracted}
+          aria-label={
+            retracted
+              ? t('map.sidebarExpandCategory', { label, defaultValue: `Déplier ${label}` })
+              : t('map.sidebarCollapseCategory', { label, defaultValue: `Replier ${label}` })
+          }
+          className="flex-1 min-w-0 min-h-[36px] flex items-center justify-between gap-1 text-left hover:bg-[var(--ms-surface-elevated)] rounded-md px-1 transition"
+        >
+          <span className="text-[9px] font-bold uppercase tracking-wider text-gray-500 truncate">
+            {label}
+          </span>
+          <span className="flex items-center gap-1 shrink-0">
+            {count > 0 ? (
+              <span className="text-[9px] font-semibold tabular-nums text-purple-400/80">{count}</span>
+            ) : null}
+            <svg
+              className={`w-3 h-3 text-gray-500 transition-transform ${retracted ? '' : 'rotate-180'}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              aria-hidden
+            >
+              <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+        </button>
+        {filterKind && onFilterToggle && filterTitle ? (
+          <SidebarSectionFilterChip
+            kind={filterKind}
+            active={filterActive === true}
+            onToggle={onFilterToggle}
+            title={filterTitle}
+          />
+        ) : null}
+      </div>
     </li>
   );
 }
@@ -229,6 +393,10 @@ function CollapsibleSidebarSection<T>({
   emptyText,
   retracted,
   onToggleRetracted,
+  filterKind,
+  filterActive,
+  onFilterToggle,
+  filterTitle,
 }: {
   label?: string;
   items: T[];
@@ -239,6 +407,10 @@ function CollapsibleSidebarSection<T>({
   emptyText?: string;
   retracted: boolean;
   onToggleRetracted: () => void;
+  filterKind?: SidebarSectionFilterKind;
+  filterActive?: boolean;
+  onFilterToggle?: () => void;
+  filterTitle?: string;
 }) {
   const header =
     label != null ? (
@@ -247,6 +419,10 @@ function CollapsibleSidebarSection<T>({
         count={items.length}
         retracted={retracted}
         onToggle={onToggleRetracted}
+        filterKind={filterKind}
+        filterActive={filterActive}
+        onFilterToggle={onFilterToggle}
+        filterTitle={filterTitle}
       />
     ) : null;
 
@@ -426,7 +602,6 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
   content,
   detail,
   loading = false,
-  eventsLoading = false,
   layout = 'bottom',
   selectedSalonId,
   onHide,
@@ -434,18 +609,44 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
   onLiveClick,
   onEventClick,
   onPersonClick,
-  eventsFilterOn = false,
-  livesFilterOn = false,
-  salonFilterOn = false,
   eventsBrowseMode = false,
   eventsBrowse,
   sponsoredEventPosts = [],
   onSponsoredEventOpen,
   onSponsoredEventPostChange,
+  mapFilterLivesFollowingOn = false,
+  mapFilterSalonsFollowingOn = false,
+  mapFilterEventsFollowingOn = false,
+  mapFilterSponsoOn = false,
+  onToggleMapFilterLivesFollowing,
+  onToggleMapFilterSalonsFollowing,
+  onToggleMapFilterEventsFollowing,
+  onToggleMapFilterSponso,
 }: NearbyPeoplePanelProps) {
   const { t } = useTranslation();
   const isBottom = layout === 'bottom';
   const showEventsBrowseList = eventsBrowseMode && Boolean(eventsBrowse?.token);
+  const eventsFollowingFilterTitle = mapFilterEventsFollowingOn
+    ? t('map.sidebarEventsFollowingFilterDisable', {
+        defaultValue: 'Masquer les événements suivis sur la carte',
+      })
+    : t('map.sidebarEventsFollowingFilterEnable', {
+        defaultValue: 'Afficher les événements suivis sur la carte',
+      });
+  const livesFollowingFilterTitle = mapFilterLivesFollowingOn
+    ? t('map.sidebarLivesFollowingFilterDisable', {
+        defaultValue: 'Masquer les lives suivis sur la carte',
+      })
+    : t('map.sidebarLivesFollowingFilterEnable', {
+        defaultValue: 'Afficher les lives suivis sur la carte',
+      });
+  const salonsFollowingFilterTitle = mapFilterSalonsFollowingOn
+    ? t('map.sidebarSalonsFollowingFilterDisable', {
+        defaultValue: 'Masquer les salons suivis sur la carte',
+      })
+    : t('map.sidebarSalonsFollowingFilterEnable', {
+        defaultValue: 'Afficher les salons suivis sur la carte',
+      });
 
   const browse = useMapEventsBrowseData({
     enabled: showEventsBrowseList,
@@ -510,7 +711,6 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
     }),
     [collapseSection, getSectionVisibleCount, isSectionRetracted, showMoreInSection, toggleSectionRetracted]
   );
-  const itemCount = countMapSidebarItems(content);
   const liveCount = useMemo(
     () =>
       new Set([
@@ -522,20 +722,13 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
   );
   const salonCount = useMemo(() => countSalonsSidebarItems(content), [content]);
   const eventCount = useMemo(
-    () => (showEventsBrowseList ? browse.activePosts.length : countEventsSidebarItems(content)),
-    [showEventsBrowseList, browse.activePosts.length, content]
+    () => countEventsSidebarItems(content),
+    [content]
   );
-  const showCategoryPanels = livesFilterOn || salonFilterOn;
-  const showFollowingOnlyPanel = content.noFilters;
   const eventsFollowingEmptyText = t('map.sidebarEventsFollowingEmpty', {
     defaultValue: 'Aucun événement suivi ou enregistré.',
   });
   const followingEmptyText = t('map.sidebarFollowingEmpty', { defaultValue: 'Aucun contenu suivi.' });
-  const suggestionsEmptyText = t('map.sidebarSuggestionsEmpty', { defaultValue: 'Aucune suggestion.' });
-  const livesInViewEmptyText = content.zoomTooWide
-    ? t('map.sidebarLivesZoomHint', { defaultValue: 'Zoomez pour voir les lives dans cette zone.' })
-    : t('map.sidebarLivesEmpty', { defaultValue: 'Aucun live dans cette zone.' });
-  const salonsInViewEmptyText = t('map.sidebarSalonsEmpty', { defaultValue: 'Aucun salon dans cette zone.' });
 
   const summaryParts: string[] = [];
   if (eventCount > 0) {
@@ -550,30 +743,6 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
   if (content.people.length > 0) {
     summaryParts.push(`${content.people.length} personne${content.people.length !== 1 ? 's' : ''}`);
   }
-
-  const emptyMessage = () => {
-    if (content.noFilters) {
-      return t('map.sidebarNoFiltersFollowingEmpty', {
-        defaultValue:
-          'Aucun live, salon ou événement suivi. Activez Lives, Salon ou Évènement pour explorer la carte.',
-      });
-    }
-    if (content.zoomTooWide) {
-      if (livesFilterOn && !salonFilterOn && !eventsFilterOn) {
-        if (content.livesFollowing.length > 0 || content.livesSuggestions.length > 0) {
-          return 'Zoomez pour voir les lives dans cette zone.';
-        }
-        return 'Zoomez pour voir les lives.';
-      }
-      if (salonFilterOn && !livesFilterOn && !eventsFilterOn) {
-        return 'Zoomez sur une ville pour voir les salons dans cette zone.';
-      }
-      return 'Zoomez sur une ville pour voir les lives et salons dans cette zone.';
-    }
-    if (eventsLoading) return 'Chargement des événements…';
-    if (loading) return 'Chargement…';
-    return 'Aucun résultat dans cette zone pour les filtres actifs.';
-  };
 
   return (
     <aside
@@ -624,6 +793,8 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
               onPostChange={onSponsoredEventPostChange}
               retracted={isSectionRetracted('sponso')}
               onToggleRetracted={() => toggleSectionRetracted('sponso')}
+              mapFilterSponsoOn={mapFilterSponsoOn}
+              onToggleMapFilterSponso={onToggleMapFilterSponso}
             />
           ) : null}
           {showEventsBrowseList ? (
@@ -661,154 +832,62 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
               />
             </li>
           ) : null}
-        {itemCount === 0 && !showCategoryPanels && !showEventsBrowseList && !showFollowingOnlyPanel ? (
-          <li className="px-2 sm:px-3 py-6 text-center text-[10px] text-gray-500 leading-snug">
-            {emptyMessage()}
-          </li>
-        ) : (
+        {!showEventsBrowseList ? (
           <>
-            {showFollowingOnlyPanel && !showEventsBrowseList && (
-              <>
-                <CollapsibleSidebarSection
-                  label={t('map.sidebarEventsFollowing', { defaultValue: 'Événement suivi' })}
-                  items={content.eventsFollowing}
-                  emptyText={eventsFollowingEmptyText}
-                  {...sectionProps('nfEventsFollowing', content.eventsFollowing.length)}
-                  renderItem={(event) => (
-                    <MapEventRow
-                      key={`nf-event-${event.id}`}
-                      event={event}
-                      compact
-                      onSelect={() => onEventClick?.(event)}
-                    />
-                  )}
+            <CollapsibleSidebarSection
+              label={t('map.sidebarEventsFollowing', { defaultValue: 'Événement suivi' })}
+              items={content.eventsFollowing}
+              emptyText={eventsFollowingEmptyText}
+              {...sectionProps('nfEventsFollowing', content.eventsFollowing.length)}
+              filterKind={onToggleMapFilterEventsFollowing ? 'events' : undefined}
+              filterActive={mapFilterEventsFollowingOn}
+              onFilterToggle={onToggleMapFilterEventsFollowing}
+              filterTitle={eventsFollowingFilterTitle}
+              renderItem={(event) => (
+                <MapEventRow
+                  key={`nf-event-${event.id}`}
+                  event={event}
+                  compact
+                  onSelect={() => onEventClick?.(event)}
                 />
-                <CollapsibleSidebarSection
-                  label={t('map.sidebarLivesFollowing', { defaultValue: 'Live suivi' })}
-                  items={content.livesFollowing}
-                  emptyText={followingEmptyText}
-                  {...sectionProps('nfLivesFollowing', content.livesFollowing.length)}
-                  renderItem={(live) => (
-                    <LiveSidebarRow
-                      key={`nf-live-${live.id}`}
-                      live={live}
-                      onSelect={() => onLiveClick?.(live)}
-                    />
-                  )}
+              )}
+            />
+            <CollapsibleSidebarSection
+              label={t('map.sidebarLivesFollowing', { defaultValue: 'Live suivi' })}
+              items={content.livesFollowing}
+              emptyText={followingEmptyText}
+              {...sectionProps('nfLivesFollowing', content.livesFollowing.length)}
+              filterKind={onToggleMapFilterLivesFollowing ? 'lives' : undefined}
+              filterActive={mapFilterLivesFollowingOn}
+              onFilterToggle={onToggleMapFilterLivesFollowing}
+              filterTitle={livesFollowingFilterTitle}
+              renderItem={(live) => (
+                <LiveSidebarRow
+                  key={`nf-live-${live.id}`}
+                  live={live}
+                  onSelect={() => onLiveClick?.(live)}
                 />
-                <CollapsibleSidebarSection
-                  label={t('map.sidebarSalonsFollowing', { defaultValue: 'Salon suivi' })}
-                  items={content.salonsFollowing}
-                  emptyText={followingEmptyText}
-                  {...sectionProps('nfSalonsFollowing', content.salonsFollowing.length)}
-                  renderItem={(salon) => (
-                    <SalonSidebarRow
-                      key={`nf-salon-${salon.id}`}
-                      salon={salon}
-                      active={salon.id === selectedSalonId}
-                      onSelect={() => onSalonClick?.(salon)}
-                    />
-                  )}
+              )}
+            />
+            <CollapsibleSidebarSection
+              label={t('map.sidebarSalonsFollowing', { defaultValue: 'Salon suivi' })}
+              items={content.salonsFollowing}
+              emptyText={followingEmptyText}
+              {...sectionProps('nfSalonsFollowing', content.salonsFollowing.length)}
+              filterKind={onToggleMapFilterSalonsFollowing ? 'salon' : undefined}
+              filterActive={mapFilterSalonsFollowingOn}
+              onFilterToggle={onToggleMapFilterSalonsFollowing}
+              filterTitle={salonsFollowingFilterTitle}
+              renderItem={(salon) => (
+                <SalonSidebarRow
+                  key={`nf-salon-${salon.id}`}
+                  salon={salon}
+                  active={salon.id === selectedSalonId}
+                  onSelect={() => onSalonClick?.(salon)}
                 />
-              </>
-            )}
-
-            {!showEventsBrowseList && livesFilterOn && (
-              <CollapsibleSidebarSection
-                label={t('map.sidebarLivesFollowing', { defaultValue: 'Live suivi' })}
-                items={content.livesFollowing}
-                emptyText={followingEmptyText}
-                {...sectionProps('livesFollowing', content.livesFollowing.length)}
-                renderItem={(live) => (
-                  <LiveSidebarRow
-                    key={`follow-${live.id}`}
-                    live={live}
-                    onSelect={() => onLiveClick?.(live)}
-                  />
-                )}
-              />
-            )}
-
-            {!showEventsBrowseList && livesFilterOn && (
-              <CollapsibleSidebarSection
-                label={t('map.sidebarLivesInView', { defaultValue: 'Lives' })}
-                items={content.lives}
-                emptyText={livesInViewEmptyText}
-                {...sectionProps('livesInView', content.lives.length)}
-                renderItem={(live) => (
-                  <LiveSidebarRow key={live.id} live={live} onSelect={() => onLiveClick?.(live)} />
-                )}
-              />
-            )}
-
-            {!showEventsBrowseList && livesFilterOn && (
-              <CollapsibleSidebarSection
-                label={t('map.sidebarLivesSuggestions', { defaultValue: 'Suggestions' })}
-                items={content.livesSuggestions}
-                emptyText={suggestionsEmptyText}
-                {...sectionProps('livesSuggestions', content.livesSuggestions.length)}
-                renderItem={(live) => (
-                  <LiveSidebarRow
-                    key={`suggest-${live.id}`}
-                    live={live}
-                    onSelect={() => onLiveClick?.(live)}
-                  />
-                )}
-              />
-            )}
-
-            {!showEventsBrowseList && salonFilterOn && (
-              <CollapsibleSidebarSection
-                label={t('map.sidebarSalonsFollowing', { defaultValue: 'Salon suivi' })}
-                items={content.salonsFollowing}
-                emptyText={followingEmptyText}
-                {...sectionProps('salonsFollowing', content.salonsFollowing.length)}
-                renderItem={(salon) => (
-                  <SalonSidebarRow
-                    key={`follow-salon-${salon.id}`}
-                    salon={salon}
-                    active={salon.id === selectedSalonId}
-                    onSelect={() => onSalonClick?.(salon)}
-                  />
-                )}
-              />
-            )}
-
-            {!showEventsBrowseList && salonFilterOn && (
-              <CollapsibleSidebarSection
-                label={t('map.sidebarSalonsInView', { defaultValue: 'Salons' })}
-                items={content.salons}
-                emptyText={salonsInViewEmptyText}
-                {...sectionProps('salonsInView', content.salons.length)}
-                renderItem={(salon) => (
-                  <SalonSidebarRow
-                    key={salon.id}
-                    salon={salon}
-                    active={salon.id === selectedSalonId}
-                    onSelect={() => onSalonClick?.(salon)}
-                  />
-                )}
-              />
-            )}
-
-            {!showEventsBrowseList && salonFilterOn && (
-              <CollapsibleSidebarSection
-                label={t('map.sidebarLivesSuggestions', { defaultValue: 'Suggestions' })}
-                items={content.salonsSuggestions}
-                emptyText={suggestionsEmptyText}
-                {...sectionProps('salonsSuggestions', content.salonsSuggestions.length)}
-                renderItem={(salon) => (
-                  <SalonSidebarRow
-                    key={`suggest-salon-${salon.id}`}
-                    salon={salon}
-                    active={salon.id === selectedSalonId}
-                    onSelect={() => onSalonClick?.(salon)}
-                  />
-                )}
-              />
-            )}
-
-            {!showEventsBrowseList && content.people.length > 0 && (
+              )}
+            />
+            {content.people.length > 0 ? (
               <CollapsibleSidebarSection
                 label="En direct"
                 items={content.people}
@@ -821,9 +900,9 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
                   />
                 )}
               />
-            )}
+            ) : null}
           </>
-        )}
+        ) : null}
         </ul>
       </div>
     </aside>

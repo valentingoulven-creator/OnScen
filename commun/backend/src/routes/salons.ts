@@ -23,6 +23,7 @@ import {
 } from '../lib/musicLinks';
 import { computePlaybackPositionMs } from '../lib/playbackClock';
 import { resolveTrackForPlatform } from '../lib/trackResolver';
+import { findMockMatch, getYoutubeDemoPool } from '../lib/musicCatalog';
 import {
   ensurePlatformAccountsFromLegacy,
   HOST_PLATFORM_NOT_LINKED,
@@ -63,6 +64,7 @@ import {
   setSalonVipModerator,
 } from '../lib/salonModeration';
 import { getActiveSalonForHost } from '../lib/profile';
+import { getActiveLiveForSalon, isSalonLiveActive, isUserHostingLive } from '../lib/liveStatus';
 import { upsertSalonToPg, markSalonInactivePgAsync, reconcileHostSalonsWithPostgres, getSalonFromStore, hydrateSalonFromPostgres } from '../lib/pgSalonsLives';
 import { refreshStaleYoutubeSalonMetadata, hasStaleYoutubeMetadata } from '../lib/youtubeMetadata';
 
@@ -76,8 +78,8 @@ function deactivateOtherHostSalons(hostId: string, keepId?: string): void {
     if (s.hostId !== hostId || s.id === keepId) continue;
     const salonId = s.id;
     io?.to(`salon_${salonId}`).emit('salon_ended', { salonId, reason: 'replaced' });
-    const linkedLive = db.lives.get(salonId);
-    if (linkedLive?.isActive) {
+    const linkedLive = getActiveLiveForSalon(salonId);
+    if (linkedLive) {
       endLiveSession(linkedLive, Date.now(), { reason: 'salon_replaced' });
     }
     db.salons.delete(salonId);
@@ -304,13 +306,20 @@ salonsRouter.get('/:id', authenticateJWT, async (req: Request, res: Response) =>
     // au moins une métadonnée est réellement expirée — évite un coût réseau inutile sur
     // chaque affichage de salon alors que la plupart du temps rien n'a besoin d'être rafraîchi.
     if (hasStaleYoutubeMetadata(salon, queue)) {
-      const host = db.users.get(salon.hostId);
-      let hostToken: string | undefined;
-      if (host) {
-        const tokenResult = await getValidYoutubeHostToken(host);
-        hostToken = tokenResult.ok ? tokenResult.accessToken : undefined;
+      try {
+        const host = db.users.get(salon.hostId);
+        let hostToken: string | undefined;
+        if (host) {
+          const tokenResult = await getValidYoutubeHostToken(host);
+          hostToken = tokenResult.ok ? tokenResult.accessToken : undefined;
+        }
+        await refreshStaleYoutubeSalonMetadata(salon, queue, hostToken);
+      } catch (err) {
+        // Ne jamais bloquer le chargement du salon si l'API YouTube échoue
+        // (clé restreinte IP, quota, réseau) — le salon reste utilisable avec
+        // les métadonnées existantes (ou génériques si jamais résolues).
+        console.error('[salons] refreshStaleYoutubeSalonMetadata échoué:', err);
       }
-      await refreshStaleYoutubeSalonMetadata(salon, queue, hostToken);
     }
   }
   res.json({ salon: publicSalon(salon, me) });
@@ -940,6 +949,14 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
     return;
   }
 
+  if (isUserHostingLive(userId)) {
+    res.status(409).json({
+      error: 'Vous animez déjà un live. Terminez-le avant de créer un salon.',
+      code: 'LIVE_ACTIVE',
+    });
+    return;
+  }
+
   await reconcileHostSalonsWithPostgres(userId);
   const existingSalon = getActiveSalonForHost(userId, { forOwner: true });
   if (existingSalon) {
@@ -986,6 +1003,29 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
     externalUrl = buildPlatformTrackUrl(plat, resolvedTrackId);
   }
 
+  let resolvedTrackTitle =
+    typeof trackTitle === 'string' && trackTitle.trim() ? trackTitle.trim() : undefined;
+  let resolvedArtist =
+    typeof artist === 'string' && artist.trim() ? artist.trim() : undefined;
+
+  if (resolvedTrackId === 'demo') {
+    const mock = findMockMatch(resolvedTrackTitle ?? '', resolvedArtist ?? user.username);
+    if (mock?.youtube?.trackId) {
+      resolvedTrackId = mock.youtube.trackId;
+      externalUrl = buildPlatformTrackUrl(plat, resolvedTrackId);
+      resolvedTrackTitle = resolvedTrackTitle ?? mock.title;
+      resolvedArtist = resolvedArtist ?? mock.artist;
+    } else if (isMsdevRuntime()) {
+      const fallback = getYoutubeDemoPool()[0];
+      if (fallback) {
+        resolvedTrackId = fallback.trackId;
+        externalUrl = buildPlatformTrackUrl(plat, resolvedTrackId);
+        resolvedTrackTitle = resolvedTrackTitle ?? fallback.title;
+        resolvedArtist = resolvedArtist ?? fallback.artist;
+      }
+    }
+  }
+
   let mode: 'public' | 'invite' = 'public';
   if (accessMode === 'invite') mode = 'invite';
   else if (accessMode === 'public') mode = 'public';
@@ -1022,8 +1062,8 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
     playbackState: {
       platform: plat,
       trackId: resolvedTrackId,
-      title: trackTitle || DEFAULT_PLAYBACK_SESSION_TITLE,
-      artist: artist || user.username,
+      title: resolvedTrackTitle || DEFAULT_PLAYBACK_SESSION_TITLE,
+      artist: resolvedArtist || user.username,
       albumArtUrl:
         albumArtUrl ||
         (plat === 'youtube' && resolvedTrackId !== 'demo'
@@ -1081,19 +1121,26 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
 
 salonsRouter.delete('/:id', authenticateJWT, async (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
-  const salon = await hydrateSalonFromPostgres(req.params.id);
-  if (!salon || salon.hostId !== userId) {
+  const salonId = req.params.id;
+  let salon = db.salons.get(salonId);
+  if (!salon) {
+    salon = await getSalonFromStore(salonId);
+  }
+  if (!salon) {
+    res.json({ ok: true });
+    return;
+  }
+  if (salon.hostId !== userId) {
     res.status(403).json({ error: 'Non autorisé' });
     return;
   }
-  const salonId = salon.id;
   const io = getIo();
   io?.to(`salon_${salonId}`).emit('salon_ended', {
     salonId,
     reason: 'host_deleted',
   });
-  const linkedLive = db.lives.get(salonId);
-  if (linkedLive?.isActive) {
+  const linkedLive = getActiveLiveForSalon(salonId);
+  if (linkedLive) {
     endLiveSession(linkedLive, Date.now(), { reason: 'host_deleted' });
   }
   db.salons.delete(salonId);
@@ -1138,7 +1185,7 @@ export function publicSalon(s: Salon, viewerId?: string) {
     latitude: mapCoords.latitude,
     longitude: mapCoords.longitude,
     listenersCount: s.listenersCount,
-    isLive: db.lives.has(s.id) && db.lives.get(s.id)?.isActive,
+    isLive: isSalonLiveActive(s.id),
     allowQueue: s.allowQueue,
     isBot: isBotHost(s.hostId),
     accessMode: s.accessMode,

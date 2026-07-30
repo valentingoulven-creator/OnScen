@@ -7,6 +7,9 @@ export const MAP_EVENTS_REFRESH_EVENT = 'melosong_map_events_refresh';
 /** Recharge le carrousel Sponso sidebar carte (après promotion Dev sur EventCard). */
 export const MAP_SIDEBAR_SPONSO_REFRESH_EVENT = 'melosong_map_sidebar_sponso_refresh';
 
+/** Marqueur carte/globe déplacé par un compte Dev. */
+export const MAP_MARKER_DRAG_REFRESH_EVENT = 'melosong_map_marker_drag_refresh';
+
 export function dispatchMapOpenCreateSalon(): void {
   window.dispatchEvent(new CustomEvent(MAP_OPEN_CREATE_SALON_EVENT));
 }
