@@ -1076,6 +1076,30 @@ a:hover {
   font-size: 9pt;
 }
 
+.doc-study .glossary-term.acronym {
+  font-size: 7.5pt;
+  letter-spacing: 0.04em;
+}
+
+/* ─── Acronymes (corps + glossaire) ─── */
+
+.doc-study .acronym {
+  font-size: 0.76em;
+  font-weight: inherit;
+  letter-spacing: 0.03em;
+  vertical-align: baseline;
+}
+
+.doc-study strong .acronym,
+.doc-study .acronym strong {
+  font-weight: 700;
+}
+
+.doc-study .funnel-bar .acronym,
+.doc-study .source-list .acronym {
+  font-size: 0.82em;
+}
+
 .doc-study .glossary-def {
   display: block;
   font-size: 8pt;
@@ -1130,6 +1154,56 @@ a:hover {
 .doc-study .source-list strong {
   color: var(--soundy-text);
   font-weight: 700;
+}
+
+.doc-study .source-list a {
+  color: var(--soundy-purple-dark);
+  font-weight: 600;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.doc-study .source-list a:hover {
+  text-decoration: underline;
+}
+
+/* ─── Section références (fin de document) ─── */
+
+.doc-study .references-section {
+  margin-top: 4px;
+}
+
+.doc-study .references-intro {
+  margin: 0 0 18px;
+  font-size: 9pt;
+  line-height: 1.55;
+  color: var(--soundy-muted);
+}
+
+.doc-study .references-section h3 {
+  margin: 20px 0 10px;
+  padding: 0;
+  border: none;
+  font-size: 10pt;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--soundy-purple-dark);
+  page-break-after: avoid;
+}
+
+.doc-study .references-section h3:first-of-type {
+  margin-top: 0;
+}
+
+.doc-study .references-section .source-block {
+  margin-bottom: 14px;
+}
+
+.doc-study .references-section code {
+  font-size: 7.5pt;
+  color: var(--soundy-muted);
+  word-break: break-all;
 }
 
 /* ─── One-pager commercial ─── */

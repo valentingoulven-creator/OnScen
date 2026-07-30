@@ -3,6 +3,7 @@ import { db } from '../models/schema';
 import { clearSalonPlaybackData } from './salonPlaybackOps';
 import { endLiveSession } from './liveArchive';
 import { markSalonInactivePgAsync } from './pgSalonsLives';
+import { getActiveLiveForSalon } from './liveStatus';
 
 /** Durée maximale d'une session d'écoute salon : 2 heures. */
 export const SALON_MAX_DURATION_MS = 2 * 60 * 60 * 1000;
@@ -44,8 +45,8 @@ export function checkSessionLimits(io: Server): void {
       // Un live lié à ce salon (id partagé) ne doit pas continuer à tourner sans
       // salon derrière lui : sinon il reste actif indéfiniment (orphelin), invisible
       // depuis la carte/le salon mais toujours joignable et décompté dans le quota hôte.
-      const linkedLive = db.lives.get(salonId);
-      if (linkedLive?.isActive) {
+      const linkedLive = getActiveLiveForSalon(salonId);
+      if (linkedLive) {
         endLiveSession(linkedLive, Date.now(), { reason: 'duration_limit' });
       }
       db.salons.delete(salonId);

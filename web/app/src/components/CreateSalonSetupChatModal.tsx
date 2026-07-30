@@ -36,7 +36,10 @@ import {
   type SalonSetupChatPhase,
 } from '../lib/salonSetupChatFlow';
 import { SessionLocationPicker } from './SessionLocationPicker';
-import type { LivesGeoPrefs } from '../lib/livesGeo';
+import {
+  DEFAULT_CENTER,
+  type LivesGeoPrefs,
+} from '../lib/livesGeo';
 import { PlatformConnectCard } from './PlatformConnectCard';
 import {
   CreateSalonPlaylistPicker,
@@ -172,6 +175,7 @@ export function CreateSalonSetupChatModal({
     initialSalonCreateLocation(fallbackLatitude, fallbackLongitude)
   );
   const openedAtRef = useRef(0);
+  const modalWasOpenRef = useRef(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [form, setForm] = useState<CreateSalonForm>({
     title: '',
@@ -186,7 +190,32 @@ export function CreateSalonSetupChatModal({
   });
 
   const skipAccessSection = preset?.accessMode === 'invite';
-  const platformLinked = isMusicPlatformLinkedForSalon('youtube', connectedPlatforms, platformLinks);
+  const [platformLinkState, setPlatformLinkState] = useState({
+    connectedPlatforms,
+    platformLinks,
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    setPlatformLinkState({ connectedPlatforms, platformLinks });
+  }, [open, connectedPlatforms, platformLinks]);
+
+  const handleUserUpdated = useCallback(
+    (user: User) => {
+      onUserUpdated?.(user);
+      setPlatformLinkState({
+        connectedPlatforms: user.connectedPlatforms,
+        platformLinks: user.platformLinks,
+      });
+    },
+    [onUserUpdated]
+  );
+
+  const platformLinked = isMusicPlatformLinkedForSalon(
+    'youtube',
+    platformLinkState.connectedPlatforms,
+    platformLinkState.platformLinks
+  );
   const canSubmitSalon = platformLinked && !hostIsLive;
 
   const genreOptions = useMemo(
@@ -216,22 +245,29 @@ export function CreateSalonSetupChatModal({
 
   useEffect(() => {
     if (!open || !token) {
+      modalWasOpenRef.current = false;
       setChatReady(false);
       return;
     }
+
+    const isOpening = !modalWasOpenRef.current;
+    modalWasOpenRef.current = true;
+    if (!isOpening) return;
+
     let cancelled = false;
     if (activeSalonId?.trim()) {
       void api.getSalon(token, activeSalonId.trim()).catch(async () => {
         if (cancelled) return;
         try {
           const { user } = await api.me(token);
-          onUserUpdated?.(user);
+          handleUserUpdated(user);
         } catch {
           /* ignore */
         }
       });
     }
     openedAtRef.current = Date.now();
+    setSaving(false);
     setChatReady(false);
     setEditReturn(false);
     setToast(null);
@@ -341,7 +377,7 @@ export function CreateSalonSetupChatModal({
     connectedPlatforms,
     platformLinks,
     activeSalonId,
-    onUserUpdated,
+    handleUserUpdated,
   ]);
 
   useEffect(
@@ -377,16 +413,17 @@ export function CreateSalonSetupChatModal({
   };
 
   const resolvePosition = () => {
-    if (form.accessMode === 'invite') {
-      return Promise.resolve({
-        latitude: fallbackLatitude,
-        longitude: fallbackLongitude,
-      });
+    const raw =
+      form.accessMode === 'invite'
+        ? { latitude: fallbackLatitude, longitude: fallbackLongitude }
+        : { latitude: salonLocation.latitude, longitude: salonLocation.longitude };
+    if (Number.isFinite(raw.latitude) && Number.isFinite(raw.longitude)) {
+      return Promise.resolve(raw);
     }
-    return Promise.resolve({
-      latitude: salonLocation.latitude,
-      longitude: salonLocation.longitude,
-    });
+    if (Number.isFinite(fallbackLatitude) && Number.isFinite(fallbackLongitude)) {
+      return Promise.resolve({ latitude: fallbackLatitude, longitude: fallbackLongitude });
+    }
+    return Promise.resolve({ latitude: DEFAULT_CENTER[0], longitude: DEFAULT_CENTER[1] });
   };
 
   const submitBlockedReason = hostIsLive
@@ -398,11 +435,8 @@ export function CreateSalonSetupChatModal({
   const resolveCreateError = (e: unknown): string => translateSalonCreateError(t, e, 'youtube');
 
   const reportCreateError = (message: string) => {
-    if (onDeferredError) {
-      onDeferredError(message);
-    } else {
-      showToast(message);
-    }
+    showToast(message);
+    onDeferredError?.(message);
   };
 
   const goToPlaylistOrConfirm = () => {
@@ -410,27 +444,10 @@ export function CreateSalonSetupChatModal({
   };
 
   const submit = async () => {
+    if (saving) return;
     if (!canSubmitSalon) {
       reportCreateError(submitBlockedReason ?? t('salon.create.errorFailed'));
       return;
-    }
-    if (activeSalonId?.trim()) {
-      try {
-        await api.getSalon(token, activeSalonId.trim());
-        const msg = t('salon.create.errorAlreadyActive');
-        onOpenExistingSalon?.(activeSalonId.trim());
-        reportCreateError(msg);
-        onClose();
-        return;
-      } catch {
-        /* salonId périmé (salon arrêté) — rafraîchir le profil puis créer */
-        try {
-          const { user } = await api.me(token);
-          onUserUpdated?.(user);
-        } catch {
-          /* ignore */
-        }
-      }
     }
     setSaving(true);
     try {
@@ -475,12 +492,12 @@ export function CreateSalonSetupChatModal({
       onCreated(salon, latitude, longitude);
       onClose();
 
-      try {
-        const { user: freshUser } = await api.me(token);
-        onUserUpdated?.(freshUser);
-      } catch {
-        /* best effort */
-      }
+      void api
+        .me(token)
+        .then(({ user: freshUser }) => handleUserUpdated(freshUser))
+        .catch(() => {
+          /* best effort */
+        });
 
       if (playlistLoadBody) {
         deferSalonPlaylistLoad(token, salon.id, playlistLoadBody, (error) => {
@@ -707,8 +724,10 @@ export function CreateSalonSetupChatModal({
           <ActionChip
             variant="primary"
             className="w-full"
-            disabled={saving || !canSubmitSalon}
-            onClick={() => void submit()}
+            disabled={saving}
+            onClick={() => {
+              void submit();
+            }}
           >
             {saving ? t('salon.create.submitting') : t('salon.create.submit')}
           </ActionChip>
@@ -777,7 +796,7 @@ export function CreateSalonSetupChatModal({
               <div className="flex flex-wrap gap-2 pt-1">
                 <ActionChip
                   variant="primary"
-                  disabled={!canSubmitSalon || saving}
+                  disabled={saving}
                   onClick={() => {
                     pushUser(t('salon.create.setupChatUseSaved'));
                     void submit();
@@ -848,9 +867,9 @@ export function CreateSalonSetupChatModal({
                   <PlatformConnectCard
                     token={token}
                     platform="youtube"
-                    connectedPlatforms={connectedPlatforms}
-                    platformLinks={platformLinks}
-                    onUserUpdated={onUserUpdated}
+                    connectedPlatforms={platformLinkState.connectedPlatforms}
+                    platformLinks={platformLinkState.platformLinks}
+                    onUserUpdated={handleUserUpdated}
                   />
                 )}
               </div>

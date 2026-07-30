@@ -62,6 +62,9 @@
     "src:clean:dry": "node commun/scripts/sync-src.js --clean --dry-run",
     "msdev:reset-data": "powershell -ExecutionPolicy Bypass -File commun/msdev/scripts/reset-msdev-data.ps1",
     "build:exe": "npm run app:build && npm run build:exe --prefix commun/backend",
-    "backend:build": "npm run build --prefix commun/backend"
+    "backend:build": "npm run build --prefix commun/backend",
+    "cloud:sync": "node commun/scripts/sync-cloud-env.mjs",
+    "cloud:sync:install-hook": "powershell -ExecutionPolicy Bypass -File commun/scripts/install-cloud-sync.ps1",
+    "cloud:checklist": "node commun/scripts/cloud-secrets-checklist.mjs"
   }
 }

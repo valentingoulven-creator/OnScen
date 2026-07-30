@@ -149,13 +149,12 @@ export function applyAgeSettings(
       return { ok: false, error: 'hideBirthDateOnProfile doit être un booléen.' };
     }
     user.hideBirthDateOnProfile = body.hideBirthDateOnProfile;
-    user.showAge = !body.hideBirthDateOnProfile;
-  } else if (body.showAge !== undefined) {
+  }
+  if (body.showAge !== undefined) {
     if (typeof body.showAge !== 'boolean') {
       return { ok: false, error: 'showAge doit être un booléen.' };
     }
     user.showAge = body.showAge;
-    user.hideBirthDateOnProfile = !body.showAge;
   }
   return { ok: true };
 }
@@ -168,7 +167,10 @@ function publicBirthDateField(u: User, isOwner: boolean): string | undefined {
 function publicAgeField(u: User, isOwner: boolean): number | undefined {
   const derivedAge = resolveUserAge(u);
   if (derivedAge == null) return undefined;
-  if (isOwner || !isBirthDateHiddenOnProfile(u)) return derivedAge;
+  if (isOwner) return derivedAge;
+  if (u.showAge === true) return derivedAge;
+  if (u.showAge === false) return undefined;
+  if (!isBirthDateHiddenOnProfile(u)) return derivedAge;
   return undefined;
 }
 
@@ -426,7 +428,8 @@ export function publicProfile(u: User, isOwner = false, viewerId?: string) {
     usernameWaveTo: snapshot.usernameWaveTo ?? null,
     avatarUrl: snapshot.avatarUrl,
     profilePhotos: normalizeProfilePhotos(snapshot),
-    bio: snapshot.bio,
+    bio: isOwner || snapshot.hideBioOnProfile !== true ? snapshot.bio : undefined,
+    hideBioOnProfile: isOwner ? snapshot.hideBioOnProfile === true : undefined,
     interests: snapshot.interests,
     favoriteGenres: snapshot.favoriteGenres,
     favoriteArtists: snapshot.favoriteArtists,

@@ -42,6 +42,11 @@ import {
   listActiveMapSidebarEventPostIds,
   setDevMapSidebarEventSponsorship,
 } from '../lib/sponsors';
+import {
+  listDevMapMarkerPositions,
+  setDevMapMarkerPosition,
+  type DevMapMarkerKind,
+} from '../lib/devMapMarkerPositions';
 
 export const accessRouter = Router();
 
@@ -459,6 +464,35 @@ accessRouter.get('/dev/reels-sponsor/:reelId', authenticateJWT, (req: Request, r
   if (requireDevStaff(req, res) == null) return;
   const sponsor = findReelsSponsorForReelId(req.params.reelId);
   res.json({ sponsor: sponsor ?? null });
+});
+
+/** Positions marqueurs carte/globe repositionnés par Dev (msdev : persiste entités showcase). */
+accessRouter.get('/dev/map-marker-positions', authenticateJWT, (req: Request, res: Response) => {
+  if (requireDevStaff(req, res) == null) return;
+  res.json({ positions: listDevMapMarkerPositions() });
+});
+
+accessRouter.post('/dev/map-marker-position', authenticateJWT, (req: Request, res: Response) => {
+  const adminId = requireDevStaff(req, res);
+  if (adminId == null) return;
+  try {
+    const kind = String(req.body?.kind ?? '').trim() as DevMapMarkerKind;
+    const id = String(req.body?.id ?? '').trim();
+    const latitude = Number(req.body?.latitude);
+    const longitude = Number(req.body?.longitude);
+    const position = setDevMapMarkerPosition(kind, id, latitude, longitude);
+    schedulePersist();
+    logAdminAction({
+      adminId,
+      action: 'dev_move_map_marker',
+      targetType: 'map_marker',
+      targetId: `${kind}:${id}`,
+      details: { latitude, longitude },
+    });
+    res.json({ position });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : 'Données invalides' });
+  }
 });
 
 /** Active ou retire le sponso sidebar carte pour une publication événement — Dev uniquement. */

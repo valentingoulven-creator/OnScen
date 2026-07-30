@@ -105,6 +105,8 @@ export function ensureMsdevFranceSalonLives(): void {
 
 const PARIS_LAT = 48.8566;
 const PARIS_LON = 2.3522;
+const MONTPELLIER_LAT = 43.6108;
+const MONTPELLIER_LON = 3.8767;
 
 function buildMsdevDemoUsers(hash: string): { dj: User; bass: User; listener: User } {
   const dj: User = {
@@ -136,7 +138,7 @@ function buildMsdevDemoUsers(hash: string): { dj: User; bass: User; listener: Us
 
   const listener: User = {
     id: 'user_listener',
-    username: 'Auditeur',
+    username: 'demo_test_founder',
     email: 'listener@msdev.local',
     passwordHash: hash,
     isAdmin: true,
@@ -153,13 +155,17 @@ function buildMsdevDemoUsers(hash: string): { dj: User; bass: User; listener: Us
     age: MSDEV_DEMO_AGE,
     lastSeenAt: Date.now(),
     memberSince: Date.now() - 86400000 * 30,
-    bio: 'Curieux·se de tout ce qui sonne autour de moi. J’explore les salons sur la carte et je partage mes découvertes — ici pour la musique, pas pour le dating.',
-    interests: ['Sessions live', 'Carte géoloc', 'Sessions live', 'Rencontres musicales'],
+    bio: 'Compte de démonstration Soundy — contenu de test pour valider les parcours produit.',
+    interests: ['Sessions live', 'Carte géoloc', 'Rencontres musicales'],
     favoriteGenres: ['Électro', 'Indie', 'Lo-fi', 'French touch'],
     favoriteArtists: ['M83', 'Daft Punk', 'Lomepal'],
     connectedPlatforms: ['youtube', 'youtube'] as MusicPlatform[],
-    city: 'Paris',
+    city: 'Montpellier',
+    profileType: 'dj',
     listeningRole: 'les_deux' as const,
+    relationshipStatus: 'celibataire',
+    onboardingCompleted: true,
+    emailVerified: true,
     favoritesCountOverride: 243_000,
   };
 
@@ -194,7 +200,7 @@ function buildMsdevDemoUsers(hash: string): { dj: User; bass: User; listener: Us
 
   setUserGeo(dj, PARIS_LAT + 0.0004, PARIS_LON + 0.0003);
   setUserGeo(bass, PARIS_LAT - 0.0005, PARIS_LON + 0.0002);
-  setUserGeo(listener, PARIS_LAT - 0.0008, PARIS_LON - 0.0004);
+  setUserGeo(listener, MONTPELLIER_LAT - 0.0008, MONTPELLIER_LON + 0.0004);
 
   return { dj, bass, listener };
 }

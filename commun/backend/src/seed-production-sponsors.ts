@@ -60,6 +60,33 @@ export const PRODUCTION_SPONSOR_EVENT_SEEDS: ProductionSponsorEventSeed[] = [
     eventType: 'dance',
     imageUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=800&fit=crop',
   },
+  {
+    id: `${PROD_SPONSOR_EVENT_ID_PREFIX}primavera-2026`,
+    content:
+      'Primavera Sound 2026 — indie & électro à Barcelone, 4–6 juin. Billetterie : https://www.primaverasound.com',
+    eventDate: '2026-06-04T16:00:00.000Z',
+    eventLocation: 'Parc del Fòrum, Barcelona, Spain',
+    eventType: 'dance',
+    imageUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&fit=crop',
+  },
+  {
+    id: `${PROD_SPONSOR_EVENT_ID_PREFIX}awakenings-2026`,
+    content:
+      'Awakenings Festival 2026 — techno à Amsterdam, 11–13 juillet. Infos : https://www.awakenings.com',
+    eventDate: '2026-07-11T12:00:00.000Z',
+    eventLocation: 'Spaarnwoude, Amsterdam, Netherlands',
+    eventType: 'dance',
+    imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&fit=crop',
+  },
+  {
+    id: `${PROD_SPONSOR_EVENT_ID_PREFIX}lollapalooza-berlin-2026`,
+    content:
+      'Lollapalooza Berlin 2026 — Olympiastadion, 5–6 septembre. Pass : https://www.lollapaloozade.com',
+    eventDate: '2026-09-05T14:00:00.000Z',
+    eventLocation: 'Olympiastadion, Berlin, Germany',
+    eventType: 'autre',
+    imageUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&fit=crop',
+  },
 ];
 
 function isSponsorEventSeedEnvironment(): boolean {

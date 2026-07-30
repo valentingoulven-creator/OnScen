@@ -2,7 +2,7 @@
 
 Soundy est le **réseau social** pensé comme un **promoteur d'artistes et d'événements** (application mobile-first, [getsoundy.com](https://getsoundy.com)). Le modèle économique priorise les **sponsors natifs** (45 à 55 % du revenu cible à 24 mois), complétés par les commissions créateurs (pourboires live, abonnements créateurs — **non actifs au lancement**) et les forfaits plateforme **Soundy+ / SoundyUltra** (**roadmap, non effectifs au démarrage**).
 
-**Opportunité** : les annonceurs musique et nightlife cherchent des alternatives aux CPM Meta et Instagram (6 à 18 € en France). Soundy propose un inventaire vertical et géolocalisé, dès **~150 € pour 7 jours** (Carte · Sponso, palier 50 000 inscrits).
+**Opportunité** : les annonceurs musique et nightlife cherchent des alternatives aux CPM Meta et Instagram (6 à 18 € en France — voir §7 · benchmarks CPM). Soundy propose un inventaire vertical et géolocalisé, dès **~150 € pour 7 jours** (Carte · Sponso, palier 50 000 inscrits).
 
 **Vision** : ancrage **France → Europe → international** — devenir la référence du réseau social musique live. Soundy **met en visibilité les événements musicaux** sur la carte géolocalisée : concerts, soirées et festivals découverts près de l'utilisateur, du quartier à l'échelle continentale puis mondiale.
 
@@ -38,10 +38,10 @@ Les fans dispersent leur attention entre TikTok (découverte), Instagram (social
 <div class="source-block">
 <p class="source-block-title">Sources &amp; dates</p>
 <ul class="source-list">
-<li><strong>TAM</strong> — SRI &amp; UDECAM, <em>Observatoire de l'e-pub</em> FY 2024 (publié le <strong>6 février 2025</strong>) : 10,97&nbsp;Md€ de dépenses publicitaires digitales en France. Fourchette retenue 8–10&nbsp;Md€ (ordre de grandeur conservateur vs. trajectoire 2024).</li>
+<li><strong>TAM</strong> — SRI &amp; UDECAM, <em>Observatoire de l'e-pub</em> FY 2024 (publié le <strong>6 février 2025</strong>) : 10,97&nbsp;Md€ de dépenses publicitaires digitales en France. Fourchette retenue 8–10&nbsp;Md€ (ordre de grandeur conservateur vs. trajectoire 2024). <a href="https://www.sri-france.org/wp-content/uploads/2025/02/2025_02_06_Observatoire-E-Pub-FY-2024-VFinale.pdf">sri-france.org</a> · <a href="https://www.udecam.fr/evenements/33eme-observatoire-de-lepub/">udecam.fr</a></li>
 <li><strong>SAM</strong> — Estimation Soundy (<strong>juillet 2026</strong>), calibrée sur le TAM et les budgets pub musique / événementiel / lifestyle 16–35&nbsp;ans (≈ 4–6&nbsp;% du digital).</li>
 <li><strong>SOM (3 ans)</strong> — Projection interne Soundy (<strong>juillet 2026</strong>), scénario de pénétration de l'inventaire sponsor natif.</li>
-<li><strong>Population 16–35 ans</strong> — INSEE, estimations au 1<sup>er</sup> janvier 2024 (reprise INJEP, <em>Chiffres clés jeunesse 2024</em>, <strong>juillet 2024</strong>) : 12,0&nbsp;M de 15–29&nbsp;ans ; fourchette 8–12&nbsp;M pour la cible 16–35&nbsp;ans selon périmètre.</li>
+<li><strong>Population 16–35 ans</strong> — INSEE, estimations au 1<sup>er</sup> janvier 2024 (reprise INJEP, <em>Chiffres clés jeunesse 2024</em>, <strong>juillet 2024</strong>) : 12,0&nbsp;M de 15–29&nbsp;ans ; fourchette 8–12&nbsp;M pour la cible 16–35&nbsp;ans selon périmètre. <a href="https://injep.fr/publication/les-chiffres-cles-de-la-jeunesse-2024/">injep.fr</a> · <a href="https://www.insee.fr/fr/statistiques/7752095">insee.fr</a></li>
 </ul>
 </div>
 
@@ -439,8 +439,6 @@ Budget : <span class="tier-budget">800–5 000 € / mois</span>
 | <span class="pill pill-p0">P0</span> | Signer 3 sponsors payants locaux | Direction |
 | <span class="pill pill-p0">P0</span> | Reporting impressions campagnes | Produit |
 | <span class="pill pill-p1">P1</span> | CGV et modèle de devis sponsor | Direction + juriste |
-| <span class="pill pill-p1">P1</span> | Partenariat billetterie | Direction |
-| <span class="pill pill-p2">P2</span> | Lancement forfaits Soundy+ / SoundyUltra | Produit |
 
 ---
 
@@ -500,6 +498,121 @@ Budget : <span class="tier-budget">800–5 000 € / mois</span>
 <div class="glossary-group-title">Repères de lecture</div>
 <div class="glossary-item"><span class="glossary-term">M0, M6, M12…</span><span class="glossary-def">Nombre de mois écoulés depuis le lancement (M0 = lancement).</span></div>
 <div class="glossary-item"><span class="glossary-term">P0 / P1 / P2</span><span class="glossary-def">Niveau de priorité d'une action (P0 = urgent, P1 = important, P2 = secondaire).</span></div>
+</div>
+
+---
+
+## 7. Sources & références
+
+<div class="references-section">
+
+<p class="references-intro">Sites et publications utilisés pour les chiffres de marché, la démographie, les benchmarks publicitaires et les références institutionnelles citées dans ce document. Les projections financières, grilles tarifaires Soundy et hypothèses de pénétration sont des <strong>estimations internes Soundy (juillet 2026)</strong>, sauf mention contraire.</p>
+
+### Marché publicitaire (TAM)
+
+<div class="source-block">
+<p class="source-block-title">Publicité digitale France</p>
+<ul class="source-list">
+<li><strong>SRI</strong> (Syndicat des Régies Internet) — <a href="https://www.sri-france.org/">https://www.sri-france.org/</a></li>
+<li><strong>UDECAM</strong> (Union des Éditeurs de Médias et Contenus Audiovisuels et Multimédias) — <a href="https://www.udecam.fr/">https://www.udecam.fr/</a></li>
+<li><strong>33<sup>e</sup> Observatoire de l'e-pub</strong> — bilan FY 2024, publié le 6 février 2025 · marché digital France = 10,97 Md€ (+14&nbsp;%) — <a href="https://www.sri-france.org/wp-content/uploads/2025/02/2025_02_06_Observatoire-E-Pub-FY-2024-VFinale.pdf">PDF SRI (Observatoire FY 2024)</a></li>
+<li><strong>UDECAM</strong> — présentation de l'Observatoire 2024 — <a href="https://www.udecam.fr/evenements/33eme-observatoire-de-lepub/">udecam.fr/evenements/33eme-observatoire-de-lepub</a></li>
+<li><strong>Oliver Wyman</strong> — cabinet mandaté pour l'Observatoire e-pub (analyse sell-side, prévisions 2025) — <a href="https://www.oliverwyman.com/">https://www.oliverwyman.com/</a></li>
+</ul>
+</div>
+
+### Démographie & cible 16–35 ans
+
+<div class="source-block">
+<p class="source-block-title">Population jeunes France</p>
+<ul class="source-list">
+<li><strong>INJEP</strong> — <em>Chiffres clés de la jeunesse 2024</em> (publié 10/07/2024) · 12,0&nbsp;M de 15–29&nbsp;ans au 1<sup>er</sup> janvier 2024 — <a href="https://injep.fr/publication/les-chiffres-cles-de-la-jeunesse-2024/">injep.fr/publication/les-chiffres-cles-de-la-jeunesse-2024</a></li>
+<li><strong>INJEP</strong> — PDF intégral — <a href="https://injep.fr/wp-content/uploads/2024/07/Chiffres-cles-jeunesse-2024.pdf">Chiffres-cles-jeunesse-2024.pdf</a></li>
+<li><strong>INSEE</strong> — Estimations de population au 1<sup>er</sup> janvier 2024 (séries régionales, sexe, âge) — <a href="https://www.insee.fr/fr/statistiques/7752095">insee.fr/statistiques/7752095</a></li>
+<li><strong>INSEE</strong> — Bilan démographique 2024 — <a href="https://www.insee.fr/fr/statistiques/8313983">insee.fr/statistiques/8313983</a></li>
+</ul>
+</div>
+
+### Benchmarks CPM Meta / Instagram (France)
+
+<div class="source-block">
+<p class="source-block-title">Coût pour mille (CPM) — fourchette 6–18 € citée §Résumé</p>
+<ul class="source-list">
+<li><strong>Talyco</strong> — <em>Observatoire prix publicité en ligne France 2026</em> · benchmark CPM Meta France 5–15 € — <a href="https://www.talyco.io/blog/media/observatoire-prix-publicite-en-ligne-france-2026/">talyco.io/observatoire-prix-publicite-en-ligne-france-2026</a></li>
+<li><strong>ANODE</strong> — <em>Combien coûte une pub sur Instagram&nbsp;?</em> · CPM Stories/Reels 6–18 € — <a href="https://agence-anode.fr/blog/marketing-digital/combien-coute-publicite-instagram/">agence-anode.fr/combien-coute-publicite-instagram</a></li>
+<li><strong>Meta Business</strong> — plateforme publicitaire Meta (Facebook / Instagram) — <a href="https://www.facebook.com/business">facebook.com/business</a></li>
+<li><strong>Document interne Soundy</strong> — <em>PLAN-SPONSORING-PAYANT.md</em> · référence CPM marché FR Instagram/Meta 6–14 €, TikTok 5–12 €, Spotify Audio 15–25 € (calibrage grille Soundy).</li>
+</ul>
+</div>
+
+### Financement & institutions
+
+<div class="source-block">
+<p class="source-block-title">Soutiens publics & propriété intellectuelle</p>
+<ul class="source-list">
+<li><strong>Bpifrance</strong> — Bourse French Tech Emergence (amorçage deeptech, jusqu'à 90 k€) — <a href="https://www.bpifrance.fr/catalogue-offres/bourse-french-tech-emergence">bpifrance.fr/bourse-french-tech-emergence</a></li>
+<li><strong>Bpifrance</strong> — portail solutions création / innovation — <a href="https://www.bpifrance.fr/nos-solutions/creation/creation-expertise">bpifrance.fr/nos-solutions/creation/creation-expertise</a></li>
+<li><strong>INPI</strong> — dépôt e-Soleau (preuve d'antériorité) — <a href="https://www.inpi.fr/realiser-demarches/propriete-intellectuelle/deposer-une-e-soleau-ou-un-entiercement">inpi.fr/deposer-une-e-soleau</a></li>
+<li><strong>INPI</strong> — portail Soleau — <a href="https://www.inpi.fr/proteger-vos-creations/lenveloppe-soleau/portail-soleau">inpi.fr/portail-soleau</a></li>
+</ul>
+</div>
+
+### Partenaires techniques & infrastructure
+
+<div class="source-block">
+<p class="source-block-title">Stack produit Soundy (§2.7 · one-pager)</p>
+<ul class="source-list">
+<li><strong>Soundy</strong> — application en production — <a href="https://getsoundy.com">getsoundy.com</a></li>
+<li><strong>Stripe Connect</strong> — paiements créateurs &amp; sponsors — <a href="https://stripe.com/connect">stripe.com/connect</a></li>
+<li><strong>LiveKit Cloud</strong> — lives caméra navigateur — <a href="https://livekit.io/">livekit.io</a> · <a href="https://livekit.io/pricing">livekit.io/pricing</a></li>
+<li><strong>Cloudflare Stream</strong> — diffusion vidéo / OBS — <a href="https://www.cloudflare.com/products/cloudflare-stream/">cloudflare.com/products/cloudflare-stream</a></li>
+<li><strong>Scaleway</strong> — hébergement cloud France — <a href="https://www.scaleway.com/">scaleway.com</a></li>
+</ul>
+</div>
+
+### Conformité & réglementation
+
+<div class="source-block">
+<p class="source-block-title">DSA · RGPD (badges « Sponsorisé » · données personnelles)</p>
+<ul class="source-list">
+<li><strong>Commission européenne</strong> — Digital Services Act (DSA) — <a href="https://digital-strategy.ec.europa.eu/en/policies/digital-services-act-package">digital-strategy.ec.europa.eu/digital-services-act</a></li>
+<li><strong>CNIL</strong> — Règlement européen protection des données (RGPD) — <a href="https://www.cnil.fr/fr/reglement-europeen-protection-donnees">cnil.fr/reglement-europeen-protection-donnees</a></li>
+</ul>
+</div>
+
+### Acteurs & plateformes cités (concurrence · écosystème)
+
+<div class="source-block">
+<p class="source-block-title">Analyse concurrentielle §1.4 · partenaires §3</p>
+<ul class="source-list">
+<li><strong>Instagram / Meta</strong> — <a href="https://www.instagram.com/">instagram.com</a> · <a href="https://about.meta.com/">about.meta.com</a></li>
+<li><strong>TikTok</strong> — <a href="https://www.tiktok.com/">tiktok.com</a> · <a href="https://www.tiktok.com/business/">tiktok.com/business</a></li>
+<li><strong>Spotify</strong> — <a href="https://www.spotify.com/">spotify.com</a></li>
+<li><strong>SoundCloud</strong> — <a href="https://soundcloud.com/">soundcloud.com</a></li>
+<li><strong>Bandcamp</strong> — <a href="https://bandcamp.com/">bandcamp.com</a></li>
+<li><strong>Groover</strong> — <a href="https://groover.co/">groover.co</a></li>
+<li><strong>Audius</strong> — <a href="https://audius.co/">audius.co</a></li>
+<li><strong>Shotgun</strong> (billetterie) — <a href="https://shotgun.live/">shotgun.live</a></li>
+<li><strong>Dice</strong> (billetterie) — <a href="https://dice.fm/">dice.fm</a></li>
+<li><strong>Weezevent</strong> — <a href="https://www.weezevent.com/">weezevent.com</a></li>
+<li><strong>Resident Advisor</strong> — <a href="https://ra.co/">ra.co</a></li>
+<li><strong>Deezer</strong> — <a href="https://www.deezer.com/">deezer.com</a></li>
+<li><strong>Qobuz</strong> — <a href="https://www.qobuz.com/">qobuz.com</a></li>
+<li><strong>YouTube</strong> — <a href="https://www.youtube.com/">youtube.com</a></li>
+</ul>
+</div>
+
+### Projections & tarification internes Soundy
+
+<div class="source-block">
+<p class="source-block-title">Estimations produit · non issues de sources externes</p>
+<ul class="source-list">
+<li><strong>SAM, SOM, phases M0–M36, packages sponsors, CPM paliers 50 K–1 M</strong> — modèle interne Soundy (juillet 2026), calibré sur TAM Observatoire e-pub et benchmarks CPM.</li>
+<li><strong>Coûts infrastructure &amp; paliers A–D</strong> — estimations directionnelles basées sur tarifs Scaleway, LiveKit et Cloudflare Stream + consommation projetée.</li>
+<li><strong>Documents internes complémentaires</strong> — <code>commun/docs/PLAN-SPONSORING-PAYANT.md</code> · <code>commun/docs/strategie/ONE-PAGER-SPONSOR-COMMERCIAL.md</code> · <code>commun/docs/strategie/BUSINESS-PLAN-PREMIUM.md</code>.</li>
+</ul>
+</div>
+
 </div>
 
 ---

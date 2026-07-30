@@ -17,6 +17,13 @@ import {
   clearSalonUrlFromBar,
 } from './lib/salonDeepLink';
 import {
+  consumePendingLiveJoin,
+  parseLiveIdFromLocation,
+  persistPendingLiveJoin,
+  syncLiveUrlInBar,
+  clearLiveUrlFromBar,
+} from './lib/liveDeepLink';
+import {
   STORY_APP_LINK_EVENT,
   type StoryAppLinkTarget,
 } from './lib/storyAppLink';
@@ -169,6 +176,7 @@ export default function App() {
   const [reelsInitialId, setReelsInitialId] = useState<string | undefined>();
   const [reelsNavigateKey, setReelsNavigateKey] = useState(0);
   const salonDeepLinkHandled = useRef(false);
+  const liveDeepLinkHandled = useRef(false);
   const profileDeepLinkHandled = useRef(false);
   const [appLayout, setAppLayoutState] = useState(getAppLayout);
   const [dmPeerToOpen, setDmPeerToOpen] = useState<string | null>(null);
@@ -282,6 +290,8 @@ export default function App() {
       })
       .catch(() => {
         if (cancelled) return;
+        clearSalonUrlFromBar();
+        clearPersistedSalonSession();
         void refreshUser();
         setActiveSalonSession((prev) => (prev?.id === hostedSalonId ? null : prev));
       });
@@ -337,6 +347,8 @@ export default function App() {
   useEffect(() => {
     const id = parseSalonIdFromLocation();
     if (id) persistPendingSalonJoin(id);
+    const liveId = parseLiveIdFromLocation();
+    if (liveId) persistPendingLiveJoin(liveId);
     const profileId = parseProfileIdFromLocation();
     if (profileId) persistPendingProfileView(profileId);
   }, []);
@@ -348,17 +360,62 @@ export default function App() {
     const salonId = fromUrl ?? pending;
     if (!salonId) return;
     salonDeepLinkHandled.current = true;
-    setTab('map');
+
+    let cancelled = false;
+    void api
+      .getSalon(token, salonId)
+      .then(({ salon }) => {
+        if (cancelled) return;
+        setTab('map');
+        setProfileOpen(false);
+        setProfilePreview(null);
+        setActiveSalonSession({
+          id: salon.id,
+          title: salon.title,
+          viewMode: 'full',
+          isHost: salon.hostId === user.id,
+        });
+        setView({ type: 'home' });
+        syncSalonUrlInBar(salon.id);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        clearSalonUrlFromBar();
+        clearPersistedSalonSession();
+        showAppToast('Salon inaccessible', 'error');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, token, showAppToast]);
+
+  useEffect(() => {
+    if (!user || !token || liveDeepLinkHandled.current) return;
+    if (parseSalonIdFromLocation()) return;
+    const fromUrl = parseLiveIdFromLocation();
+    const pending = consumePendingLiveJoin();
+    const liveId = fromUrl ?? pending;
+    if (!liveId) return;
+    liveDeepLinkHandled.current = true;
+
+    setSalonVideoFloatActive(false);
     setProfileOpen(false);
-    setProfilePreview(null);
-    setActiveSalonSession({ id: salonId, viewMode: 'full' });
-    setView({ type: 'home' });
-    syncSalonUrlInBar(salonId);
+    setSalonPipPreview(null);
+    setLivePipPreview(null);
+    setActiveLiveViewerSession({
+      id: liveId,
+      viewMode: 'full',
+      isHost: user.isLive && user.liveId === liveId ? true : undefined,
+    });
+    setTab('map');
+    setView({ type: 'live', id: liveId });
+    syncLiveUrlInBar(liveId);
   }, [user, token]);
 
   useEffect(() => {
     if (!user || !token || profileDeepLinkHandled.current) return;
     if (parseSalonIdFromLocation()) return;
+    if (parseLiveIdFromLocation()) return;
     const fromUrl = parseProfileIdFromLocation();
     const pending = consumePendingProfileView();
     const profileId = fromUrl ?? pending;
@@ -614,7 +671,13 @@ export default function App() {
       id: salonId,
       title: salonTitle ?? (prev?.id === salonId ? prev.title : undefined),
       viewMode: 'full',
-      isHost: isHost ?? (prev?.id === salonId ? prev.isHost : undefined),
+      isHost:
+        isHost ??
+        (prev?.id === salonId
+          ? prev.isHost
+          : user?.salonId === salonId
+            ? true
+            : false),
     }));
     if (viewRef.current.type === 'salon') {
       setView({ type: 'home' });
@@ -681,7 +744,13 @@ export default function App() {
       id: salonId,
       title: salonTitle ?? (prev?.id === salonId ? prev.title : undefined),
       viewMode: 'minimized',
-      isHost: isHost ?? (prev?.id === salonId ? prev.isHost : undefined),
+      isHost:
+        isHost ??
+        (prev?.id === salonId
+          ? prev.isHost
+          : user?.salonId === salonId
+            ? true
+            : false),
     }));
     if (viewRef.current.type !== 'home') {
       setView({ type: 'home' });
@@ -790,8 +859,10 @@ export default function App() {
   }, [stopReelsMedia, tabRef]);
 
   const openLive = useCallback((id: string) => {
-    if (activeSalonSessionRef.current) {
-      showAppToast("Tu es déjà dans un salon. Quitte le salon pour démarrer un live.", 'info');
+    // Salon minimisé (PiP carte) ou session hôte en arrière-plan : OK pour regarder un live.
+    // Bloquer seulement si le salon occupe déjà le plein écran (comme openSalonPage ↔ live).
+    if (activeSalonSessionRef.current?.viewMode === 'full') {
+      showAppToast("Tu es déjà dans un salon. Quitte le salon pour regarder un live.", 'info');
       return;
     }
     setSalonVideoFloatActive(false);
@@ -813,6 +884,7 @@ export default function App() {
     }));
     setTab('map');
     setView({ type: 'live', id });
+    syncLiveUrlInBar(id);
   }, [activeLiveViewerSessionRef, activeSalonSessionRef, showAppToast, tabRef, user]);
 
   const closeActiveLiveViewerSession = useCallback(() => {
@@ -825,9 +897,34 @@ export default function App() {
     const liveId = activeLiveViewerSessionRef.current?.id;
     if (liveId) emitOnSocket('leave_live', { liveId });
     closeActiveLiveViewerSession();
+    clearLiveUrlFromBar();
     setView({ type: 'home' });
     setTab('map');
   }, [activeLiveViewerSessionRef, closeActiveLiveViewerSession]);
+
+  const stopActiveLiveHostSession = useCallback(async () => {
+    const liveId =
+      activeLiveViewerSessionRef.current?.id ??
+      (user?.isLive && user.liveId ? user.liveId : null);
+    if (!liveId || !token) return;
+    emitOnSocket('leave_live', { liveId });
+    setLiveVideoFloatActive(false);
+    try {
+      await api.stopLive(token);
+    } finally {
+      void refreshUser();
+      closeActiveLiveViewerSession();
+      setView({ type: 'home' });
+      setTab('map');
+    }
+  }, [
+    activeLiveViewerSessionRef,
+    closeActiveLiveViewerSession,
+    refreshUser,
+    token,
+    user?.isLive,
+    user?.liveId,
+  ]);
 
   const minimizeLiveViewer = useCallback(() => {
     dispatchLiveBeforeMinimize();
@@ -835,6 +932,7 @@ export default function App() {
     setProfileOpen(false);
     setProfilePreview(null);
     setLivePipPreview(null);
+    clearLiveUrlFromBar();
     setActiveLiveViewerSession((prev) => (prev ? { ...prev, viewMode: 'minimized' } : prev));
     setView({ type: 'home' });
   }, []);
@@ -848,6 +946,7 @@ export default function App() {
     setProfileOpen(false);
     setTab('map');
     setView({ type: 'live', id: session.id });
+    syncLiveUrlInBar(session.id);
   }, [activeLiveViewerSessionRef]);
 
   const handleLivePageBack = useCallback(() => {
@@ -1283,7 +1382,7 @@ export default function App() {
             <ActiveSalonSessionBanner
               salonId={activeSalonSession.id}
               fallbackTitle={activeSalonSession.title}
-              isHost={activeSalonIsHost}
+              isHost={activeSalonSession.isHost}
               token={token}
               user={user}
               onReturn={() =>
@@ -1293,6 +1392,7 @@ export default function App() {
                   activeSalonIsHost
                 )
               }
+              onLeaveSalon={leaveActiveSalonSession}
               onSalonEnded={
                 activeSalonIsHost ? handleOwnSalonEnded : () => handleSalonForcedEnd('ended')
               }
@@ -1311,6 +1411,8 @@ export default function App() {
                   openLive(user.liveId);
                 }
               }}
+              onLeaveLive={!activeLiveIsHost ? leaveActiveLiveViewerSession : undefined}
+              onStopLive={activeLiveIsHost ? stopActiveLiveHostSession : undefined}
             />
           ) : null}
         </div>
@@ -1458,7 +1560,7 @@ export default function App() {
                         ? {
                             id: activeSalonSession.id,
                             title: activeSalonSession.title,
-                            isHost: activeSalonIsHost,
+                            isHost: activeSalonSession.isHost,
                           }
                         : null
                     }
@@ -1616,7 +1718,7 @@ export default function App() {
           onJoin={() => {
             const s = salonPipPreview;
             setSalonPipPreview(null);
-            openSalonPage(s.id, s.title);
+            openSalonPage(s.id, s.title, s.hostId === user?.id);
           }}
           onClose={() => setSalonPipPreview(null)}
         />

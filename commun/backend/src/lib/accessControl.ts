@@ -31,11 +31,12 @@ let policy: AccessPolicy = {
 
 const inviteCodes = new Map<string, AccessInviteCode>();
 
-/** Activé via MSDEV_PUBLIC_TUNNEL=1 ou ACCESS_CONTROL_ENABLED=1 */
+/** Activé via MSDEV_PUBLIC_TUNNEL=1, ACCESS_CONTROL_ENABLED=1 ou APP_ENV=production */
 export function isAccessControlEnabled(): boolean {
   return (
     process.env.ACCESS_CONTROL_ENABLED === '1' ||
-    process.env.MSDEV_PUBLIC_TUNNEL === '1'
+    process.env.MSDEV_PUBLIC_TUNNEL === '1' ||
+    process.env.APP_ENV === 'production'
   );
 }
 
@@ -44,6 +45,45 @@ export function getTunnelStrictDefaultPolicy(): AccessPolicy {
     registrationMode: 'admin_approval',
     updatedAt: Date.now(),
   };
+}
+
+/** Politique par défaut en production : inscriptions fermées, connexion des comptes existants uniquement. */
+export function getProductionDefaultPolicy(): AccessPolicy {
+  return {
+    registrationMode: 'closed',
+    updatedAt: Date.now(),
+  };
+}
+
+const VALID_REGISTRATION_MODES: AccessRegistrationMode[] = [
+  'open',
+  'invite_only',
+  'admin_approval',
+  'closed',
+];
+
+function resolveProductionAccessPolicy(savedPolicy?: AccessPolicy): AccessPolicy {
+  if (process.env.ALLOW_REGISTRATION === '1') {
+    if (savedPolicy?.registrationMode) {
+      return { ...savedPolicy, updatedAt: savedPolicy.updatedAt ?? Date.now() };
+    }
+    return { registrationMode: 'open', updatedAt: Date.now() };
+  }
+
+  const envMode = process.env.ACCESS_REGISTRATION_MODE?.trim() as AccessRegistrationMode | undefined;
+  if (envMode && VALID_REGISTRATION_MODES.includes(envMode)) {
+    return { registrationMode: envMode, updatedAt: Date.now() };
+  }
+
+  if (savedPolicy?.registrationMode) {
+    const mode = savedPolicy.registrationMode;
+    if (mode === 'invite_only' || mode === 'closed') {
+      return { ...savedPolicy, updatedAt: savedPolicy.updatedAt ?? Date.now() };
+    }
+    return getProductionDefaultPolicy();
+  }
+
+  return getProductionDefaultPolicy();
 }
 
 export function getAccessPolicy(): AccessPolicy {
@@ -64,7 +104,9 @@ export function loadAccessControlFromPersist(
   savedPolicy?: AccessPolicy,
   savedCodes?: AccessInviteCode[]
 ): void {
-  if (isAccessControlEnabled() && !savedPolicy) {
+  if (isProductionAccessEnv()) {
+    policy = resolveProductionAccessPolicy(savedPolicy);
+  } else if (isAccessControlEnabled() && !savedPolicy) {
     policy = getTunnelStrictDefaultPolicy();
   } else if (savedPolicy?.registrationMode) {
     policy = { ...savedPolicy, updatedAt: savedPolicy.updatedAt ?? Date.now() };

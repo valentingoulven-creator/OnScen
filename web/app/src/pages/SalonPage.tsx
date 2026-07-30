@@ -120,11 +120,17 @@ export function SalonPage({
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const warningTimerRef = useRef<number | null>(null);
+  const onLeaveSalonRef = useRef(onLeaveSalon);
+  onLeaveSalonRef.current = onLeaveSalon;
 
   const loadSalon = useCallback(() => {
-    if (!token) return;
+    if (!token) {
+      setSalon(null);
+      setLoadError(t('salon.inaccessible', { defaultValue: 'Salon inaccessible' }));
+      return;
+    }
     setLoadError(null);
-    api
+    void api
       .getSalon(token, salonId)
       .then((r) => {
         setSalon(r.salon);
@@ -134,10 +140,12 @@ export function SalonPage({
         const msg = e instanceof Error ? e.message : t('salon.inaccessible');
         setLoadError(msg);
         setToastMsg(msg);
+        const status = e instanceof ApiRequestError ? e.status : undefined;
+        if (status === 404 || status === 403) {
+          onLeaveSalonRef.current?.();
+        }
       });
   }, [token, salonId, t]);
-
-
 
   useEffect(() => {
     if (!toastMsg) return;
@@ -146,9 +154,42 @@ export function SalonPage({
   }, [toastMsg]);
 
   useEffect(() => {
-    loadSalon();
-    if (token) api.getDmContacts(token).then((r) => setContacts(r.contacts));
-  }, [loadSalon, token]);
+    setSalon(null);
+    setSessionEnded(false);
+    setLoadError(null);
+
+    if (!token) {
+      setLoadError(t('salon.inaccessible', { defaultValue: 'Salon inaccessible' }));
+      return;
+    }
+
+    let cancelled = false;
+    void api
+      .getSalon(token, salonId)
+      .then((r) => {
+        if (cancelled) return;
+        setSalon(r.salon);
+        setLoadError(null);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        const msg = e instanceof Error ? e.message : t('salon.inaccessible');
+        setLoadError(msg);
+        setToastMsg(msg);
+        const status = e instanceof ApiRequestError ? e.status : undefined;
+        if (status === 404 || status === 403) {
+          onLeaveSalonRef.current?.();
+        }
+      });
+
+    void api.getDmContacts(token).then((r) => {
+      if (!cancelled) setContacts(r.contacts);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, salonId, t]);
 
   useEffect(() => {
     if (!salon?.allowedUserIds) return;
@@ -180,7 +221,9 @@ export function SalonPage({
       if (payload.reason === 'duration_limit') {
         setSessionEnded(true);
         setDurationWarning(false);
+        return;
       }
+      onLeaveSalonRef.current?.();
     };
     const onWarning = (payload: { type: string; id: string }) => {
       if (payload.type === 'salon' && payload.id === salonId) {
@@ -423,13 +466,22 @@ export function SalonPage({
           {loadError ? (
             <>
               <p className="text-red-300 text-sm max-w-sm">{loadError}</p>
-              <button
-                type="button"
-                onClick={loadSalon}
-                className="px-4 py-2 rounded-full bg-purple-600 text-white text-sm font-semibold hover:bg-purple-500"
-              >
-                {t('common.retry', { defaultValue: 'Réessayer' })}
-              </button>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={loadSalon}
+                  className="px-4 py-2 rounded-full bg-purple-600 text-white text-sm font-semibold hover:bg-purple-500"
+                >
+                  {t('common.retry', { defaultValue: 'Réessayer' })}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => (onLeaveSalon ? onLeaveSalon() : onBack())}
+                  className="px-4 py-2 rounded-full border border-[#3a3a52] text-gray-200 text-sm font-semibold hover:bg-[#1a1a28]"
+                >
+                  {t('common.back', { defaultValue: 'Retour' })}
+                </button>
+              </div>
             </>
           ) : (
             <p className="text-gray-400">{t('common.loading', { defaultValue: 'Chargement…' })}</p>

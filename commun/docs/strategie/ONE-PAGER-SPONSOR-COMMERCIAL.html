@@ -1082,6 +1082,30 @@ a:hover {
   font-size: 9pt;
 }
 
+.doc-study .glossary-term.acronym {
+  font-size: 7.5pt;
+  letter-spacing: 0.04em;
+}
+
+/* ─── Acronymes (corps + glossaire) ─── */
+
+.doc-study .acronym {
+  font-size: 0.76em;
+  font-weight: inherit;
+  letter-spacing: 0.03em;
+  vertical-align: baseline;
+}
+
+.doc-study strong .acronym,
+.doc-study .acronym strong {
+  font-weight: 700;
+}
+
+.doc-study .funnel-bar .acronym,
+.doc-study .source-list .acronym {
+  font-size: 0.82em;
+}
+
 .doc-study .glossary-def {
   display: block;
   font-size: 8pt;
@@ -1136,6 +1160,56 @@ a:hover {
 .doc-study .source-list strong {
   color: var(--soundy-text);
   font-weight: 700;
+}
+
+.doc-study .source-list a {
+  color: var(--soundy-purple-dark);
+  font-weight: 600;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.doc-study .source-list a:hover {
+  text-decoration: underline;
+}
+
+/* ─── Section références (fin de document) ─── */
+
+.doc-study .references-section {
+  margin-top: 4px;
+}
+
+.doc-study .references-intro {
+  margin: 0 0 18px;
+  font-size: 9pt;
+  line-height: 1.55;
+  color: var(--soundy-muted);
+}
+
+.doc-study .references-section h3 {
+  margin: 20px 0 10px;
+  padding: 0;
+  border: none;
+  font-size: 10pt;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--soundy-purple-dark);
+  page-break-after: avoid;
+}
+
+.doc-study .references-section h3:first-of-type {
+  margin-top: 0;
+}
+
+.doc-study .references-section .source-block {
+  margin-bottom: 14px;
+}
+
+.doc-study .references-section code {
+  font-size: 7.5pt;
+  color: var(--soundy-muted);
+  word-break: break-all;
 }
 
 /* ─── One-pager commercial ─── */
@@ -1408,31 +1482,31 @@ a:hover {
 <tbody><tr>
 <td>Audience</td>
 <td>Généraliste</td>
-<td><strong>Musique live et sorties</strong></td>
+<td><strong>Musique live, sorties et événements</strong></td>
 </tr>
 <tr>
 <td>Contexte</td>
 <td>Scroll passif</td>
-<td><strong>Carte, événements, salons d&#39;écoute</strong></td>
+<td><strong>Carte géolocalisée, salons, lives, agenda 3 jours</strong></td>
 </tr>
 <tr>
 <td>CPM France</td>
 <td>6–18 €</td>
-<td><strong>Dès 3 €</strong> (lancement)</td>
+<td><strong>Dès 3 €</strong> (lancement · palier early-stage)</td>
 </tr>
 <tr>
 <td>Formats</td>
-<td>Publicités interstitielles</td>
-<td><strong>Natifs</strong> (badge « Sponsorisé »)</td>
+<td>Interstitiels intrusifs</td>
+<td><strong>Natifs</strong> (badge « Sponsorisé » · DSA)</td>
 </tr>
 <tr>
 <td>Géolocalisation</td>
 <td>Approximative</td>
-<td><strong>Ville et région</strong></td>
+<td><strong>Ville, région, viewport carte</strong></td>
 </tr>
 </tbody></table>
 <hr>
-<h2>Emplacements disponibles</h2>
+<h2>Emplacements disponibles (7 · en production)</h2>
 <table>
 <thead>
 <tr>
@@ -1442,35 +1516,45 @@ a:hover {
 </tr>
 </thead>
 <tbody><tr>
-<td><strong>Carte · Sponso</strong></td>
-<td>Carrousel événements sponsorisés</td>
-<td>Soirées, festivals, dates</td>
+<td><strong>Sidebar carte · Sponso</strong></td>
+<td>Pin ✨ sur la carte + carrousel événements sponsorisés</td>
+<td><strong>Soirées bar, concerts, dates</strong></td>
 </tr>
 <tr>
 <td><strong>Bandeau carte</strong></td>
-<td>Carrousel en tête de carte</td>
-<td>Notoriété locale</td>
+<td>Carrousel en tête de la carte</td>
+<td>Notoriété locale, ouverture de saison</td>
 </tr>
 <tr>
 <td><strong>Fil d&#39;actualité</strong></td>
 <td>Carte native entre les posts</td>
-<td>Annonces, sorties d&#39;albums</td>
+<td>Annonces, sorties, line-up</td>
 </tr>
 <tr>
-<td><strong>Stories</strong></td>
-<td>Bandeau ou plein écran</td>
-<td>Promotion visuelle</td>
+<td><strong>Bandeau stories</strong></td>
+<td>Au-dessus de la barre stories</td>
+<td>Promo visuelle légère</td>
 </tr>
 <tr>
-<td><strong>Reels</strong></td>
+<td><strong>Story sponsorisée</strong></td>
+<td>Plein écran stories</td>
+<td>Affiche, visuel événement</td>
+</tr>
+<tr>
+<td><strong>Reel sponsorisé</strong></td>
 <td>Plein écran 9:16</td>
-<td>Clips, aftermovies, line-up</td>
+<td>Clips, aftermovies, teaser DJ set</td>
+</tr>
+<tr>
+<td><strong>Théâtre salon</strong></td>
+<td>Placement immersif en salon d&#39;écoute</td>
+<td>Marques partenaires, activation premium</td>
 </tr>
 </tbody></table>
-<p><em>7 emplacements opérationnels · planification et dates de campagne configurables.</em></p>
+<p><em>Planification par dates · durée configurable · estimation d&#39;audience avant lancement (formule transparente : utilisateurs exposés × jours × CPM ÷ 1 000).</em></p>
 <hr>
-<h2>Tarifs indicatifs (France · 2026)</h2>
-<p><strong>Formule transparente</strong> : utilisateurs exposés × jours × CPM ÷ 1 000</p>
+<h2>Tarifs indicatifs (France · lancement · 7 jours)</h2>
+<p>Grille calculée sur le palier early-stage (base ~20 000 utilisateurs actifs / 30 j · pénétration par emplacement). <strong>Devis personnalisé</strong> selon votre zone (ville, région, France).</p>
 <table>
 <thead>
 <tr>
@@ -1480,7 +1564,7 @@ a:hover {
 </tr>
 </thead>
 <tbody><tr>
-<td><strong>Carte · Sponso</strong></td>
+<td><strong>Sidebar carte · Sponso</strong></td>
 <td>7 jours</td>
 <td><strong>~150 € HT</strong></td>
 </tr>
@@ -1490,9 +1574,19 @@ a:hover {
 <td><strong>~150 € HT</strong></td>
 </tr>
 <tr>
+<td><strong>Bandeau stories</strong></td>
+<td>7 jours</td>
+<td><strong>~150 € HT</strong></td>
+</tr>
+<tr>
 <td><strong>Bandeau carte</strong></td>
 <td>7 jours</td>
 <td><strong>~250 € HT</strong></td>
+</tr>
+<tr>
+<td><strong>Story sponsorisée</strong></td>
+<td>7 jours</td>
+<td><strong>~280 € HT</strong></td>
 </tr>
 <tr>
 <td><strong>Fil d&#39;actualité</strong></td>
@@ -1500,47 +1594,65 @@ a:hover {
 <td><strong>~525 € HT</strong></td>
 </tr>
 <tr>
+<td><strong>Théâtre salon</strong></td>
+<td>7 jours</td>
+<td><strong>~85 € HT</strong></td>
+</tr>
+<tr>
 <td><strong>Pack Starter</strong></td>
 <td>7 jours</td>
 <td>Sponso + 1 Reel · <strong>199 € HT</strong></td>
 </tr>
 </tbody></table>
-<p><em>Les tarifs évoluent avec la croissance de la base utilisateurs. Devis sur mesure pour les packages Pro Ville, Premium Musique et Takeover.</em></p>
+<p><em>Packages Pro Ville, Premium Musique et Takeover (occupation multi-emplacements sur une zone) sur devis.</em></p>
+<hr>
+<h2>Cas d&#39;usage · bar / salle / Marie</h2>
+<ol>
+<li><strong>Créez votre événement</strong> sur Soundy (date, lieu, affiche) — ou nous le paramétrons pour vous.</li>
+<li><strong>Campagne Sidebar carte · Sponso</strong> : pin visible sur la carte + section ✨ en tête de la sidebar « Autour » / « Pays ».</li>
+<li><strong>Les fans à proximité</strong> voient votre soirée dans la fenêtre <strong>3 prochains jours</strong> (filtre carte Événement).</li>
+<li><strong>Option Reel</strong> : teaser 15–60 s pour amplifier la promo avant le jour J.</li>
+</ol>
+<blockquote>
+<p><em>Exemple : bar 150 places · soirée electro vendredi · Montpellier → pin carte + carrousel Sponso · estimation audience fournie avant paiement.</em></p>
+</blockquote>
 <hr>
 <h2>Ce que comprend une campagne</h2>
 <ol>
-<li><strong>Visibilité</strong> devant des fans actifs musique — estimation d&#39;audience fournie avant lancement.</li>
-<li><strong>Transparence</strong> : badge « Sponsorisé » visible par les utilisateurs.</li>
-<li><strong>Planification</strong> : dates de début et fin, durée d&#39;affichage configurable.</li>
-<li><strong>Ciblage géographique</strong> : France entière ou zone régionale.</li>
-<li><strong>Accompagnement</strong> : validation des visuels (logo, bannière, vidéo Reel).</li>
+<li><strong>Visibilité</strong> devant une audience musique &amp; sorties — estimation chiffrée avant lancement.</li>
+<li><strong>Transparence</strong> : badge « Sponsorisé » (conformité DSA / RGPD).</li>
+<li><strong>Planification</strong> : dates début / fin · durée d&#39;affichage · zone géographique.</li>
+<li><strong>Ciblage</strong> : France entière, région ou focus ville (viewport carte).</li>
+<li><strong>Accompagnement</strong> : validation logo, bannière, visuel story / Reel · lien billetterie ou site.</li>
 </ol>
 <hr>
 <h2>Pour qui ?</h2>
 <ul>
-<li>Bars, clubs et salles <strong>50 à 500 places</strong></li>
-<li><strong>Festivals</strong> et billetteries (early bird, line-up)</li>
-<li><strong>Labels indépendants</strong> (sorties, clips)</li>
+<li><strong>Bars, clubs et salles</strong> 50 à 500 places</li>
+<li><strong>Festivals</strong> et billetteries (early bird, line-up, aftermovie)</li>
+<li><strong>Labels indépendants</strong> (sorties, clips, showcases)</li>
 <li>Marques <strong>boisson, audio, mode</strong> (16–35 ans)</li>
 <li><strong>Disquaires</strong> et retail musique</li>
 </ul>
 <hr>
-<h2>La plateforme</h2>
+<h2>La plateforme (juillet 2026 · prod)</h2>
 <ul>
 <li>Application <strong>en production</strong> sur <a href="https://getsoundy.com">getsoundy.com</a></li>
-<li>5 espaces : Actualités · Carte · Direct · Messages · Reels</li>
-<li>Salons d&#39;écoute synchronisés · Lives · Pourboires créateurs</li>
-<li>Hébergement <strong>France</strong> (Scaleway) · Conformité <strong>RGPD</strong></li>
+<li><strong>5 espaces</strong> : Actualités · Carte · Direct · Messages · Reels</li>
+<li><strong>Carte</strong> : événements (browse 3 jours), salons, lives, filtres Lives / Salon / Événement, vue <strong>globe 3D</strong></li>
+<li>Salons d&#39;écoute YouTube synchronisés · Lives vidéo (LiveKit / Cloudflare) · Pourboires <strong>Stripe Connect</strong></li>
+<li><strong>PWA</strong> + applications natives <strong>iOS / Android</strong> (Capacitor)</li>
+<li>Hébergement <strong>France</strong> (Scaleway) · Conformité <strong>RGPD</strong> · modération &amp; signalement intégrés</li>
 </ul>
 <hr>
-<h2>Offre de lancement</h2>
+<h2>Offre fondateur · lieux pilotes</h2>
 <blockquote>
-<p><strong>Carte · Sponso — 7 jours à 99 € HT</strong> au lieu de ~150 €<br>Estimation d&#39;audience personnalisée · création validée sous 48 h</p>
+<p><strong>Sidebar carte · Sponso — 7 jours à 99 € HT</strong> au lieu de ~150 €<br>Estimation d&#39;audience personnalisée · visuels validés sous 48 h · lancement sous 72 h</p>
 </blockquote>
-<p><em>10 places · Occitanie, Paris et Lyon en priorité.</em></p>
+<p><em>10 places · <strong>Occitanie</strong>, Paris et Lyon en priorité · réservé aux établissements et organisateurs d&#39;événements.</em></p>
 <hr>
 <h2>Contact</h2>
-<p><strong>Demandez votre devis</strong> : précisez l&#39;emplacement souhaité, les dates et la zone géographique.</p>
+<p><strong>Demandez votre devis</strong> : emplacement souhaité · dates · ville / région · lien billetterie si disponible.</p>
 <table>
 <thead>
 <tr>
@@ -1558,10 +1670,10 @@ a:hover {
 </tr>
 <tr>
 <td><strong>Étapes</strong></td>
-<td>Échange 15 min → estimation audience → devis → lancement sous 72 h</td>
+<td>Échange 15 min → estimation audience → devis → campagne live</td>
 </tr>
 </tbody></table>
 <hr>
-<p><em>Soundy · Document commercial · Juillet 2026 · Tarifs indicatifs, devis définitif sur demande</em></p>
+<p><em>Soundy · Document commercial · Juillet 2026 · Tarifs indicatifs palier lancement — devis définitif sur demande</em></p>
 </div></body>
 </html>

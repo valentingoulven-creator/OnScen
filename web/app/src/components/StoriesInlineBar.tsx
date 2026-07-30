@@ -275,7 +275,6 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
   const myLatestStory = latestStory(myStories);
 
   const showEmptyGuest = !loading && entries.length === 0 && !user;
-  const showEmptyFollowing = !loading && entries.length === 0 && Boolean(user && token);
 
   const sortedEntries = useMemo(() => {
     const unseen = entries.filter((e) => {
@@ -392,19 +391,6 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
                     );
                   })}
                 </StoriesRingsCarousel>
-                {showEmptyFollowing ? (
-                  <div className="px-3 py-3 text-center border-t border-[var(--ms-border)]/60 space-y-2">
-                    <p className="text-[10px] text-gray-300 leading-snug">{t('stories.rail.emptyFollowing')}</p>
-                    <p className="text-[9px] text-[var(--ms-text-muted)]">{t('stories.rail.emptyFollowingHint')}</p>
-                    <button
-                      type="button"
-                      onClick={openCreate}
-                      className="min-h-11 px-4 py-2 rounded-full text-xs font-semibold bg-purple-600/90 hover:bg-purple-500 text-white transition"
-                    >
-                      {t('stories.rail.createFirst')}
-                    </button>
-                  </div>
-                ) : null}
               </>
             )}
         </div>

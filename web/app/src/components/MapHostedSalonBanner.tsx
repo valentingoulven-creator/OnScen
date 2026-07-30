@@ -5,11 +5,6 @@ import { formatSalonAudienceLabel } from '../lib/salonAudience';
 import { UsernameDisplay } from './UsernameDisplay';
 import type { Salon } from '../types';
 
-const PLATFORM_BADGE = {
-  label: 'YouTube',
-  className: 'map-hosted-salon-banner__platform--youtube',
-} as const;
-
 function ViewerEyeIcon() {
   return (
     <svg
@@ -37,11 +32,13 @@ export interface MapHostedSalonBannerProps {
   hostUsernameWaveTo?: string;
   hostAvatarUrl?: string;
   albumArtUrl?: string;
-  platform?: Salon['platform'];
   listenersCount?: number;
   /** Libellé du bouton d'action (défaut : Rejoindre). */
   ctaLabel?: string;
+  /** Libellé du bouton fermer / quitter. */
+  closeLabel?: string;
   onReturn: () => void;
+  onClose?: () => void;
   /** Salon terminé côté serveur (socket ou API). */
   onSalonEnded?: () => void;
 }
@@ -56,10 +53,11 @@ export function MapHostedSalonBanner({
   hostUsernameWaveTo,
   hostAvatarUrl,
   albumArtUrl,
-  platform,
   listenersCount = 0,
   ctaLabel,
+  closeLabel,
   onReturn,
+  onClose,
   onSalonEnded,
 }: MapHostedSalonBannerProps) {
   const { t } = useTranslation();
@@ -100,57 +98,66 @@ export function MapHostedSalonBanner({
     ? t('salon.returnToWithTitle', { title: salonTitle })
     : t('salon.returnTo');
   const audienceLabel = formatSalonAudienceLabel(liveListenersCount, t).replace(/^👥\s*/, '');
-  const platformBadge = platform === 'youtube' ? PLATFORM_BADGE : null;
   const thumbnailUrl = albumArtUrl?.trim() || hostAvatarUrl?.trim() || null;
   const actionLabel = ctaLabel ?? t('map.hostedSalonBannerJoin');
+  const dismissLabel =
+    closeLabel ??
+    t('map.hostedSalonBannerClose', { defaultValue: 'Fermer le salon' });
 
   return (
-    <button
-      type="button"
-      onClick={onReturn}
-      aria-label={ariaLabel}
-      className="map-hosted-salon-banner shrink-0 z-20 w-full pointer-events-auto"
-    >
-      <span className="map-hosted-salon-banner__accent" aria-hidden />
+    <div className="map-hosted-salon-banner shrink-0 z-20 w-full pointer-events-auto">
+      <button
+        type="button"
+        onClick={onReturn}
+        aria-label={ariaLabel}
+        className="map-hosted-salon-banner__main"
+      >
+        <span className="map-hosted-salon-banner__accent" aria-hidden />
 
-      {thumbnailUrl ? (
-        <span className="map-hosted-salon-banner__thumb" aria-hidden>
-          <img src={thumbnailUrl} alt="" loading="lazy" />
-        </span>
-      ) : null}
-
-      <span className="map-hosted-salon-banner__live" aria-hidden>
-        <span className="map-hosted-salon-banner__live-dot live-indicator-dot" />
-        {t('map.hostedSalonBannerLive')}
-      </span>
-
-      <span className="map-hosted-salon-banner__body">
-        <span className="map-hosted-salon-banner__title">{title}</span>
-        <span className="map-hosted-salon-banner__host">
-          <UsernameDisplay
-            username={hostName}
-            usernameColor={hostUsernameColor}
-            usernameWaveFrom={hostUsernameWaveFrom}
-            usernameWaveTo={hostUsernameWaveTo}
-            className="map-hosted-salon-banner__host-name"
-          />
-        </span>
-      </span>
-
-      <span className="map-hosted-salon-banner__meta">
-        {platformBadge ? (
-          <span className={`map-hosted-salon-banner__platform ${platformBadge.className}`}>
-            {platformBadge.label}
+        {thumbnailUrl ? (
+          <span className="map-hosted-salon-banner__thumb" aria-hidden>
+            <img src={thumbnailUrl} alt="" loading="lazy" />
           </span>
         ) : null}
 
-        <span className="map-hosted-salon-banner__viewers">
-          <ViewerEyeIcon />
-          <span>{audienceLabel}</span>
+        <span className="map-hosted-salon-banner__live" aria-hidden>
+          <span className="map-hosted-salon-banner__live-dot live-indicator-dot" />
+          {t('map.hostedSalonBannerLive')}
         </span>
 
-        <span className="map-hosted-salon-banner__cta">{actionLabel}</span>
-      </span>
-    </button>
+        <span className="map-hosted-salon-banner__body">
+          <span className="map-hosted-salon-banner__title">{title}</span>
+          <span className="map-hosted-salon-banner__host">
+            <UsernameDisplay
+              username={hostName}
+              usernameColor={hostUsernameColor}
+              usernameWaveFrom={hostUsernameWaveFrom}
+              usernameWaveTo={hostUsernameWaveTo}
+              className="map-hosted-salon-banner__host-name"
+            />
+          </span>
+        </span>
+
+        <span className="map-hosted-salon-banner__meta">
+          <span className="map-hosted-salon-banner__viewers">
+            <ViewerEyeIcon />
+            <span>{audienceLabel}</span>
+          </span>
+
+          <span className="map-hosted-salon-banner__cta">{actionLabel}</span>
+        </span>
+      </button>
+
+      {onClose ? (
+        <button
+          type="button"
+          className="map-hosted-salon-banner__close"
+          aria-label={dismissLabel}
+          onClick={onClose}
+        >
+          {dismissLabel}
+        </button>
+      ) : null}
+    </div>
   );
 }

@@ -278,8 +278,8 @@ describe('sponsors', () => {
       cta: 'Go',
       mapVisibilityScope: 'region',
       mapTargetRegionName: 'Le Crès',
-      mapTargetLat: 43.6489,
-      mapTargetLng: 3.8567,
+      mapTargetLat: 43.6405,
+      mapTargetLng: 3.9395,
     });
 
     expect(listActiveMapAds().map((ad) => ad.title)).toEqual(['Partout']);
@@ -345,8 +345,8 @@ describe('sponsors', () => {
       cta: 'Go',
       mapVisibilityScope: 'region',
       mapTargetRegionName: 'Le Crès',
-      mapTargetLat: 43.6489,
-      mapTargetLng: 3.8567,
+      mapTargetLat: 43.6405,
+      mapTargetLng: 3.9395,
     });
     const visible = filterMapSponsorsByViewport(db.sponsors, cresViewport).map((s) => s.id);
     expect(visible).toEqual(expect.arrayContaining([france.id, regional.id]));
@@ -364,8 +364,8 @@ describe('sponsors', () => {
       cta: 'Go',
       mapVisibilityScope: 'region',
       mapTargetRegionName: 'Le Crès',
-      mapTargetLat: 43.6489,
-      mapTargetLng: 3.8567,
+      mapTargetLat: 43.6405,
+      mapTargetLng: 3.9395,
     });
     expect(isSponsorVisibleOnMap(regional, cresViewport)).toBe(true);
     expect(isSponsorVisibleOnMap(regional, parisViewport)).toBe(false);
@@ -417,12 +417,12 @@ describe('sponsors', () => {
     const updated = updateSponsor(created.id, {
       mapVisibilityScope: 'region',
       mapTargetRegionName: 'Le Crès',
-      mapTargetLat: 43.6489,
-      mapTargetLng: 3.8567,
+      mapTargetLat: 43.6405,
+      mapTargetLng: 3.9395,
     });
     expect(updated.mapVisibilityScope).toBe('region');
     expect(updated.mapTargetRegionName).toBe('Le Crès');
-    expect(updated.mapTargetLat).toBe(43.6489);
+    expect(updated.mapTargetLat).toBe(43.6405);
     expect(
       listActiveMapAds(undefined, cresViewport).some(
         (ad) => ad.id === created.id

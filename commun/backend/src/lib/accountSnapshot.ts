@@ -48,6 +48,7 @@ const RESTORABLE_PROFILE_FIELDS = [
   'relationshipStatusCustom',
   'birthDate',
   'hideBirthDateOnProfile',
+  'hideBioOnProfile',
   'age',
   'showAge',
   'shareDistance',

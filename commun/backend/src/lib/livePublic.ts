@@ -63,11 +63,15 @@ export function serializePublicLive(l: Live, distanceKm?: number, viewerId?: str
     vipModeratorIds: l.vipModeratorIds ?? [],
     chatConfig: l.chatConfig ?? {},
     isDev: isDevModerator ? true : undefined,
-    hostMonetizationEligible: creatorMeetsMonetizationAgeFromProfile(host),
+    hostMonetizationEligible:
+      l.presentationDemoStream === true
+        ? true
+        : creatorMeetsMonetizationAgeFromProfile(host),
     tipsEnabled: l.tipsEnabled !== false,
     contentCategory: l.contentCategory,
     videoDelaySeconds: l.videoDelaySeconds ?? 0,
     videoAspectRatio: l.videoAspectRatio ?? '16:9',
+    presentationDemoStream: l.presentationDemoStream === true ? true : undefined,
     countryCode: country?.code,
     countryName: country?.name,
     ...(donationOptions?.length ? { donationOptions } : {}),

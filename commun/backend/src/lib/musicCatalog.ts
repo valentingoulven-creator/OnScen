@@ -6,7 +6,7 @@ export const MUSIC_CATALOG: Array<{
 }> = [
   { title: 'Midnight City', artist: 'M83', youtube: { trackId: 'dX3kIQ6KlLi' } },
   { title: 'Never Gonna Give You Up', artist: 'Rick Astley', youtube: { trackId: 'dQw4w9WgXcQ' } },
-  { title: 'Blinding Lights', artist: 'The Weeknd', youtube: { trackId: '4NRXx6W78buQNiQ3q5wEkP' } },
+  { title: 'Blinding Lights', artist: 'The Weeknd', youtube: { trackId: '4NRXx6W78bu' } },
   { title: 'Levitating', artist: 'Dua Lipa', youtube: { trackId: 'TUVcZfQe-Kw' } },
   { title: 'Shape of You', artist: 'Ed Sheeran', youtube: { trackId: 'JGwWNGJdvx8' } },
   { title: 'Bohemian Rhapsody', artist: 'Queen', youtube: { trackId: 'fJ9rUzIMcZQ' } },

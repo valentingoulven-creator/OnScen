@@ -477,6 +477,57 @@ export function SalonPlaybackPanel({
     autoSkipLockRef.current = false;
   }, [playbackState.trackId, playbackState.updatedAt]);
 
+  const embedFallbackStateRef = useRef({
+    salonId: salon.id,
+    attempts: 0,
+    tried: new Set<string>(),
+  });
+
+  useEffect(() => {
+    embedFallbackStateRef.current = { salonId: salon.id, attempts: 0, tried: new Set() };
+  }, [salon.id]);
+
+  /** Une seule bascule auto vers variante Audio — évite boucle chargement / change-track. */
+  const handleYoutubeEmbedError = useCallback(async () => {
+    if (!token || !canControlPlayback || !youtubeTrackId) return;
+    const state = embedFallbackStateRef.current;
+    if (state.salonId !== salon.id) {
+      state.salonId = salon.id;
+      state.attempts = 0;
+      state.tried = new Set();
+    }
+    if (state.attempts >= 1 || state.tried.has(youtubeTrackId)) return;
+    state.tried.add(youtubeTrackId);
+    state.attempts += 1;
+
+    const q = `${playbackState.title} ${playbackState.artist} audio`.trim();
+    if (q.length < 2) return;
+
+    try {
+      const { results } = await api.searchYoutube(token, q);
+      const alt = results.find((r) => !state.tried.has(r.videoId));
+      if (!alt) return;
+      state.tried.add(alt.videoId);
+      const { playbackState: next } = await api.salonChangeTrack(token, salon.id, {
+        trackId: alt.videoId,
+        title: alt.title,
+        artist: alt.artist,
+        trackLink: alt.externalUrl,
+      });
+      applyPlaybackState(next);
+    } catch {
+      /* affichage « Ouvrir sur YouTube » conservé */
+    }
+  }, [
+    token,
+    canControlPlayback,
+    youtubeTrackId,
+    playbackState.title,
+    playbackState.artist,
+    salon.id,
+    applyPlaybackState,
+  ]);
+
   const matchLabel =
     resolved?.matchType === 'exact'
       ? 'Même morceau'
@@ -804,6 +855,7 @@ export function SalonPlaybackPanel({
           onHostLocalPause={canControlPlayback ? handleHostPause : undefined}
           onHostLocalPlay={canControlPlayback ? handleHostPlay : undefined}
           onVideoEnd={handleVideoEnd}
+          onEmbedError={handleYoutubeEmbedError}
           participantSyncTrigger={participantSyncTrigger}
           videoFloat={theaterVideoFloatActive ? videoPip : undefined}
           videoFloatTitle={playbackState.title}
@@ -910,6 +962,7 @@ export function SalonPlaybackPanel({
           onHostLocalPause={canControlPlayback ? handleHostPause : undefined}
           onHostLocalPlay={canControlPlayback ? handleHostPlay : undefined}
           onVideoEnd={handleVideoEnd}
+          onEmbedError={handleYoutubeEmbedError}
           participantSyncTrigger={participantSyncTrigger}
           controlsTrailing={renderParticipantSyncButton(
             'px-2.5 py-1 rounded-full border border-white/10 bg-[#131318] text-xs font-medium text-[#8b8baf] hover:bg-white/5 hover:text-white transition shrink-0'
@@ -1078,6 +1131,7 @@ export function SalonPlaybackPanel({
                 onHostLocalPause={canControlPlayback ? handleHostPause : undefined}
                 onHostLocalPlay={canControlPlayback ? handleHostPlay : undefined}
                 onVideoEnd={handleVideoEnd}
+          onEmbedError={handleYoutubeEmbedError}
                 mapInlineListenCapMs={
                   mapInline && !isHost ? MAP_INLINE_LISTEN_MAX_MS : undefined
                 }

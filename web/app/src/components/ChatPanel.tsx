@@ -333,11 +333,12 @@ function useChatRoom({
   }, [token]);
 
   useEffect(() => {
-    if (boundRoomIdRef.current === roomId) return;
-    boundRoomIdRef.current = roomId;
+    if (boundRoomIdRef.current !== roomId) {
+      boundRoomIdRef.current = roomId;
+      setReactions([]);
+      setOpenMsgMenuId(null);
+    }
     setMessages(initialMessages);
-    setReactions([]);
-    setOpenMsgMenuId(null);
   }, [roomId, initialMessages]);
 
   useEffect(() => {

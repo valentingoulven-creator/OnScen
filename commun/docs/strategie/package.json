@@ -3,9 +3,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "pdf": "node generate-pdfs.mjs"
+    "pdf": "node generate-pdfs.mjs",
+    "pptx": "node build-marketing-presentation.mjs",
+    "deck": "node build-premium-deck.mjs",
+    "produit": "node build-produit-presentation.mjs",
+    "produit:pdf": "node generate-produit-pdf.mjs"
   },
   "dependencies": {
-    "marked": "^15.0.6"
+    "marked": "^15.0.6",
+    "pptxgenjs": "^4.0.1"
   }
 }

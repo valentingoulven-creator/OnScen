@@ -1,4 +1,3 @@
-import type { Salon } from '../../types';
 import type { SoundyGlobePoint } from './SoundyGlobeMarkers';
 import { GlobeFacingHtml } from './GlobeFacingHtml';
 
@@ -7,17 +6,8 @@ interface SoundyGlobeSalonMarkersProps {
   onPointClick: (point: SoundyGlobePoint) => void;
 }
 
-/** Voir SoundyGlobeEventMarkers — overlays DOM plafonnés. */
 const MAX_HTML_SALON_MARKERS = 120;
 
-function salonFromPoint(point: SoundyGlobePoint): Salon | undefined {
-  if (point.type !== 'salon') return undefined;
-  return point.entity as Salon | undefined;
-}
-
-/**
- * Pins salon globe — pastille violette (live = rouge), sans libellé SALON.
- */
 export function SoundyGlobeSalonMarkers({ points, onPointClick }: SoundyGlobeSalonMarkersProps) {
   const salonPoints = points.filter((p) => p.type === 'salon').slice(0, MAX_HTML_SALON_MARKERS);
   if (salonPoints.length === 0) return null;
@@ -25,8 +15,7 @@ export function SoundyGlobeSalonMarkers({ points, onPointClick }: SoundyGlobeSal
   return (
     <>
       {salonPoints.map((p, i) => {
-        const salon = salonFromPoint(p);
-        const isLive = Boolean(salon?.isLive);
+        const isLive = Boolean((p.entity as { isLive?: boolean } | undefined)?.isLive);
         return (
           <GlobeFacingHtml
             key={`salon-${p.lat}-${p.lng}-${i}`}

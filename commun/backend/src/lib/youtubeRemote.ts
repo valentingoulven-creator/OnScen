@@ -24,19 +24,60 @@
  * où le fallback est un choix de confort explicite et documenté.
  */
 
-const PIPED_INSTANCES = [
-  'https://pipedapi.adminforge.de',
-  'https://pipedapi.in.projectsegfau.lt',
-  'https://pipedapi.leptons.xyz',
+/** Instances de repli si le registre public est injoignable. */
+const PIPED_INSTANCES_FALLBACK = [
+  'https://api.piped.private.coffee',
   'https://pipedapi.kavin.rocks',
+  'https://pipedapi.nosebs.ru',
+  'https://pipedapi.orangenet.cc',
 ];
 
+/** Registre officiel — instances triées par uptime (voir TeamPiped/documentation). */
+const PIPED_INSTANCES_REGISTRY = 'https://piped-instances.kavin.rocks/';
+const PIPED_INSTANCES_CACHE_TTL_MS = 60 * 60 * 1000;
+
 const INVIDIOUS_INSTANCES = [
-  'https://inv.nadeko.net',
-  'https://invidious.privacydev.net',
-  'https://yt.artemislena.eu',
+  'https://invidious.protokolla.fi',
   'https://invidious.nerdvpn.de',
 ];
+
+let pipedInstancesCache: { urls: string[]; expiresAt: number } | null = null;
+
+async function resolvePipedInstances(): Promise<string[]> {
+  const now = Date.now();
+  if (pipedInstancesCache && now < pipedInstancesCache.expiresAt) {
+    return pipedInstancesCache.urls;
+  }
+
+  const seen = new Set<string>();
+  const urls: string[] = [];
+  const add = (raw: string) => {
+    const normalized = raw.trim().replace(/\/$/, '');
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    urls.push(normalized);
+  };
+
+  for (const base of PIPED_INSTANCES_FALLBACK) add(base);
+
+  const registry = await fetchJson<
+    Array<{ api_url?: string; uptime_24h?: number }>
+  >(PIPED_INSTANCES_REGISTRY, 6000);
+  if (registry?.length) {
+    const sorted = [...registry]
+      .filter((entry) => typeof entry.api_url === 'string' && entry.api_url.trim())
+      .sort((a, b) => (b.uptime_24h ?? 0) - (a.uptime_24h ?? 0));
+    for (const entry of sorted) add(entry.api_url!);
+  }
+
+  pipedInstancesCache = { urls, expiresAt: now + PIPED_INSTANCES_CACHE_TTL_MS };
+  return urls;
+}
+
+/** Réservé aux tests — invalide le cache d'instances Piped. */
+export function __resetPipedInstancesCacheForTests(): void {
+  pipedInstancesCache = null;
+}
 
 async function fetchJson<T>(url: string, timeoutMs = 8000): Promise<T | null> {
   try {
@@ -60,7 +101,8 @@ function thumb(videoId: string): string {
 }
 
 export async function searchVideosViaPiped(query: string): Promise<RemoteVideoHit[]> {
-  for (const base of PIPED_INSTANCES) {
+  const instances = await resolvePipedInstances();
+  for (const base of instances) {
     const data = await fetchJson<{
       items?: Array<{
         type?: string;
@@ -125,7 +167,8 @@ export async function searchVideosViaInvidious(query: string): Promise<RemoteVid
 }
 
 export async function fetchPlaylistVideosViaPiped(playlistId: string): Promise<RemoteVideoHit[]> {
-  for (const base of PIPED_INSTANCES) {
+  const instances = await resolvePipedInstances();
+  for (const base of instances) {
     const data = await fetchJson<{
       relatedStreams?: Array<{
         title?: string;

@@ -60,6 +60,8 @@ export interface User {
   meloCoins: number;
   isGhostMode: boolean;
   bio?: string;
+  /** Masquer la bio aux visiteurs (défaut : false). */
+  hideBioOnProfile?: boolean;
   interests?: string[];
   favoriteGenres?: string[];
   favoriteArtists?: string[];
@@ -389,6 +391,8 @@ export interface Live {
   videoDelaySeconds?: number;
   /** Format d'image du flux hôte (16:9, 9:16, 4:3) — cadre spectateurs. */
   videoAspectRatio?: '16:9' | '9:16' | '4:3';
+  /** msdev : flux HLS public simulé pour démos présentation (sans OBS réel). */
+  presentationDemoStream?: boolean;
 }
 
 export type LiveBanScope = 'chat' | 'live';

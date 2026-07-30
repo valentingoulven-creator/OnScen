@@ -1,4 +1,979 @@
 ﻿================================================================================
+MODIF 793 — Onboarding profil : type, ville et DOB obligatoires
+Date : 2026-07-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ À l'inscription, type de profil, ville et date de naissance devaient être
+ renseignés avant de passer à l'étape position.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/ProfileSetupWizard.tsx
+ ─────────────────
+ • Validation obligatoire type + ville + DOB valide ; bouton Passer retiré.
+ • Labels marqués * ; Continuer désactivé tant que incomplet.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/ProfileSetupWizard.tsx
+
+================================================================================
+Fin — 2026-07-30
+================================================================================
+
+================================================================================
+MODIF 792 — Profil : visibilité âge et date de naissance indépendantes
+Date : 2026-07-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les toggles date/âge à l'inscription étaient couplés (hideBirthDateOnProfile) :
+ impossible d'afficher l'âge sans la date complète.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/profile.ts
+ ─────────────────
+ • applyAgeSettings : hideBirthDateOnProfile et showAge découplés.
+ • publicAgeField : visibilité publique basée sur showAge.
+
+ web/app/src/components/ProfileSetupWizard.tsx
+ ─────────────────
+ • Toggle date → hideBirthDateOnProfile ; toggle âge → showAge (défaut : date cachée, âge visible).
+
+ web/app/src/pages/ProfilePage.tsx · profile.test.ts
+ ─────────────────
+ • Sauvegarde showAge ; tests mis à jour.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/profile.ts
+ commun/backend/src/lib/profile.test.ts
+ web/app/src/components/ProfileSetupWizard.tsx
+ web/app/src/pages/ProfilePage.tsx
+
+================================================================================
+Fin — 2026-07-30
+================================================================================
+
+================================================================================
+MODIF 791 — Onboarding : bio, âge, DOB + options visibilité
+Date : 2026-07-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Réintégrer bio, date de naissance et âge dans le wizard profil avec toggles
+ Visible / Caché par information.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/ProfileSetupWizard.tsx
+ ─────────────────
+ • Bio + toggle visibilité (hideBioOnProfile).
+ • Date de naissance + âge calculé + toggles date/âge (hideBirthDateOnProfile).
+
+ commun/backend/src/models/schema.ts · routes/auth.ts · lib/profile.ts
+ ─────────────────
+ • Nouveau champ hideBioOnProfile ; bio masquée aux visiteurs si true.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/ProfileSetupWizard.tsx
+ web/app/src/types.ts
+ commun/backend/src/models/schema.ts
+ commun/backend/src/routes/auth.ts
+ commun/backend/src/lib/profile.ts
+ commun/backend/src/lib/accountSnapshot.ts
+
+================================================================================
+Fin — 2026-07-30
+================================================================================
+
+================================================================================
+MODIF 790 — Onboarding profil : layout compact sans scroll
+Date : 2026-07-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'étape profil du wizard dépassait la hauteur d'écran et imposait un ascenseur
+ interne (chips horizontales, bio, options repliables).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/ProfileSetupWizard.tsx
+ ─────────────────
+ • Layout 2 colonnes : photo + select type + ville sur une seule carte.
+ • Suppression bio / date de naissance / badge complétion à cette étape.
+ • Plus de max-height ni overflow-y sur la carte profil.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/ProfileSetupWizard.tsx → étape profil sans ascenseur
+
+================================================================================
+Fin — 2026-07-30
+================================================================================
+
+================================================================================
+MODIF 789 — Onboarding profil : refonte UX étape « Votre profil »
+Date : 2026-07-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'étape profil du wizard à l'inscription manquait de clarté visuelle (grille
+ serrée, champs empilés sans hiérarchie).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/ProfileSetupWizard.tsx
+ ─────────────────
+ • Photo hero circulaire avec anneau dégradé.
+ • Types de profil en chips scrollables horizontales.
+ • Sections « Infos publiques » et « Plus d'options » (date de naissance repliée).
+ • Footer sticky Passer / Continuer, compteur bio.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/ProfileSetupWizard.tsx → refonte UX étape profil
+
+================================================================================
+Fin — 2026-07-30
+================================================================================
+
+================================================================================
+MODIF 788 — Onboarding : retrait étape goûts musicaux
+Date : 2026-07-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'étape « Vos goûts musicaux » (genres + artistes) dans le wizard profil à
+ l'inscription était jugée superflue.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/ProfileSetupWizard.tsx
+ ─────────────────
+ • Suppression de l'étape `taste` ; wizard réduit à Profil → Position.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/ProfileSetupWizard.tsx → 2 étapes au lieu de 3
+
+================================================================================
+Fin — 2026-07-30
+================================================================================
+
+================================================================================
+MODIF 787 — Inscription locale : profil à la création + accès ouvert msdev
+Date : 2026-07-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En local, `ACCESS_CONTROL_ENABLED=1` bloquait l'inscription (validation admin) et
+ empêchait l'onboarding post-login. L'utilisateur voulait désactiver ce mode en dev
+ et configurer le profil directement lors de la création de compte (2 étapes).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/ProfileSetupWizard.tsx
+ ─────────────────
+ • Wizard 3 étapes (Goûts → Profil → Position) extrait de OnboardingPage.
+
+ web/app/src/pages/OnboardingPage.tsx
+ ─────────────────
+ • Wrapper mince autour de ProfileSetupWizard (flux post-login inchangé).
+
+ web/app/src/pages/AuthPage.tsx
+ ─────────────────
+ • Inscription en 2 phases : compte puis ProfileSetupWizard avant setSession.
+ • Indicateur « Étape 1 sur 2 » sur le formulaire d'inscription.
+
+ commun/msdev/.env
+ ─────────────────
+ • `ACCESS_CONTROL_ENABLED=1` commenté (inscriptions ouvertes en local).
+ • `SKIP_EMAIL_VERIFICATION=true` pour connexion immédiate après profil.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/ProfileSetupWizard.tsx → nouveau wizard profil réutilisable
+ web/app/src/pages/OnboardingPage.tsx → délègue au wizard
+ web/app/src/pages/AuthPage.tsx → profil intégré à l'inscription
+ commun/msdev/.env → accès ouvert + skip vérif email en msdev
+
+BUILD (si vérifié)
+-----
+ non vérifié (flux manuel dev)
+
+================================================================================
+Fin — 2026-07-30
+================================================================================
+
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En prod, clic marqueur live BeatCastel ou deep link `/live/prod-seed-salon-beat-castel`
+ ouvrait le salon YouTube (RoomTheaterLayout) au lieu de la vue Live HLS.
+ Cause : backend partiellement déployé (geo.ts MODIF 778, 28/07) mais frontend figé
+ au build du 22/07 — sans `mapLivePreview.ts` / routage live vs salon.
+
+CHANGEMENTS / FIX
+-----
+ Ops prod (getsoundy.com)
+ ─────────────────
+ • Build Vite local → sync `commun/backend/public/` → merge `/opt/soundly/public/`.
+ • Pas de redeploy backend complet (pm2 inchangé). Health OK après merge.
+
+FICHIERS MODIFIÉS
+-----
+ Ops VPS `/opt/soundly/public/` (index.html + assets, ex. index-C3fDirgT.js)
+
+BUILD (si vérifié)
+-----
+ web/app → npx vite build → ✅ · health prod → ✅
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 785 — Présentation produit slide 10 : capture Reels RetroWave
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Slide « Reels artistiques » (page 10) de SOUNDY-PRESENTATION-PRODUIT.html : remplacer
+ l’ancienne capture mobile générique par la capture Reels « Platine vinyle » (RetroWave)
+ — badge Spotify vert, barre recherche, bouton muet, actions like/commentaire.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/presentation-screenshots/mobile/12-reels.png
+ commun/docs/presentation-screenshots/12-reels.png
+ ─────────────────
+ • Nouvelle capture mobile (499×759) — reel Platine vinyle · RetroWave · HOUSE.
+
+ commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.html
+ ─────────────────
+ • Slide data-slide="9" : width/height 499×759, alt et figcaption mis à jour.
+
+ commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.pptx
+ ─────────────────
+ • Régénéré via `npm run produit` (slide 10 inchangée côté script, image remplacée).
+
+FICHIERS MODIFIÉS
+-----
+ 12-reels.png (mobile + racine), SOUNDY-PRESENTATION-PRODUIT.html, SOUNDY-PRESENTATION-PRODUIT.pptx
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 784 — Reels vinyle : couleur + label par plateforme
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton vinyle ReelAlbumLinkButton utilisait un dégradé rose/violet unique pour
+ tous les liens album. Besoin d’identifier visuellement Spotify, Deezer, Soundy,
+ YouTube et autres liens (couleur du label vinyle + petit texte plateforme).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/reelAlbumLinkPlatform.ts (+ test)
+ ─────────────────
+ • `detectAlbumLinkPlatform(url)` → spotify | deezer | soundy | youtube | other.
+ • Soundy : parseStoryAppLink ou hôtes getsoundy.com / localhost.
+
+ web/app/src/components/ReelAlbumLinkButton.tsx
+ ─────────────────
+ • Dégradé SVG + ring teinté par plateforme ; label texte sous le disque (44×44 hit).
+ • Position inchangée top-14 left-4.
+
+FICHIERS MODIFIÉS
+-----
+ reelAlbumLinkPlatform.ts, reelAlbumLinkPlatform.test.ts, ReelAlbumLinkButton.tsx
+
+BUILD (si vérifié)
+-----
+ web/app/ → vitest reelAlbumLinkPlatform.test.ts → ✅
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 783 — Reels vinyle : `link` API sur reels démo canoniques
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ `canonicalPublicReel` et `getAccessibleUserReel` reconstruisaient les reels démo
+ sans propager le champ `link` → pas de bouton vinyle si le reel passait par ces
+ chemins API (user reel avec id catalogue démo).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/reels.ts
+ ─────────────────
+ • Propagation `link` depuis le user reel ou le DEMO_REELS dans `canonicalPublicReel`.
+ • Ajout `link` dans `getAccessibleUserReel` pour les ids démo.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/reels.ts → propagation link API
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 782 — Reels : fix définitif écran noir (spacer visible)
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Onglet Reels : écran noir — slide visible = spacer `aria-hidden` (ex. reel-slide[1])
+ alors que scrollAnchorIndex / activeIndex pointaient ailleurs (démarrage algorithme,
+ scroll non appliqué car clientHeight=0, ou décalage état vs scrollTop réel).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/reelsRenderWindow.ts (+ test)
+ ─────────────────
+ • Fenêtre de rendu = union autour de scrollAnchorIndex, activeIndex ET index
+   dérivé du DOM (scrollTop / clientHeight) — le slide visible monte toujours.
+
+ web/app/src/pages/ReelsTabPage.tsx
+ ─────────────────
+ • Rendu virtualisé basé sur collectReelsRenderCenters + shouldRenderReelSlide.
+ • ResizeObserver : re-scroll vers scrollAnchorIndex quand la hauteur viewport devient disponible.
+
+FICHIERS MODIFIÉS
+-----
+ reelsRenderWindow.ts, reelsRenderWindow.test.ts, ReelsTabPage.tsx
+
+BUILD (si vérifié)
+-----
+ web/app/ → vitest reelsRenderWindow.test.ts → ✅
+ Mixkit reel-singer (42825-720.mp4) → HTTP 200 ✅
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic « Fermer le salon » sur MapHostedSalonBanner (ActiveSalonSessionBanner) :
+ un auditeur déclenchait parfois la fermeture globale (deleteSalon) au lieu de quitter
+ sa session locale, car le rôle hôte était déduit via activeSalonIsHost (session +
+ user.salonId) sans vérifier salon.hostId côté API.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/activeSalonHostRole.ts (+ test)
+ web/app/src/components/ActiveSalonSessionBanner.tsx
+ web/app/src/App.tsx
+ web/app/src/lib/activeSalonSession.ts
+ ─────────────────
+ • resolveActiveSalonHostRole : salon.hostId === user.id une fois le salon chargé.
+ • Auditeur → onLeaveSalon ; hôte → ConfirmModal + api.deleteSalon.
+ • Labels : map.hostedSalonBannerClose (hôte) / salon.leaveSalon (auditeur).
+ • Session persistée : isHost false conservé pour les auditeurs.
+ • openSalonPage / PiP preview : isHost explicite à l’entrée en session.
+
+FICHIERS MODIFIÉS
+-----
+ activeSalonHostRole.ts, ActiveSalonSessionBanner.tsx, App.tsx, activeSalonSession.ts
+
+BUILD (si vérifié)
+-----
+ web/app/ → vitest activeSalonHostRole.test.ts → ✅
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 780 — Présentation produit slide 7 : capture live BeatCastel
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Slide « Lives artistiques » (page 7) de SOUNDY-PRESENTATION-PRODUIT.html : remplacer
+ l’ancienne capture mobile (écran « Caméra du host active ») par la capture desktop
+ BeatCastel — récompenses, chat actif et flux HLS démo.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/presentation-screenshots/06-live.png
+ ─────────────────
+ • Nouvelle capture desktop (1024×503) — live Castelnau avec chat et barre récompenses.
+
+ commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.html
+ ─────────────────
+ • Slide data-slide="6" : image `06-live.png` (desktop) + classes shot-natural / --salon.
+
+ commun/docs/strategie/build-produit-presentation.mjs
+ ─────────────────
+ • Slide 7 PPTX : affichage large desktop au lieu du mockup téléphone mobile.
+
+FICHIERS MODIFIÉS
+-----
+ 06-live.png, SOUNDY-PRESENTATION-PRODUIT.html, build-produit-presentation.mjs, SOUNDY-PRESENTATION-PRODUIT.pptx
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+
+OBJECTIF / PROBLÈME
+----
+ Clic « Rejoindre » sur LivePipPreviewFloat (aperçu HLS BeatCastel, en-tête rouge) :
+ le PiP se fermait sans ouvrir LivePage plein écran. SalonPipPreviewFloat OK.
+
+ Cause : `openLive` bloquait dès qu’une `activeSalonSession` existait (salon minimisé,
+ session hôte restaurée via `/auth/me`, salon BeatCastel laissé en session après MODIF 776).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/App.tsx
+ ─────────────────
+ • Garde `openLive` : bloquer seulement si salon en `viewMode === 'full'`.
+ • Message toast corrigé (« regarder un live », pas « démarrer un live »).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/App.tsx
+
+BUILD (si vérifié)
+-----
+ web/app/ → vitest mapLivePreview.test.ts → ✅
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 778 — Carte BeatCastel : nearby lives incluent champs stream (fix salon)
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ MODIF 776 ajoutait shouldOpenSalonPreviewForLive côté front, mais GET /geo/nearby
+ renvoyait des lives sans streamMode / presentationDemoStream / cloudflarePlaybackUrl.
+ BeatCastel était donc classé « salon YouTube » → SalonPipPreview → plein écran salon
+ (RoomTheaterLayout, « Quitter le salon ») au lieu de l’aperçu Live HLS.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/routes/geo.ts
+ ─────────────────
+ • Payload lives nearby : salonId, streamMode, cloudflarePlaybackUrl,
+   presentationDemoStream (sans défaut webrtc — préserve routage salons seed YouTube).
+
+ web/app/src/lib/mapLivePreview.ts
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • liveNeedsStreamFieldEnrichment + resolveLiveForMapPreview (GET /lives/:id si cache stale).
+ • openMapLivePreview unifié pour marqueur live, sidebar, profil en direct.
+
+FICHIERS MODIFIÉS
+-----
+ geo.ts, mapLivePreview.ts, mapLivePreview.test.ts, HomePage.tsx
+
+BUILD (si vérifié)
+-----
+ web/app/ → vitest mapLivePreview.test.ts → ✅
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+
+================================================================================
+MODIF 776 — Carte : clic live BeatCastel → aperçu Live (pas salon YouTube)
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic marqueur live BeatCastel (40 spectateurs) ou profil hôte en direct :
+ affichage salon YouTube au lieu de l’aperçu Live HLS (présentation Castelnau).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/mapLivePreview.ts
+ web/app/src/lib/mapLivePreview.test.ts
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • Helper `isTrueVideoLive` / `shouldOpenSalonPreviewForLive` (HLS, cloudflare, démo).
+ • Clic marqueur live, sidebar live, profil en direct : priorité live vidéo réel.
+
+FICHIERS MODIFIÉS
+-----
+ mapLivePreview.ts, HomePage.tsx, tests
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 775 — Reel démo « Session voix » (chanteur Mixkit + vinyle album)
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Ajouter un reel libre de droits avec une personne qui chante et un bouton
+ vinyle (hyperlien vers l’album showcase msdev).
+
+CHANGEMENTS / FIX
+-----
+ commun/msdev/scripts/generate-reels-catalog.mjs
+ web/app/src/content/reels.ts · reelsDemoCatalog.ts
+ commun/backend/src/lib/reels.ts · reelsDemoCatalog.ts
+ commun/backend/src/seed-msdev-showcase.ts
+ ─────────────────
+ • Nouveau reel `reel-singer` (Mixkit 42825 + musique 787).
+ • Lien vinyle → album `msdev_showcase_album_01` (profil user_listener).
+ • Seed msdev : mise à jour `msdev_showcase_reel_02` + copie du champ `link`.
+ • Générateur catalogue : sortie aussi vers `web/app/src/content/`.
+
+FICHIERS MODIFIÉS
+-----
+ generate-reels-catalog.mjs, reels.ts (front + back), seed-msdev-showcase.ts, reelsDemoCatalog.ts
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 774 — Bandeau salon carte : retrait YouTube + bouton Fermer le salon
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Bandeau session salon (MapHostedSalonBanner) : retirer le badge YouTube et
+ ajouter un bouton pour fermer / quitter le salon depuis la carte.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapHostedSalonBanner.tsx
+ web/app/src/components/ActiveSalonSessionBanner.tsx
+ web/app/src/App.tsx
+ web/app/src/index.css
+ web/app/src/locales/fr.json · en.json
+ ─────────────────
+ • Suppression badge plateforme YouTube.
+ • Bouton « Fermer le salon » (hôte, avec confirmation) ou « Quitter le salon » (auditeur).
+ • Zone principale du bandeau conserve « Ouvrir » / retour au salon.
+
+FICHIERS MODIFIÉS
+-----
+ MapHostedSalonBanner.tsx, ActiveSalonSessionBanner.tsx, App.tsx, index.css, locales
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 773 — Live présentation Castelnau-le-Lez (40 spectateurs, chat, HLS démo)
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Démo produit : live à Castelnau-le-Lez avec 40 participants, chat actif et
+ vidéo simulée pour les présentations (sans OBS / caméra hôte).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/seed-msdev-presentation-live.ts
+ commun/backend/src/lib/presentationDemoLive.ts
+ commun/backend/src/scripts/seed-msdev-presentation-live.ts
+ ─────────────────
+ • Seed BeatCastel (`prod-seed-salon-beat-castel`) : 40 spectateurs, 20 messages chat,
+   40 profils audience, flux HLS public (`presentationDemoStream`).
+
+ commun/backend/src/routes/lives.ts
+ commun/backend/src/lib/livePublic.ts
+ web/app/src/pages/LivePage.tsx
+ web/app/src/types.ts
+ ─────────────────
+ • Participants simulés + statut Cloudflare « live » pour le flux démo HLS.
+
+ commun/backend/src/bootstrap.ts
+ commun/backend/src/routes/msdev.ts
+ commun/backend/src/seed-salons-lives.ts
+ ─────────────────
+ • Application auto au boot msdev (après showcase) + endpoint POST /api/msdev/seed-presentation-live.
+
+FICHIERS MODIFIÉS
+-----
+ seed-msdev-presentation-live.ts, presentationDemoLive.ts, lives.ts, LivePage.tsx, bootstrap.ts, seed-salons-lives.ts, msdev.ts, schema.ts, types.ts
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 772 — Création salon : GET salon bloqué indéfiniment (YouTube API IP-restricted)
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ « Je n'arrive pas à créer un salon » : le POST /salons réussissait mais
+ l'ouverture automatique du salon (GET /salons/:id) restait bloquée en
+ chargement infini. Cause : refreshStaleYoutubeSalonMetadata() (rafraîchissement
+ métadonnées YouTube) n'était pas protégé par try/catch dans la route GET.
+ Un salon neuf n'a pas encore de metadataFetchedAt → toujours considéré stale →
+ appel immédiat à l'API YouTube Data ; en local la clé est restreinte par IP,
+ l'exception levée n'était jamais interceptée → la réponse HTTP n'était jamais
+ envoyée (requête pendante côté client, "Promise rejection non gérée" côté
+ serveur).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/routes/salons.ts
+ ─────────────────
+ • GET /:id : refreshStaleYoutubeSalonMetadata() entourée d'un try/catch —
+   échec API YouTube (quota, clé restreinte IP, réseau) n'empêche plus la
+   réponse ; le salon reste chargeable avec les métadonnées existantes.
+
+FICHIERS MODIFIÉS
+-----
+ salons.ts
+
+VÉRIFICATION
+-----
+ POST /api/salons (msdev, trackId réel non-demo) → 201, puis GET immédiat
+ → répond en <150ms (au lieu de rester bloqué), log
+ "[salons] refreshStaleYoutubeSalonMetadata échoué" au lieu de
+ "Promise rejection non gérée".
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 771 — Salon supprimé : écran « Chargement… » bloqué
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Après suppression d'un salon (ex. salon_3162ab0f-…), l'UI restait bloquée sur
+ « Chargement… » : session/URL/deep link rouvraient un salon inexistant sans
+ sortie automatique ; DELETE msdev échouait si le salon n'était plus en RAM.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/SalonPage.tsx
+ ─────────────────
+ • Reset état au changement salonId ; sortie auto sur 404/403 (onLeaveSalon).
+ • salon_ended (host_deleted, replaced, etc.) → quitter le salon.
+ • Bouton Retour si chargement en échec ; message si token absent.
+
+ web/app/src/App.tsx
+ ─────────────────
+ • Deep link / sessionStorage : vérifie GET /salons/:id avant d'ouvrir la session.
+ • Restauration hôte (user.salonId) : nettoie URL + sessionStorage si salon absent.
+
+ commun/backend/src/routes/salons.ts
+ ─────────────────
+ • DELETE : db.salons.get puis getSalonFromStore ; idempotent si déjà supprimé.
+
+FICHIERS MODIFIÉS
+-----
+ SalonPage.tsx, App.tsx, salons.ts
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 770 — Salon YouTube : boucle « Chargement du lecteur… »
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Lecteur salon bloqué en chargement en boucle : recréation IFrame à chaque sync
+ playbackState + fallback embed change-track en chaîne.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/SalonYouTubePlayer.tsx
+ ─────────────────
+ • Mount IFrame uniquement si videoId / PiP change (plus playbackState en dep).
+ • onReady lit stateRef ; garde anti double onEmbedError.
+
+ web/app/src/components/SalonPlaybackPanel.tsx
+ ─────────────────
+ • Fallback embed : max 1 tentative par salon (Set IDs essayés).
+
+FICHIERS MODIFIÉS
+-----
+ SalonYouTubePlayer.tsx, SalonPlaybackPanel.tsx
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 769 — Salon YouTube : lecture intégrée bloquée (clips officiels)
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ « Lecture impossible ici » dans SalonYouTubePlayer : clips officiels (ex. GIMS)
+ souvent non intégrables (erreurs 101/150), trackId demo sans vidéo réelle,
+ ID YouTube invalide dans le catalogue (Blinding Lights).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/youtubeSearch.ts
+ ─────────────────
+ • Tri sortYoutubeSearchResultsForEmbed : Audio/Topic avant « Clip officiel ».
+ • Filtre embeddable via Data API en prod/preprod.
+
+ commun/backend/src/lib/youtubeDataApi.ts
+ ─────────────────
+ • filterEmbeddableVideoIdsViaDataApi (videos.list status.embeddable).
+
+ commun/backend/src/lib/musicCatalog.ts
+ ─────────────────
+ • Blinding Lights : trackId corrigé (4NRXx6W78bu).
+
+ commun/backend/src/routes/salons.ts
+ ─────────────────
+ • Création salon : trackId demo → catalogue msdev ou mock titre/artiste.
+
+ web/app/src/components/SalonPlaybackPanel.tsx
+ ─────────────────
+ • onEmbedError : bascule auto vers variante Audio (recherche + change-track).
+
+FICHIERS MODIFIÉS
+-----
+ youtubeSearch.ts, youtubeDataApi.ts, musicCatalog.ts, salons.ts,
+ SalonPlaybackPanel.tsx, youtubeSearch.test.ts
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 768 — Recherche YouTube salon msdev : fallback Piped mort
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En local, la recherche YouTube dans le salon (SalonYouTubeSearch) ne renvoyait
+ aucun résultat : YOUTUBE_API_KEY bloquée par restriction IP, et les instances
+ Piped/Invidious codées en dur étaient hors service.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/youtubeRemote.ts
+ ─────────────────
+ • Registre dynamique piped-instances.kavin.rocks (cache 1 h, tri uptime).
+ • Fallback statique api.piped.private.coffee + instances récentes.
+ • searchVideosViaPiped / fetchPlaylistVideosViaPiped utilisent resolvePipedInstances().
+
+FICHIERS MODIFIÉS
+-----
+ youtubeRemote.ts
+
+BUILD (si vérifié)
+-----
+ GET /api/salons/youtube-search?q=changer+gims → ✅ 12 résultats
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 767 — Création salon msdev : persistance PG bloquante
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En local (APP_ENV=msdev), « Créer le salon » échouait silencieusement côté API :
+ POST /api/salons appelait upsertSalonToPg() même hors prod/preprod, la requête
+ PostgreSQL échouait (SSL / PostGIS), rollback mémoire → 503 SALON_PERSIST_FAILED.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/pgSalonsLives.ts
+ ─────────────────
+ • upsertSalonToPg() : early return si !isPostgresEnabled() (aligné upsertSalonToPgAsync).
+ • En msdev : salon créé en mémoire uniquement ; prod/preprod inchangé (PG obligatoire).
+
+FICHIERS MODIFIÉS
+-----
+ pgSalonsLives.ts
+
+BUILD (si vérifié)
+-----
+ API msdev → POST /api/salons → ✅ 201
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 766 — Création salon : bouton « Créer le salon » bloqué
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Au clic sur « Créer le salon », rien ne se passait si le profil avait déjà
+ un salonId actif : le client bloquait la création alors que l’API remplace
+ déjà l’ancien salon hôte.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/CreateSalonSetupChatModal.tsx
+ ─────────────────
+ • Suppression du blocage errorAlreadyActive avant POST /salons.
+ • Resync profil seulement si salonId périmé (404).
+ • État local platformLinkState après connexion YouTube dans la modale.
+ • resolvePosition avec repli fallbackLatitude / DEFAULT_CENTER.
+ • Erreurs visibles dans la modale (toast) + toast carte.
+
+FICHIERS MODIFIÉS
+-----
+ CreateSalonSetupChatModal.tsx
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 765 — Présentation produit : slide Onglet Musique
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Ajouter une slide dédiée à l’onglet Musique (découverte artistes, tendances,
+ Découvrir, top performeurs) dans la présentation produit HTML + PPTX.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.html
+ ─────────────────
+ • Slide 8 « Onglet Musique » + capture 13-musique.png · sommaire 10 slides.
+
+ commun/docs/strategie/build-produit-presentation.mjs · README.md
+ ─────────────────
+ • Slide Musique dans le PPTX · TOTAL 10 · doc mise à jour.
+
+FICHIERS MODIFIÉS
+-----
+ SOUNDY-PRESENTATION-PRODUIT.html · build-produit-presentation.mjs · README.md
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 764 — Carte : bouton « + Salon » sans action
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le FAB « + Salon » sur la carte (HomePage) ne réagissait plus au clic :
+ le bouton n’avait pas de handler onClick (régression vs « + Event » / « + Lives »).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • onClick={() => setShowCreateSalon(true)} + type="button" sur le FAB Salon.
+
+FICHIERS MODIFIÉS
+-----
+ HomePage.tsx → réouverture CreateSalonModal au clic
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 763 — Reels : vinyle cliquable (lien album)
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur chaque reel, afficher en haut à gauche un vinyle animé cliquable
+ ouvrant un lien album (Spotify, YouTube, Deezer, profil Soundy, etc.).
+ Le champ est optionnel à la création : sans URL, pas d’icône.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/ReelAlbumLinkButton.tsx
+ ─────────────────
+ • Composant vinyle tournant (44×44 px) ; liens app via storyAppLink,
+   externes en nouvel onglet.
+
+ web/app/src/pages/ReelsTabPage.tsx
+ ─────────────────
+ • Overlay top-left dans ReelSlide si reel.link renseigné.
+
+ web/app/src/content/reelsFeed.ts
+ ─────────────────
+ • Propagation du champ link depuis l’API (normalizeReelFromApi /
+   normalizeProfileReelFromApi).
+
+ web/app/src/components/ProfileReelRecorder.tsx
+ web/app/src/locales/fr.json · en.json
+ ─────────────────
+ • Libellés « Lien album (optionnel) » + hint vinyle.
+
+ web/app/src/content/reels.ts · commun/backend/src/lib/reels.ts
+ web/app/src/index.css
+ ─────────────────
+ • Démo reel-vinyl avec lien Spotify ; animation reel-vinyl-spin.
+
+FICHIERS MODIFIÉS
+-----
+ ReelAlbumLinkButton.tsx (nouveau) · ReelsTabPage · reelsFeed · reels.ts
+ ProfileReelRecorder · fr/en.json · index.css · backend reels.ts
+
+================================================================================
+Fin — 2026-07-28
+================================================================================
+
+================================================================================
 MODIF 762 — Admin Intégrations : bouton "Configurer" mal placé (carte provider)
 Date : 2026-07-22
 ================================================================================
@@ -32832,3 +33807,1154 @@ BUILD (verifie)
 ================================================================================
 Fin MODIF 1209 — 2026-07-22
 ================================================================================
+
+================================================================================
+MODIF 1250 — msdev showcase Europe : 5 live + 4 événements + 3 sponso — Soundy Dev
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Élargir l'écosystème showcase listener@msdev.local au-delà de Montpellier : 5 lives
+ suivis en Europe, 4 événements suivis Europe (sidebar Événement suivi), 3 événements
+ sponsorisés Europe (carte/globe Sponso), tout en conservant le contenu MTP existant.
+
+CHANGEMENTS / FIX
+-----
+ seed-msdev-showcase.ts
+ ─────────────────
+ • SHOWCASE_EU_LIVE_HOST_IDS (5) : user_dj Paris + bots Berlin, London, Barcelona,
+   Amsterdam — ajoutés à SHOWCASE_FOLLOW_TARGET_IDS (10 follows total).
+ • SHOWCASE_EU_LIVE_BOT_SEEDS + ensureShowcaseEuropeanLiveHosts : salons/lives actifs
+   (live.id = salon.id), coords exactes msdev.
+ • 4 événements host_eu_01–04 (Paris, Berlin, London, Barcelona).
+ • SHOWCASE_FOLLOWED_EVENT_COUNT = 9 (5 MTP + 4 EU).
+
+ seed-production-sponsors.ts · lib/sponsors.ts
+ ─────────────────
+ • 3 sponso EU : Primavera Barcelona, Awakenings Amsterdam, Lollapalooza Berlin.
+ • Sidebar carte : 3 entrées map_sidebar_events supplémentaires.
+
+ mapEventCoords.ts
+ ─────────────────
+ • Venues EU : Primavera, Awakenings, Olympiastadion, Berghain, O2 Brixton, Razzmatazz.
+
+ seed-msdev-showcase.test.ts · mapEventCoords.test.ts
+ ─────────────────
+ • Tests 10 follows, 8 lives actifs, 4 events EU, coords EU.
+
+FICHIERS MODIFIÉS
+-----
+ seed-msdev-showcase.ts · seed-msdev-showcase.test.ts · seed-production-sponsors.ts
+ lib/sponsors.ts · mapEventCoords.ts · mapEventCoords.test.ts
+
+BUILD (si vérifié)
+-----
+ commun/backend → npm test -- seed-msdev-showcase.test.ts → ✅
+ web/app → npm test -- mapEventCoords.test.ts → ✅
+ commun/backend → npx tsx src/scripts/seed-msdev-showcase.ts --force → ✅
+ commun/backend → npx tsx src/scripts/seed-msdev-map-sponso.ts → ✅ (6 sponso actifs)
+
+RE-SEED
+-----
+ Depuis commun/backend :
+   npx tsx src/scripts/seed-msdev-showcase.ts --force
+   npx tsx src/scripts/seed-msdev-map-sponso.ts
+
+================================================================================
+Fin MODIF 1250 — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 1251 — Présentation produit HTML : refonte UX (couverture, sommaire, captures) — Soundy Dev
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Mettre à jour SOUNDY-PRESENTATION-PRODUIT.html : couverture « Refonte UX », sommaire
+ numéroté à partir de 1, captures prod carte/globe sur la page 3.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.html
+ ─────────────────
+ • Page 1 : titre « Refonte UX », eyebrow getsoundy.com · Refonte UX · 2026.
+ • Page 2 : sommaire 1–7 (plus de numérotation à partir de 3).
+ • Page 3 : refonte carte Montpellier + globe satellite (assets/refonte-*.png).
+ • Page 4 : présentation application (fil actualité) — ancienne slide globe fusionnée.
+
+ commun/docs/strategie/assets/
+ ─────────────────
+ • refonte-carte-montpellier.png · refonte-globe-satellite.png (captures prod).
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.html → refonte UX deck
+ commun/docs/strategie/assets/refonte-*.png → captures page 3
+
+================================================================================
+Fin MODIF 1251 — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 1252 — Carte : marqueurs live = point rouge + pseudo (sans avatar) — Soundy Dev
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les pins live sur la carte plate affichaient la photo profil — trop chargé et peu
+ lisible. Demande : point rouge + nom d'utilisateur uniquement.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/mapOverviewMarkerHtml.ts
+ ─────────────────
+ • buildFlatLiveMarkerHtml() — point rouge + usernameMapLabelHtml.
+
+ web/app/src/components/MapView.tsx
+ ─────────────────
+ • Marqueurs live zoom ville/rue : buildFlatLiveMarkerHtml (plus d’img avatar).
+
+ web/app/src/index.css
+ ─────────────────
+ • .map-marker-live-dot + pulse léger ; quick-wins aligné.
+
+ web/app/src/lib/mapOverviewMarkerHtml.test.ts
+ ─────────────────
+ • Test sans img / sans live-badge.
+
+FICHIERS MODIFIÉS
+-----
+ mapOverviewMarkerHtml.ts · MapView.tsx · index.css · mapOverviewMarkerHtml.test.ts
+
+BUILD (si vérifié)
+-----
+ web/app → npm test -- mapOverviewMarkerHtml.test.ts → ✅
+
+================================================================================
+Fin MODIF 1252 — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 1253 — Carte : marqueurs salon = point violet + pseudo (sans avatar) — Soundy Dev
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Aligner les pins salon sur le même modèle que les lives : point coloré + pseudo,
+ sans photo profil. Couleur salon : violet.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/mapOverviewMarkerHtml.ts
+ ─────────────────
+ • buildFlatSalonMarkerHtml() — point violet + username (+ badge BOT si bot).
+
+ web/app/src/components/MapView.tsx
+ ─────────────────
+ • Marqueurs salon zoom ville/rue : buildFlatSalonMarkerHtml.
+
+ web/app/src/index.css
+ ─────────────────
+ • .map-marker-salon-dot · quick-wins --ms-salon.
+
+ web/app/src/lib/mapOverviewMarkerHtml.test.ts
+ ─────────────────
+ • Tests salon sans img / bot badge.
+
+FICHIERS MODIFIÉS
+-----
+ mapOverviewMarkerHtml.ts · MapView.tsx · index.css · mapOverviewMarkerHtml.test.ts
+
+BUILD (si vérifié)
+-----
+ web/app → npm test -- mapOverviewMarkerHtml.test.ts → ✅
+
+================================================================================
+Fin MODIF 1253 — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 1254 — Carte : compteur participants sur pins live et salon — Soundy Dev
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Afficher le nombre de participants sur les marqueurs live (viewersCount) et salon
+ (listenersCount) à côté du point coloré.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/mapOverviewMarkerHtml.ts
+ ─────────────────
+ • buildFlatLiveMarkerHtml / buildFlatSalonMarkerHtml : compteur compact (formatCompactCount).
+
+ web/app/src/components/MapView.tsx
+ ─────────────────
+ • Passage viewersCount / listenersCount aux builders.
+
+ web/app/src/index.css
+ ─────────────────
+ • .map-marker-dot-row · .map-marker-participant-count (--live rouge, --salon violet).
+
+FICHIERS MODIFIÉS
+-----
+ mapOverviewMarkerHtml.ts · MapView.tsx · index.css · mapOverviewMarkerHtml.test.ts
+
+BUILD (si vérifié)
+-----
+ web/app → npm test -- mapOverviewMarkerHtml.test.ts → ✅
+
+================================================================================
+Fin MODIF 1254 — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 1255 — Seed BeatCastel : 100 000 spectateurs live (showcase) — Soundy Dev
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ BeatCastel doit afficher 100 000 participants sur son live (démo carte / pitch).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/seed-salons-lives.ts
+ ─────────────────
+ • SalonLiveBotSeed : overrides listenersCount / viewersCount.
+ • BeatCastel : 100_000 · re-seed sync compteurs existants.
+
+ commun/backend/src/seed-salons-lives.test.ts
+ ─────────────────
+ • Test BeatCastel 100K.
+
+FICHIERS MODIFIÉS
+-----
+ seed-salons-lives.ts · seed-salons-lives.test.ts
+
+RE-SEED
+-----
+ commun/backend → npx tsx src/scripts/seed-msdev-showcase.ts --force
+
+BUILD (si vérifié)
+-----
+ commun/backend → npm test -- seed-salons-lives.test.ts → ✅
+
+================================================================================
+Fin MODIF 1255 — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 1256 — Présentation HTML : couverture Soundy + capture pins carte — Soundy Dev
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Page 1 : couverture plus soignée avec nom Soundy. Page 3 : nouvelle capture carte
+ (pins live/salon avec audience).
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.html
+ ─────────────────
+ • Couverture premium : logo, gradient Soundy, badges Live/Salon/Événement, légende pins.
+ • Page 3 : refonte-carte-pins-live-salon.png (remplace ancienne capture sidebar).
+
+ commun/docs/strategie/assets/refonte-carte-pins-live-salon.png
+ ─────────────────
+ • Capture prod carte Montpellier (BeatCastel 100K, etc.).
+
+FICHIERS MODIFIÉS
+-----
+ SOUNDY-PRESENTATION-PRODUIT.html · assets/refonte-carte-pins-live-salon.png
+
+================================================================================
+Fin MODIF 1256 — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 1257 — Live BeatCastel : chat visible + messages spectateurs simulés — Soundy Dev
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Live présentation Castelnau (`prod-seed-salon-beat-castel`) : chat vide dans l’UI
+ (FloatingSalonChat / overlay plein écran) malgré le seed backend. Besoin de messages
+ écrits par les 40 spectateurs simulés, avec activité continue en msdev.
+
+CAUSE RACINE
+-----
+ • `ChatPanel` ignorait `initialMessages` après le 1er bind roomId : l’API
+   `GET /chat/live/:id` (async) mettait à jour LivePage mais pas le state interne
+   du provider → feed chat toujours vide.
+ • Seed : seulement 20 messages statiques, pas de ticker temps réel.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/ChatPanel.tsx
+ ios/apptel/src/components/ChatPanel.tsx
+ ─────────────────
+ • Sync `initialMessages` à chaque changement (reset réactions seulement au changement de room).
+
+ commun/backend/src/lib/presentationDemoLive.ts
+ ─────────────────
+ • 60 messages seed (~45 min), 40 pseudos audience distincts, 20 lignes chat supplémentaires.
+ • `pushPresentationDemoChatMessage` + ticker msdev (≈10 s) → socket `live_message`.
+
+ commun/backend/src/bootstrap.ts
+ ─────────────────
+ • `startPresentationDemoChatTicker()` au boot msdev ; stop au shutdown.
+
+ commun/backend/src/lib/presentationDemoLive.test.ts
+ ─────────────────
+ • Tests seed 60 msg / 40 senders + push message actif.
+
+FICHIERS MODIFIÉS
+-----
+ ChatPanel.tsx (web + apptel), presentationDemoLive.ts, bootstrap.ts, presentationDemoLive.test.ts
+
+RE-SEED
+-----
+ commun/backend → npx tsx src/scripts/seed-msdev-presentation-live.ts
+
+VÉRIFICATION
+-----
+ http://localhost:5173/live/prod-seed-salon-beat-castel — listener@msdev.local / msdev123
+ Chat flottant + overlay plein écran : pseudos audience + nouveaux messages ~10 s.
+
+BUILD (si vérifié)
+-----
+ commun/backend → vitest presentationDemoLive.test.ts → ✅
+
+================================================================================
+Fin MODIF 1257 — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 1258 — Live BeatCastel : expérience spectateur complète (vidéo, dons, deep link) — Soundy Dev
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Live plein écran BeatCastel (`prod-seed-salon-beat-castel`) : UI minimaliste
+ (header chat 💬 👥 ×) sans vidéo HLS, sans dons, sans follow, URL `/live/:id`
+ inopérante.
+
+CAUSE RACINE
+----
+ • Chat live épinglé à gauche par défaut (`readLiveChatPinned` → true) : en mode
+   `live-theater-fill`, la scène vidéo est rétrécie / masquée vs chat flottant
+   (comportement CSS prévu pour floating).
+ • Seed présentation : pas de `donationOptions`, hôte BeatCastel sans âge →
+   `hostMonetizationEligible=false` → boutons 🎁 / strip dons masqués.
+ • Aucun handler deep link `/live/:id` dans App (contrairement à `/salon/:id`).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/LivePage.tsx
+ ─────────────────
+ • Chat flottant par défaut (épinglé seulement si pref `liveChatPinned=1`).
+
+ web/app/src/lib/liveDeepLink.ts (+ test)
+ web/app/src/App.tsx
+ ─────────────────
+ • Deep link `/live/:id` → ouverture LivePage plein écran + sync URL barre.
+
+ commun/backend/src/seed-msdev-presentation-live.ts
+ commun/backend/src/lib/livePublic.ts
+ ─────────────────
+ • Dons démo (options + objectif 500 €), âge hôte ≥18, monétisation forcée pour
+   `presentationDemoStream`.
+
+ web/app/src/index.css
+ ─────────────────
+ • Scène vidéo min-height en layout chat-gauche live théâtre (mobile).
+
+FICHIERS MODIFIÉS
+-----
+ LivePage.tsx · liveDeepLink.ts · liveDeepLink.test.ts · App.tsx · index.css
+ seed-msdev-presentation-live.ts · livePublic.ts
+
+RE-SEED
+-----
+ POST /api/msdev/seed-presentation-live (ou npx tsx src/scripts/seed-msdev-presentation-live.ts)
+
+VÉRIFICATION
+-----
+ http://localhost:5173/live/prod-seed-salon-beat-castel — listener@msdev.local / msdev123
+ Vidéo HLS · chat flottant · 🎁 dons · follow · liste participants
+
+BUILD (si vérifié)
+-----
+ web/app → vitest liveDeepLink + mapLivePreview → ✅
+ commun/backend → vitest presentationDemoLive → ✅
+
+================================================================================
+Fin MODIF 1258 — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 1259 — Présentation produit : centrage captures mobile dans le cadre — Soundy Dev
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur la slide « Présentation de l'application » (01-actualite.png), la capture
+ mobile paraissait décalée dans le cadre phone (.shot-inner) malgré object-fit.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.html
+ ─────────────────
+ • .shot-inner : width 100 %, flex center (aligne le contenu dans le cadre 9:16).
+ • .app-screenshot img : width/height 100 % + object-fit contain (aligné decks MAIRIES).
+ • 01-actualite.png : attributs width/height 390×844 pour stabilité layout.
+
+FICHIERS MODIFIÉS
+-----
+ SOUNDY-PRESENTATION-PRODUIT.html → centrage captures app-screenshot
+
+================================================================================
+Fin MODIF 1259 — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 1260 — Présentation produit : centrage grid toutes captures mobile — Soundy Dev
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Slide « Onglet Musique » (13-musique.png) : capture mobile non centrée dans le
+ cadre phone (.shot-inner). MODIF 1259 (flex + img 100 %) ne généralisait pas
+ correctement à toutes les slides app-screenshot.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.html
+ ─────────────────
+ • .shot-inner : display grid + place-items center (remplace flex).
+ • .app-screenshot img : width/height auto, max-width/max-height 100 %,
+   object-fit contain — centrage fiable dans le cadre 9:16.
+ • 13-musique.png et 12-reels.png : attributs width/height 390×844 (aligné
+   01-actualite).
+
+FICHIERS MODIFIÉS
+-----
+ SOUNDY-PRESENTATION-PRODUIT.html → centrage grid captures mobile
+
+================================================================================
+Fin MODIF 1260 — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 1261 — Filtre Lives carte : marqueurs live réapparaissent — Soundy Dev
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Filtre Lives actif (aria-pressed, pastille rouge) : aucun marqueur live sur la
+ carte (BeatCastel prod-seed-salon-beat-castel et autres seeds msdev absents).
+
+CHANGEMENTS / FIX
+-----
+ mapMarkerVisibility.ts — filterSalonsForZoom : livesPinsOnly conserve les salons
+ isLive pour mergeLivesWithLiveSalons (MODIF 1170 avait renvoyé [] → merge vide).
+ HomePage.tsx — rawMapLivesForView : filtre Lives explicite non bloqué par un chip
+ sidebar Suivi (Salon/Évènement) ; showLivesMarkersRef pour nearby sans rayon.
+ nearbyPanelSettings.ts — resolveNearbyDistanceFilterForMap : désactive distanceFilter
+ en mode Lives (symétrie Salon browse).
+ mapMarkerVisibility.test.ts · mapLiveSalonMarkers.test.ts · nearbyPanelSettings.test.ts
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/mapMarkerVisibility.ts → live salons floor livesPinsOnly
+ web/app/src/pages/HomePage.tsx → rawMapLivesForView + nearby Lives
+ web/app/src/lib/nearbyPanelSettings.ts → distanceFilter off si Lives
+ web/app/src/lib/*.test.ts → tests pipeline BeatCastel / nearby
+
+BUILD (si vérifié)
+-----
+ web/app → npm test mapLiveSalonMarkers mapMarkerVisibility nearbyPanelSettings → ✅
+
+================================================================================
+Fin MODIF 1261 — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 1262 — Seed prod : 10 lives France (grandes villes) — Soundy Dev
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Créer 10 lives actifs en production, répartis aléatoirement (jitter stable)
+ dans les grandes villes françaises, visibles sur la carte avec filtre Lives.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/seed-france-random-lives.ts
+ ─────────────────
+ • 10 bots hôtes (Paris, Lyon, Marseille, Montpellier, Bordeaux, Toulouse,
+   Nice, Nantes, Strasbourg, Lille) — IDs prod-seed-fr-{ville}-salon.
+ • Idempotent : re-seed met à jour coords / réactive isActive.
+
+ commun/backend/src/scripts/seed-production-france-random-lives.ts
+ ─────────────────
+ • Script one-shot prod PostgreSQL (load store → seed → saveSalonsLivesToPostgres).
+
+FICHIERS MODIFIÉS
+-----
+ seed-france-random-lives.ts (nouveau) · seed-production-france-random-lives.ts (nouveau)
+
+PROD (exécuté)
+-----
+ /opt/soundly → node dist/scripts/seed-production-france-random-lives.js → ✅ 10 lives
+ pm2 restart melosong-backend → ✅
+
+================================================================================
+Fin MODIF 1262 — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 1263 — Reels : vinyle album visible sous barre recherche — Soundy Dev
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ ReelAlbumLinkButton (top-4 left-4) masqué sous ReelsSearchBar (top-3, z-20)
+ et les boutons header (créer reel, réglages).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/ReelAlbumLinkButton.tsx
+ ─────────────────
+ • Position top-14 left-4 z-[15] — sous la barre recherche (h-9 + top-3),
+   rail gauche, hors ReelActions droite ; touch 44×44 px conservé.
+
+FICHIERS MODIFIÉS
+-----
+ ReelAlbumLinkButton.tsx → repositionnement vinyle album
+
+================================================================================
+Fin MODIF 1263 — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 1264 — Présentation produit : capture connexion slide 2 — Soundy Dev
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Remplacer la capture « fil d'actualité » (01-actualite.png) sur la slide
+ « Présentation de l'application » par l'écran de connexion Soundy (msdev).
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/presentation-screenshots/mobile/01-actualite.png
+ commun/docs/presentation-screenshots/01-actualite.png
+ ─────────────────
+ • Nouvelle capture : écran connexion (logo, Se connecter, compte démo msdev).
+
+ commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.html
+ ─────────────────
+ • Slide data-slide="2" : alt « Écran de connexion Soundy », figcaption connexion,
+   dimensions 429×905.
+
+ commun/docs/strategie/build-produit-presentation.mjs
+ ─────────────────
+ • Légende PPTX slide 3 · Application : « Écran de connexion ».
+
+FICHIERS MODIFIÉS
+-----
+ 01-actualite.png (×2) → capture connexion
+ SOUNDY-PRESENTATION-PRODUIT.html → alt/figcaption/dimensions
+ build-produit-presentation.mjs → légende PPTX
+ SOUNDY-PRESENTATION-PRODUIT.pptx → régénéré (npm run produit)
+
+BUILD (si vérifié)
+-----
+ commun/docs/strategie → npm run produit → ✅
+
+================================================================================
+Fin MODIF 1264 — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 1265 — Étude marché partenaires : retrait P1/P2 roadmap — Soundy Dev
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retirer deux lignes obsolètes du tableau « Priorités immédiates » (section 5)
+ dans le document étude marché & business plan partenaires.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.html
+ ─────────────────
+ • Suppression P1 « Partenariat billetterie » (Direction).
+ • Suppression P2 « Lancement forfaits Soundy+ / SoundyUltra » (Produit).
+
+ commun/docs/strategie/ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.md
+ ─────────────────
+ • Même retrait dans la source Markdown (régénération PDF/HTML via npm run pdf).
+
+FICHIERS MODIFIÉS
+-----
+ ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.html → retrait 2 lignes roadmap
+ ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.md → source alignée
+
+================================================================================
+Fin MODIF 1265 — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 1266 — Présentation produit : cadre capture connexion slide 3 — Soundy Dev
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Slide « Présentation de l'application » (01-actualite.png, écran connexion 429×905) :
+ la capture paraissait mal cadrée dans le cadre phone — ratio 9:16 + max-height
+ déformait le conteneur (.shot-inner) et rognait le bas (Face ID, compte démo).
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.html
+ ─────────────────
+ • .shot-inner : ratio mobile 390/844, width couplée à max-height (évite déformation).
+ • .shot-inner.shot-login : aspect-ratio 429/905 pour la capture connexion.
+ • img : width/height 100 % + object-fit contain (remplace grid + max auto).
+ • Slide data-slide="2" : classe shot-login sur le cadre.
+
+ commun/docs/strategie/build-produit-presentation.mjs
+ ─────────────────
+ • phone() et dualPhone() : sizing contain sur addImage (PPTX sans étirement).
+
+FICHIERS MODIFIÉS
+-----
+ SOUNDY-PRESENTATION-PRODUIT.html → cadre connexion + ratio shot-inner
+ build-produit-presentation.mjs → contain PPTX captures mobile
+
+================================================================================
+Fin MODIF 1266 — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 1267 — Présentation produit : cadre capture salon slide 6 — Soundy Dev
+Date : 2026-07-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Slide « Salons d'écoute » (04-salon.png, capture paysage 1024×769) :
+ cadre phone 9:16 + attributs width/height erronés (1024×455) écrasaient
+ la capture (~340×122 px) — file d'attente et lecteur illisibles.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.html
+ ─────────────────
+ • .shot-inner.shot-wide : ratio 1024/769, width couplée à max-height (comme shot-login).
+ • .shot-inner.shot-natural : width 100 % pour fiches événement.
+ • Slide data-slide="5" : shot-wide + width/height 1024×769 corrigés.
+ • Slide data-slide="6" (live) : shot-wide + dimensions corrigées (cohérence).
+
+ commun/docs/strategie/build-produit-presentation.mjs
+ ─────────────────
+ • wideShot() : cadre paysage salon/live (remplace phone() écrasé).
+ • Slides 6 et 7 PPTX : wideShot avec sizing contain.
+
+FICHIERS MODIFIÉS
+-----
+ SOUNDY-PRESENTATION-PRODUIT.html → cadre salon + live paysage
+ build-produit-presentation.mjs → wideShot PPTX
+ SOUNDY-PRESENTATION-PRODUIT.pptx → régénéré
+
+BUILD (si vérifié)
+-----
+ commun/docs/strategie/ → npm run produit → ✅
+
+================================================================================
+Fin MODIF 1267 — 2026-07-28
+================================================================================
+
+================================================================================
+MODIF 1268 — PDF présentation produit + étude marché partenaires — Soundy Dev
+Date : 2026-07-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Export PDF demandé pour SOUNDY-PRESENTATION-PRODUIT.html et
+ ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES — pas de script PDF pour le deck produit.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/generate-produit-pdf.mjs
+ ─────────────────
+ • Nouveau : deck HTML → CSS print injecté → Edge headless (10 slides 16:9).
+
+ commun/docs/strategie/package.json
+ ─────────────────
+ • Script npm run produit:pdf.
+
+ commun/docs/strategie/
+ ─────────────────
+ • SOUNDY-PRESENTATION-PRODUIT.pdf (~2,1 Mo) via npm run produit:pdf.
+ • ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.pdf (~2,0 Mo) via npm run pdf.
+
+FICHIERS MODIFIÉS
+-----
+ generate-produit-pdf.mjs → export PDF deck produit
+ package.json → produit:pdf
+ *.pdf → générés (non versionnés Git si ignorés)
+
+BUILD (si vérifié)
+-----
+ commun/docs/strategie/ → npm run pdf + npm run produit:pdf → ✅
+
+================================================================================
+Fin MODIF 1268 — 2026-07-29
+================================================================================
+
+================================================================================
+MODIF 1269 — PDF slides déformées (viewport print) — Soundy Dev
+Date : 2026-07-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les pages PDF générées (deck produit 16:9) apparaissaient serrées / déformées :
+ hauteur slide en 100vh ≠ @page 254×142,875 mm ; unités dvh/vw et viewport
+ headless par défaut (800×600) provoquaient un écrasement vertical à l'impression.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/generate-produit-pdf.mjs
+ ─────────────────
+ • Slides en dimensions fixes 254 mm × 142,875 mm (aligné PPTX 10×5,625 in).
+ • Suppression 100vh print ; grilles desktop + --shot-max-h fixe en print.
+ • Edge headless : --window-size=1920,1080 + --force-device-scale-factor=1.
+
+ commun/docs/strategie/generate-pdfs.mjs
+ ─────────────────
+ • Edge : --window-size=794,1123 (ratio A4) pour docs markdown.
+
+ commun/docs/strategie/pdf-style.css · business-plan-premium.css
+ ─────────────────
+ • @media print : min-height 100vh neutralisé sur couverture / sommaire / hero.
+
+FICHIERS MODIFIÉS
+-----
+ generate-produit-pdf.mjs → CSS print + viewport Edge 16:9
+ generate-pdfs.mjs → viewport Edge A4
+ pdf-style.css · business-plan-premium.css → print cover/toc
+ *.pdf → régénérés (produit + étude marché + premium + one-pager)
+
+BUILD (si vérifié)
+-----
+ commun/docs/strategie/ → npm run produit:pdf + npm run pdf → ✅ (10 pages deck)
+
+================================================================================
+Fin MODIF 1269 — 2026-07-29
+================================================================================
+
+================================================================================
+MODIF 1270 — Présentation produit : sommaire page 2 + retrait hint nav — Soundy Dev
+Date : 2026-07-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Page 2 du deck (Sommaire, compteur « 2 / 10 », data-slide="1") : le 8ᵉ item
+ « Reels artistiques » était rogné sur viewports bas (540 px, PDF 16:9).
+ Retrait de la note navigation « ← → · F plein écran · clic photo pour agrandir ».
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.html
+ ─────────────────
+ • Slide Sommaire : classes slide-toc + slide-toc-inner, grille 2 colonnes ≥640 px.
+ • Compact max-height 620 px ; alignement flex-start (évite rognage bas).
+ • Suppression élément .help-hint et CSS associé.
+
+ commun/docs/strategie/generate-produit-pdf.mjs
+ ─────────────────
+ • Print : sommaire 2 colonnes compact + masquage .help-hint.
+
+FICHIERS MODIFIÉS
+-----
+ SOUNDY-PRESENTATION-PRODUIT.html → layout sommaire + retrait hint
+ generate-produit-pdf.mjs → CSS print sommaire
+ SOUNDY-PRESENTATION-PRODUIT.pptx → régénéré (npm run produit)
+ SOUNDY-PRESENTATION-PRODUIT.pdf → régénéré (npm run produit:pdf)
+ SOUNDY-PRESENTATION-PRODUIT.print.html → régénéré
+
+BUILD (si vérifié)
+-----
+ commun/docs/strategie/ → npm run produit + npm run produit:pdf → ✅
+
+================================================================================
+Fin MODIF 1270 — 2026-07-29
+================================================================================
+
+================================================================================
+MODIF 1271 — Présentation produit : sommaire page 2 (2×4 centré) — Soundy Dev
+Date : 2026-07-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Page 2 (Sommaire) toujours mal affichée après MODIF 1270 : contenu collé en haut,
+ rognage du 8ᵉ item en PDF 16:9, grille 2 col. active seulement ≥640 px, padding
+ bas excessif (réserve compteur), déséquilibre visuel vs couverture.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.html
+ ─────────────────
+ • Sommaire : grille 2×4 permanente, centrée verticalement (justify-content center).
+ • slide-toc-inner flex column ; gaps/padding/tokens dvh compacts.
+ • Breakpoints max-height 680 px et 540 px ; fallback 1 col. <420 px.
+ • toc-label min-width 0 ; badges numéros plus petits.
+
+ commun/docs/strategie/generate-produit-pdf.mjs
+ ─────────────────
+ • Print : padding symétrique, grille 2×4, typo compacte (0.62 rem, num 1.1 rem).
+
+ commun/docs/strategie/build-produit-presentation.mjs
+ ─────────────────
+ • Slide 2 PPTX : grille 2×4 alignée HTML ; numéros 1–8 (fix i+3) ; libellés sync.
+
+FICHIERS MODIFIÉS
+-----
+ SOUNDY-PRESENTATION-PRODUIT.html → CSS sommaire 2×4 centré
+ generate-produit-pdf.mjs → CSS print sommaire
+ build-produit-presentation.mjs → slide 2 PPTX 2×4
+ SOUNDY-PRESENTATION-PRODUIT.pptx → régénéré
+ SOUNDY-PRESENTATION-PRODUIT.pdf → régénéré
+ SOUNDY-PRESENTATION-PRODUIT.print.html → régénéré
+
+BUILD (si vérifié)
+-----
+ commun/docs/strategie/ → npm run produit + npm run produit:pdf → ✅
+
+================================================================================
+Fin MODIF 1271 — 2026-07-29
+================================================================================
+
+================================================================================
+MODIF 1272 — Présentation produit : sommaire page 2 agrandi — Soundy Dev
+Date : 2026-07-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Après MODIF 1271 (grille 2×4 compacte), l'utilisateur souhaite un affichage
+ plus grand et lisible sur page 2 (Sommaire) tout en gardant les 8 items visibles
+ sans rognage en 16:9 (navigateur 1920×1080 et PDF ~142 mm).
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.html
+ ─────────────────
+ • Typo sommaire : labels 0.88–1.05 rem (+14 %), badges 1.55–1.85 rem, padding/gaps +
+ • Titre h2 dédié slide-toc (1.45–2.1 rem) ; inner max 50 rem ; marges verticales réduites
+ • Breakpoints max-height 680/540 px recalibrés (plus grands qu'avant)
+
+ commun/docs/strategie/generate-produit-pdf.mjs
+ ─────────────────
+ • Print CSS : labels 0.85 rem (vs 0.62), badges 1.45 rem (vs 1.1), gaps/padding +
+ • Padding slide réduit (0.4 rem) pour libérer de la hauteur utile
+
+ commun/docs/strategie/build-produit-presentation.mjs
+ ─────────────────
+ • Slide 2 PPTX : ROW_H 0.52 (vs 0.34), texte 11 pt (vs 8.5), badge 0.28 in, titre 22 pt
+
+FICHIERS MODIFIÉS
+-----
+ SOUNDY-PRESENTATION-PRODUIT.html → CSS sommaire agrandi
+ generate-produit-pdf.mjs → CSS print sommaire agrandi
+ build-produit-presentation.mjs → slide 2 PPTX agrandie
+ SOUNDY-PRESENTATION-PRODUIT.pptx → régénéré
+ SOUNDY-PRESENTATION-PRODUIT.pdf → régénéré
+ SOUNDY-PRESENTATION-PRODUIT.print.html → régénéré
+
+BUILD (si vérifié)
+-----
+ commun/docs/strategie/ → npm run produit + npm run produit:pdf → ✅
+
+================================================================================
+Fin MODIF 1272 — 2026-07-29
+================================================================================
+
+================================================================================
+MODIF 1273 — Business plan : DA alignée présentation produit — Soundy Dev
+Date : 2026-07-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les documents business plan (étude partenaires + premium) utilisaient un thème
+ clair / cabinet conseil (IBM Plex, navy) divergent de la direction artistique
+ SOUNDY-PRESENTATION-PRODUIT (dark #0d0d14, violet #7c3aed, Plus Jakarta Sans).
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/pdf-style.css
+ ─────────────────
+ • Tokens DA présentation : --soundy-bg-slide #0d0d14, --soundy-card #141422,
+   bordures rgba violet, texte #f4f4f8 / muted #a8a8b8
+ • Couverture centrée, titre dégradé blanc→violet→rose, fond radial violet/rose
+ • Sommaire, running head, h2/h3, tableaux, KPI, funnel, chips, glossaire → dark
+ • Print/screen : fond sombre conservé (plus de pages blanches)
+
+ commun/docs/strategie/business-plan-premium.css
+ ─────────────────
+ • Refonte complète : IBM Plex / navy → Plus Jakarta Sans + palette présentation
+ • Couverture, sommaire, contenu, SWOT, callouts, tableaux alignés dark theme
+ • Logo wave cyan→violet→rose (même traitement que présentation)
+
+ commun/docs/strategie/generate-pdfs.mjs
+ ─────────────────
+ • Pipeline inchangé (wrapStudy / wrapPremium) — styles via CSS embarqué
+
+FICHIERS MODIFIÉS
+-----
+ pdf-style.css → DA dark étude partenaires
+ business-plan-premium.css → DA dark premium
+ ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.html/.pdf → régénérés
+ BUSINESS-PLAN-PREMIUM.html/.pdf → régénérés
+ ONE-PAGER-SPONSOR-COMMERCIAL.html/.pdf → régénérés (hérite pdf-style.css)
+
+BUILD (si vérifié)
+-----
+ commun/docs/strategie/ → npm run pdf → ✅
+
+================================================================================
+Fin MODIF 1273 — 2026-07-29
+================================================================================
+
+================================================================================
+MODIF 1274 — Business plan : revert DA présentation produit (MODIF 1273) — Soundy Dev
+Date : 2026-07-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Annulation de MODIF 1273 : retour au thème clair / cabinet conseil pour les
+ documents business plan (étude partenaires, premium, one-pager sponsor).
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/pdf-style.css
+ ─────────────────
+ • Restauré depuis HEAD : fond blanc contenu, tokens clairs (#f8f7fc, #ffffff),
+   texte #1a1625, couverture dark d'origine (alignement flex-start)
+
+ commun/docs/strategie/business-plan-premium.css
+ ─────────────────
+ • Restauré depuis HEAD : IBM Plex Sans/Serif, palette navy (#0f2744), thème clair
+
+ commun/docs/strategie/generate-pdfs.mjs
+ ─────────────────
+ • Restauré depuis HEAD (texte one-pager + flags Chrome d'origine)
+
+ Fichiers régénérés (npm run pdf)
+ ─────────────────
+ • ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.html/.pdf
+ • BUSINESS-PLAN-PREMIUM.html/.pdf
+ • ONE-PAGER-SPONSOR-COMMERCIAL.html/.pdf
+
+FICHIERS MODIFIÉS
+-----
+ pdf-style.css → revert thème clair étude / one-pager
+ business-plan-premium.css → revert IBM Plex / navy
+ generate-pdfs.mjs → revert script
+ *.html / *.pdf (3 docs) → régénérés avec styles d'avant MODIF 1273
+
+BUILD (si vérifié)
+-----
+ commun/docs/strategie/ → npm run pdf → ✅
+
+================================================================================
+Fin MODIF 1274 — 2026-07-29
+================================================================================
+
+================================================================================
+MODIF 1275 — Étude marché PDF : acronymes en petit — Soundy Dev
+Date : 2026-07-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Afficher tous les acronymes (CPM, TAM, B2B, MAU, etc.) en taille réduite
+ dans ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.pdf / .html — corps et glossaire.
+
+CHANGEMENTS / FIX
+-----
+ pdf-style.css
+ ─────────────────
+ • Règles `.acronym` et `.glossary-term.acronym` (0,76 em corps · 7,5 pt glossaire).
+
+ generate-pdfs.mjs
+ ─────────────────
+ • Post-traitement `wrapStudyAcronyms()` sur doc `study` : liste d'acronymes connus,
+   motifs M0–M36 et P0–P2, classe `acronym` sur titres glossaire purs.
+
+ ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.html / .pdf
+ ─────────────────
+ • Régénérés via npm run pdf.
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/strategie/pdf-style.css → styles acronymes
+ commun/docs/strategie/generate-pdfs.mjs → wrap post-marked
+ commun/docs/strategie/ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.{html,pdf} → régénérés
+
+BUILD (si vérifié)
+-----
+ commun/docs/strategie/ → npm run pdf → ✅
+
+================================================================================
+Fin MODIF 1275 — 2026-07-29
+================================================================================
+
+================================================================================
+MODIF 1276 — Étude marché : section Sources & références — Soundy Dev
+Date : 2026-07-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Afficher tous les sites et publications d'où viennent les chiffres et
+ références de ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES (TAM, démographie,
+ CPM Meta/Instagram, BPI, INPI, stack technique, acteurs cités).
+
+CHANGEMENTS / FIX
+-----
+ ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.md
+ ─────────────────
+ • Nouvelle §7 « Sources & références » (8 blocs thématiques + URLs).
+ • Liens inline dans le bloc sources §1.2 (SRI, UDECAM, INJEP, INSEE).
+ • Renvoi §7 pour la fourchette CPM Meta/Instagram (résumé exécutif).
+
+ pdf-style.css
+ ─────────────────
+ • Styles `.references-section`, liens `.source-list a`, intro et h3.
+
+ generate-pdfs.mjs
+ ─────────────────
+ • Sommaire étude : entrée « Sources & références » (8 sections).
+
+ ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.html / .pdf
+ ─────────────────
+ • Régénérés via npm run pdf.
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/strategie/ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.md → §7 Sources
+ commun/docs/strategie/pdf-style.css → styles section références
+ commun/docs/strategie/generate-pdfs.mjs → sommaire 8 sections
+ commun/docs/strategie/ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.{html,pdf} → régénérés
+ modification.txt → MODIF 1276
+
+BUILD (si vérifié)
+-----
+ commun/docs/strategie/ → npm run pdf → ✅
+
+================================================================================
+Fin MODIF 1276 — 2026-07-29
+================================================================================
+
+================================================================================
+MODIF 1277 — Inscriptions fermées en production — Soundy Dev
+Date : 2026-07-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En production, seuls les comptes déjà créés doivent pouvoir se connecter.
+ Les nouvelles inscriptions (email/mot de passe et OAuth) doivent être bloquées
+ tant que l’ouverture publique n’est pas décidée. msdev/localhost inchangé.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/accessControl.ts
+ ─────────────────
+ • `isAccessControlEnabled()` : auto-actif quand `APP_ENV=production`
+ • `getProductionDefaultPolicy()` : mode `closed` par défaut en prod
+ • `resolveProductionAccessPolicy()` : force `closed` si politique persistée
+   `open`/`admin_approval` ; respecte `invite_only`/`closed` ; override via
+   `ALLOW_REGISTRATION=1` ou `ACCESS_REGISTRATION_MODE`
+
+ commun/backend/src/lib/accessControl.test.ts
+ ─────────────────
+ • Tests prod : closed par défaut, force depuis open persisté, invite_only,
+   ALLOW_REGISTRATION=1
+
+ commun/backend/src/bootstrap.ts
+ ─────────────────
+ • Log démarrage prod : inscriptions fermées
+
+ commun/deploy/.env.production.example
+ commun/backend/.env.production.example
+ ─────────────────
+ • Doc : comportement auto prod, ALLOW_REGISTRATION, ACCESS_REGISTRATION_MODE
+
+EXISTANT (inchangé fonctionnellement)
+-----
+ • POST /api/auth/register → `assertRegistrationAllowed()`
+ • OAuth (Google/Apple/Facebook) → `assertRegistrationAllowed()` sur nouveau compte
+ • Frontend AuthPage : masque « Créer un compte » si `registrationMode=closed`
+ • GET /api/access/config → config publique pour l’UI
+
+ACTIVATION PROD (après deploy du code)
+-----
+ Aucune variable obligatoire : `APP_ENV=production` suffit.
+ Redémarrer le backend (`pm2 restart melosong-backend`).
+ Optionnel explicite : `ACCESS_REGISTRATION_MODE=closed`
+
+ Rouvrir temporairement : `ALLOW_REGISTRATION=1` dans `/opt/soundy/.env`
+
+COMPORTEMENT
+-----
+ • Compte existant (actif) : connexion OK (email, OAuth, biométrie)
+ • Nouvelle inscription email : 403 « Les inscriptions sont fermées… »
+ • Nouveau compte OAuth : redirect `oauth_error=registration_denied`
+ • msdev / localhost : inscriptions ouvertes (pas de changement)
+ • preprod/staging : inchangé (pas d’auto-close)
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/accessControl.ts → politique prod closed
+ commun/backend/src/lib/accessControl.test.ts → tests prod
+ commun/backend/src/bootstrap.ts → log prod
+ commun/deploy/.env.production.example → doc env
+ commun/backend/.env.production.example → doc env
+ modification.txt → MODIF 1277
+
+BUILD (si vérifié)
+-----
+ commun/backend/ → npm test -- accessControl.test.ts → ✅
+
+================================================================================
+Fin MODIF 1277 — 2026-07-30
+================================================================================
+

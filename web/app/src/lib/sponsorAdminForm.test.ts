@@ -44,8 +44,8 @@ describe('validateSponsorAdminForm', () => {
         baseForm({
           mapVisibilityScope: 'region',
           mapTargetRegionName: 'Le Crès',
-          mapTargetLat: '43.6489',
-          mapTargetLng: '3.8567',
+          mapTargetLat: '43.6405',
+          mapTargetLng: '3.9395',
         }),
         t
       )

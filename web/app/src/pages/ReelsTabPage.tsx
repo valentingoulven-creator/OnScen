@@ -13,6 +13,7 @@ import {
   resolveReelsFeed,
 } from '../content/reelsFeed';
 import { useAuth } from '../context/AuthContext';
+import { ReelAlbumLinkButton } from '../components/ReelAlbumLinkButton';
 import { ReelsSearchBar } from '../components/ReelsSearchBar';
 import { ShareLinkMenu } from '../components/ShareLinkMenu';
 import { ShareToUserSheet } from '../components/ShareToUserSheet';
@@ -65,6 +66,11 @@ import type { ReelComment, ReelStats } from '../types';
 import { ReportContentModal } from '../components/ReportContentModal';
 import { CreateReelSheet } from '../components/CreateReelSheet';
 import { ConfirmModal } from '../components/ConfirmModal';
+import {
+  collectReelsRenderCenters,
+  getScrollDerivedIndex,
+  shouldRenderReelSlide,
+} from '../lib/reelsRenderWindow';
 
 const SWIPE_THRESHOLD_PX = 22;
 const SWIPE_VELOCITY_PX_MS = 0.32;
@@ -229,16 +235,25 @@ async function playActiveReelMedia(
 
 const FALLBACK_REELS = buildReelsFeed([]);
 
-/**
- * Fenêtre de rendu autour de l'index actif : au-delà de cette distance, on
- * remplace le slide (vidéo/image + overlays) par un simple spacer de même
- * hauteur, pour ne jamais garder des centaines de nœuds <video> montés dans
- * le DOM sur un feed long (audit perf — reels non virtualisés). La hauteur
- * de chaque item étant 100% du conteneur (.reel-slide en CSS), le spacer
- * préserve exactement les mêmes maths de scroll (scrollTop / clientHeight)
- * qu'un rendu complet — pas de changement de comportement de swipe/scroll.
- */
-const REELS_RENDER_WINDOW = 2;
+function scrollToDisplayIndex(
+  el: HTMLDivElement,
+  index: number,
+  onDone?: (index: number) => void
+): void {
+  const apply = () => {
+    if (el.clientHeight <= 0) return false;
+    el.scrollTo({ top: index * el.clientHeight, behavior: 'auto' });
+    onDone?.(index);
+    return true;
+  };
+  if (apply()) return;
+  requestAnimationFrame(() => {
+    if (apply()) return;
+    requestAnimationFrame(() => {
+      apply();
+    });
+  });
+}
 
 function findReelIndex(feed: ReelsFeedDisplayItem[], reelId: string): number {
   return feed.findIndex((item) => item.kind === 'reel' && item.reel.id === reelId);
@@ -316,8 +331,11 @@ export function ReelsTabPage({
   const touchStartTime = useRef(0);
   const touchActive = useRef(false);
   const activeIndexRef = useRef(0);
+  const scrollAnchorIndexRef = useRef(0);
+  const pendingAlgorithmStartReelIdRef = useRef<string | null>(null);
   const pausedByPageHiddenRef = useRef(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [scrollAnchorIndex, setScrollAnchorIndex] = useState(0);
   const [muted, setMuted] = useState(() => !readReelsUnmutedPreference());
   const mutedRef = useRef(muted);
   const [playbackPaused, setPlaybackPaused] = useState(false);
@@ -354,6 +372,8 @@ export function ReelsTabPage({
   useEffect(() => {
     setActiveIndex(0);
     activeIndexRef.current = 0;
+    setScrollAnchorIndex(0);
+    scrollAnchorIndexRef.current = 0;
     const el = scrollRef.current;
     if (el) el.scrollTo({ top: 0, behavior: 'auto' });
   }, [deferredSearchQuery]);
@@ -361,6 +381,10 @@ export function ReelsTabPage({
   useEffect(() => {
     activeIndexRef.current = activeIndex;
   }, [activeIndex]);
+
+  useEffect(() => {
+    scrollAnchorIndexRef.current = scrollAnchorIndex;
+  }, [scrollAnchorIndex]);
 
   useEffect(() => {
     playbackPausedRef.current = false;
@@ -404,12 +428,27 @@ export function ReelsTabPage({
     initialScrollDone.current = true;
     setActiveIndex(index);
     activeIndexRef.current = index;
+    setScrollAnchorIndex(index);
+    scrollAnchorIndexRef.current = index;
     const el = scrollRef.current;
-    if (el && el.clientHeight > 0) {
-      el.scrollTo({ top: index * el.clientHeight, behavior: 'auto' });
-    }
+    if (el) scrollToDisplayIndex(el, index);
     onIntentHandled?.();
   }, [initialReelId, navigateKey, displayItems, onIntentHandled, token]);
+
+  useEffect(() => {
+    const reelId = pendingAlgorithmStartReelIdRef.current;
+    if (!reelId || displayItems.length === 0) return;
+    pendingAlgorithmStartReelIdRef.current = null;
+    const index = findReelIndex(displayItems, reelId);
+    if (index < 0) return;
+    setActiveIndex(index);
+    activeIndexRef.current = index;
+    setScrollAnchorIndex(index);
+    scrollAnchorIndexRef.current = index;
+    initialScrollDone.current = true;
+    const el = scrollRef.current;
+    if (el) scrollToDisplayIndex(el, index);
+  }, [displayItems]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -436,15 +475,9 @@ export function ReelsTabPage({
   const applyAlgorithmStartIndex = useCallback((feed: MusicReel[]) => {
     if (feed.length === 0) return;
     const start = pickNextStartIndex(feed, readLastTabStartReelId());
-    setActiveIndex(start);
-    initialScrollDone.current = true;
-    requestAnimationFrame(() => {
-      const el = scrollRef.current;
-      if (el && el.clientHeight > 0) {
-        el.scrollTo({ top: start * el.clientHeight, behavior: 'auto' });
-      }
-    });
-    rememberTabStartReelId(feed[start]!.id);
+    const reelId = feed[start]!.id;
+    rememberTabStartReelId(reelId);
+    pendingAlgorithmStartReelIdRef.current = reelId;
   }, []);
 
   const refreshFeedWithStart = useCallback(
@@ -543,6 +576,20 @@ export function ReelsTabPage({
     const h = el.clientHeight;
     el.scrollTo({ top: clamped * h, behavior: scrollBehavior });
     setActiveIndex(clamped);
+    setScrollAnchorIndex(clamped);
+    scrollAnchorIndexRef.current = clamped;
+  }, [displayItems.length]);
+
+  const updateScrollAnchorFromScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el || el.clientHeight === 0) return null;
+    const index = Math.round(el.scrollTop / el.clientHeight);
+    const clamped = Math.max(0, Math.min(displayItems.length - 1, index));
+    if (clamped !== scrollAnchorIndexRef.current) {
+      scrollAnchorIndexRef.current = clamped;
+      setScrollAnchorIndex(clamped);
+    }
+    return clamped;
   }, [displayItems.length]);
 
   const settleScrollPosition = useCallback(() => {
@@ -557,14 +604,16 @@ export function ReelsTabPage({
     if (clamped !== activeIndexRef.current) {
       setActiveIndex(clamped);
     }
+    if (clamped !== scrollAnchorIndexRef.current) {
+      scrollAnchorIndexRef.current = clamped;
+      setScrollAnchorIndex(clamped);
+    }
   }, []);
 
   const syncIndexFromScroll = useCallback(() => {
+    const clamped = updateScrollAnchorFromScroll();
+    if (clamped == null) return;
     if (touchActive.current) return;
-    const el = scrollRef.current;
-    if (!el || el.clientHeight === 0) return;
-    const index = Math.round(el.scrollTop / el.clientHeight);
-    const clamped = Math.max(0, Math.min(displayItems.length - 1, index));
     if (clamped !== activeIndexRef.current) {
       playGenerationRef.current += 1;
       if (playScheduleRef.current) {
@@ -581,7 +630,7 @@ export function ReelsTabPage({
       scrollSettleTimerRef.current = null;
       settleScrollPosition();
     }, 140);
-  }, [displayItems.length, settleScrollPosition]);
+  }, [displayItems.length, settleScrollPosition, updateScrollAnchorFromScroll]);
 
   const snapIndexFromScroll = useCallback((): number => {
     const el = scrollRef.current;
@@ -1021,6 +1070,28 @@ export function ReelsTabPage({
     return () => window.removeEventListener('resize', onResize);
   }, [goToIndex]);
 
+  /** Re-scroll when the viewport height becomes available (first paint / rotation). */
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const syncLayoutScroll = () => {
+      if (el.clientHeight <= 0 || displayItems.length === 0) return;
+      const anchor = scrollAnchorIndexRef.current;
+      const expectedTop = anchor * el.clientHeight;
+      if (Math.abs(el.scrollTop - expectedTop) > 2) {
+        scrollToDisplayIndex(el, anchor, () => {
+          updateScrollAnchorFromScroll();
+        });
+      } else {
+        updateScrollAnchorFromScroll();
+      }
+    };
+    const ro = new ResizeObserver(syncLayoutScroll);
+    ro.observe(el);
+    syncLayoutScroll();
+    return () => ro.disconnect();
+  }, [displayItems.length, updateScrollAnchorFromScroll]);
+
   useEffect(() => {
     if (!shareToast) return;
     const t = window.setTimeout(() => setShareToast(null), 2500);
@@ -1207,7 +1278,20 @@ export function ReelsTabPage({
             onTouchCancel={onTouchCancel}
           >
             {displayItems.map((item, index) => {
-              if (Math.abs(index - activeIndex) > REELS_RENDER_WINDOW) {
+              const scrollEl = scrollRef.current;
+              const domScrollIndex =
+                scrollEl && displayItems.length > 0
+                  ? getScrollDerivedIndex(
+                      scrollEl.scrollTop,
+                      scrollEl.clientHeight,
+                      displayItems.length
+                    )
+                  : null;
+              const renderCenters = collectReelsRenderCenters(
+                [scrollAnchorIndex, activeIndex, domScrollIndex],
+                displayItems.length
+              );
+              if (!shouldRenderReelSlide(index, renderCenters)) {
                 // Hors fenêtre : spacer de même hauteur (.reel-slide = 100% du
                 // conteneur), aucun <video>/<img> monté — préserve le scrollHeight
                 // total du feed sans le coût mémoire/DOM d'un rendu complet.
@@ -2131,6 +2215,7 @@ const ReelSlide = memo(
         </div>
       )}
       <div className="reel-slide__scrim absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/40 pointer-events-none" />
+      {reel.link?.trim() ? <ReelAlbumLinkButton url={reel.link} /> : null}
       <div className="reel-meta-stack absolute bottom-14 left-4 right-24 z-10 flex flex-col items-start gap-1.5">
         {durationBadgeText != null && (
           <span

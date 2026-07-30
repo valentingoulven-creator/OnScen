@@ -84,8 +84,8 @@ const LIVE_CHAT_HIDDEN_KEY = 'melosong_live_chat_hidden';
 
 function readLiveChatPinned(): boolean {
   const stored = getStorageItem(STORAGE_KEYS.liveChatPinned);
-  if (stored === '0') return false;
-  return true;
+  if (stored === '1') return true;
+  return false;
 }
 
 function readFullscreenChatOverlay(): boolean {
@@ -664,6 +664,10 @@ export function LivePage({
   }, [token, isHost]);
 
   useEffect(() => {
+    if (live?.presentationDemoStream) {
+      setObsIngestLive(true);
+      return;
+    }
     if (!token || !liveId || !isCloudflareStream || !live?.isActive) {
       setObsIngestLive(false);
       return;

@@ -13,6 +13,7 @@ import {
   type MapDetailTier,
   type MapViewDetailState,
 } from './mapMarkerVisibility';
+import { isValidLatLng } from './mapCoords';
 import { applyFavoritesFirst } from './nearbyPanelSettings';
 import type { Live, MapEventCityCluster, MapEventMarker, NearbyPerson, Salon } from '../types';
 
@@ -100,9 +101,21 @@ function sortClustersByCountDesc(clusters: MapEventCityCluster[]): MapEventCityC
   );
 }
 
-/** Salons sidebar : pièces d’écoute hors direct (un live actif = filtre Lives, pas Salon). */
-function sidebarSalonEntries<T extends { isLive?: boolean }>(salons: T[]): T[] {
+/** Salons sidebar / carte suivi : pièces d’écoute hors direct (un live actif = filtre Lives, pas Salon). */
+export function sidebarSalonEntries<T extends { isLive?: boolean }>(salons: T[]): T[] {
   return salons.filter((s) => !s.isLive);
+}
+
+/** Salons suivis affichables sur la carte (offline uniquement — les live → pin LIVE). */
+export function followedOfflineSalonsForMap(
+  salons: Salon[],
+  followingIds: Set<string>
+): Salon[] {
+  if (followingIds.size === 0) return [];
+  return sidebarSalonEntries(salons.filter(isPublicSalon)).filter(
+    (s) =>
+      followingIds.has(s.hostId) && isValidLatLng(s.latitude, s.longitude)
+  );
 }
 
 

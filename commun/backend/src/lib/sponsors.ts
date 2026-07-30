@@ -61,8 +61,8 @@ const REGION_SPONSOR_DEFAULTS: Record<
   'solar-festival-cres': {
     mapVisibilityScope: 'region',
     mapTargetRegionName: 'Le Crès',
-    mapTargetLat: 43.6489,
-    mapTargetLng: 3.8567,
+    mapTargetLat: 43.6405,
+    mapTargetLng: 3.9395,
   },
   'les-deferlantes-2026': {
     mapVisibilityScope: 'region',
@@ -104,8 +104,8 @@ const DEFAULT_SPONSORS: Omit<Sponsor, 'createdAt' | 'updatedAt'>[] = [
     endsAt: 1783224000000,
     mapVisibilityScope: 'region',
     mapTargetRegionName: 'Le Crès',
-    mapTargetLat: 43.6489,
-    mapTargetLng: 3.8567,
+    mapTargetLat: 43.6405,
+    mapTargetLng: 3.9395,
   },
   {
     id: 'les-deferlantes-2026',
@@ -976,6 +976,24 @@ const DEFAULT_MAP_SIDEBAR_EVENT_LINKS: { id: string; name: string; postId: strin
       name: 'Nuits Sonores',
       postId: 'prod-sponso-evt-nuits-sonores-2026',
       priority: 2,
+    },
+    {
+      id: 'sidebar-primavera-2026',
+      name: 'Primavera Sound',
+      postId: 'prod-sponso-evt-primavera-2026',
+      priority: 3,
+    },
+    {
+      id: 'sidebar-awakenings-2026',
+      name: 'Awakenings',
+      postId: 'prod-sponso-evt-awakenings-2026',
+      priority: 4,
+    },
+    {
+      id: 'sidebar-lollapalooza-berlin-2026',
+      name: 'Lollapalooza Berlin',
+      postId: 'prod-sponso-evt-lollapalooza-berlin-2026',
+      priority: 5,
     },
   ];
 

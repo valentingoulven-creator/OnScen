@@ -772,15 +772,16 @@ export function ProfileReelRecorder({
         />
       </label>
 
-      {/* Link (optional) */}
+      {/* Album link (optional) — spinning vinyl on reel when set */}
       <label className="block">
         <span className={labelClass}>
           {embedded && (
             <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+              <circle cx="12" cy="12" r="9" />
+              <circle cx="12" cy="12" r="3" />
             </svg>
           )}
-          {t('reels.createLinkLabel', { defaultValue: 'Lien (optionnel)' })}
+          {t('reels.createLinkLabel', { defaultValue: 'Lien album (optionnel)' })}
         </span>
         <input
           value={link}
@@ -792,7 +793,7 @@ export function ProfileReelRecorder({
           maxLength={500}
           type="url"
           inputMode="url"
-          placeholder={t('reels.createLinkPlaceholder', { defaultValue: 'https://…' })}
+          placeholder={t('reels.createLinkPlaceholder', { defaultValue: 'Spotify, YouTube, Deezer, Soundy…' })}
           className={
             embedded
               ? `w-full rounded-2xl bg-white/[0.06] border px-3.5 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none transition-colors ${
@@ -803,6 +804,9 @@ export function ProfileReelRecorder({
                 }`
           }
         />
+        <p className={`mt-1 text-[10px] leading-snug ${embedded ? 'text-white/35' : 'text-gray-500'}`}>
+          {t('reels.createLinkHint', { defaultValue: 'Affiche un vinyle cliquable en haut à gauche du reel.' })}
+        </p>
         {linkError && (
           <p className="mt-1 text-[10px] text-red-400 flex items-center gap-1">
             <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">

@@ -22,6 +22,10 @@ import {
   canAccessLiveIceServers,
 } from '../lib/liveParticipants';
 import {
+  getPresentationDemoParticipants,
+  isPresentationDemoLive,
+} from '../lib/presentationDemoLive';
+import {
   endLiveSession,
   listHostedArchivedLives,
   serializeArchivedLive,
@@ -479,8 +483,12 @@ livesRouter.get('/:id/participants', authenticateJWT, (req: Request, res: Respon
     return;
   }
   const vipIds = live.vipModeratorIds ?? [];
+  const socketParticipants = getLiveConnectedParticipants(live.id, live.hostId, vipIds);
+  const participants = isPresentationDemoLive(live)
+    ? getPresentationDemoParticipants(live.id, live.hostId, vipIds)
+    : socketParticipants;
   res.json({
-    participants: getLiveConnectedParticipants(live.id, live.hostId, vipIds),
+    participants,
     viewersCount: live.viewersCount,
   });
 });
@@ -695,6 +703,17 @@ livesRouter.get('/:id/cloudflare-stream-status', authenticateJWT, async (req: Re
   }
   const isHost = live.hostId === userId;
   const obsStatusForLivekitHost = isHost && live.streamMode === 'livekit' && live.isActive;
+
+  if (isPresentationDemoLive(live) && live.cloudflarePlaybackUrl) {
+    res.json({
+      live: true,
+      videoUid: 'presentation-demo',
+      status: 'connected',
+      liveInputId: live.cloudflareLiveInputId ?? 'presentation-demo',
+      playbackUrl: live.cloudflarePlaybackUrl,
+    });
+    return;
+  }
 
   if (!obsStatusForLivekitHost && (live.streamMode !== 'cloudflare' || !live.cloudflareLiveInputId)) {
     res.status(404).json({ error: 'Flux Cloudflare indisponible.', code: 'no_cloudflare_input' });

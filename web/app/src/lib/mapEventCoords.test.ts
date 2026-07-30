@@ -8,6 +8,7 @@ import {
   resolveEventVenueCoordsSync,
   resolveManyEventCoordsRemaining,
   resolveManyEventCoordsSync,
+  SOLAR_FESTIVAL_VENUE,
 } from './mapEventCoords';
 import * as geocodeAddress from './geocodeAddress';
 
@@ -30,6 +31,15 @@ describe('resolveEventVenueCoordsSync', () => {
 
     const zenith = resolveEventVenueCoordsSync('Zénith Sud, Montpellier, France');
     expect(zenith).toEqual({ latitude: 43.5848, longitude: 3.8803 });
+
+    const solar = resolveEventVenueCoordsSync('Solar Festival, Le Crès, France');
+    expect(solar).toEqual(SOLAR_FESTIVAL_VENUE);
+
+    const primavera = resolveEventVenueCoordsSync('Parc del Fòrum, Barcelona, Spain');
+    expect(primavera).toEqual({ latitude: 41.4115, longitude: 2.2263 });
+
+    const berghain = resolveEventVenueCoordsSync('Berghain, Berlin, Germany');
+    expect(berghain).toEqual({ latitude: 52.5112, longitude: 13.4431 });
   });
 
   it('does not fall back to city center', () => {
@@ -78,6 +88,18 @@ describe('resolveEventCoords', () => {
     const coords = await resolveEventCoords('Salle Pleyel, Paris, France');
     expect(coords).toEqual({ latitude: 48.8802, longitude: 2.3007 });
     expect(geocodeQuery).not.toHaveBeenCalled();
+  });
+
+  it('places Solar Festival at Lac du Crès, not Montpellier center', async () => {
+    const coords = await resolveEventCoords('Solar Festival, Le Crès, France');
+    expect(coords).toEqual(SOLAR_FESTIVAL_VENUE);
+    expect(geocodeQuery).not.toHaveBeenCalled();
+
+    const montpellierCenter = resolveEventCityCoordsSync('Montpellier');
+    expect(montpellierCenter).toBeTruthy();
+    const latDelta = Math.abs(coords!.latitude - montpellierCenter!.latitude);
+    const lonDelta = Math.abs(coords!.longitude - montpellierCenter!.longitude);
+    expect(latDelta + lonDelta).toBeGreaterThan(0.04);
   });
 });
 
@@ -143,5 +165,24 @@ describe('resolveManyEventCoords', () => {
     const full = await resolveManyEventCoordsRemaining(['Lieu X', 'Lieu X'], sync);
     expect(full.size).toBe(1);
     expect(geocodeQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it('resolves msdev showcase host event venues to precise coords', () => {
+    const locations = [
+      'Place de la Comédie, Montpellier, France',
+      'Le Rockstore, Montpellier, France',
+      'Place du Peyrou, Montpellier, France',
+      'Odysseum, Montpellier, France',
+      'Zénith Sud, Montpellier, France',
+      'Solar Festival, Le Crès, France',
+    ];
+    const map = resolveManyEventCoordsSync(locations);
+    expect(map.size).toBe(locations.length);
+    for (const loc of locations) {
+      const coords = map.get(loc);
+      expect(coords).toBeTruthy();
+      expect(resolveEventVenueCoordsSync(loc)).toEqual(coords);
+    }
+    expect(map.get('Solar Festival, Le Crès, France')).toEqual(SOLAR_FESTIVAL_VENUE);
   });
 });

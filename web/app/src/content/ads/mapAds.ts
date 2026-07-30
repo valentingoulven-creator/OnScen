@@ -51,8 +51,8 @@ export const MAP_ADS: MapAd[] = [
       'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=80&h=80&fit=crop',
     displayDurationSec: 10,
     mapVisibilityScope: 'region',
-    mapTargetLat: 43.6489,
-    mapTargetLng: 3.8567,
+    mapTargetLat: 43.6405,
+    mapTargetLng: 3.9395,
   },
   {
     id: 'les-deferlantes-2026',

@@ -10,11 +10,13 @@ const idsPath = path.join(__dirname, 'mixkit-video-ids.json');
 const outPaths = [
   path.join(root, 'app/src/content/reelsDemoCatalog.ts'),
   path.join(root, 'backend/src/lib/reelsDemoCatalog.ts'),
+  path.resolve(root, '../web/app/src/content/reelsDemoCatalog.ts'),
 ];
 
 /** Reels nommés d’origine (conservés en tête du flux). */
 const FEATURED = [
   { id: 'reel-guitar', videoId: 483, musicId: 872, title: 'Guitare électrique', artist: 'Electric Soul', genre: 'Rock' },
+  { id: 'reel-singer', videoId: 42825, musicId: 787, title: 'Session voix', artist: 'Vocal Live', genre: 'Chant' },
   { id: 'reel-dj', videoId: 830, musicId: 989, title: 'Platines DJ', artist: 'DJ Melody', genre: 'Électro' },
   { id: 'reel-drums', videoId: 427, musicId: 1140, title: 'Groove batterie', artist: 'Rhythm Crew', genre: 'Batterie live' },
   { id: 'reel-piano', videoId: 44147, musicId: 787, title: 'Piano virtuose', artist: 'Keys & Chill', genre: 'Lo-fi' },

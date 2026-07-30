@@ -24,6 +24,9 @@ export interface SalonLiveBotSeed {
   trackTitle: string;
   artist: string;
   trackId: string;
+  /** Override démo (ex. showcase viral). */
+  listenersCount?: number;
+  viewersCount?: number;
 }
 
 /** 10 salons + 5 lives — France, dominante Le Crès / Occitanie. */
@@ -87,6 +90,8 @@ export const SALON_LIVE_BOT_SEEDS: SalonLiveBotSeed[] = [
     trackTitle: 'HUMBLE.',
     artist: 'Kendrick Lamar',
     trackId: 'tvTRZ0-26n0',
+    listenersCount: 40,
+    viewersCount: 40,
   },
   {
     userId: `${SALON_LIVE_ID_PREFIX}bot-indie-mau`,
@@ -233,7 +238,7 @@ function makeSalon(seed: SalonLiveBotSeed, user: User): Salon {
     longitude: lng,
     blurredLatitude: blurCoordinate(lat),
     blurredLongitude: blurCoordinate(lng),
-    listenersCount: 4 + (stableProgressMs(seed.userId) % 22),
+    listenersCount: seed.listenersCount ?? 4 + (stableProgressMs(seed.userId) % 22),
     isGhostMode: false,
     isPublic: true,
     accessMode: 'public',
@@ -245,9 +250,8 @@ function makeSalon(seed: SalonLiveBotSeed, user: User): Salon {
 
 function makeLive(seed: SalonLiveBotSeed, user: User, salon: Salon): Live {
   const now = Date.now();
-  const liveId = `${SALON_LIVE_ID_PREFIX}live-${seed.userId.replace(SALON_LIVE_ID_PREFIX, '')}`;
   return {
-    id: liveId,
+    id: salon.id,
     salonId: salon.id,
     hostId: user.id,
     hostName: user.username,
@@ -258,11 +262,22 @@ function makeLive(seed: SalonLiveBotSeed, user: User, salon: Salon): Live {
     longitude: salon.longitude,
     blurredLatitude: salon.blurredLatitude,
     blurredLongitude: salon.blurredLongitude,
-    viewersCount: 6 + (stableProgressMs(liveId) % 38),
+    viewersCount: seed.viewersCount ?? 6 + (stableProgressMs(salon.id) % 38),
+    peakViewersCount: seed.viewersCount ?? 6 + (stableProgressMs(salon.id) % 38),
     isActive: true,
-    startedAt: now - 600_000 - (stableProgressMs(liveId) % 1_800_000),
+    startedAt: now - 600_000 - (stableProgressMs(salon.id) % 1_800_000),
     cameraActive: true,
   };
+}
+
+function legacySeedLiveId(seed: SalonLiveBotSeed): string {
+  return `${SALON_LIVE_ID_PREFIX}live-${seed.userId.replace(SALON_LIVE_ID_PREFIX, '')}`;
+}
+
+function removeLegacySeedLive(liveId: string, salonId: string): void {
+  if (liveId === salonId || !db.lives.has(liveId)) return;
+  db.lives.delete(liveId);
+  db.liveChats.delete(liveId);
 }
 
 export interface SeedSalonsLivesResult {
@@ -321,15 +336,24 @@ export function seedProductionSalonsLives(): SeedSalonsLivesResult {
     });
 
     if (seed.withLive && seed.liveTitle) {
-      const liveId = `${SALON_LIVE_ID_PREFIX}live-${seed.userId.replace(SALON_LIVE_ID_PREFIX, '')}`;
-      if (!db.lives.has(liveId)) {
-        const salon = db.salons.get(seed.salonId)!;
+      const salon = db.salons.get(seed.salonId)!;
+      removeLegacySeedLive(legacySeedLiveId(seed), seed.salonId);
+      if (!db.lives.has(seed.salonId)) {
         const live = makeLive(seed, user, salon);
-        db.lives.set(liveId, live);
-        if (!db.liveChats.has(liveId)) db.liveChats.set(liveId, []);
+        db.lives.set(seed.salonId, live);
+        if (!db.liveChats.has(seed.salonId)) db.liveChats.set(seed.salonId, []);
         result.livesCreated++;
       }
-      const live = db.lives.get(liveId)!;
+      const live = db.lives.get(seed.salonId)!;
+      if (seed.viewersCount != null && !live.presentationDemoStream) {
+        live.viewersCount = seed.viewersCount;
+        live.peakViewersCount = Math.max(live.peakViewersCount ?? 0, seed.viewersCount);
+        db.lives.set(seed.salonId, live);
+      }
+      if (seed.listenersCount != null && !live.presentationDemoStream) {
+        salon.listenersCount = seed.listenersCount;
+        db.salons.set(seed.salonId, salon);
+      }
       result.lives.push({
         id: live.id,
         title: live.title,

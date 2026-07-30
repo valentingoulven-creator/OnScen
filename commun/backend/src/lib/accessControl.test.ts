@@ -40,6 +40,37 @@ describe('accessControl', () => {
     expect(getPublicAccessConfig().adminApprovalRequired).toBe(true);
   });
 
+  it('active le contrôle d’accès et ferme les inscriptions en production', () => {
+    process.env.APP_ENV = 'production';
+    loadAccessControlFromPersist(undefined, []);
+    expect(isAccessControlEnabled()).toBe(true);
+    expect(getPublicAccessConfig().registrationMode).toBe('closed');
+    expect(getPublicAccessConfig().registrationClosed).toBe(true);
+    const denied = assertRegistrationAllowed({});
+    expect(denied.ok).toBe(false);
+    if (!denied.ok) expect(denied.status).toBe(403);
+  });
+
+  it('force closed en production si la politique persistée est open', () => {
+    process.env.APP_ENV = 'production';
+    loadAccessControlFromPersist({ registrationMode: 'open', updatedAt: Date.now() }, []);
+    expect(getPublicAccessConfig().registrationMode).toBe('closed');
+  });
+
+  it('respecte invite_only persisté en production', () => {
+    process.env.APP_ENV = 'production';
+    loadAccessControlFromPersist({ registrationMode: 'invite_only', updatedAt: Date.now() }, []);
+    expect(getPublicAccessConfig().registrationMode).toBe('invite_only');
+  });
+
+  it('ALLOW_REGISTRATION=1 rouvre les inscriptions en production', () => {
+    process.env.APP_ENV = 'production';
+    process.env.ALLOW_REGISTRATION = '1';
+    loadAccessControlFromPersist(undefined, []);
+    expect(getPublicAccessConfig().registrationMode).toBe('open');
+    expect(assertRegistrationAllowed({}).ok).toBe(true);
+  });
+
   it('refuse inscription sans code en invite_only', () => {
     process.env.ACCESS_CONTROL_ENABLED = '1';
     setAccessPolicy({ registrationMode: 'invite_only' });

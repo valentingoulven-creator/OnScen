@@ -56,6 +56,7 @@ const STUDY_TOC_SECTIONS = [
   { label: 'Plan commercial 90 jours', desc: 'Préparation, prospection, conversion.' },
   { label: 'Priorités immédiates', desc: 'Actions P0 / P1 / P2.' },
   { label: 'Glossaire', desc: 'Termes métier, produit Soundy et acronymes.' },
+  { label: 'Sources & références', desc: 'Sites, publications et données citées dans l\'étude.' },
 ];
 
 const PREMIUM_TOC_SECTIONS = [
@@ -187,6 +188,66 @@ function addPremiumSectionNumbers(html) {
   });
 }
 
+/** Acronymes du glossaire étude (titres de terme purs). */
+const GLOSSARY_ACRONYMS = new Set([
+  'TAM', 'SAM', 'SOM', 'ARR', 'CPM', 'HT', 'MAU', 'MVP', 'B2B',
+  'RGPD', 'CGV', 'BPI', 'INPI', 'CRM', 'BIC', 'CRT', 'SNAC', 'UPFI', 'RA', 'AEG',
+]);
+
+/** Acronymes inline (corps + définitions glossaire), triés longueur décroissante. */
+const INLINE_ACRONYMS = [
+  'UDECAM', 'INJEP', 'INSEE', 'WebRTC',
+  'SNAC', 'UPFI', 'INPI', 'RGPD', 'ARR', 'CRM', 'BPI', 'BIC', 'CRT', 'AEG',
+  'SAM', 'SOM', 'TAM', 'CPM', 'B2B', 'MAU', 'MVP', 'OBS', 'CDN', 'DNS', 'API',
+  'VPS', 'DAU', 'PME', 'CGV', 'HT', 'SRI', 'FY',
+  'Md€', 'M€', 'k€',
+];
+
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function markGlossaryAcronyms(html) {
+  let out = html;
+  for (const term of GLOSSARY_ACRONYMS) {
+    const re = new RegExp(
+      `<span class="glossary-term">${escapeRegex(term)}</span>`,
+      'g'
+    );
+    out = out.replace(re, `<span class="glossary-term acronym">${term}</span>`);
+  }
+  return out;
+}
+
+function wrapAcronymsInFragment(html) {
+  const patterns = [
+    ...INLINE_ACRONYMS.map(escapeRegex),
+    'M\\d{1,2}',
+    'P[012]',
+  ];
+  const re = new RegExp(`(?<![\\w<])(${patterns.join('|')})(?![\\w>])`, 'gi');
+
+  let inGlossaryTerm = false;
+  return html.split(/(<[^>]+>)/g).map((part) => {
+    if (part.startsWith('<')) {
+      if (/class="glossary-term/.test(part)) inGlossaryTerm = true;
+      else if (inGlossaryTerm && /^<\/span>/i.test(part)) inGlossaryTerm = false;
+      return part;
+    }
+    if (inGlossaryTerm) return part;
+    return part.replace(re, (match) => `<span class="acronym">${match}</span>`);
+  }).join('');
+}
+
+function wrapStudyAcronyms(html) {
+  let out = markGlossaryAcronyms(html);
+  const blocks = out.split(/(<script[\s\S]*?<\/script>)/gi);
+  out = blocks
+    .map((block) => (/^<script/i.test(block) ? block : wrapAcronymsInFragment(block)))
+    .join('');
+  return out;
+}
+
 async function generateOne(doc) {
   const { marked } = await import('marked');
   marked.setOptions({ gfm: true, breaks: false });
@@ -201,6 +262,8 @@ async function generateOne(doc) {
   let parsed = marked.parse(mdContent);
   if (doc.kind === 'premium') {
     parsed = addPremiumSectionNumbers(parsed);
+  } else if (doc.kind === 'study') {
+    parsed = wrapStudyAcronyms(parsed);
   }
 
   let bodyClass;

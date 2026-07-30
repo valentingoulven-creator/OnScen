@@ -1,6 +1,9 @@
 import { geocodeQuery } from './geocodeAddress';
 import { resolveWorldPopulatedCityCoords } from './worldPopulatedCityCoords';
 
+/** Lac du Crès Jean-Marie Rouché — Solar Festival (Chemin de Navitau, Le Crès). */
+export const SOLAR_FESTIVAL_VENUE = { latitude: 43.6405, longitude: 3.9395 } as const;
+
 /** Lieux connus des seeds feed-event-* / user-event-* (coords venues). */
 const VENUE_LOOKUP: Array<{ match: RegExp; latitude: number; longitude: number }> = [
   { match: /zénith sud|zenith sud/i, latitude: 43.5848, longitude: 3.8803 },
@@ -11,13 +14,18 @@ const VENUE_LOOKUP: Array<{ match: RegExp; latitude: number; longitude: number }
   { match: /olympia/i, latitude: 48.8699, longitude: 2.3282 },
   { match: /place du peyrou|peyrou/i, latitude: 43.6112, longitude: 3.8703 },
   { match: /corum|opéra berlioz|opera berlioz/i, latitude: 43.612, longitude: 3.8805 },
-  { match: /solar festival/i, latitude: 43.6489, longitude: 3.8567 },
+  {
+    match: /solar festival|lac du cr[eè]s|lac j-?m\.? rouch[eé]|chemin de navitau|navitau/i,
+    latitude: SOLAR_FESTIVAL_VENUE.latitude,
+    longitude: SOLAR_FESTIVAL_VENUE.longitude,
+  },
   { match: /d[eé]ferlantes|argel[eè]s-sur-mer/i, latitude: 42.5467, longitude: 3.0222 },
   { match: /rock en seine|saint-cloud/i, latitude: 48.8422, longitude: 2.2183 },
   { match: /nuits sonores/i, latitude: 45.764, longitude: 4.8357 },
   { match: /bar musical/i, latitude: 45.764, longitude: 4.8357 },
   { match: /café des arts|cafe des arts/i, latitude: 44.8378, longitude: -0.5792 },
   { match: /place de la com[eé]die/i, latitude: 43.608, longitude: 3.8778 },
+  { match: /odysseum/i, latitude: 43.6045, longitude: 3.8842 },
   { match: /place du mill[eé]naire|antigone/i, latitude: 43.6088, longitude: 3.8855 },
   { match: /le polygone|polygone/i, latitude: 43.5745, longitude: 3.8578 },
   { match: /jazz [àa] juan|pin[eè]de gould/i, latitude: 43.5804, longitude: 7.1251 },
@@ -25,6 +33,12 @@ const VENUE_LOOKUP: Array<{ match: RegExp; latitude: number; longitude: number }
   { match: /longchamp|lollapalooza/i, latitude: 48.8575, longitude: 2.2415 },
   { match: /francofolies/i, latitude: 46.1603, longitude: -1.1511 },
   { match: /calvi on the rocks/i, latitude: 42.5676, longitude: 8.757 },
+  { match: /primavera sound|parc del f[oò]rum/i, latitude: 41.4115, longitude: 2.2263 },
+  { match: /awakenings|spaarnwoude/i, latitude: 52.385, longitude: 4.689 },
+  { match: /olympiastadion|lollapalooza berlin/i, latitude: 52.5145, longitude: 13.2395 },
+  { match: /berghain/i, latitude: 52.5112, longitude: 13.4431 },
+  { match: /o2 academy brixton/i, latitude: 51.4651, longitude: -0.1149 },
+  { match: /razzmatazz/i, latitude: 41.3984, longitude: 2.1907 },
 ];
 
 const CITY_LOOKUP: Array<{ match: RegExp; latitude: number; longitude: number }> = [

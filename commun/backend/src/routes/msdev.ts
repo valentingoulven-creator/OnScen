@@ -16,6 +16,8 @@ import { seedCommunityPosts } from '../seed-community-posts';
 import { getHomeFeedSeedStats, seedHomeFeed } from '../seed-home-feed';
 import { seedMsdevStories } from '../seed-msdev-stories';
 import { seedMsdevDensity } from '../seed-msdev-density';
+import { seedMsdevShowcase } from '../seed-msdev-showcase';
+import { seedMsdevPresentationLive } from '../seed-msdev-presentation-live';
 import { assertMsdev } from '../lib/msdevGuard';
 
 export const msdevRouter = Router();
@@ -114,6 +116,33 @@ msdevRouter.post('/seed-home-feed', authenticateJWT, (req: Request, res: Respons
     ...result,
     stats: getHomeFeedSeedStats(),
     message: `Accueil : ${result.listenerFavoriteCount} favoris, ${result.favoritePostsTotal} posts favoris, ${result.communityPostsTotal} posts hors favoris.`,
+  });
+});
+
+/** Regénère l'écosystème showcase listener@msdev.local (reels, lives, salons, events, follows). */
+msdevRouter.post('/seed-showcase', authenticateJWT, (req: Request, res: Response) => {
+  const force = req.body?.force === true || req.query.force === '1';
+  const result = seedMsdevShowcase({ force });
+  res.json({
+    ok: true,
+    ...result,
+    message:
+      `Showcase : ${result.followsAdded} abonnement(s), ${result.reelsCreated} reel(s), ` +
+      `${result.eventsCreated} événement(s), ${result.salonsCreated} salon(s), ${result.livesCreated} live(s).`,
+  });
+});
+
+/** Live présentation Castelnau-le-Lez : 40 spectateurs, chat, flux HLS simulé. */
+msdevRouter.post('/seed-presentation-live', authenticateJWT, (_req: Request, res: Response) => {
+  const result = seedMsdevPresentationLive();
+  res.json({
+    ok: true,
+    ...result,
+    liveUrl: `/live/${result.liveId}`,
+    message:
+      result.updated
+        ? `Live Castelnau prêt : ${result.viewersCount} spectateurs, ${result.chatMessages} messages chat, vidéo HLS démo.`
+        : 'Live Castelnau introuvable — lancez d’abord le seed France (npm run dev).',
   });
 });
 

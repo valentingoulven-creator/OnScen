@@ -348,18 +348,25 @@ describe('filterMapEventPinsForView', () => {
     ...regular,
   ];
 
+  function isoOnDayOffset(offsetDays: number, hour = 18): string {
+    const d = new Date();
+    d.setHours(hour, 0, 0, 0);
+    d.setDate(d.getDate() + offsetDays);
+    return d.toISOString();
+  }
+
   const events = [
     marker({
       id: 'regular-tomorrow',
       latitude: 48.8,
       longitude: 2.3,
-      eventDate: '2026-07-23T18:00:00.000Z',
+      eventDate: isoOnDayOffset(1),
     }),
     marker({
       id: 'sponso-tomorrow',
-      latitude: 43.6,
-      longitude: 3.9,
-      eventDate: '2026-07-23T18:00:00.000Z',
+      latitude: 43.6405,
+      longitude: 3.9395,
+      eventDate: isoOnDayOffset(1),
       isSponsored: true,
     }),
   ];
@@ -378,7 +385,7 @@ describe('filterMapEventPinsForView', () => {
       id: 'regular-today',
       latitude: 48.8,
       longitude: 2.3,
-      eventDate: '2026-07-22T18:00:00.000Z',
+      eventDate: isoOnDayOffset(0),
     });
     const pool = [todayRegular, ...events];
     const result = filterMapEventPinsForView(pool, {
@@ -396,16 +403,16 @@ describe('filterMapEventPinsForView', () => {
   it('keeps sponsored pins when events filter criteria exclude them from the pool', () => {
     const sponso = marker({
       id: 'sponso-solar',
-      latitude: 43.6,
-      longitude: 3.9,
-      eventDate: '2026-07-22T18:00:00.000Z',
+      latitude: 43.6405,
+      longitude: 3.9395,
+      eventDate: isoOnDayOffset(30),
       isSponsored: true,
     });
     const regularParis = marker({
       id: 'regular-paris',
       latitude: 48.8,
       longitude: 2.3,
-      eventDate: '2026-07-22T18:00:00.000Z',
+      eventDate: isoOnDayOffset(0),
     });
     const all = [regularParis, sponso];
     const result = filterMapEventPinsForView(all, {
@@ -447,8 +454,8 @@ describe('buildMapEventsBaseForPins', () => {
 
   const solarFeed: MapEventMarker = {
     id: 'prod-sponso-evt-solar-festival-2026',
-    latitude: 43.6489,
-    longitude: 3.8567,
+    latitude: 43.6405,
+    longitude: 3.9395,
     title: 'Solar Festival',
     eventDate: '2026-07-22T18:00:00.000Z',
     eventLocation: 'Solar Festival, Le Crès, France',
@@ -504,21 +511,29 @@ describe('buildMapEventsBaseForPins', () => {
 
 describe('applyMapEventDayPinFilterForMap', () => {
   it('keeps sponso pins when day pin filter targets another day', () => {
+    const today = new Date();
+    today.setHours(18, 0, 0, 0);
+    const todayIso = today.toISOString();
+    const todayKey = today.toLocaleDateString('en-CA');
+    const future = new Date(today);
+    future.setDate(future.getDate() + 5);
+    future.setHours(18, 0, 0, 0);
+
     const sponso = marker({
       id: 'sponso-future',
-      latitude: 43.6,
-      longitude: 3.9,
-      eventDate: '2026-07-25T18:00:00.000Z',
+      latitude: 43.6405,
+      longitude: 3.9395,
+      eventDate: future.toISOString(),
       isSponsored: true,
     });
     const regular = marker({
       id: 'regular-today',
       latitude: 48.8,
       longitude: 2.3,
-      eventDate: '2026-07-22T18:00:00.000Z',
+      eventDate: todayIso,
     });
 
-    const result = applyMapEventDayPinFilterForMap([sponso, regular], '2026-07-22');
+    const result = applyMapEventDayPinFilterForMap([sponso, regular], todayKey);
 
     expect(result.map((event) => event.id)).toEqual(['sponso-future', 'regular-today']);
   });

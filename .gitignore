@@ -1,4 +1,6 @@
-node_modules/
+# Cursor local sync state (regenerated)
+.cursor/cloud-sync.state.json
+
 dist/
 .env
 .env.local
@@ -71,3 +73,4 @@ app/node_modules.bak/
 pm2_jlist.json
 pm2-jlist*.json
 pm2_prettylist*.json
+node_modules

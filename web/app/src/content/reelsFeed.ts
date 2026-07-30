@@ -165,6 +165,7 @@ export function normalizeReelFromApi(raw: ApiReel): MusicReel | null {
     ...(durationSec != null ? { durationSec } : {}),
     ...(visibility ? { visibility } : {}),
     ...(isPrivate ? { isPrivate: true } : { isPrivate: false }),
+    ...(str(raw.link) ? { link: str(raw.link) } : {}),
   };
 
   return canonicalReel(draft);
@@ -222,6 +223,7 @@ export function normalizeProfileReelFromApi(raw: ApiReel): MusicReel | null {
     ...(typeof raw.viewCount === 'number' && raw.viewCount >= 0
       ? { viewCount: raw.viewCount }
       : {}),
+    ...(str(raw.link) ? { link: str(raw.link) } : {}),
   };
 }
 

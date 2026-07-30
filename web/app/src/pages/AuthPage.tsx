@@ -12,6 +12,7 @@ import { SoundyLogo } from '../components/SoundyLogo';
 import { PasswordStrengthBar } from '../components/PasswordStrengthBar';
 import { getPasswordStrengthAsync, preloadPasswordStrength } from '../lib/passwordStrength';
 import type { PublicAccessConfig, User } from '../types';
+import { ProfileSetupWizard } from '../components/ProfileSetupWizard';
 import { startAuthentication } from '@simplewebauthn/browser';
 
 // ─── OAuth provider status ───────────────────────────────────────────────────
@@ -37,12 +38,14 @@ function oauthErrorMessage(code: string, provider: string): string {
 
 export function AuthPage() {
   const { t } = useTranslation();
-  const { register, setSession, token, login } = useAuth();
+  const { setSession, token, login } = useAuth();
   const handleAutoLogin = useCallback(
     (t: string, u: User) => { setSession(t, u); },
     [setSession]
   );
   const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [registerPhase, setRegisterPhase] = useState<'account' | 'profile'>('account');
+  const [pendingSignup, setPendingSignup] = useState<{ token: string; user: User } | null>(null);
 
   // ── 2FA challenge state ────────────────────────────────────────────────────
   const [twoFAState, setTwoFAState] = useState<{ tempToken: string; rememberMe: boolean } | null>(null);
@@ -364,7 +367,7 @@ export function AuthPage() {
           setSession(r.token, r.user, rememberMe);
         }
       } else {
-        const verification = await register(
+        const r = await api.register(
           username.trim(),
           email,
           password,
@@ -373,10 +376,25 @@ export function AuthPage() {
           inviteCode.trim(),
           confirmAge
         );
-        if (verification?.emailVerificationRequired) {
-          setRegisterSuccess(verification.message);
-          setMode('login');
+        if (r.pending) {
+          throw new Error(
+            r.message ||
+              'Inscription enregistrée. Un administrateur doit valider votre compte avant la première connexion.'
+          );
         }
+        if (r.emailVerificationRequired) {
+          setRegisterSuccess(
+            r.message ||
+              'Compte créé. Consultez vos e-mails pour activer votre compte avant de vous connecter.'
+          );
+          setMode('login');
+          return;
+        }
+        if (!r.token || !r.user) {
+          throw new Error('Réponse d\'inscription invalide');
+        }
+        setPendingSignup({ token: r.token, user: r.user });
+        setRegisterPhase('profile');
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erreur inconnue';
@@ -495,6 +513,36 @@ export function AuthPage() {
     );
   }
 
+  const finishSignupProfile = async () => {
+    if (!pendingSignup) return;
+    try {
+      const { user: updated } = await api.completeOnboarding(pendingSignup.token);
+      setSession(pendingSignup.token, updated, true, true);
+    } catch {
+      setSession(
+        pendingSignup.token,
+        { ...pendingSignup.user, onboardingCompleted: true },
+        true,
+        true
+      );
+    } finally {
+      setPendingSignup(null);
+      setRegisterPhase('account');
+    }
+  };
+
+  if (mode === 'register' && registerPhase === 'profile' && pendingSignup) {
+    return (
+      <ProfileSetupWizard
+        token={pendingSignup.token}
+        username={pendingSignup.user.username}
+        title="Créez votre profil"
+        subtitle="Étape 2 sur 2 — personnalisez votre expérience Soundy"
+        onDone={finishSignupProfile}
+      />
+    );
+  }
+
   if (oauthTermsCode) {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center p-6 bg-[#0b0b0f]">
@@ -573,6 +621,9 @@ export function AuthPage() {
         )}
 
         <form onSubmit={submit} className="space-y-4 bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-6">
+          {mode === 'register' && (
+            <p className="text-center text-xs text-purple-300/90 font-medium">Étape 1 sur 2 — votre compte</p>
+          )}
           {mode === 'register' && (
             <div className="space-y-1">
               <div className="relative">
@@ -878,6 +929,8 @@ export function AuthPage() {
           onClick={() => {
             if (accessConfig?.registrationMode === 'closed') return;
             setMode(mode === 'login' ? 'register' : 'login');
+            setRegisterPhase('account');
+            setPendingSignup(null);
             setError('');
             setRegisterSuccess('');
             setConfirmPassword('');
