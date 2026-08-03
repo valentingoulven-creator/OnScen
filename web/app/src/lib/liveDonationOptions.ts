@@ -2,6 +2,7 @@ import type { LiveDonationOption, LivePublicGoal } from '../types';
 import { DEFAULT_LIVE_REWARDS } from './liveHostTypes';
 import type { LiveGoal, LiveReward } from './liveHostTypes';
 import { getSocket } from './socket';
+import { normalizeGoalOverlay, type LiveDonationGoalOverlay } from './liveGoalOverlay';
 
 export function rewardsToDonationOptions(rewards: LiveReward[]): LiveDonationOption[] {
   return rewards
@@ -18,11 +19,14 @@ export function rewardsToDonationOptions(rewards: LiveReward[]): LiveDonationOpt
 export function goalsToPublicGoals(goals: LiveGoal[]): LivePublicGoal[] {
   return goals
     .filter((g) => g.label.trim() && g.target > 0 && !g.completedAt)
-    .map(({ id, type, target, label }) => ({
+    .map(({ id, type, target, label, manualCurrent }) => ({
       id,
       type,
       target: Math.round(target),
       label: label.trim(),
+      ...(manualCurrent != null && Number.isFinite(manualCurrent)
+        ? { displayCurrent: Math.min(Math.round(target), Math.max(0, Math.round(manualCurrent))) }
+        : {}),
     }));
 }
 
@@ -56,4 +60,14 @@ export function syncLiveDonationGoals(liveId: string, goals: LiveGoal[]): void {
   if (!socket) return;
   const publicGoals = goalsToPublicGoals(goals);
   socket.emit('live_update_donation_goals', { liveId, goals: publicGoals });
+}
+
+/** Publie position et visibilité de la barre objectif sur le live. */
+export function syncLiveDonationGoalOverlay(liveId: string, overlay: LiveDonationGoalOverlay): void {
+  const socket = getSocket();
+  if (!socket) return;
+  socket.emit('live_update_donation_goal_overlay', {
+    liveId,
+    overlay: normalizeGoalOverlay(overlay),
+  });
 }

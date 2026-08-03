@@ -1,6 +1,11 @@
 import type { LiveGoal, LiveReward, RewardQueueItem } from './liveHostTypes';
 import { DEFAULT_LIVE_REWARDS } from './liveHostTypes';
 import { syncLiveDonationOptions } from './liveDonationOptions';
+import {
+  DEFAULT_LIVE_GOAL_OVERLAY,
+  normalizeGoalOverlay,
+  type LiveDonationGoalOverlay,
+} from './liveGoalOverlay';
 
 export { DEFAULT_LIVE_REWARDS } from './liveHostTypes';
 
@@ -8,12 +13,14 @@ export interface LiveHostSession {
   goals: LiveGoal[];
   rewards: LiveReward[];
   rewardQueue: RewardQueueItem[];
+  goalOverlay: LiveDonationGoalOverlay;
 }
 
 const DEFAULT_SESSION: LiveHostSession = {
   goals: [],
   rewards: DEFAULT_LIVE_REWARDS,
   rewardQueue: [],
+  goalOverlay: { ...DEFAULT_LIVE_GOAL_OVERLAY },
 };
 
 function sessionKey(liveId: string): string {
@@ -37,6 +44,7 @@ function readRaw(liveId: string): LiveHostSession {
           ? parsed.rewards
           : [...DEFAULT_LIVE_REWARDS],
       rewardQueue: Array.isArray(parsed.rewardQueue) ? parsed.rewardQueue : [],
+      goalOverlay: normalizeGoalOverlay(parsed.goalOverlay as LiveDonationGoalOverlay | undefined),
     };
   } catch {
     return { ...DEFAULT_SESSION, rewards: [...DEFAULT_LIVE_REWARDS] };
@@ -69,6 +77,7 @@ export function patchLiveHostSession(
     goals: delta.goals ?? prev.goals,
     rewards: delta.rewards ?? prev.rewards,
     rewardQueue: delta.rewardQueue ?? prev.rewardQueue,
+    goalOverlay: delta.goalOverlay ?? prev.goalOverlay,
   };
   setLiveHostSession(liveId, next);
   if (delta.rewards) {

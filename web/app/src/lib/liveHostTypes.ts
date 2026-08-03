@@ -11,6 +11,8 @@ export interface LiveGoal {
   liveId: string;
   createdAt: number;
   completedAt?: number;
+  /** Valeur affichée fixée par l'hôte (prioritaire sur le calcul auto). */
+  manualCurrent?: number;
 }
 
 export type TriggerAction =
