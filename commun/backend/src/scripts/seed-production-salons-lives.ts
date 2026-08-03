@@ -12,6 +12,7 @@ import {
 } from '../lib/persist';
 import { savePersistedStoreToPostgres } from '../lib/pgStore';
 import { seedProductionSalonsLives } from '../seed-salons-lives';
+import { ensureBeatCastelShowcaseProfile } from '../seed-beatcastel-profile';
 import { saveSalonsLivesToPostgres } from '../lib/pgSalonsLives';
 import { closePool } from '../db/pool';
 
@@ -26,6 +27,7 @@ async function main(): Promise<void> {
   if (!restored) throw new Error('Impossible de charger le store PostgreSQL');
 
   const result = seedProductionSalonsLives();
+  ensureBeatCastelShowcaseProfile();
   await savePersistedStoreToPostgres();
   const pgSaved = await saveSalonsLivesToPostgres();
 

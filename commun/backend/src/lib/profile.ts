@@ -4,7 +4,7 @@ import { getHostRatingSummary } from './ratings';
 import { migrateUserProfileType } from './profileTypes';
 import { VALID_RELATIONSHIP_STATUSES } from './relationshipStatus';
 import { isFollowing } from './follows';
-import { getFavoriteCount, isFavorite } from './favorites';
+import { getFavoriteCount, getFollowingCount, isFavorite } from './favorites';
 import {
   getActiveLiveIdForHost,
   getLiveViewersCountForHost,
@@ -361,12 +361,8 @@ function listeningFromPlayback(ps: PlaybackState): PublicCurrentListening | unde
   };
 }
 
-/** Morceau diffusé en salon ou live actif animé par cet utilisateur. */
-export function getCurrentListeningForUser(
-  userId: string,
-  opts?: { viewerId?: string; isOwner?: boolean }
-): PublicCurrentListening | undefined {
-  const isOwner = opts?.isOwner ?? (opts?.viewerId != null && opts.viewerId === userId);
+/** Morceau diffusé sur le live actif animé par cet utilisateur. */
+export function getLiveListeningForUser(userId: string): PublicCurrentListening | undefined {
   let bestLive: PublicCurrentListening | undefined;
   let bestViewers = -1;
   for (const live of db.lives.values()) {
@@ -378,14 +374,27 @@ export function getCurrentListeningForUser(
       bestLive = listening;
     }
   }
-  if (bestLive) return bestLive;
+  return bestLive;
+}
 
+/** Morceau diffusé dans le salon hébergé (indépendamment du live). */
+export function getSalonListeningForUser(
+  userId: string,
+  opts?: { viewerId?: string; isOwner?: boolean }
+): PublicCurrentListening | undefined {
+  const isOwner = opts?.isOwner ?? (opts?.viewerId != null && opts.viewerId === userId);
   const salon = getActiveSalonForHost(userId, { forOwner: isOwner });
-  if (salon) {
-    if (!isSalonPublic(salon) && !isOwner) return undefined;
-    return listeningFromPlayback(salon.playbackState);
-  }
-  return undefined;
+  if (!salon) return undefined;
+  if (!isSalonPublic(salon) && !isOwner) return undefined;
+  return listeningFromPlayback(salon.playbackState);
+}
+
+/** Morceau diffusé en salon ou live actif animé par cet utilisateur. */
+export function getCurrentListeningForUser(
+  userId: string,
+  opts?: { viewerId?: string; isOwner?: boolean }
+): PublicCurrentListening | undefined {
+  return getLiveListeningForUser(userId) ?? getSalonListeningForUser(userId, opts);
 }
 
 function cloneUserForPublic(u: User): User {
@@ -458,6 +467,7 @@ export function publicProfile(u: User, isOwner = false, viewerId?: string) {
     isDev: isOwner && isDevStaff(snapshot) ? true : undefined,
     stats,
     favoritesCount: snapshot.favoritesCountOverride ?? getFavoriteCount(snapshot.id),
+    followingCount: getFollowingCount(snapshot.id),
     isFavorite:
       viewerId && viewerId !== snapshot.id && !isOwner
         ? isFavorite(viewerId, snapshot.id)
@@ -477,6 +487,10 @@ export function publicProfile(u: User, isOwner = false, viewerId?: string) {
     salonId: exposeSalon ? activeSalon!.id : undefined,
     salonTitle: exposeSalon
       ? activeSalon!.title || activeSalon!.playbackState?.title || undefined
+      : undefined,
+    liveListening: isLive ? getLiveListeningForUser(snapshot.id) : undefined,
+    salonListening: exposeSalon
+      ? getSalonListeningForUser(snapshot.id, { viewerId, isOwner })
       : undefined,
     currentListening: getCurrentListeningForUser(snapshot.id, { viewerId, isOwner }),
     instagramHandle: snapshot.instagramHandle,

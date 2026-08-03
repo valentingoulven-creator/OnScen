@@ -9,6 +9,7 @@ import {
   SALON_LIVE_BOT_SEEDS,
   SALON_LIVE_ID_PREFIX,
 } from './seed-salons-lives';
+import { ensureBeatCastelShowcaseProfile } from './seed-beatcastel-profile';
 import { followUser } from './lib/follows';
 import { ensureSalonQueue, ensureSalonProposals, enqueueItem } from './lib/salonPlaybackOps';
 import { MSDEV_DEMO_AGE } from './lib/msdevDemoAccounts';
@@ -77,6 +78,7 @@ export function ensureMsdevFranceSalonLives(): void {
   if (process.env.APP_ENV !== 'msdev' && process.env.MSENV !== 'msdev') return;
 
   const result = seedProductionSalonsLives();
+  ensureBeatCastelShowcaseProfile();
   let reactivated = 0;
 
   for (const seed of SALON_LIVE_BOT_SEEDS) {

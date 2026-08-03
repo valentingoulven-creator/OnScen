@@ -190,10 +190,13 @@ export async function moderateDmAttachment(
 
 export async function moderateFeedPostMedia(input: {
   imageUrl?: string;
+  imageUrls?: string[];
   videoUrl?: string;
 }): Promise<ModerationResult> {
-  if (input.imageUrl) {
-    const imageResult = await moderateImageSource(input.imageUrl, 'feed_post');
+  const urls =
+    input.imageUrls?.length ? input.imageUrls : input.imageUrl ? [input.imageUrl] : [];
+  for (const url of urls) {
+    const imageResult = await moderateImageSource(url, 'feed_post');
     if (!imageResult.allowed) return imageResult;
   }
   if (input.videoUrl) {

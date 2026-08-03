@@ -336,6 +336,13 @@ export interface LivePublicGoal {
   type: 'amount' | 'dons' | 'likes' | 'viewers' | 'duration';
   target: number;
   label: string;
+  displayCurrent?: number;
+}
+
+export interface LiveDonationGoalOverlay {
+  visibleToViewers: boolean;
+  xPct: number;
+  yPct: number;
 }
 
 export interface Live {
@@ -383,6 +390,8 @@ export interface Live {
   donationOptions?: LiveDonationOption[];
   /** Goals actifs publiés par l'hôte (progression via stats live). */
   donationGoals?: LivePublicGoal[];
+  /** Barre objectif sur la vidéo live. */
+  donationGoalOverlay?: LiveDonationGoalOverlay;
   /** Pourboires activés sur ce live (false si l'hôte a choisi « sans RIB » au lancement). */
   tipsEnabled?: boolean;
   /** Catégorie de contenu : musique, danse ou artistique. */
@@ -804,6 +813,8 @@ export interface FeedPost {
   userId: string;
   content: string;
   imageUrl?: string;
+  /** Galerie (2+ images) ; imageUrl reste la vignette / première image. */
+  imageUrls?: string[];
   videoUrl?: string;
   createdAt: number;
   /** ID de la publication d'origine si c'est un repartage. */
