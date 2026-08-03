@@ -59,7 +59,7 @@ export function seedMsdevPresentationLive(): SeedPresentationLiveResult {
   };
 
   let live = db.lives.get(PRESENTATION_LIVE_ID);
-  let updated = false;
+  let updated: boolean;
 
   if (!live) {
     const hostId = `${SALON_LIVE_ID_PREFIX}bot-beat-castel`;
