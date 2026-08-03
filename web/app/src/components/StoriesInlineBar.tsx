@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
-import { buildMapStoryEntries, type MapStoryEntry } from '../lib/mapStoriesFeed';
+import { buildMapStoryEntries, filterMapStoryEntriesToFollowing, type MapStoryEntry } from '../lib/mapStoriesFeed';
 import {
   areAllStoriesSeen,
   buildStoryUserStacks,
@@ -11,7 +11,11 @@ import {
   latestStory,
   pickInitialStory,
   pruneSeenStoryIds,
+  resolveAfterLivePreview,
+  resolveBeforeLivePreview,
   resolveAfterStoryDeleted,
+  resolveNextAfterLastStorySegment,
+  stackIndexForStory,
 } from '../lib/storyViewerNav';
 import {
   getNearbyPanelPreferences,
@@ -21,8 +25,8 @@ import {
 import { fetchStoriesBundle, invalidateStoriesCache } from '../lib/storiesApiCache';
 import {
   buildActiveLiveByHost,
-  isStoryRingLive,
 } from '../lib/mapLiveEndSync';
+import { pickFollowedActiveLives } from '../lib/followedLives';
 import { purgeEndedLiveFromStoryEntries } from '../lib/mapStoriesFeed';
 import { getSocket } from '../lib/socket';
 import { normalizeProfileReelFromApi } from '../content/reelsFeed';
@@ -31,6 +35,7 @@ import type { MapStory, NearbyPerson } from '../types';
 import { MapStorySheet } from './MapStorySheet';
 import { MapStoryRing, MyMapStoryRing, StoryCreateRing } from './MapStoryRings';
 import { StoryLivePreviewViewer } from './StoryLivePreviewViewer';
+import { StorySalonPreviewViewer } from './StorySalonPreviewViewer';
 import { StoryViewer } from './StoryViewer';
 import { useStoryViewerWithSponsors } from '../hooks/useStoryViewerWithSponsors';
 import { StoriesRingsCarousel } from './StoriesRingsCarousel';
@@ -60,9 +65,14 @@ export type LivePreviewState =
   | { kind: 'closed' }
   | { kind: 'open'; entry: MapStoryEntry; liveId: string };
 
+type SalonPreviewState =
+  | { kind: 'closed' }
+  | { kind: 'open'; entry: MapStoryEntry; salonId: string };
+
 export interface StoriesInlineBarProps {
   onOpenProfile: (userId: string) => void;
   onOpenReel?: (reelId: string) => void;
+  onOpenSalon?: (salonId: string, salonTitle?: string) => void;
   onOpenLive?: (liveId: string) => void;
   isActive: boolean;
 }
@@ -70,6 +80,7 @@ export interface StoriesInlineBarProps {
 export const StoriesInlineBar = memo(function StoriesInlineBar({
   onOpenProfile,
   onOpenReel,
+  onOpenSalon,
   onOpenLive,
   isActive,
 }: StoriesInlineBarProps) {
@@ -80,6 +91,7 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
   const [storiesByUser, setStoriesByUser] = useState<Map<string, MapStory[]>>(new Map());
   const [sheet, setSheet] = useState<StorySheetState>({ kind: 'closed' });
   const [livePreview, setLivePreview] = useState<LivePreviewState>({ kind: 'closed' });
+  const [salonPreview, setSalonPreview] = useState<SalonPreviewState>({ kind: 'closed' });
   const [loading, setLoading] = useState(false);
   const [prefs, setPrefs] = useState<NearbyPanelPreferences>(() => getNearbyPanelPreferences());
   const [seenStoryIds, setSeenStoryIds] = useState<Set<string>>(() =>
@@ -117,18 +129,25 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
     }
     setLoading(true);
     try {
-      const [favRes, feedRes, livesOrNull, storiesBundle] = await Promise.all([
+      const [favRes, feedRes, followingRes, livesOrNull, salonsOrNull, storiesBundle] =
+        await Promise.all([
         api.getMyFavorites(token),
         api.getReelsFeed(token),
+        api.getMyFollowing(token),
         api.getLives(token, { distanceFilter: false }).catch(() => null),
+        api.listSalons(token).catch(() => ({ salons: [] as import('../types').Salon[] })),
         fetchStoriesBundle(token),
       ]);
       const favoriteIds = new Set(favRes.favorites.map((f) => f.id));
-      const isFollowed = (userId: string) => favoriteIds.has(userId);
+      const followingIds = new Set(followingRes.followingIds);
+      const isFollowingUser = (userId: string) => followingIds.has(userId);
 
       const userInfoById = new Map<string, { username: string; avatarUrl?: string }>(
         favRes.favorites.map((f) => [f.id, { username: f.username, avatarUrl: f.avatarUrl }])
       );
+      for (const u of followingRes.following) {
+        userInfoById.set(u.id, { username: u.username, avatarUrl: u.avatarUrl });
+      }
 
       type RawReel = MusicReel & { authorUsername?: string; authorAvatarUrl?: string };
       const rawReels = feedRes.reels as RawReel[];
@@ -145,32 +164,61 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
 
       const syntheticIds = new Set<string>();
       const syntheticPeople: NearbyPerson[] = [];
-      const ringLives = (livesOrNull?.lives ?? []).filter(isStoryRingLive);
-      const activeLiveByHost = buildActiveLiveByHost(ringLives);
+      const followedActiveLives = pickFollowedActiveLives(
+        livesOrNull?.lives ?? [],
+        followingIds
+      );
+      const activeLiveByHost = buildActiveLiveByHost(followedActiveLives, { storyRingOnly: false });
 
-      for (const live of ringLives) {
-        if (!isFollowed(live.hostId)) continue;
+      for (const live of followedActiveLives) {
+        if (syntheticIds.has(live.hostId)) continue;
         syntheticIds.add(live.hostId);
+        if (live.hostName?.trim()) {
+          userInfoById.set(live.hostId, {
+            username: live.hostName,
+            avatarUrl: live.hostAvatarUrl,
+          });
+        }
         syntheticPeople.push({
           id: live.hostId,
           username: live.hostName,
+          avatarUrl: live.hostAvatarUrl,
           isLive: true,
           liveId: live.id,
           liveViewersCount: live.viewersCount,
         });
       }
 
+      for (const salon of salonsOrNull.salons) {
+        if (!isFollowingUser(salon.hostId)) continue;
+        if (salon.isLive) continue;
+        if (syntheticIds.has(salon.hostId)) continue;
+        syntheticIds.add(salon.hostId);
+        const host = followingRes.following.find((u) => u.id === salon.hostId);
+        userInfoById.set(salon.hostId, {
+          username: host?.username ?? salon.hostName,
+          avatarUrl: host?.avatarUrl ?? salon.hostAvatarUrl,
+        });
+        syntheticPeople.push({
+          id: salon.hostId,
+          username: host?.username ?? salon.hostName,
+          avatarUrl: host?.avatarUrl ?? salon.hostAvatarUrl,
+          salonId: salon.id,
+          salonTitle: salon.title,
+        });
+      }
+
       for (const reel of reels) {
         const aid = reel.authorId?.trim();
-        if (!aid || syntheticIds.has(aid) || !isFollowed(aid)) continue;
+        if (!aid || syntheticIds.has(aid) || !isFollowingUser(aid)) continue;
         const info = userInfoById.get(aid);
         if (!info) continue;
         syntheticIds.add(aid);
         syntheticPeople.push({ id: aid, username: info.username, avatarUrl: info.avatarUrl });
       }
 
-      // L'API filtre déjà visibilité / blocages ; inclure les stories publiques hors abonnements.
-      const ephemeralStories = storiesBundle.stories;
+      // Fil Accueil : stories des comptes suivis uniquement (pas toutes les stories publiques).
+      const ephemeralStories = storiesBundle.stories.filter((s) => isFollowingUser(s.userId));
       const byUser = groupStoriesByUser(ephemeralStories);
       setStoriesByUser(byUser);
       const mine = storiesBundle.mine;
@@ -187,16 +235,17 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
       }
 
       const filteredPeople = syntheticPeople.filter((p) => p.id !== user?.id);
+      const followedProfiles = followingRes.following.filter((u) => u.id !== user?.id);
       setEntries(
-        buildMapStoryEntries(filteredPeople, favRes.favorites, reels, {
-          favoritesFirst: prefs.favoritesFirst,
-          favoriteIds,
-          ephemeralStories,
-          activeLiveByHost,
-        }).filter(
-          (e) =>
-            e.userId !== user?.id &&
-            (isFollowed(e.userId) || e.hasActiveStory)
+        filterMapStoryEntriesToFollowing(
+          buildMapStoryEntries(filteredPeople, followedProfiles, reels, {
+            favoritesFirst: prefs.favoritesFirst,
+            favoriteIds,
+            ephemeralStories,
+            activeLiveByHost,
+          }),
+          followingIds,
+          user?.id
         )
       );
     } catch {
@@ -229,26 +278,42 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
     };
   }, [isActive, token]);
 
-  const openEntry = (entry: MapStoryEntry) => {
-    if (entry.hasActiveStory && entry.storyId) {
-      const userStories = storiesByUser.get(entry.userId);
-      const story = userStories ? pickInitialStory(userStories) : undefined;
-      if (story) {
-        markStoryAsSeen(story.id);
-        setSheet({ kind: 'view', story, isOwn: entry.userId === user?.id });
+  const openEntry = useCallback(
+    (entry: MapStoryEntry) => {
+      if (entry.isLive && entry.liveId) {
+        setSheet({ kind: 'closed' });
+        setLivePreview({ kind: 'open', entry, liveId: entry.liveId });
         return;
       }
-    }
-    if (entry.isLive && entry.liveId) {
-      setLivePreview({ kind: 'open', entry, liveId: entry.liveId });
-      return;
-    }
-    if (entry.reelId && onOpenReel) {
-      onOpenReel(entry.reelId);
-      return;
-    }
-    onOpenProfile(entry.userId);
-  };
+      if (
+        entry.salonId &&
+        !entry.isLive &&
+        !entry.hasActiveStory &&
+        !entry.reelId
+      ) {
+        setLivePreview({ kind: 'closed' });
+        setSheet({ kind: 'closed' });
+        setSalonPreview({ kind: 'open', entry, salonId: entry.salonId });
+        return;
+      }
+      if (entry.hasActiveStory && entry.storyId) {
+        const userStories = storiesByUser.get(entry.userId);
+        const story = userStories ? pickInitialStory(userStories) : undefined;
+        if (story) {
+          markStoryAsSeen(story.id);
+          setLivePreview({ kind: 'closed' });
+          setSheet({ kind: 'view', story, isOwn: entry.userId === user?.id });
+          return;
+        }
+      }
+      if (entry.reelId && onOpenReel) {
+        onOpenReel(entry.reelId);
+        return;
+      }
+      onOpenProfile(entry.userId);
+    },
+    [storiesByUser, markStoryAsSeen, user?.id, onOpenReel, onOpenProfile]
+  );
 
   const openMyStory = () => {
     if (myStories.length) {
@@ -290,6 +355,59 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
     return [...unseen, ...seen];
   }, [entries, seenStoryIds, storiesByUser]);
 
+  const advanceAfterLivePreview = useCallback(() => {
+    setLivePreview((prev) => {
+      if (prev.kind !== 'open') return prev;
+      const current = prev.entry;
+      const action = resolveAfterLivePreview(sortedEntries, current);
+      if (action.type === 'close') {
+        return { kind: 'closed' };
+      }
+      if (action.type === 'story') {
+        const userStories = storiesByUser.get(action.entry.userId);
+        const story = userStories ? pickInitialStory(userStories) : undefined;
+        if (story) {
+          markStoryAsSeen(story.id);
+          setSheet({ kind: 'view', story, isOwn: action.entry.userId === user?.id });
+        }
+        return { kind: 'closed' };
+      }
+      return { kind: 'open', entry: action.entry, liveId: action.entry.liveId! };
+    });
+  }, [sortedEntries, storiesByUser, markStoryAsSeen, user?.id]);
+
+  const retreatBeforeLivePreview = useCallback(() => {
+    setLivePreview((prev) => {
+      if (prev.kind !== 'open') return prev;
+      const current = prev.entry;
+      const action = resolveBeforeLivePreview(sortedEntries, current);
+      if (action.type === 'close') {
+        return { kind: 'closed' };
+      }
+      if (action.type === 'story') {
+        const userStories = storiesByUser.get(action.entry.userId);
+        const story = userStories ? pickInitialStory(userStories) : undefined;
+        if (story) {
+          markStoryAsSeen(story.id);
+          setSheet({ kind: 'view', story, isOwn: action.entry.userId === user?.id });
+        }
+        return { kind: 'closed' };
+      }
+      return { kind: 'open', entry: action.entry, liveId: action.entry.liveId! };
+    });
+  }, [sortedEntries, storiesByUser, markStoryAsSeen, user?.id]);
+
+  const livePreviewNav = useMemo(() => {
+    if (livePreview.kind !== 'open') {
+      return { canNext: false, canPrev: false };
+    }
+    const entry = livePreview.entry;
+    return {
+      canNext: resolveAfterLivePreview(sortedEntries, entry).type !== 'close',
+      canPrev: resolveBeforeLivePreview(sortedEntries, entry).type !== 'close',
+    };
+  }, [livePreview, sortedEntries]);
+
   const ringCount = useMemo(
     () => sortedEntries.length + (user && token ? 1 : 0),
     [sortedEntries.length, token, user]
@@ -306,14 +424,79 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
     sheet.kind === 'view' ? findStackForStory(storyStacks, sheet.story) : undefined;
 
   const {
-    goNextStory,
-    goPrevStory,
-    canNextStory,
-    canPrevStory,
+    goNextStory: hookGoNextStory,
+    goPrevStory: hookGoPrevStory,
+    canNextStory: hookCanNextStory,
+    canPrevStory: hookCanPrevStory,
     viewerStack: hookViewerStack,
     viewerStackIndex,
     sponsorAd,
   } = useStoryViewerWithSponsors(storyStacks, user?.id, sheet, setSheet, markStoryAsSeen);
+
+  const goNextStory = useCallback(() => {
+    if (sheet.kind === 'view_sponsor') {
+      hookGoNextStory();
+      return;
+    }
+    if (sheet.kind !== 'view') return;
+
+    const stack = findStackForStory(storyStacks, sheet.story);
+    const segIdx = stack ? stackIndexForStory(stack, sheet.story) : 0;
+    if (stack && segIdx < stack.stories.length - 1) {
+      hookGoNextStory();
+      return;
+    }
+
+    const carouselNext = resolveNextAfterLastStorySegment(
+      sortedEntries,
+      storiesByUser,
+      sheet.story.userId,
+      user?.id
+    );
+    if (carouselNext?.kind === 'live') {
+      markStoryAsSeen(sheet.story.id);
+      setSheet({ kind: 'closed' });
+      setLivePreview({ kind: 'open', entry: carouselNext.entry, liveId: carouselNext.liveId });
+      return;
+    }
+    if (carouselNext?.kind === 'story') {
+      markStoryAsSeen(carouselNext.story.id);
+      setSheet({ kind: 'view', story: carouselNext.story, isOwn: carouselNext.isOwn });
+      return;
+    }
+
+    hookGoNextStory();
+  }, [
+    sheet,
+    storyStacks,
+    sortedEntries,
+    storiesByUser,
+    user?.id,
+    hookGoNextStory,
+    markStoryAsSeen,
+    setSheet,
+  ]);
+
+  const canNextStory = useMemo(() => {
+    if (sheet.kind === 'view_sponsor') return hookCanNextStory;
+    if (sheet.kind !== 'view') return false;
+
+    const stack = findStackForStory(storyStacks, sheet.story);
+    const segIdx = stack ? stackIndexForStory(stack, sheet.story) : 0;
+    if (stack && segIdx < stack.stories.length - 1) return hookCanNextStory;
+
+    return (
+      resolveNextAfterLastStorySegment(
+        sortedEntries,
+        storiesByUser,
+        sheet.story.userId,
+        user?.id
+      ) != null || hookCanNextStory
+    );
+  }, [sheet, storyStacks, sortedEntries, storiesByUser, user?.id, hookCanNextStory]);
+
+  const goPrevStory = hookGoPrevStory;
+  const canPrevStory = hookCanPrevStory;
 
   const activeViewerStack = sheet.kind === 'view' ? viewerStack : hookViewerStack;
 
@@ -407,7 +590,10 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
       {(sheet.kind === 'view' || sheet.kind === 'view_sponsor') ? (
         <StoryViewer
           story={sheet.kind === 'view' ? sheet.story : undefined}
-          stack={activeViewerStack?.stories}
+          stack={
+            activeViewerStack?.stories ??
+            (sheet.kind === 'view' ? [sheet.story] : undefined)
+          }
           stackIndex={viewerStackIndex}
           sponsorAd={sponsorAd}
           onClose={() => setSheet({ kind: 'closed' })}
@@ -428,6 +614,21 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
           token={token}
           onClose={() => setLivePreview({ kind: 'closed' })}
           onJoin={(id) => onOpenLive?.(id)}
+          onPreviewElapsed={advanceAfterLivePreview}
+          onNext={advanceAfterLivePreview}
+          canNext={livePreviewNav.canNext}
+          onPrev={retreatBeforeLivePreview}
+          canPrev={livePreviewNav.canPrev}
+        />
+      ) : null}
+
+      {token && salonPreview.kind === 'open' ? (
+        <StorySalonPreviewViewer
+          entry={salonPreview.entry}
+          salonId={salonPreview.salonId}
+          token={token}
+          onClose={() => setSalonPreview({ kind: 'closed' })}
+          onJoin={(id, title) => onOpenSalon?.(id, title)}
         />
       ) : null}
     </>

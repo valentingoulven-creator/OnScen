@@ -2,12 +2,17 @@ import { describe, expect, it } from 'vitest';
 import type { MapStory } from '../types';
 import {
   STORY_VIEW_DURATION_MS,
+  STORY_LIVE_PREVIEW_DURATION_MS,
   areAllStoriesSeen,
   pickInitialStory,
   pruneSeenStoryIds,
+  resolveAfterLivePreview,
+  resolveBeforeLivePreview,
   resolveAfterStoryDeleted,
+  resolveNextAfterLastStorySegment,
   sortStoriesChronological,
 } from './storyViewerNav';
+import type { MapStoryEntry } from './mapStoriesFeed';
 
 function story(id: string, createdAt: number): MapStory {
   return {
@@ -58,10 +63,84 @@ describe('STORY_VIEW_DURATION_MS', () => {
   });
 });
 
+describe('STORY_LIVE_PREVIEW_DURATION_MS', () => {
+  it('is 10 seconds before auto-advance from live preview', () => {
+    expect(STORY_LIVE_PREVIEW_DURATION_MS).toBe(10_000);
+  });
+});
+
+describe('resolveAfterLivePreview', () => {
+  const entry = (userId: string, opts: Partial<MapStoryEntry> = {}): MapStoryEntry => ({
+    userId,
+    username: userId,
+    isFavorite: false,
+    ...opts,
+  });
+
+  it('opens same user stories after live when available', () => {
+    const current = entry('a', { isLive: true, liveId: 'live-a', hasActiveStory: true, storyId: 's1' });
+    const list = [current, entry('b', { hasActiveStory: true, storyId: 's2' })];
+    expect(resolveAfterLivePreview(list, current)).toEqual({ type: 'story', entry: current });
+  });
+
+  it('skips to next ring story when current has no story', () => {
+    const current = entry('a', { isLive: true, liveId: 'live-a' });
+    const next = entry('b', { hasActiveStory: true, storyId: 's2' });
+    expect(resolveAfterLivePreview([current, next], current)).toEqual({ type: 'story', entry: next });
+  });
+
+  it('closes when no following ring', () => {
+    const current = entry('a', { isLive: true, liveId: 'live-a' });
+    expect(resolveAfterLivePreview([current], current)).toEqual({ type: 'close' });
+  });
+});
+
+describe('resolveBeforeLivePreview', () => {
+  const entry = (userId: string, opts: Partial<MapStoryEntry> = {}): MapStoryEntry => ({
+    userId,
+    username: userId,
+    isFavorite: false,
+    ...opts,
+  });
+
+  it('returns previous ring with story', () => {
+    const prev = entry('a', { hasActiveStory: true, storyId: 's1' });
+    const current = entry('b', { isLive: true, liveId: 'live-b' });
+    expect(resolveBeforeLivePreview([prev, current], current)).toEqual({ type: 'story', entry: prev });
+  });
+});
+
 describe('sortStoriesChronological', () => {
   it('orders oldest to newest', () => {
     const sorted = sortStoriesChronological([story('b', 2), story('a', 1), story('c', 3)]);
     expect(sorted.map((s) => s.id)).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('resolveNextAfterLastStorySegment', () => {
+  const entry = (userId: string, opts: Partial<MapStoryEntry> = {}): MapStoryEntry => ({
+    userId,
+    username: userId,
+    isFavorite: false,
+    ...opts,
+  });
+
+  it('returns live-only ring after last story when it sits between story authors', () => {
+    const entries = [
+      entry('a', { hasActiveStory: true, storyId: 's-a' }),
+      entry('b', { isLive: true, liveId: 'live-b' }),
+      entry('c', { hasActiveStory: true, storyId: 's-c' }),
+    ];
+    const storiesByUser = new Map([
+      ['a', [story('s-a', 1)]],
+      ['c', [{ ...story('s-c', 2), userId: 'c' }]],
+    ]);
+    const next = resolveNextAfterLastStorySegment(entries, storiesByUser, 'a');
+    expect(next).toEqual({
+      kind: 'live',
+      entry: entries[1],
+      liveId: 'live-b',
+    });
   });
 });
 

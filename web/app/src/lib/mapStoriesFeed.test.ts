@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildMapStoryEntries, buildViewableStories } from './mapStoriesFeed';
+import { buildMapStoryEntries, buildViewableStories, filterMapStoryEntriesToFollowing } from './mapStoriesFeed';
 import type { MapStoryEntry } from './mapStoriesFeed';
 import type { Live, MapStory, NearbyPerson, User } from '../types';
 import type { MusicReel } from '../content/reels';
@@ -149,6 +149,36 @@ describe('buildMapStoryEntries', () => {
     );
     expect(entries[0]?.isLive).toBe(true);
     expect(entries[0]?.liveId).toBe('live-1');
+  });
+
+  it('includes followed host with active salon only', () => {
+    const entries = buildMapStoryEntries(
+      [
+        {
+          id: 'host-salon',
+          username: 'PopSete',
+          salonId: 'salon-1',
+          salonTitle: 'Pop Party',
+        },
+      ],
+      [],
+      []
+    );
+    expect(entries).toHaveLength(1);
+    expect(entries[0].salonId).toBe('salon-1');
+  });
+});
+
+describe('filterMapStoryEntriesToFollowing', () => {
+  it('keeps only followed users with ring content', () => {
+    const entries: MapStoryEntry[] = [
+      { userId: 'followed', username: 'A', isFavorite: false, isLive: true, liveId: 'l1' },
+      { userId: 'stranger', username: 'B', isFavorite: false, hasActiveStory: true, storyId: 's1' },
+      { userId: 'followed', username: 'A', isFavorite: false, reelId: 'r1' },
+    ];
+    const filtered = filterMapStoryEntriesToFollowing(entries, new Set(['followed']), 'me');
+    expect(filtered).toHaveLength(2);
+    expect(filtered.every((e) => e.userId === 'followed')).toBe(true);
   });
 });
 
