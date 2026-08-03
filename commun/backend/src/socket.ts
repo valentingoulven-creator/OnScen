@@ -572,7 +572,13 @@ export function setupSockets(io: Server): void {
         goals,
       }: {
         liveId: string;
-        goals: Array<{ id: string; type: string; target: number; label: string }> | null;
+        goals: Array<{
+          id: string;
+          type: string;
+          target: number;
+          label: string;
+          displayCurrent?: number;
+        }> | null;
       }) => {
         const actorId = (socket.data as { userId?: string }).userId;
         if (!actorId || !liveId) return;
@@ -600,11 +606,51 @@ export function setupSockets(io: Server): void {
                 type: g.type as 'amount' | 'dons' | 'likes' | 'viewers' | 'duration',
                 target: Math.min(1_000_000, Math.max(1, Math.round(g.target))),
                 label: g.label.trim().slice(0, 120),
+                ...(Number.isFinite(g.displayCurrent)
+                  ? {
+                      displayCurrent: Math.min(
+                        1_000_000,
+                        Math.max(0, Math.round(g.displayCurrent as number)),
+                      ),
+                    }
+                  : {}),
               }))
               .slice(0, 8)
           : [];
 
         live.donationGoals = sanitized.length > 0 ? sanitized : undefined;
+        db.lives.set(liveId, live);
+        io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
+      }
+    );
+
+    socket.on(
+      'live_update_donation_goal_overlay',
+      ({
+        liveId,
+        overlay,
+      }: {
+        liveId: string;
+        overlay: { visibleToViewers?: boolean; xPct?: number; yPct?: number } | null;
+      }) => {
+        const actorId = (socket.data as { userId?: string }).userId;
+        if (!actorId || !liveId) return;
+        const live = db.lives.get(liveId);
+        if (!live || !live.isActive) return;
+        const actor = db.users.get(actorId);
+        if (live.hostId !== actorId && !isDevUser(actor)) return;
+
+        if (!overlay || typeof overlay !== 'object') {
+          live.donationGoalOverlay = undefined;
+        } else {
+          const xPct = Number.isFinite(overlay.xPct) ? Number(overlay.xPct) : 4;
+          const yPct = Number.isFinite(overlay.yPct) ? Number(overlay.yPct) : 78;
+          live.donationGoalOverlay = {
+            visibleToViewers: overlay.visibleToViewers !== false,
+            xPct: Math.min(72, Math.max(2, xPct)),
+            yPct: Math.min(88, Math.max(8, yPct)),
+          };
+        }
         db.lives.set(liveId, live);
         io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
       }
