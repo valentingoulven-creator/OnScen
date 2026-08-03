@@ -36,11 +36,18 @@ import {
 
 } from './models/schema';
 
-import { MSDEV_LISTENER_ID, PREFERRED_FAVORITE_HOST_IDS, seedMsdevUserFavorites } from './seed-favorite-feed';
+import {
+  getFavoriteShowcaseFollowAuthorIds,
+  MSDEV_LISTENER_ID,
+  PREFERRED_FAVORITE_HOST_IDS,
+  seedMsdevUserFavorites,
+} from './seed-favorite-feed';
 
 import { SALON_LIVE_BOT_SEEDS, seedProductionSalonsLives } from './seed-salons-lives';
 
 import { ensureMsdevDemoLives } from './seed-msdev';
+
+import { ensureBeatCastelShowcaseProfile } from './seed-beatcastel-profile';
 
 import { dicebearAdventurerAvatar } from './lib/avatarUrl';
 
@@ -436,9 +443,14 @@ export function upgradeListenerShowcaseProfile(): boolean {
 
 
 export function resolveShowcaseFollowTargetIds(): string[] {
-
-  return SHOWCASE_FOLLOW_TARGET_IDS.filter((id) => db.users.has(id));
-
+  const ids = new Set<string>();
+  for (const id of SHOWCASE_FOLLOW_TARGET_IDS) {
+    if (db.users.has(id)) ids.add(id);
+  }
+  for (const id of getFavoriteShowcaseFollowAuthorIds()) {
+    ids.add(id);
+  }
+  return [...ids];
 }
 
 
@@ -1758,6 +1770,8 @@ export function seedMsdevShowcase(options?: { force?: boolean }): SeedMsdevShowc
   ensurePresentationSingerReel();
 
   const albumsCreated = ensureListenerAlbum();
+
+  ensureBeatCastelShowcaseProfile();
 
 
 

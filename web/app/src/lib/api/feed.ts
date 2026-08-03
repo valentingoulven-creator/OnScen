@@ -48,6 +48,7 @@ export const feedApi = {
     body: {
       content: string;
       imageUrl?: string;
+      imageUrls?: string[];
       videoUrl?: string;
       isEvent?: boolean;
       eventDate?: string;
