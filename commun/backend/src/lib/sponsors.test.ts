@@ -140,7 +140,7 @@ describe('sponsors', () => {
       cta: 'Go',
       displayDurationSec: 2,
     });
-    expect(created.displayDurationSec).toBe(3);
+    expect(created.displayDurationSec).toBe(5);
     const updated = updateSponsor(created.id, { displayDurationSec: 15 });
     expect(updated.displayDurationSec).toBe(15);
     const ad = listActiveMapAds().find((item) => item.id === created.id);

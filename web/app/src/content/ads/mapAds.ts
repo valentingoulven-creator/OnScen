@@ -35,6 +35,7 @@ export const MAP_ADS: MapAd[] = [
     accent: 'purple',
     sponsor: 'Soundy',
     kind: 'promo',
+    displayDurationSec: 15,
   },
   {
     id: 'solar-festival-cres',

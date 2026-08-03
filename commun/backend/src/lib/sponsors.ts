@@ -34,8 +34,8 @@ const PLACEMENTS: SponsorPlacement[] = [
   'salon_theater',
 ];
 const KINDS: SponsorKind[] = ['promo', 'sponsored'];
-const DEFAULT_DISPLAY_DURATION_SEC = 8;
-const DISPLAY_DURATION_MIN_SEC = 3;
+const DEFAULT_DISPLAY_DURATION_SEC = 12;
+const DISPLAY_DURATION_MIN_SEC = 5;
 const DISPLAY_DURATION_MAX_SEC = 60;
 
 /** Zoom minimal (carte plate) pour afficher un bandeau régional. */
@@ -85,6 +85,7 @@ const DEFAULT_SPONSORS: Omit<Sponsor, 'createdAt' | 'updatedAt'>[] = [
     accent: 'purple',
     kind: 'promo',
     mapVisibilityScope: 'france',
+    displayDurationSec: 15,
   },
   {
     id: 'solar-festival-cres',
@@ -141,6 +142,7 @@ const DEFAULT_SPONSORS: Omit<Sponsor, 'createdAt' | 'updatedAt'>[] = [
     kind: 'promo',
     actionId: 'salon',
     mapVisibilityScope: 'france',
+    displayDurationSec: 15,
   },
   {
     id: 'live',
@@ -155,6 +157,7 @@ const DEFAULT_SPONSORS: Omit<Sponsor, 'createdAt' | 'updatedAt'>[] = [
     kind: 'promo',
     actionId: 'live',
     mapVisibilityScope: 'france',
+    displayDurationSec: 15,
   },
   {
     id: 'deezer-demo',
