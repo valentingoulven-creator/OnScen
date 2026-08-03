@@ -65,6 +65,9 @@
     "backend:build": "npm run build --prefix commun/backend",
     "cloud:sync": "node commun/scripts/sync-cloud-env.mjs",
     "cloud:sync:install-hook": "powershell -ExecutionPolicy Bypass -File commun/scripts/install-cloud-sync.ps1",
-    "cloud:checklist": "node commun/scripts/cloud-secrets-checklist.mjs"
+    "cloud:checklist": "node commun/scripts/cloud-secrets-checklist.mjs",
+    "docs:gdrive:sync": "powershell -ExecutionPolicy Bypass -File commun/scripts/sync-docs-gdrive.ps1",
+    "docs:gdrive:watch": "node commun/scripts/watch-docs-gdrive.mjs",
+    "docs:gdrive:install": "powershell -ExecutionPolicy Bypass -File commun/scripts/install-docs-gdrive-sync.ps1"
   }
 }

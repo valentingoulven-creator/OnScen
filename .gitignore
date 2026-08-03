@@ -74,3 +74,13 @@ pm2_jlist.json
 pm2-jlist*.json
 pm2_prettylist*.json
 node_modules
+
+# Juridique — build intermédiaire (Markdown/HTML) avant PDF
+commun/docs/juridique/_build-dossier-avocat/
+
+# PDF/HTML intermédiaires générés (sources = .md · regénérer via npm run pdf)
+commun/docs/strategie/ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.html
+commun/docs/strategie/BUSINESS-PLAN-PREMIUM.html
+commun/docs/strategie/ONE-PAGER-SPONSOR-COMMERCIAL.html
+commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.print.html
+commun/docs/depot-e-soleau/DOSSIER-E-SOLEAU-SOUNDY.html

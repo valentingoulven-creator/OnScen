@@ -2,7 +2,8 @@
 # Backend msdev :4080 + frontend Vite :5173
 # Usage : npm run dev   ou   powershell -ExecutionPolicy Bypass -File commun/scripts/dev-start.ps1
 param(
-    [switch]$NoBrowser
+    [switch]$NoBrowser,
+    [switch]$SkipDocsGDrive
 )
 
 $ErrorActionPreference = 'Stop'
@@ -36,6 +37,10 @@ if (-not $root) {
 }
 
 Set-Location $root
+
+if (-not $SkipDocsGDrive) {
+    & (Join-Path $root 'commun\scripts\ensure-docs-gdrive-watch.ps1') -Quiet
+}
 
 Write-Host ''
 Write-Host ' ==============================================' -ForegroundColor Green
