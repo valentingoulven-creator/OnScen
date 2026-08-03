@@ -1014,6 +1014,7 @@ const PostCard = memo(function PostCard({
 export function ActualiteTabPage({
   onOpenProfile,
   onOpenReel,
+  onOpenSalon,
   onOpenLive,
   isActive,
   focusPostId,
@@ -1813,11 +1814,12 @@ export function ActualiteTabPage({
       <StoriesInlineBar
         onOpenProfile={onOpenProfile}
         onOpenReel={onOpenReel}
+        onOpenSalon={onOpenSalon}
         onOpenLive={onOpenLive}
         isActive={isActive}
       />
     ),
-    [onOpenProfile, onOpenReel, onOpenLive, isActive]
+    [onOpenProfile, onOpenReel, onOpenSalon, onOpenLive, isActive]
   );
 
   return (

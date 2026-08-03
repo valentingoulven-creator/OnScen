@@ -123,6 +123,7 @@ export interface PublicFeedPost {
   userId: string;
   content: string;
   imageUrl?: string;
+  imageUrls?: string[];
   videoUrl?: string;
   createdAt: number;
   resharedFromId?: string;
@@ -193,6 +194,28 @@ function normalizeImageUrl(raw: unknown): string | undefined {
   if (!HTTPS_IMAGE_RE.test(url)) return undefined;
   if (BLOCKED_MEDIA_RE.test(url)) return undefined;
   return url;
+}
+
+const MAX_FEED_POST_IMAGES = 10;
+
+function normalizeImageUrls(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const item of raw) {
+    const url = normalizeImageUrl(item);
+    if (!url) continue;
+    if (out.includes(url)) continue;
+    out.push(url);
+    if (out.length >= MAX_FEED_POST_IMAGES) break;
+  }
+  return out;
+}
+
+export function resolveFeedPostImageUrls(post: Pick<FeedPost, 'imageUrl' | 'imageUrls'>): string[] {
+  const fromList = (post.imageUrls ?? []).map((u) => u.trim()).filter(Boolean);
+  if (fromList.length > 0) return fromList;
+  const single = post.imageUrl?.trim();
+  return single ? [single] : [];
 }
 
 function normalizeVideoUrl(raw: unknown): string | undefined {
@@ -310,6 +333,7 @@ export function createFeedPost(
   input: {
     content: string;
     imageUrl?: string;
+    imageUrls?: unknown;
     videoUrl?: string;
     isEvent?: boolean;
     eventDate?: string;
@@ -324,15 +348,26 @@ export function createFeedPost(
   const user = db.users.get(userId);
   if (!user) return { ok: false, error: 'Utilisateur introuvable' };
 
-  const imageUrl = normalizeImageUrl(input.imageUrl);
+  const imageUrlSingle = normalizeImageUrl(input.imageUrl);
+  const imageUrlsList = normalizeImageUrls(input.imageUrls);
+  const imageUrls =
+    imageUrlsList.length > 0
+      ? imageUrlsList
+      : imageUrlSingle
+        ? [imageUrlSingle]
+        : [];
+  const imageUrl = imageUrls[0];
   const videoUrl = normalizeVideoUrl(input.videoUrl);
-  if (imageUrl && videoUrl) {
-    return { ok: false, error: 'Une publication ne peut pas contenir une image et une vidéo.' };
+  if (imageUrls.length > 0 && videoUrl) {
+    return { ok: false, error: 'Une publication ne peut pas contenir des images et une vidéo.' };
   }
 
-  const hasImageInput = input.imageUrl != null && String(input.imageUrl).trim().length > 0;
+  const hasImageInput =
+    imageUrls.length > 0 ||
+    (input.imageUrl != null && String(input.imageUrl).trim().length > 0) ||
+    (Array.isArray(input.imageUrls) && input.imageUrls.length > 0);
   const hasVideoInput = input.videoUrl != null && String(input.videoUrl).trim().length > 0;
-  if (hasImageInput && !imageUrl) {
+  if (hasImageInput && imageUrls.length === 0) {
     return {
       ok: false,
       error: 'Image invalide (URL https ou image collée, max ~400 Ko encodée).',
@@ -345,7 +380,7 @@ export function createFeedPost(
     };
   }
 
-  const hasMedia = Boolean(imageUrl || videoUrl);
+  const hasMedia = Boolean(imageUrls.length > 0 || videoUrl);
   const content = normalizeContent(input.content ?? '', {
     allowEmpty: hasMedia || hasImageInput || hasVideoInput,
   });
@@ -395,6 +430,7 @@ export function createFeedPost(
     userId,
     content,
     ...(imageUrl ? { imageUrl } : {}),
+    ...(imageUrls.length > 1 ? { imageUrls } : {}),
     ...(videoUrl ? { videoUrl } : {}),
     ...(input.isEvent
       ? {
@@ -636,6 +672,7 @@ function toPublicPost(
     userId: post.userId,
     content: post.content,
     imageUrl: post.imageUrl,
+    ...(post.imageUrls?.length ? { imageUrls: post.imageUrls } : {}),
     videoUrl: post.videoUrl,
     createdAt: post.createdAt,
     resharedFromId: post.resharedFromId,

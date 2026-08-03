@@ -71,8 +71,9 @@ feedRouter.post('/', authenticateJWT, asyncHandler(async (req: Request, res: Res
   const me = (req as Request & { user: { id: string } }).user.id;
   const body = req.body ?? {};
   const imageUrl = body.imageUrl != null ? String(body.imageUrl) : undefined;
+  const imageUrls = Array.isArray(body.imageUrls) ? body.imageUrls : undefined;
   const videoUrl = body.videoUrl != null ? String(body.videoUrl) : undefined;
-  const moderation = await moderateFeedPostMedia({ imageUrl, videoUrl });
+  const moderation = await moderateFeedPostMedia({ imageUrl, imageUrls, videoUrl });
   if (!moderation.allowed) {
     res.status(422).json({ error: moderationRejectionMessage(moderation) });
     return;
@@ -80,6 +81,7 @@ feedRouter.post('/', authenticateJWT, asyncHandler(async (req: Request, res: Res
   const result = createFeedPost(me, {
     content: String(body.content ?? ''),
     imageUrl,
+    imageUrls,
     videoUrl,
     isEvent: body.isEvent === true,
     eventDate: body.eventDate != null ? String(body.eventDate) : undefined,

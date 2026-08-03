@@ -6,7 +6,7 @@ import { db } from './models/schema';
 
 import { getFollowingIds } from './lib/follows';
 
-import { MSDEV_LISTENER_ID } from './seed-favorite-feed';
+import { MSDEV_LISTENER_ID, getFavoriteShowcaseFollowAuthorIds } from './seed-favorite-feed';
 
 import { SALON_LIVE_BOT_SEEDS, seedProductionSalonsLives } from './seed-salons-lives';
 
@@ -178,7 +178,7 @@ describe('seedMsdevShowcase', () => {
 
     expect(listener.city).toBe('Montpellier');
 
-    expect(getFollowingIds(MSDEV_LISTENER_ID).length).toBe(SHOWCASE_FOLLOW_TARGET_IDS.length);
+    expect(getFollowingIds(MSDEV_LISTENER_ID).length).toBe(resolveShowcaseFollowTargetIds().length);
 
     expect(showcaseFollowsNeedRepair()).toBe(false);
 
@@ -210,7 +210,7 @@ describe('seedMsdevShowcase', () => {
 
 
 
-  it('limite les abonnements aux 10 hôtes curatés (5 MTP + 5 EU live)', () => {
+  it('limite les abonnements aux hôtes curatés + auteurs publications showcase Accueil', () => {
 
     for (let i = 0; i < 200; i++) {
 
@@ -224,8 +224,6 @@ describe('seedMsdevShowcase', () => {
 
     const following = new Set(getFollowingIds(MSDEV_LISTENER_ID));
 
-    expect(following.size).toBe(SHOWCASE_FOLLOW_TARGET_IDS.length);
-
     expect(following.size).toBe(resolveShowcaseFollowTargetIds().length);
 
 
@@ -233,6 +231,12 @@ describe('seedMsdevShowcase', () => {
     for (const hostId of SHOWCASE_FOLLOW_TARGET_IDS) {
 
       expect(following.has(hostId)).toBe(true);
+
+    }
+
+    for (const authorId of getFavoriteShowcaseFollowAuthorIds()) {
+
+      expect(following.has(authorId)).toBe(true);
 
     }
 
