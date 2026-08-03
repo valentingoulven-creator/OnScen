@@ -8,6 +8,7 @@ import { SponsorAudienceEstimatePanel } from './SponsorAudienceEstimatePanel';
 import { MAP_REGION_MIN_ZOOM } from '../lib/sponsorAds';
 import {
   DEFAULT_DISPLAY_DURATION_SEC,
+  MAP_BANNER_MIN_DISPLAY_SEC,
   SPONSOR_DISPLAY_DURATION_MAX_SEC,
   SPONSOR_DISPLAY_DURATION_MIN_SEC,
   SPONSOR_IMAGE_SPECS,
@@ -366,6 +367,14 @@ export function SponsorAdminFormFields({
             max: SPONSOR_DISPLAY_DURATION_MAX_SEC,
             default: DEFAULT_DISPLAY_DURATION_SEC,
           })}
+          {placement === 'map_banner' ? (
+            <span className="block text-gray-500 mt-0.5">
+              {t('admin.sponsors.fieldDisplayDurationMapFloor', {
+                defaultValue: 'Sur la carte, durée minimale effective : {{sec}} s.',
+                sec: MAP_BANNER_MIN_DISPLAY_SEC,
+              })}
+            </span>
+          ) : null}
         </span>
       </label>
 

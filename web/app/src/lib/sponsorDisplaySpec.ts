@@ -1,11 +1,14 @@
 import type { SponsorAccent, SponsorKind, SponsorPlacement } from '../types';
 
-/** Durée par défaut du carrousel bandeau carte (MapAdBanner ROTATE_MS). */
-export const DEFAULT_DISPLAY_DURATION_SEC = 8;
+/** Durée par défaut carrousel sponsors (admin + API). */
+export const DEFAULT_DISPLAY_DURATION_SEC = 12;
 export const DEFAULT_DISPLAY_DURATION_MS = DEFAULT_DISPLAY_DURATION_SEC * 1000;
 
-export const SPONSOR_DISPLAY_DURATION_MIN_SEC = 3;
+export const SPONSOR_DISPLAY_DURATION_MIN_SEC = 5;
 export const SPONSOR_DISPLAY_DURATION_MAX_SEC = 60;
+
+/** Bandeau carte : plancher côté app (évite rotation trop rapide au pan / refetch). */
+export const MAP_BANNER_MIN_DISPLAY_SEC = 12;
 
 export const SPONSOR_ACCENT_GRADIENTS: Record<SponsorAccent, string> = {
   purple: 'from-purple-600/90 via-violet-700/80 to-purple-900/90',
@@ -101,6 +104,11 @@ export function normalizeDisplayDurationSec(raw: unknown, fallback = DEFAULT_DIS
 
 export function getDisplayDurationMs(displayDurationSec?: number): number {
   return normalizeDisplayDurationSec(displayDurationSec) * 1000;
+}
+
+export function getMapBannerDisplayDurationMs(displayDurationSec?: number): number {
+  const sec = normalizeDisplayDurationSec(displayDurationSec);
+  return Math.max(MAP_BANNER_MIN_DISPLAY_SEC, sec) * 1000;
 }
 
 export function sponsorKindBadgeLabel(kind: SponsorKind): string {

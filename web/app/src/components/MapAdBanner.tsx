@@ -8,13 +8,17 @@ import {
   type MapSponsorViewport,
 } from '../lib/sponsorAds';
 import {
-  getDisplayDurationMs,
+  getMapBannerDisplayDurationMs,
   MAP_BANNER_CONTENT_CLASS,
   MAP_BANNER_IMAGE_CLASS,
   MAP_BANNER_SHELL_CLASS,
   resolveAccentGradientClass,
   SPONSOR_NEUTRAL_BANNER_BG,
 } from '../lib/sponsorDisplaySpec';
+import {
+  areMapSponsorAdListsEqual,
+  buildMapSponsorViewportFetchKey,
+} from '../lib/sponsorMapViewport';
 import { resolveSponsorBannerSrc } from '../lib/sponsorBannerUpload';
 
 export type { MapSponsorViewport };
@@ -27,18 +31,8 @@ interface MapAdBannerProps {
   onCtaLive?: () => void;
 }
 
-function viewportQueryKey(viewport?: MapSponsorViewport | null): string {
-  if (!viewport) return '';
-  const parts: string[] = [];
-  if (viewport.lat != null && Number.isFinite(viewport.lat)) parts.push(`lat:${viewport.lat.toFixed(4)}`);
-  if (viewport.lng != null && Number.isFinite(viewport.lng)) parts.push(`lng:${viewport.lng.toFixed(4)}`);
-  if (viewport.zoom != null && Number.isFinite(viewport.zoom)) parts.push(`zoom:${viewport.zoom.toFixed(2)}`);
-  if (viewport.north != null && Number.isFinite(viewport.north)) parts.push(`north:${viewport.north.toFixed(4)}`);
-  if (viewport.south != null && Number.isFinite(viewport.south)) parts.push(`south:${viewport.south.toFixed(4)}`);
-  if (viewport.east != null && Number.isFinite(viewport.east)) parts.push(`east:${viewport.east.toFixed(4)}`);
-  if (viewport.west != null && Number.isFinite(viewport.west)) parts.push(`west:${viewport.west.toFixed(4)}`);
-  return parts.join('|');
-}
+/** Attente avant refetch après déplacement carte (ms). */
+const MAP_SPONSOR_FETCH_DEBOUNCE_MS = 2000;
 
 function isBannerClickable(ad: MapAd): boolean {
   const action = ad.actionId ?? (ad.id === 'salon' ? 'salon' : ad.id === 'live' ? 'live' : undefined);
@@ -213,7 +207,10 @@ export function MapAdBanner({ viewport, isActive = true, onCtaSalon, onCtaLive }
   const [fading, setFading] = useState(false);
   const fetchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchGenerationRef = useRef(0);
-  const viewportKey = viewportQueryKey(viewport);
+  const adsRef = useRef(ads);
+  adsRef.current = ads;
+  const viewportKey = buildMapSponsorViewportFetchKey(viewport);
+  const adsRotationKey = ads.map((a) => a.id).join(',');
 
   useEffect(() => {
     if (!isActive) return;
@@ -257,17 +254,26 @@ export function MapAdBanner({ viewport, isActive = true, onCtaSalon, onCtaLive }
         .then((res) => {
           if (cancelled || generation !== fetchGenerationRef.current) return;
           const mapped = res.items.map(mapApiAdToMapAd);
-          setAds(resolveMapAds(mapped, viewport));
-          setIndex(0);
+          const nextAds = resolveMapAds(mapped, viewport);
+          setAds((prev) => {
+            if (areMapSponsorAdListsEqual(prev, nextAds)) return prev;
+            setIndex(0);
+            return nextAds;
+          });
         })
         .catch(() => {
           if (cancelled || generation !== fetchGenerationRef.current) return;
-          setAds(resolveMapAds(null, viewport));
+          const nextAds = resolveMapAds(null, viewport);
+          setAds((prev) => {
+            if (areMapSponsorAdListsEqual(prev, nextAds)) return prev;
+            setIndex(0);
+            return nextAds;
+          });
         });
     };
 
     if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current);
-    fetchDebounceRef.current = setTimeout(load, 250);
+    fetchDebounceRef.current = setTimeout(load, MAP_SPONSOR_FETCH_DEBOUNCE_MS);
 
     return () => {
       cancelled = true;
@@ -279,23 +285,25 @@ export function MapAdBanner({ viewport, isActive = true, onCtaSalon, onCtaLive }
   }, [viewportKey, isActive, viewport]);
 
   useEffect(() => {
-    if (ads.length <= 1) return;
+    if (!adsRotationKey || ads.length <= 1) return;
     let cancelled = false;
     let timer: number | undefined;
+    const list = adsRef.current;
 
     const scheduleNext = (currentIndex: number) => {
       if (cancelled) return;
-      const currentAd = ads[currentIndex % ads.length];
+      const currentAd = list[currentIndex % list.length];
+      if (!currentAd) return;
       timer = window.setTimeout(() => {
         if (cancelled) return;
         setFading(true);
         window.setTimeout(() => setFading(false), 180);
         setIndex((i) => {
-          const nextIndex = (i + 1) % ads.length;
+          const nextIndex = (i + 1) % list.length;
           scheduleNext(nextIndex);
           return nextIndex;
         });
-      }, getDisplayDurationMs(currentAd.displayDurationSec));
+      }, getMapBannerDisplayDurationMs(currentAd.displayDurationSec));
     };
 
     scheduleNext(0);
@@ -303,7 +311,7 @@ export function MapAdBanner({ viewport, isActive = true, onCtaSalon, onCtaLive }
       cancelled = true;
       if (timer != null) clearTimeout(timer);
     };
-  }, [ads]);
+  }, [adsRotationKey, ads.length]);
 
   if (ads.length === 0) return null;
 
