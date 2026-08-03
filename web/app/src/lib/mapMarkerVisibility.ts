@@ -379,6 +379,20 @@ export function getGlobeCapitalVisibleRadiusKm(altitude: number): number {
   return 400 + t * 850;
 }
 
+/** Globe + filtre Lives : rayon viewport (cercle violet, listing). */
+export const GLOBE_LIVES_VIEWPORT_RADIUS_KM = 4000;
+
+/** @deprecated Alias overview — même rayon 4000 km partout sur le globe. */
+export const GLOBE_LIVES_OVERVIEW_VIEWPORT_RADIUS_KM = GLOBE_LIVES_VIEWPORT_RADIUS_KM;
+
+/** Rayon viewport sidebar « Lives » sur le globe (POV, cercle violet). */
+export function getLivesGlobeViewportRadiusKm(
+  _tier: MapDetailTier,
+  _globeAltitude: number | null | undefined
+): number {
+  return GLOBE_LIVES_VIEWPORT_RADIUS_KM;
+}
+
 export function filterCapitalsInGlobeRegion<T extends { lat: number; lng: number }>(
   capitals: T[],
   centerLat: number,

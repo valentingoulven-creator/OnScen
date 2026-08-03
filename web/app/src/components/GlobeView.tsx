@@ -41,6 +41,7 @@ import {
   getGlobeCapitalVisibleRadiusKm,
   getGlobeDetailTier,
   getMapMarkerVisibility,
+  type MapBounds,
   type MapDetailTier,
 } from '../lib/mapMarkerVisibility';
 import { toGlobeCapitalLabels, type GlobeCapitalLabel } from '../lib/worldCapitals';
@@ -189,6 +190,10 @@ export interface GlobeViewProps {
   /** Compte Dev : repositionner les marqueurs sur le globe. */
   devMarkerDragEnabled?: boolean;
   onDevMarkerDragEnd?: (ref: DevMapMarkerRef, lat: number, lng: number) => void;
+  /** Filtre Lives : cercle rayon de référence + zone sidebar (carte plate). */
+  livesListRadius?: { lat: number; lng: number; radiusKm: number } | null;
+  livesListViewportBounds?: MapBounds | null;
+  livesListViewportCircle?: { lat: number; lng: number; radiusKm: number } | null;
 }
 
 export interface GlobeViewHandle {
@@ -248,6 +253,7 @@ export const GlobeView = memo(
       onGlobeAltitudeLive,
       devMarkerDragEnabled = false,
       onDevMarkerDragEnd,
+      livesListViewportCircle = null,
     }: GlobeViewProps,
     ref
   ) {
@@ -956,6 +962,7 @@ export const GlobeView = memo(
               onGlobeUnavailable={reportGlobeUnavailable}
               devMarkerDragEnabled={devMarkerDragEnabled}
               onDevMarkerDragEnd={onDevMarkerDragEnd}
+              livesListViewportCircle={livesListViewportCircle}
             />
           </Suspense>
         )}

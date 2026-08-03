@@ -87,6 +87,7 @@ import {
   filterGlobeLiveMarkersAboveAverageAudience,
 } from '../lib/globeLiveAudience';
 import { isActiveMapLive, purgeEndedLiveFromMapState } from '../lib/mapLiveEndSync';
+import { pickFollowedActiveLives } from '../lib/followedLives';
 import { mergeLivesWithLiveSalons } from '../lib/mapLiveSalonMarkers';
 import type { MapMajorCityLiveCluster } from '../lib/mapMajorCityLiveClusters';
 import {
@@ -106,6 +107,7 @@ import {
   filterMapEventMarkersInMapView,
   filterMarkersInViewport,
   getGlobeCapitalVisibleRadiusKm,
+  getLivesGlobeViewportRadiusKm,
   getDistanceKm,
   getFlatMapDetailTier,
   getMapBoundsCenter,
@@ -326,6 +328,8 @@ export function HomePage({
   );
   const [salons, setSalons] = useState<Salon[]>([]);
   const [lives, setLives] = useState<Live[]>([]);
+  /** Catalogue global GET /lives (sans filtre distance) — section Suivi alignée bandeau stories. */
+  const [catalogLives, setCatalogLives] = useState<Live[]>([]);
   const [nearbyPeople, setNearbyPeople] = useState<NearbyPerson[]>([]);
   const [selected, setSelected] = useState<Salon | null>(null);
   const [center, setCenter] = useState<[number, number]>(() =>
@@ -588,6 +592,35 @@ export function HomePage({
       )
       .catch(() => setSavedEventPostIds(new Set()));
   }, [isActive, token]);
+
+  const loadCatalogLives = useCallback(() => {
+    if (!token) return;
+    void api
+      .getLives(token, { distanceFilter: false })
+      .then((r) => setCatalogLives(r.lives.filter(isActiveMapLive)))
+      .catch(() => setCatalogLives([]));
+  }, [token]);
+
+  useEffect(() => {
+    if (!isActive || !token) {
+      if (!token) setCatalogLives([]);
+      return;
+    }
+    loadCatalogLives();
+    const timer = window.setInterval(loadCatalogLives, 12_000);
+    return () => window.clearInterval(timer);
+  }, [isActive, token, loadCatalogLives]);
+
+  const followedCatalogLives = useMemo(
+    () => pickFollowedActiveLives(catalogLives, followingIds),
+    [catalogLives, followingIds]
+  );
+
+  const followedCatalogLivesOnMap = useMemo(
+    () =>
+      followedCatalogLives.filter((l) => isValidLatLng(l.latitude, l.longitude)),
+    [followedCatalogLives]
+  );
 
   useEffect(() => {
     const onFollowingChanged = (event: Event) => {
@@ -901,14 +934,14 @@ export function HomePage({
   const rawMapLivesForView = useMemo(() => {
     if (anySidebarSectionMapFilterOn) {
       if (sidebarMapFilterLivesFollowing) {
-        return mapLives.filter((l) => followingIds.has(l.hostId));
+        return followedCatalogLivesOnMap;
       }
       if (!livesFilterOn) return [];
     }
 
     if (!anyMapFilterActive && !followingMapAmbientOn) return [];
     if (followingMapAmbientOn && !livesFilterOn) {
-      return mapLives.filter((l) => followingIds.has(l.hostId));
+      return followedCatalogLivesOnMap;
     }
     if (!livesFilterOn) return [];
     if (mapDetailTier === 'overview') {
@@ -931,6 +964,7 @@ export function HomePage({
     mapDetailMapStyle,
     mapDetailTier,
     nearbyFetchCenter,
+    followedCatalogLivesOnMap,
   ]);
 
   const liveAudienceFilterActive =
@@ -1062,6 +1096,30 @@ export function HomePage({
   const mapSalonsForMapView = mapSalonsForView;
   const mapLivesForMapView = mapLivesForView;
   const mapPeopleForMapViewDev = mapPeopleForView;
+
+  /** Filtre Lives : visualisation viewport sur la carte / globe (violet). */
+  const livesListViewportBoundsOverlay = useMemo(() => {
+    if (!livesFilterOn || mapDetailMapStyle !== 'flat' || mapDetailTier === 'overview') {
+      return null;
+    }
+    return mapDetailBounds;
+  }, [livesFilterOn, mapDetailMapStyle, mapDetailTier, mapDetailBounds]);
+
+  /** Globe : cercle violet = viewport sidebar « Lives » (centre POV + rayon tier). */
+  const livesListViewportCircleOverlay = useMemo(() => {
+    if (!livesFilterOn || mapDetailMapStyle !== 'globe') return null;
+    const [lat, lng] = center;
+    if (!isValidLatLng(lat, lng)) return null;
+    const radiusKm = getLivesGlobeViewportRadiusKm(mapDetailTier, mapDetailGlobeAltitude);
+    return { lat, lng, radiusKm };
+  }, [
+    livesFilterOn,
+    mapDetailMapStyle,
+    mapDetailTier,
+    mapDetailGlobeAltitude,
+    center,
+  ]);
+
   const mapEventsForMapPinsDev = useMemo(
     () => applyDevMarkerOverridesToEvents(mapEventsForMapPins, overrides),
     [mapEventsForMapPins, overrides]
@@ -1214,6 +1272,7 @@ export function HomePage({
       allMapEvents: mapEvents,
       allSalons: salons,
       nearbyFetchCenter,
+      followedCatalogLives,
     }),
     [
       mapDetailTier,
@@ -1235,6 +1294,7 @@ export function HomePage({
       savedEventPostIds,
       mapEvents,
       nearbyFetchCenter,
+      followedCatalogLives,
     ]
   );
 
@@ -1259,6 +1319,7 @@ export function HomePage({
         allMapEvents: mapEvents,
         allSalons: salons,
         nearbyFetchCenter,
+        followedCatalogLives,
       }),
     [
       mapDetailTier,
@@ -1276,7 +1337,14 @@ export function HomePage({
       mapEvents,
       salons,
       nearbyFetchCenter,
+      followedCatalogLives,
     ]
+  );
+
+  /** Sidebar latérale : liste filtre carte ou sections Suivi selon chips actives. */
+  const mapSidebarPanelContent = useMemo(
+    () => (anyMapFilterActive ? mapSidebarContent : mapSidebarFollowingContent),
+    [anyMapFilterActive, mapSidebarContent, mapSidebarFollowingContent]
   );
 
   const mapSidebarItemCount = useMemo(
@@ -1508,7 +1576,8 @@ export function HomePage({
     deactivateMapContentFiltersExcept('lives');
     setSidebarMapFilterLivesFollowing(false);
     setShowLivesMarkers(true);
-  }, [showLivesMarkers, deactivateMapContentFiltersExcept]);
+    setNearbyPeopleVisible(true);
+  }, [showLivesMarkers, deactivateMapContentFiltersExcept, setNearbyPeopleVisible]);
 
   const toggleSidebarMapFilterLivesFollowing = useCallback(() => {
     setSidebarMapFilterLivesFollowing((prev) => {
@@ -3669,7 +3738,7 @@ export function HomePage({
         ) : (
           <NearbyPeoplePanel
             layout="side"
-            content={mapSidebarFollowingContent}
+            content={mapSidebarPanelContent}
             detail={mapDetailState}
             loading={loadingNearby}
             eventsLoading={loadingMapEvents}
@@ -3831,6 +3900,8 @@ export function HomePage({
           eventBrowsePinFallbackNearest={mapEventBrowsePinFallbackNearest}
           devMarkerDragEnabled={devMarkerDragEnabled}
           onDevMarkerDragEnd={onDevMarkerDragEnd}
+          livesListViewportBounds={livesListViewportBoundsOverlay}
+          livesListViewportCircle={livesListViewportCircleOverlay}
         />
         </div>
         {mapStyle === 'globe' && (
@@ -4135,7 +4206,7 @@ export function HomePage({
             ) : (
               <NearbyPeoplePanel
                 layout={nearbyLayout}
-                content={mapSidebarFollowingContent}
+                content={mapSidebarPanelContent}
                 detail={mapDetailState}
                 loading={loadingNearby}
                 eventsLoading={loadingMapEvents}

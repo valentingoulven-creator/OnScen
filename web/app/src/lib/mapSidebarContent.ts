@@ -224,6 +224,8 @@ export function buildMapSidebarContent(opts: {
   allSalons?: Salon[];
   /** Centre de la dernière requête nearby ; si absent, centre des bounds (tests). */
   nearbyFetchCenter?: [number, number] | null;
+  /** Lives suivis (GET /lives sans filtre distance) — section Suivi lives. */
+  followedCatalogLives?: Live[];
 }): MapSidebarContent {
   const {
     detail,
@@ -243,15 +245,24 @@ export function buildMapSidebarContent(opts: {
     allMapEvents = mapEvents,
     allSalons = salons,
     nearbyFetchCenter,
+    followedCatalogLives,
   } = opts;
+
+  const poolForFollowingLives = (): Live[] => {
+    if (followedCatalogLives) return followedCatalogLives;
+    return lives.filter((l) => l.isActive !== false);
+  };
+
+  const buildLivesFollowing = (): Live[] => {
+    if (followingIds.size === 0) return [];
+    return sortLivesByViewersDesc(
+      poolForFollowingLives().filter((l) => followingIds.has(l.hostId))
+    );
+  };
 
   const anyFilter = eventsFilterOn || livesFilterOn || salonFilterOn;
   if (!anyFilter) {
-    const activeLives = lives.filter((l) => l.isActive !== false);
-    const livesFollowing =
-      followingIds.size > 0
-        ? sortLivesByViewersDesc(activeLives.filter((l) => followingIds.has(l.hostId)))
-        : [];
+    const livesFollowing = buildLivesFollowing();
 
     const salonPool = sidebarSalonEntries(allSalons.filter(isPublicSalon));
     const salonsFollowing =
@@ -374,9 +385,7 @@ export function buildMapSidebarContent(opts: {
   const MAP_LIVE_SUGGESTIONS_MAX = MAP_SIDEBAR_SUGGESTIONS_MAX;
   const activeLives = lives.filter((l) => l.isActive !== false);
   const livesFollowing =
-    livesFilterOn && followingIds.size > 0
-      ? sortLivesByViewersDesc(activeLives.filter((l) => followingIds.has(l.hostId)))
-      : [];
+    livesFilterOn && followingIds.size > 0 ? buildLivesFollowing() : [];
   const inViewLiveIds = new Set(sortedLives.map((l) => l.id));
   const livesSuggestions =
     livesFilterOn
