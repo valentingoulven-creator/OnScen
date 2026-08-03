@@ -57,6 +57,9 @@ export interface MapStoryEntry {
   /** Nombre de stories actives (segments anneau) */
   storyCount?: number;
   storyVisibility?: 'public' | 'followers';
+  /** Salon d'écoute actif (hôte suivi, hors live). */
+  salonId?: string;
+  salonTitle?: string;
 }
 
 function latestReelByAuthor(reels: MusicReel[]): Map<string, MusicReel> {
@@ -101,7 +104,7 @@ function personToEntry(
 ): MapStoryEntry | null {
   const reel = reelByAuthor.get(person.id);
   const story = activeStories.get(person.id);
-  if (!reel && !person.isLive && !story) return null;
+  if (!reel && !person.isLive && !story && !person.salonId?.trim()) return null;
   return applyStoryToEntry(
     {
       userId: person.id,
@@ -113,6 +116,8 @@ function personToEntry(
       isLive: person.isLive,
       liveId: person.liveId,
       liveViewersCount: person.liveViewersCount,
+      ...(person.salonId?.trim() ? { salonId: person.salonId.trim() } : {}),
+      ...(person.salonTitle?.trim() ? { salonTitle: person.salonTitle.trim() } : {}),
     },
     story,
     storyCounts.get(person.id) ?? 1
@@ -124,12 +129,13 @@ function favoriteToEntry(
   reelByAuthor: Map<string, MusicReel>,
   seen: Set<string>,
   activeStories: Map<string, MapStory>,
-  storyCounts: Map<string, number>
+  storyCounts: Map<string, number>,
+  favoriteIds: Set<string>
 ): MapStoryEntry | null {
   if (seen.has(user.id)) return null;
   const reel = reelByAuthor.get(user.id);
   const story = activeStories.get(user.id);
-  if (!reel && !user.isLive && !story) return null;
+  if (!reel && !user.isLive && !story && !user.salonId?.trim()) return null;
   seen.add(user.id);
   return applyStoryToEntry(
     {
@@ -138,7 +144,7 @@ function favoriteToEntry(
       avatarUrl: user.avatarUrl,
       reelId: reel?.id,
       posterUrl: reel?.posterUrl,
-      isFavorite: true,
+      isFavorite: favoriteIds.has(user.id),
       isLive: user.isLive,
       liveId: user.liveId,
       liveViewersCount: user.liveViewersCount,
@@ -198,7 +204,7 @@ export function buildMapStoryEntries(
   }
 
   for (const fav of favorites) {
-    const entry = favoriteToEntry(fav, reelByAuthor, seen, activeStories, storyCounts);
+    const entry = favoriteToEntry(fav, reelByAuthor, seen, activeStories, storyCounts, favoriteIds);
     if (entry) entries.push(entry);
   }
 
@@ -238,4 +244,23 @@ export function buildViewableStories(
     if (stack?.length) list.push(...stack);
   }
   return list;
+}
+
+/** Anneau affichable : story, live, reel profil ou salon actif. */
+export function mapStoryEntryHasRingContent(entry: MapStoryEntry): boolean {
+  return Boolean(entry.hasActiveStory || entry.isLive || entry.reelId || entry.salonId);
+}
+
+/** Fil Accueil : uniquement les entrées des comptes suivis. */
+export function filterMapStoryEntriesToFollowing(
+  entries: MapStoryEntry[],
+  followingIds: Set<string>,
+  viewerId?: string
+): MapStoryEntry[] {
+  return entries.filter(
+    (e) =>
+      e.userId !== viewerId &&
+      followingIds.has(e.userId) &&
+      mapStoryEntryHasRingContent(e)
+  );
 }

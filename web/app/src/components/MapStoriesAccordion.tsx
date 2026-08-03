@@ -9,6 +9,8 @@ import {
   groupStoriesByUser,
   latestStory,
   pickInitialStory,
+  resolveAfterLivePreview,
+  resolveBeforeLivePreview,
   resolveAfterStoryDeleted,
 } from '../lib/storyViewerNav';
 import {
@@ -282,33 +284,89 @@ export function MapStoriesAccordion({
 
   const myLatestStory = latestStory(myStories);
 
-  const openEntry = (entry: MapStoryEntry) => {
-    if (entry.hasActiveStory && entry.storyId) {
-      const userStories = storiesByUser.get(entry.userId);
-      const story = userStories ? pickInitialStory(userStories) : undefined;
-      if (story) {
-        setSheet({ kind: 'view', story, isOwn: entry.userId === user?.id });
+  const openEntry = useCallback(
+    (entry: MapStoryEntry) => {
+      if (entry.isLive && entry.liveId) {
+        setSheet({ kind: 'closed' });
+        setLivePreview({ kind: 'open', entry, liveId: entry.liveId });
         return;
       }
-    }
-    if (entry.isLive && entry.liveId) {
-      setLivePreview({ kind: 'open', entry, liveId: entry.liveId });
-      return;
-    }
-    if (entry.reelId && onOpenReel) {
-      onOpenReel(entry.reelId);
-      return;
-    }
-    const person = nearbyPeople.find((p) => p.id === entry.userId);
-    onOpenProfile(
-      person ?? {
-        id: entry.userId,
-        username: entry.username,
-        avatarUrl: entry.avatarUrl,
-        isLive: entry.isLive,
+      if (entry.hasActiveStory && entry.storyId) {
+        const userStories = storiesByUser.get(entry.userId);
+        const story = userStories ? pickInitialStory(userStories) : undefined;
+        if (story) {
+          setLivePreview({ kind: 'closed' });
+          setSheet({ kind: 'view', story, isOwn: entry.userId === user?.id });
+          return;
+        }
       }
-    );
-  };
+      if (entry.reelId && onOpenReel) {
+        onOpenReel(entry.reelId);
+        return;
+      }
+      const person = nearbyPeople.find((p) => p.id === entry.userId);
+      onOpenProfile(
+        person ?? {
+          id: entry.userId,
+          username: entry.username,
+          avatarUrl: entry.avatarUrl,
+          isLive: entry.isLive,
+        }
+      );
+    },
+    [storiesByUser, user?.id, onOpenReel, nearbyPeople, onOpenProfile]
+  );
+
+  const advanceAfterLivePreview = useCallback(() => {
+    setLivePreview((prev) => {
+      if (prev.kind !== 'open') return prev;
+      const current = prev.entry;
+      const action = resolveAfterLivePreview(entries, current);
+      if (action.type === 'close') {
+        return { kind: 'closed' };
+      }
+      if (action.type === 'story') {
+        const userStories = storiesByUser.get(action.entry.userId);
+        const story = userStories ? pickInitialStory(userStories) : undefined;
+        if (story) {
+          setSheet({ kind: 'view', story, isOwn: action.entry.userId === user?.id });
+        }
+        return { kind: 'closed' };
+      }
+      return { kind: 'open', entry: action.entry, liveId: action.entry.liveId! };
+    });
+  }, [entries, storiesByUser, user?.id]);
+
+  const retreatBeforeLivePreview = useCallback(() => {
+    setLivePreview((prev) => {
+      if (prev.kind !== 'open') return prev;
+      const current = prev.entry;
+      const action = resolveBeforeLivePreview(entries, current);
+      if (action.type === 'close') {
+        return { kind: 'closed' };
+      }
+      if (action.type === 'story') {
+        const userStories = storiesByUser.get(action.entry.userId);
+        const story = userStories ? pickInitialStory(userStories) : undefined;
+        if (story) {
+          setSheet({ kind: 'view', story, isOwn: action.entry.userId === user?.id });
+        }
+        return { kind: 'closed' };
+      }
+      return { kind: 'open', entry: action.entry, liveId: action.entry.liveId! };
+    });
+  }, [entries, storiesByUser, user?.id]);
+
+  const livePreviewNav = useMemo(() => {
+    if (livePreview.kind !== 'open') {
+      return { canNext: false, canPrev: false };
+    }
+    const entry = livePreview.entry;
+    return {
+      canNext: resolveAfterLivePreview(entries, entry).type !== 'close',
+      canPrev: resolveBeforeLivePreview(entries, entry).type !== 'close',
+    };
+  }, [livePreview, entries]);
 
   const openMyStory = () => {
     if (myStories.length) {
@@ -509,7 +567,10 @@ export function MapStoriesAccordion({
       {(sheet.kind === 'view' || sheet.kind === 'view_sponsor') ? (
         <StoryViewer
           story={sheet.kind === 'view' ? sheet.story : undefined}
-          stack={activeViewerStack?.stories}
+          stack={
+            activeViewerStack?.stories ??
+            (sheet.kind === 'view' ? [sheet.story] : undefined)
+          }
           stackIndex={viewerStackIndex}
           sponsorAd={sponsorAd}
           onClose={() => setSheet({ kind: 'closed' })}
@@ -530,6 +591,11 @@ export function MapStoriesAccordion({
           token={token}
           onClose={() => setLivePreview({ kind: 'closed' })}
           onJoin={onOpenLive}
+          onPreviewElapsed={advanceAfterLivePreview}
+          onNext={advanceAfterLivePreview}
+          canNext={livePreviewNav.canNext}
+          onPrev={retreatBeforeLivePreview}
+          canPrev={livePreviewNav.canPrev}
         />
       ) : null}
     </>

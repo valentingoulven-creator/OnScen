@@ -3,6 +3,9 @@ import type { MapStoryEntry } from './mapStoriesFeed';
 
 export const STORY_VIEW_DURATION_MS = 5000;
 
+/** Aperçu live depuis le bandeau stories avant passage automatique au segment suivant. */
+export const STORY_LIVE_PREVIEW_DURATION_MS = 10_000;
+
 export interface StoryUserStack {
   userId: string;
   stories: MapStory[];
@@ -163,6 +166,76 @@ export function resolveAfterStoryDeleted(
   }
   const first = updatedStacks[0]!.stories[0]!;
   return { action: 'view', story: first, isOwn: first.userId === viewerUserId };
+}
+
+/** Après l’aperçu live : stories du même auteur, sinon prochain anneau (story ou live). */
+export function resolveAfterLivePreview(
+  entries: MapStoryEntry[],
+  current: MapStoryEntry
+):
+  | { type: 'story'; entry: MapStoryEntry }
+  | { type: 'live'; entry: MapStoryEntry }
+  | { type: 'close' } {
+  if (current.hasActiveStory && current.storyId) {
+    return { type: 'story', entry: current };
+  }
+  const idx = entries.findIndex((e) => e.userId === current.userId);
+  for (let i = idx + 1; i < entries.length; i++) {
+    const e = entries[i]!;
+    if (e.hasActiveStory && e.storyId) return { type: 'story', entry: e };
+    if (e.isLive && e.liveId) return { type: 'live', entry: e };
+  }
+  return { type: 'close' };
+}
+
+/**
+ * Après le dernier segment story d’un anneau : segment suivant dans l’ordre du bandeau
+ * (live ou story), sans sauter les anneaux « live seul ».
+ */
+export function resolveNextAfterLastStorySegment(
+  entries: MapStoryEntry[],
+  storiesByUser: Map<string, MapStory[]>,
+  userId: string,
+  viewerUserId?: string
+):
+  | { kind: 'story'; story: MapStory; isOwn: boolean }
+  | { kind: 'live'; entry: MapStoryEntry; liveId: string }
+  | null {
+  const entryIdx = entries.findIndex((e) => e.userId === userId);
+  if (entryIdx < 0) return null;
+
+  for (let i = entryIdx + 1; i < entries.length; i++) {
+    const e = entries[i]!;
+    if (e.hasActiveStory && e.storyId) {
+      const list = storiesByUser.get(e.userId);
+      const story = list?.length ? pickInitialStory(list) : undefined;
+      if (story) {
+        return { kind: 'story', story, isOwn: story.userId === viewerUserId };
+      }
+    }
+    if (e.isLive && e.liveId) {
+      return { kind: 'live', entry: e, liveId: e.liveId };
+    }
+  }
+  return null;
+}
+
+/** Anneau précédent dans le bandeau (story ou live). */
+export function resolveBeforeLivePreview(
+  entries: MapStoryEntry[],
+  current: MapStoryEntry
+):
+  | { type: 'story'; entry: MapStoryEntry }
+  | { type: 'live'; entry: MapStoryEntry }
+  | { type: 'close' } {
+  const idx = entries.findIndex((e) => e.userId === current.userId);
+  if (idx <= 0) return { type: 'close' };
+  for (let i = idx - 1; i >= 0; i--) {
+    const e = entries[i]!;
+    if (e.hasActiveStory && e.storyId) return { type: 'story', entry: e };
+    if (e.isLive && e.liveId) return { type: 'live', entry: e };
+  }
+  return { type: 'close' };
 }
 
 export function formatStoryTimeAgo(ts: number): string {

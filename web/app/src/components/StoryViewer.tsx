@@ -13,6 +13,7 @@ import { OpenOnYoutubeButton } from './OpenOnYoutubeButton';
 import { StoryLinkOverlay } from './StoryLinkSticker';
 import { UsernameDisplay } from './UsernameDisplay';
 import { UserAvatarOnline } from './UserAvatarOnline';
+import { StoryProgressBars } from './StoryProgressBars';
 
 export interface StoryViewerProps {
   story?: MapStory;
@@ -49,6 +50,12 @@ export function StoryViewer({
   const isSponsorSlide = Boolean(sponsorAd);
   const activeStory = story;
   const activeStack = stack ?? [];
+  const progressSegments =
+    !isSponsorSlide && activeStack.length > 0
+      ? activeStack
+      : activeStory
+        ? [activeStory]
+        : [];
   const activeStackIndex = stackIndex ?? 0;
   const segmentDurationMs = isSponsorSlide
     ? getDisplayDurationMs(sponsorAd?.displayDurationSec)
@@ -198,6 +205,29 @@ export function StoryViewer({
 
   const canDelete = !isSponsorSlide && isOwn && Boolean(token) && Boolean(onDeleted);
 
+  const hasStoryMedia = Boolean(
+    activeStory?.videoUrl?.trim() || activeStory?.imageUrl?.trim()
+  );
+  const isTextOnlyStory =
+    !isSponsorSlide &&
+    Boolean(activeStory) &&
+    !hasStoryMedia &&
+    Boolean(activeStory?.content?.trim());
+  const [storyImageFailed, setStoryImageFailed] = useState(false);
+
+  useEffect(() => {
+    setStoryImageFailed(false);
+  }, [activeStory?.id, activeStory?.imageUrl]);
+
+  const showStoryCaptionFooter =
+    !isSponsorSlide &&
+    activeStory &&
+    !isTextOnlyStory &&
+    (activeStory.content ||
+      activeStory.musicTrack ||
+      activeStory.link?.url ||
+      (activeStory.taggedUsers && activeStory.taggedUsers.length > 0));
+
   const confirmDelete = useCallback(async () => {
     if (!token || !onDeleted || !activeStory) return;
     setDeleting(true);
@@ -223,117 +253,11 @@ export function StoryViewer({
       {...mergeTouch}
     >
       <div
-        className="relative w-full h-full sm:h-auto sm:max-w-md sm:max-h-[85dvh] flex flex-col overflow-hidden sm:rounded-2xl bg-[#12121a] sm:border sm:border-[#2d2d3d] shadow-2xl"
+        className="relative w-full h-full sm:w-full sm:max-w-md sm:h-[min(85dvh,720px)] sm:max-h-[85dvh] min-h-0 flex flex-col overflow-hidden sm:rounded-2xl bg-[#12121a] sm:border sm:border-[#2d2d3d] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Barres de progression */}
-        <div className="flex gap-1 px-3 ms-safe-area-top sm:pt-3 shrink-0">
-          {isSponsorSlide ? (
-            <div className="flex-1 h-[3px] rounded-full bg-white/20 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-amber-300 transition-none"
-                style={{ width: `${progress * 100}%` }}
-              />
-            </div>
-          ) : (
-            activeStack.map((seg, i) => {
-              let fill = 0;
-              if (i < activeStackIndex) fill = 1;
-              else if (i === activeStackIndex) fill = progress;
-              return (
-                <div key={seg.id} className="flex-1 h-[3px] rounded-full bg-white/20 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-white transition-none"
-                    style={{ width: `${fill * 100}%` }}
-                  />
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        <div className="flex items-center justify-between gap-2 px-3 py-2 shrink-0">
-          {isSponsorSlide && sponsorAd ? (
-            <div className="flex items-center gap-2 min-w-0">
-              {sponsorAd.logoUrl?.trim() ? (
-                <img
-                  src={sponsorAd.logoUrl.trim()}
-                  alt=""
-                  className="w-8 h-8 rounded-lg object-cover bg-[#1a1a26] shrink-0"
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-lg bg-[#1a1a26] flex items-center justify-center text-[9px] text-gray-500 shrink-0">
-                  AD
-                </div>
-              )}
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-amber-300">
-                  {sponsorKindBadgeLabel(sponsorAd.kind ?? 'sponsored')}
-                </p>
-                <p className="text-sm font-semibold text-white truncate">
-                  {sponsorAd.sponsor?.trim() || sponsorAd.title}
-                </p>
-              </div>
-            </div>
-          ) : activeStory ? (
-            <div className="flex items-center gap-2 min-w-0">
-              <UserAvatarOnline
-                userId={activeStory.author.id}
-                username={activeStory.author.username}
-                avatarUrl={activeStory.author.avatarUrl}
-                size="sm"
-              />
-              <div className="min-w-0">
-                <UsernameDisplay
-                  username={activeStory.author.username}
-                  usernameColor={activeStory.author.usernameColor}
-                  usernameWaveFrom={activeStory.author.usernameWaveFrom}
-                  usernameWaveTo={activeStory.author.usernameWaveTo}
-                  className="text-sm font-semibold truncate block text-white"
-                />
-                <p className="text-[11px] text-gray-400">{formatStoryTimeAgo(activeStory.createdAt)}</p>
-              </div>
-              {activeStory.visibility ? (
-                <span className="text-xs shrink-0" title={activeStory.visibility === 'public' ? 'Public' : 'Abonnés'}>
-                  {activeStory.visibility === 'public' ? '🌍' : '👥'}
-                </span>
-              ) : null}
-            </div>
-          ) : (
-            <div />
-          )}
-          <div className="flex items-center gap-0.5 shrink-0">
-            {canDelete ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setDeleteError(null);
-                  setShowDeleteConfirm(true);
-                }}
-                className="p-2 rounded-full text-gray-400 hover:text-red-400 hover:bg-red-500/10"
-                aria-label="Supprimer la story"
-              >
-                <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M10 11v6M14 11v6" strokeLinecap="round" />
-                </svg>
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-white/10 shrink-0"
-              aria-label="Fermer"
-            >
-              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Media ajusté (object-contain, plein écran sur mobile) */}
-        <div className="relative flex-1 min-h-0 sm:min-h-[200px] sm:max-h-[55dvh] flex items-center justify-center bg-[#0b0b0f]">
+        {/* Média plein cadre (sous les barres / chrome) */}
+        <div className="absolute inset-0 flex items-center justify-center bg-[#0b0b0f]">
           <div className="relative w-full h-full max-w-full max-h-full flex items-center justify-center">
             {isSponsorSlide && sponsorAd ? (
               <>
@@ -394,18 +318,25 @@ export function StoryViewer({
                 key={activeStory.id}
                 src={activeStory.videoUrl}
                 poster={activeStory.imageUrl}
-                className="max-w-full max-h-full object-contain block"
+                className="w-full h-full object-cover sm:object-contain block"
                 playsInline
                 preload="auto"
                 draggable={false}
               />
-            ) : activeStory?.imageUrl ? (
+            ) : activeStory?.imageUrl && !storyImageFailed ? (
               <img
                 src={activeStory.imageUrl}
                 alt=""
-                className="max-w-full max-h-full object-contain block"
+                className="w-full h-full object-cover sm:object-contain block"
                 draggable={false}
+                onError={() => setStoryImageFailed(true)}
               />
+            ) : isTextOnlyStory || (storyImageFailed && activeStory?.content) ? (
+              <div className="w-full h-full min-h-[200px] bg-gradient-to-b from-[#1a1028] via-[#0b0b0f] to-[#12121a] flex items-center justify-center px-6 py-16">
+                <p className="text-xl sm:text-2xl font-semibold text-white text-center whitespace-pre-wrap break-words leading-snug drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)]">
+                  {activeStory?.content}
+                </p>
+              </div>
             ) : (
               <div className="w-full h-full min-h-[200px] bg-gradient-to-b from-[#1a1028] via-[#0b0b0f] to-[#12121a]" />
             )}
@@ -449,33 +380,140 @@ export function StoryViewer({
           </div>
         </div>
 
-        {!isSponsorSlide &&
-        activeStory &&
-        (activeStory.content ||
-          activeStory.musicTrack ||
-          activeStory.link?.url ||
-          (activeStory.taggedUsers && activeStory.taggedUsers.length > 0)) && (
-          <div className="shrink-0 px-4 py-3 ms-safe-area-bottom pb-[max(0.75rem,env(safe-area-inset-bottom))] space-y-2 overflow-y-auto max-h-[22dvh] border-t border-[#1e1e2f]">
-            {activeStory.content ? (
-              <p className="text-sm text-gray-200 whitespace-pre-wrap break-words">{activeStory.content}</p>
+        {/* Barres de progression + en-tête (premier plan, sur le média) */}
+        <div className="absolute inset-x-0 top-0 z-40 pointer-events-none">
+          <div className="bg-gradient-to-b from-black/80 via-black/45 to-transparent pb-2 pt-[max(0.25rem,env(safe-area-inset-top))] sm:pt-3">
+            {isSponsorSlide ? (
+              <div className="flex gap-1 px-3 shrink-0" role="presentation">
+                <div className="flex-1 h-[3px] rounded-full bg-white/25 overflow-hidden min-w-[12px] shadow-sm">
+                  <div
+                    className="h-full rounded-full bg-amber-300 transition-none"
+                    style={{ width: `${progress * 100}%` }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <StoryProgressBars
+                segments={progressSegments}
+                activeIndex={
+                  progressSegments.length > 0
+                    ? Math.min(activeStackIndex, progressSegments.length - 1)
+                    : 0
+                }
+                progress={progress}
+                className=""
+              />
+            )}
+
+            <div className="flex items-center justify-between gap-2 px-3 py-2 pointer-events-auto">
+              {isSponsorSlide && sponsorAd ? (
+                <div className="flex items-center gap-2 min-w-0">
+                  {sponsorAd.logoUrl?.trim() ? (
+                    <img
+                      src={sponsorAd.logoUrl.trim()}
+                      alt=""
+                      className="w-8 h-8 rounded-lg object-cover bg-[#1a1a26] shrink-0"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-lg bg-[#1a1a26] flex items-center justify-center text-[9px] text-gray-500 shrink-0">
+                      AD
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-amber-300">
+                      {sponsorKindBadgeLabel(sponsorAd.kind ?? 'sponsored')}
+                    </p>
+                    <p className="text-sm font-semibold text-white truncate">
+                      {sponsorAd.sponsor?.trim() || sponsorAd.title}
+                    </p>
+                  </div>
+                </div>
+              ) : activeStory ? (
+                <div className="flex items-center gap-2 min-w-0">
+                  <UserAvatarOnline
+                    userId={activeStory.author.id}
+                    username={activeStory.author.username}
+                    avatarUrl={activeStory.author.avatarUrl}
+                    size="sm"
+                  />
+                  <div className="min-w-0">
+                    <UsernameDisplay
+                      username={activeStory.author.username}
+                      usernameColor={activeStory.author.usernameColor}
+                      usernameWaveFrom={activeStory.author.usernameWaveFrom}
+                      usernameWaveTo={activeStory.author.usernameWaveTo}
+                      className="text-sm font-semibold truncate block text-white drop-shadow-sm"
+                    />
+                    <p className="text-[11px] text-gray-200/90 drop-shadow-sm">
+                      {formatStoryTimeAgo(activeStory.createdAt)}
+                    </p>
+                  </div>
+                  {activeStory.visibility ? (
+                    <span
+                      className="text-xs shrink-0 drop-shadow-sm"
+                      title={activeStory.visibility === 'public' ? 'Public' : 'Abonnés'}
+                    >
+                      {activeStory.visibility === 'public' ? '🌍' : '👥'}
+                    </span>
+                  ) : null}
+                </div>
+              ) : (
+                <div />
+              )}
+              <div className="flex items-center gap-0.5 shrink-0">
+                {canDelete ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteError(null);
+                      setShowDeleteConfirm(true);
+                    }}
+                    className="p-2 rounded-full text-gray-200 hover:text-red-400 hover:bg-white/10"
+                    aria-label="Supprimer la story"
+                  >
+                    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M10 11v6M14 11v6" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="p-2 rounded-full text-gray-200 hover:text-white hover:bg-white/10 shrink-0"
+                  aria-label="Fermer"
+                >
+                  <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {showStoryCaptionFooter ? (
+          <div className="absolute inset-x-0 bottom-0 z-40 px-4 py-3 ms-safe-area-bottom pb-[max(0.75rem,env(safe-area-inset-bottom))] space-y-2 overflow-y-auto max-h-[22dvh] bg-gradient-to-t from-black/90 via-black/55 to-transparent pointer-events-auto">
+            {activeStory!.content ? (
+              <p className="text-sm text-gray-200 whitespace-pre-wrap break-words">{activeStory!.content}</p>
             ) : null}
 
-            {activeStory.musicTrack ? (
+            {activeStory!.musicTrack ? (
               <div className="flex items-center gap-2 rounded-xl bg-[#1a1a28] border border-[#2d2d3d] px-3 py-2 max-w-sm">
                 <span className="text-lg" aria-hidden>
                   🎵
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs text-white font-medium truncate">{activeStory.musicTrack.title}</p>
-                  {activeStory.musicTrack.artist ? (
-                    <p className="text-[10px] text-gray-500 truncate">{activeStory.musicTrack.artist}</p>
+                  <p className="text-xs text-white font-medium truncate">{activeStory!.musicTrack.title}</p>
+                  {activeStory!.musicTrack.artist ? (
+                    <p className="text-[10px] text-gray-500 truncate">{activeStory!.musicTrack.artist}</p>
                   ) : null}
                 </div>
-                {activeStory.musicTrack.videoId ? (
-                  <OpenOnYoutubeButton trackId={activeStory.musicTrack.videoId} variant="youtube-red" label="Écouter" />
-                ) : activeStory.musicTrack.url ? (
+                {activeStory!.musicTrack.videoId ? (
+                  <OpenOnYoutubeButton trackId={activeStory!.musicTrack.videoId} variant="youtube-red" label="Écouter" />
+                ) : activeStory!.musicTrack.url ? (
                   <a
-                    href={activeStory.musicTrack.url}
+                    href={activeStory!.musicTrack.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[10px] text-red-400 hover:text-red-300 shrink-0"
@@ -486,22 +524,22 @@ export function StoryViewer({
               </div>
             ) : null}
 
-            {activeStory.link?.url ? (
+            {activeStory!.link?.url ? (
               <a
-                href={activeStory.link.url}
+                href={activeStory!.link.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-xl bg-[#1a1a28] border border-[#2d2d3d] px-3 py-2 text-xs text-purple-300 hover:text-purple-200 max-w-sm"
                 onClick={(e) => e.stopPropagation()}
               >
                 <span aria-hidden>🔗</span>
-                <span className="truncate">{activeStory.link.label?.trim() || activeStory.link.url}</span>
+                <span className="truncate">{activeStory!.link.label?.trim() || activeStory!.link.url}</span>
               </a>
             ) : null}
 
-            {activeStory.taggedUsers && activeStory.taggedUsers.length > 0 ? (
+            {activeStory!.taggedUsers && activeStory!.taggedUsers.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
-                {activeStory.taggedUsers.map((t) => (
+                {activeStory!.taggedUsers.map((t) => (
                   <span
                     key={t.id}
                     className="inline-flex items-center gap-1 rounded-full bg-[#1a1a28] border border-[#2d2d3d] pl-1 pr-2 py-0.5"
@@ -519,7 +557,7 @@ export function StoryViewer({
               </div>
             ) : null}
           </div>
-        )}
+        ) : null}
       </div>
 
       {showDeleteConfirm ? (

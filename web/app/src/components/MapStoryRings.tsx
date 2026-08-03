@@ -19,6 +19,15 @@ function displayUsername(username: string): string {
   return username.replace(/^🤖\s*/, '').trim();
 }
 
+function isSalonEntry(entry: MapStoryEntry): boolean {
+  return Boolean(
+    entry.salonId?.trim() &&
+      !entry.isLive &&
+      !entry.hasActiveStory &&
+      !entry.reelId
+  );
+}
+
 export function StoryAvatarRing({
   hasActiveStory,
   storyImageUrl,
@@ -76,11 +85,13 @@ function StoryRingLabel({
   accent,
 }: {
   children: ReactNode;
-  accent?: 'live' | 'mine' | 'default';
+  accent?: 'live' | 'salon' | 'mine' | 'default';
 }) {
   const tone =
     accent === 'live'
       ? 'text-red-300 font-semibold'
+      : accent === 'salon'
+        ? 'text-violet-300 font-semibold'
       : accent === 'mine'
         ? 'text-purple-300 font-semibold'
         : 'text-gray-300';
@@ -140,6 +151,9 @@ function ringClassForEntry(entry: MapStoryEntry, isSeen?: boolean): string {
   if (entry.isLive) {
     return 'bg-gradient-to-tr from-red-500 via-pink-500 to-orange-400 p-[2.5px]';
   }
+  if (isSalonEntry(entry)) {
+    return 'bg-gradient-to-tr from-violet-500 via-purple-500 to-fuchsia-400 p-[2.5px]';
+  }
   if (entry.hasActiveStory && (entry.storyCount ?? 1) > 1) {
     return '';
   }
@@ -176,6 +190,7 @@ function ringInnerMedia(entry: MapStoryEntry) {
       avatarUrl={entry.avatarUrl}
       size="sm"
       isLive={entry.isLive}
+      isSalon={isSalonEntry(entry)}
     />
   );
 }
@@ -314,7 +329,8 @@ export const MapStoryRing = memo(function MapStoryRing({
   seenStoryIds?: Set<string>;
 }) {
   const segmentCount = entry.storyCount ?? 1;
-  const useSegmentRing = entry.hasActiveStory && segmentCount > 1 && !entry.isLive;
+  const useSegmentRing =
+    entry.hasActiveStory && segmentCount > 1 && !entry.isLive && !isSalonEntry(entry);
   const seenSegments =
     useSegmentRing && seenStoryIds ? countSeenSegments(storyIds, seenStoryIds) : 0;
   const allSeen = useSegmentRing && seenSegments >= segmentCount;
@@ -337,6 +353,8 @@ export const MapStoryRing = memo(function MapStoryRing({
       aria-label={
         entry.isLive
           ? `Live de ${name}`
+          : isSalonEntry(entry)
+            ? `Salon de ${name}`
           : `Story de ${name}${segmentCount > 1 ? ` (${segmentCount})` : ''}`
       }
     >
@@ -356,10 +374,18 @@ export const MapStoryRing = memo(function MapStoryRing({
             <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wide bg-red-600 text-white leading-none">
               Live
             </span>
+          ) : isSalonEntry(entry) ? (
+            <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wide bg-violet-600 text-white leading-none">
+              Salon
+            </span>
           ) : null}
         </div>
       )}
-      <StoryRingLabel accent={entry.isLive ? 'live' : 'default'}>{name}</StoryRingLabel>
+      <StoryRingLabel
+        accent={entry.isLive ? 'live' : isSalonEntry(entry) ? 'salon' : 'default'}
+      >
+        {name}
+      </StoryRingLabel>
     </button>
   );
 });
