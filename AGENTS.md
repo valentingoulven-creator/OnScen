@@ -1,5 +1,9 @@
 # Soundy — Instructions agents
 
+## Nouveau développeur
+
+- **Onboarding complet :** [`commun/docs/ONBOARDING-DEVELOPPEUR.md`](./commun/docs/ONBOARDING-DEVELOPPEUR.md) — setup local, architecture, conventions, première semaine.
+
 ## Cursor Cloud
 
 - **Setup complet :** [`commun/docs/CURSOR-CLOUD-AGENTS.md`](./commun/docs/CURSOR-CLOUD-AGENTS.md)
@@ -12,6 +16,7 @@
 - Prod : **ne jamais** déployer sans demande explicite → `commun/scripts/deploy-prod.ps1`
 - Source frontend : `web/app/src/` · mobile overrides : `ios/apptel/src/` uniquement
 - Changelog significatif : entrée en fin de `modification.txt`
+- Doc → Google Drive : `npm run docs:gdrive:install` puis `npm run docs:gdrive:watch` (voir `commun/docs/GOOGLE-DRIVE-DOCS-SYNC.md`)
 - **Stack scale :** [`commun/docs/STACK-CIBLE.md`](./commun/docs/STACK-CIBLE.md) · checklist 500k : `commun/msdev/SCALABILITY.md`
 
 ## Agent Dev (implémentation)
