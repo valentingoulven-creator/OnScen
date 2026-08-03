@@ -9,6 +9,7 @@ import { SoundyGlobeLiveMarkers } from './SoundyGlobeLiveMarkers';
 import { SoundyGlobeSalonMarkers } from './SoundyGlobeSalonMarkers';
 import { SoundyGlobeUserMarker } from './SoundyGlobeUserMarker';
 import { SoundyGlobeRings, type SoundyGlobeRing } from './SoundyGlobeRings';
+import { SoundyGlobeQueryRadiusRing } from './SoundyGlobeQueryRadiusRing';
 import { SoundyGlobeCapitalLabels } from './SoundyGlobeCapitalLabels';
 import { GlobeCameraBridge, type GlobeCameraBridgeHandle, type RecenterRequest } from './GlobeCameraBridge';
 import type { PreparedCountry } from '../../lib/globe3d/types';
@@ -26,6 +27,9 @@ export interface SoundyGlobeSceneProps {
   ringMaxRadius: number;
   ringPropagationSpeed: number;
   ringRepeatPeriod: number;
+  /** @deprecated Rayon réf. nearby retiré de l’UI — conservé pour compat API interne. */
+  livesListRadius?: { lat: number; lng: number; radiusKm: number } | null;
+  livesListViewportCircle?: { lat: number; lng: number; radiusKm: number } | null;
   cameraRef: React.RefObject<GlobeCameraBridgeHandle | null>;
   recenterRequest: RecenterRequest | null;
   onPointClick: (point: SoundyGlobePoint) => void;
@@ -50,6 +54,7 @@ export function SoundyGlobeScene({
   ringMaxRadius,
   ringPropagationSpeed,
   ringRepeatPeriod,
+  livesListViewportCircle,
   cameraRef,
   recenterRequest,
   onPointClick,
@@ -85,6 +90,14 @@ export function SoundyGlobeScene({
         propagationSpeed={ringPropagationSpeed}
         repeatPeriod={ringRepeatPeriod}
       />
+      {livesListViewportCircle && livesListViewportCircle.radiusKm > 0 ? (
+        <SoundyGlobeQueryRadiusRing
+          lat={livesListViewportCircle.lat}
+          lng={livesListViewportCircle.lng}
+          radiusKm={livesListViewportCircle.radiusKm}
+          kind="viewport"
+        />
+      ) : null}
       <SoundyGlobeCapitalLabels labels={capitalLabels} />
 
       <GlobeCameraBridge

@@ -6,7 +6,7 @@ import {
   mapDetailTierLabel,
   type MapSidebarContent,
 } from '../lib/mapSidebarContent';
-import type { MapViewDetailState } from '../lib/mapMarkerVisibility';
+import { getLivesGlobeViewportRadiusKm, type MapViewDetailState } from '../lib/mapMarkerVisibility';
 import type { MapEventFilterCriteria } from '../lib/mapEventFilter';
 import { MapEventsBrowseList } from './MapEventsBrowseList';
 import { useMapEventsBrowseData } from '../hooks/useMapEventsBrowseData';
@@ -259,6 +259,7 @@ function CollapsibleSectionHeader({
   filterActive,
   onFilterToggle,
   filterTitle,
+  subtitle,
 }: {
   label: string;
   count: number;
@@ -268,6 +269,7 @@ function CollapsibleSectionHeader({
   filterActive?: boolean;
   onFilterToggle?: () => void;
   filterTitle?: string;
+  subtitle?: string;
 }) {
   const { t } = useTranslation();
   return (
@@ -284,8 +286,15 @@ function CollapsibleSectionHeader({
           }
           className="flex-1 min-w-0 min-h-[36px] flex items-center justify-between gap-1 text-left hover:bg-[var(--ms-surface-elevated)] rounded-md px-1 transition"
         >
-          <span className="text-[9px] font-bold uppercase tracking-wider text-gray-500 truncate">
-            {label}
+          <span className="min-w-0 flex flex-col gap-0.5">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-gray-500 truncate">
+              {label}
+            </span>
+            {subtitle ? (
+              <span className="text-[8px] leading-tight text-purple-300/90 truncate" title={subtitle}>
+                {subtitle}
+              </span>
+            ) : null}
           </span>
           <span className="flex items-center gap-1 shrink-0">
             {count > 0 ? (
@@ -397,6 +406,7 @@ function CollapsibleSidebarSection<T>({
   filterActive,
   onFilterToggle,
   filterTitle,
+  headerSubtitle,
 }: {
   label?: string;
   items: T[];
@@ -411,6 +421,7 @@ function CollapsibleSidebarSection<T>({
   filterActive?: boolean;
   onFilterToggle?: () => void;
   filterTitle?: string;
+  headerSubtitle?: string;
 }) {
   const header =
     label != null ? (
@@ -423,6 +434,7 @@ function CollapsibleSidebarSection<T>({
         filterActive={filterActive}
         onFilterToggle={onFilterToggle}
         filterTitle={filterTitle}
+        subtitle={headerSubtitle}
       />
     ) : null;
 
@@ -521,6 +533,8 @@ const LiveSidebarRow = memo(function LiveSidebarRow({
   live: Live;
   onSelect: () => void;
 }) {
+  const viewersCount = Math.max(0, live.viewersCount ?? 0);
+
   return (
     <li>
       <button
@@ -533,7 +547,6 @@ const LiveSidebarRow = memo(function LiveSidebarRow({
           username={live.hostName}
           size="xs"
           isLive
-          liveViewersCount={live.viewersCount}
         />
         <div className="min-w-0 flex-1">
           <UsernameDisplay
@@ -544,8 +557,17 @@ const LiveSidebarRow = memo(function LiveSidebarRow({
             usernameWaveTo={live.hostUsernameWaveTo}
             className={SIDEBAR_ROW_NAME}
           />
-          <p className={`${SIDEBAR_ROW_META} text-red-300/90`}>{live.title}</p>
+          <p className={`${SIDEBAR_ROW_META} text-red-300/90 truncate`}>{live.title}</p>
         </div>
+        {viewersCount > 0 ? (
+          <span
+            className="shrink-0 text-[9px] sm:text-[10px] font-semibold tabular-nums text-red-300/90"
+            title={`${viewersCount} spectateur${viewersCount !== 1 ? 's' : ''}`}
+            aria-label={`${viewersCount} spectateur${viewersCount !== 1 ? 's' : ''}`}
+          >
+            {formatCompactCount(viewersCount)}
+          </span>
+        ) : null}
       </button>
     </li>
   );
@@ -609,6 +631,9 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
   onLiveClick,
   onEventClick,
   onPersonClick,
+  eventsFilterOn = false,
+  livesFilterOn = false,
+  salonFilterOn = false,
   eventsBrowseMode = false,
   eventsBrowse,
   sponsoredEventPosts = [],
@@ -729,6 +754,30 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
     defaultValue: 'Aucun événement suivi ou enregistré.',
   });
   const followingEmptyText = t('map.sidebarFollowingEmpty', { defaultValue: 'Aucun contenu suivi.' });
+  const suggestionsEmptyText = t('map.sidebarSuggestionsEmpty', {
+    defaultValue: 'Aucune suggestion.',
+  });
+  const livesInViewEmptyText = content.zoomTooWide
+    ? t('map.sidebarLivesZoomHint', {
+        defaultValue: 'Zoomez pour voir les lives dans cette zone.',
+      })
+    : t('map.sidebarLivesEmpty', { defaultValue: 'Aucun live dans cette zone.' });
+  const salonsInViewEmptyText = t('map.sidebarSalonsEmpty', {
+    defaultValue: 'Aucun salon dans cette zone.',
+  });
+  const eventsInViewEmptyText = t('map.sidebarEventsEmpty', {
+    defaultValue: 'Aucun événement dans cette zone.',
+  });
+  const showFollowingSidebarLayout = content.noFilters;
+
+  const livesInViewViewportSubtitle = useMemo(() => {
+    if (!livesFilterOn || detail.mapStyle !== 'globe') return undefined;
+    const km = getLivesGlobeViewportRadiusKm(detail.tier, detail.globeAltitude);
+    return t('map.sidebarLivesViewportGlobeKm', {
+      defaultValue: 'Viewport globe · {{km}} km (● violet)',
+      km,
+    });
+  }, [livesFilterOn, detail, t]);
 
   const summaryParts: string[] = [];
   if (eventCount > 0) {
@@ -833,6 +882,7 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
             </li>
           ) : null}
         {!showEventsBrowseList ? (
+          showFollowingSidebarLayout ? (
           <>
             <CollapsibleSidebarSection
               label={t('map.sidebarEventsFollowing', { defaultValue: 'Événement suivi' })}
@@ -902,6 +952,188 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
               />
             ) : null}
           </>
+          ) : (
+          <>
+            {eventsFilterOn ? (
+              <>
+                <CollapsibleSidebarSection
+                  label={t('map.sidebarEventsFollowing', { defaultValue: 'Événement suivi' })}
+                  items={content.eventsFollowing}
+                  emptyText={eventsFollowingEmptyText}
+                  {...sectionProps('evEventsFollowing', content.eventsFollowing.length)}
+                  renderItem={(event) => (
+                    <MapEventRow
+                      key={`ev-event-f-${event.id}`}
+                      event={event}
+                      compact
+                      onSelect={() => onEventClick?.(event)}
+                    />
+                  )}
+                />
+                {content.eventClusters.length > 0 ? (
+                  <CollapsibleSidebarSection
+                    label={t('map.sidebarEventsInView', { defaultValue: 'Événements' })}
+                    items={content.eventClusters}
+                    emptyText={eventsInViewEmptyText}
+                    {...sectionProps('evClusters', content.eventClusters.length)}
+                    renderItem={(cluster) => (
+                      <li key={`ev-cluster-${cluster.cityKey}`} className="list-none">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const first = cluster.events[0];
+                            if (first) onEventClick?.(first);
+                          }}
+                          className="w-full flex flex-col items-start gap-0.5 px-2.5 py-2 min-h-[44px] text-left hover:bg-white/5 transition rounded-lg"
+                        >
+                          <span className={`${SIDEBAR_ROW_NAME} text-white truncate w-full`}>
+                            {cluster.cityLabel}
+                          </span>
+                          <span className={`${SIDEBAR_ROW_META} text-gray-500`}>
+                            {cluster.count} événement{cluster.count !== 1 ? 's' : ''}
+                          </span>
+                        </button>
+                      </li>
+                    )}
+                  />
+                ) : (
+                  <CollapsibleSidebarSection
+                    label={t('map.sidebarEventsInView', { defaultValue: 'Événements' })}
+                    items={content.events}
+                    emptyText={eventsInViewEmptyText}
+                    {...sectionProps('evEvents', content.events.length)}
+                    renderItem={(event) => (
+                      <MapEventRow
+                        key={`ev-event-${event.id}`}
+                        event={event}
+                        compact
+                        onSelect={() => onEventClick?.(event)}
+                      />
+                    )}
+                  />
+                )}
+                <CollapsibleSidebarSection
+                  label={t('map.sidebarEventsSuggestions', { defaultValue: 'Suggestions' })}
+                  items={content.eventsSuggestions}
+                  emptyText={suggestionsEmptyText}
+                  {...sectionProps('evEventsSuggestions', content.eventsSuggestions.length)}
+                  renderItem={(event) => (
+                    <MapEventRow
+                      key={`ev-event-s-${event.id}`}
+                      event={event}
+                      compact
+                      onSelect={() => onEventClick?.(event)}
+                    />
+                  )}
+                />
+              </>
+            ) : null}
+            {livesFilterOn ? (
+              <>
+                <CollapsibleSidebarSection
+                  label={t('map.sidebarLivesFollowing', { defaultValue: 'Live suivi' })}
+                  items={content.livesFollowing}
+                  emptyText={followingEmptyText}
+                  {...sectionProps('lvFollowing', content.livesFollowing.length)}
+                  renderItem={(live) => (
+                    <LiveSidebarRow
+                      key={`lv-f-${live.id}`}
+                      live={live}
+                      onSelect={() => onLiveClick?.(live)}
+                    />
+                  )}
+                />
+                <CollapsibleSidebarSection
+                  label={t('map.sidebarLivesInView', { defaultValue: 'Lives' })}
+                  items={content.lives}
+                  emptyText={livesInViewEmptyText}
+                  headerSubtitle={livesInViewViewportSubtitle}
+                  {...sectionProps('lvInView', content.lives.length)}
+                  renderItem={(live) => (
+                    <LiveSidebarRow
+                      key={`lv-${live.id}`}
+                      live={live}
+                      onSelect={() => onLiveClick?.(live)}
+                    />
+                  )}
+                />
+                <CollapsibleSidebarSection
+                  label={t('map.sidebarLivesSuggestions', { defaultValue: 'Suggestions' })}
+                  items={content.livesSuggestions}
+                  emptyText={suggestionsEmptyText}
+                  {...sectionProps('lvSuggestions', content.livesSuggestions.length)}
+                  renderItem={(live) => (
+                    <LiveSidebarRow
+                      key={`lv-s-${live.id}`}
+                      live={live}
+                      onSelect={() => onLiveClick?.(live)}
+                    />
+                  )}
+                />
+                {content.people.length > 0 ? (
+                  <CollapsibleSidebarSection
+                    label="En direct"
+                    items={content.people}
+                    {...sectionProps('lvPeople', content.people.length)}
+                    renderItem={(person) => (
+                      <PersonSidebarRow
+                        key={person.id}
+                        person={person}
+                        onSelect={() => onPersonClick?.(person)}
+                      />
+                    )}
+                  />
+                ) : null}
+              </>
+            ) : null}
+            {salonFilterOn ? (
+              <>
+                <CollapsibleSidebarSection
+                  label={t('map.sidebarSalonsFollowing', { defaultValue: 'Salon suivi' })}
+                  items={content.salonsFollowing}
+                  emptyText={followingEmptyText}
+                  {...sectionProps('slFollowing', content.salonsFollowing.length)}
+                  renderItem={(salon) => (
+                    <SalonSidebarRow
+                      key={`sl-f-${salon.id}`}
+                      salon={salon}
+                      active={salon.id === selectedSalonId}
+                      onSelect={() => onSalonClick?.(salon)}
+                    />
+                  )}
+                />
+                <CollapsibleSidebarSection
+                  label={t('map.sidebarSalonsInView', { defaultValue: 'Salons' })}
+                  items={content.salons}
+                  emptyText={salonsInViewEmptyText}
+                  {...sectionProps('slInView', content.salons.length)}
+                  renderItem={(salon) => (
+                    <SalonSidebarRow
+                      key={`sl-${salon.id}`}
+                      salon={salon}
+                      active={salon.id === selectedSalonId}
+                      onSelect={() => onSalonClick?.(salon)}
+                    />
+                  )}
+                />
+                <CollapsibleSidebarSection
+                  label={t('map.sidebarSalonsSuggestions', { defaultValue: 'Suggestions' })}
+                  items={content.salonsSuggestions}
+                  emptyText={suggestionsEmptyText}
+                  {...sectionProps('slSuggestions', content.salonsSuggestions.length)}
+                  renderItem={(salon) => (
+                    <SalonSidebarRow
+                      key={`sl-s-${salon.id}`}
+                      salon={salon}
+                      active={salon.id === selectedSalonId}
+                      onSelect={() => onSalonClick?.(salon)}
+                    />
+                  )}
+                />
+              </>
+            ) : null}
+          </>
+          )
         ) : null}
         </ul>
       </div>

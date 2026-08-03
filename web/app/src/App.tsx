@@ -50,7 +50,6 @@ import { nearbyPreviewFromSearchItem } from './components/ProfileSearchBar';
 import { requestMapFlyToPlace } from './lib/mapSearchIntent';
 import { MainTabNav } from './components/MainTabNav';
 import { PlatformConnectPrompt } from './components/PlatformConnectPrompt';
-import { ActiveSalonSessionBanner } from './components/ActiveSalonSessionBanner';
 import { SalonYoutubeJoinModal } from './components/SalonYoutubeJoinModal';
 import { ensureYoutubeLinkedToJoinSalon } from './lib/platformConnect';
 import { ActiveLiveBanner } from './components/ActiveLiveBanner';
@@ -84,6 +83,8 @@ import {
 } from './lib/salonVideoFloat';
 import {
   dispatchLiveBeforeMinimize,
+  getLiveVideoFloatActive,
+  setLiveMinimizePipPending,
   setLiveVideoFloatActive,
 } from './lib/liveVideoFloat';
 import { emitOnSocket } from './lib/socket';
@@ -256,7 +257,7 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  /** Restaure la session hôte depuis /auth/me après rechargement (sessionStorage + API). */
+  /** Aligne isHost/titre sur /auth/me si une session salon existe déjà (ex. sessionStorage). */
   useEffect(() => {
     const hostedSalonId = user?.salonId;
     if (!hostedSalonId || !token) {
@@ -273,18 +274,11 @@ export default function App() {
       .then(() => {
         if (cancelled) return;
         setActiveSalonSession((prev) => {
-          if (prev?.id === hostedSalonId) {
-            return {
-              ...prev,
-              isHost: true,
-              title: prev.title ?? hostedSalonTitle,
-            };
-          }
+          if (prev?.id !== hostedSalonId) return prev;
           return {
-            id: hostedSalonId,
-            title: hostedSalonTitle,
-            viewMode: prev?.viewMode === 'full' ? 'full' : 'minimized',
+            ...prev,
             isHost: true,
+            title: prev.title ?? hostedSalonTitle,
           };
         });
       })
@@ -543,10 +537,39 @@ export default function App() {
   const openProfile = useCallback((userId: string, preview?: NearbyPerson) => {
     const session = activeSalonSessionRef.current;
     if (session?.viewMode === 'full') {
-      dispatchSalonBeforeMinimize();
-      clearSalonUrlFromBar();
-      setActiveSalonSession((prev) =>
-        prev?.id === session.id ? { ...prev, viewMode: 'minimized' } : prev
+      const isSalonHost =
+        session.isHost === true ||
+        (user?.salonId != null && user.salonId === session.id);
+      if (isSalonHost) {
+        dispatchSalonBeforeMinimize();
+        clearSalonUrlFromBar();
+        setActiveSalonSession((prev) =>
+          prev?.id === session.id ? { ...prev, viewMode: 'minimized' } : prev
+        );
+      } else {
+        emitLeaveSalon(session.id);
+        clearSalonUrlFromBar();
+        clearPersistedSalonSession();
+        setActiveSalonSession(null);
+        setRestoreSalonOnMapId(null);
+        setMapSalonActiveId(null);
+      }
+    }
+    const liveSession = activeLiveViewerSessionRef.current;
+    if (liveSession?.viewMode === 'full') {
+      const isLiveHost =
+        liveSession.isHost === true ||
+        (user?.isLive === true && user.liveId === liveSession.id);
+      clearLiveUrlFromBar();
+      if (isLiveHost) {
+        setLiveMinimizePipPending(false);
+        setLiveVideoFloatActive(false);
+      } else {
+        dispatchLiveBeforeMinimize();
+        setLiveVideoFloatActive(true);
+      }
+      setActiveLiveViewerSession((prev) =>
+        prev?.id === liveSession.id ? { ...prev, viewMode: 'minimized' } : prev
       );
     }
     setProfileReturnView(viewRef.current);
@@ -554,7 +577,7 @@ export default function App() {
     setProfileOpen(false);
     setView({ type: 'profile', id: userId });
     syncProfileUrlInBar(userId);
-  }, [activeSalonSessionRef, viewRef]);
+  }, [activeLiveViewerSessionRef, activeSalonSessionRef, user?.isLive, user?.liveId, user?.salonId, viewRef]);
 
   const openStoryAppLink = useCallback(
     (target: StoryAppLinkTarget) => {
@@ -593,13 +616,51 @@ export default function App() {
     return () => window.removeEventListener(STORY_APP_LINK_EVENT, onStoryAppLink);
   }, [openStoryAppLink]);
 
+  useEffect(() => {
+    if (!user || !token) return;
+    const session = activeLiveViewerSession;
+    if (!session || session.viewMode === 'full') return;
+    const isHost =
+      session.isHost === true || (user.isLive === true && user.liveId === session.id);
+    if (isHost || getLiveVideoFloatActive()) return;
+    dispatchLiveBeforeMinimize();
+    setLiveVideoFloatActive(true);
+  }, [activeLiveViewerSession, token, user]);
+
+  useEffect(() => {
+    if (!user || !token) return;
+    const session = activeSalonSession;
+    if (!session || session.viewMode === 'full') return;
+    const isHost =
+      session.isHost === true || (user.salonId != null && user.salonId === session.id);
+    if (isHost) return;
+    emitLeaveSalon(session.id);
+    clearSalonUrlFromBar();
+    clearPersistedSalonSession();
+    setActiveSalonSession(null);
+    setRestoreSalonOnMapId(null);
+    setMapSalonActiveId(null);
+  }, [activeSalonSession, token, user]);
+
   const closeProfile = useCallback(() => {
-    setView(profileReturnViewRef.current);
+    const returnView = profileReturnViewRef.current;
+    setView(returnView);
     setProfilePreview(null);
     if (parseProfileIdFromLocation()) {
       clearProfileUrlFromBar();
     }
-  }, [profileReturnViewRef]);
+    if (returnView.type === 'live') {
+      const session = activeLiveViewerSessionRef.current;
+      if (session?.id === returnView.id && session.viewMode === 'minimized') {
+        setLiveMinimizePipPending(false);
+        setLiveVideoFloatActive(false);
+        setActiveLiveViewerSession((prev) =>
+          prev?.id === session.id ? { ...prev, viewMode: 'full' } : prev
+        );
+        syncLiveUrlInBar(session.id);
+      }
+    }
+  }, [activeLiveViewerSessionRef, profileReturnViewRef]);
 
   const closeActiveSalonSession = useCallback(() => {
     setSalonVideoFloatActive(false);
@@ -631,11 +692,6 @@ export default function App() {
     },
     [activeSalonSessionRef, closeActiveSalonSession, refreshUser]
   );
-
-  const handleOwnSalonEnded = useCallback(() => {
-    handleSalonForcedEnd('ended');
-    void refreshUser();
-  }, [handleSalonForcedEnd, refreshUser]);
 
   useSalonSocketMembership(
     activeSalonSession?.id ?? null,
@@ -763,14 +819,31 @@ export default function App() {
   const handleSalonPageBack = useCallback(() => {
     const session = activeSalonSessionRef.current;
     if (!session) return;
-    minimizeSalonToMap(session.id, session.title);
-  }, [activeSalonSessionRef, minimizeSalonToMap]);
+    const isHost =
+      session.isHost === true ||
+      (user?.salonId != null && user.salonId === session.id);
+    if (isHost) {
+      minimizeSalonToMap(session.id, session.title);
+    } else {
+      leaveActiveSalonSession();
+    }
+  }, [activeSalonSessionRef, leaveActiveSalonSession, minimizeSalonToMap, user?.salonId]);
 
-  const handleSalonMinimizeToMap = useCallback((title?: string) => {
-    const session = activeSalonSessionRef.current;
-    if (!session) return;
-    minimizeSalonToMap(session.id, title ?? session.title);
-  }, [activeSalonSessionRef, minimizeSalonToMap]);
+  const handleSalonMinimizeToMap = useCallback(
+    (title?: string) => {
+      const session = activeSalonSessionRef.current;
+      if (!session) return;
+      const isHost =
+        session.isHost === true ||
+        (user?.salonId != null && user.salonId === session.id);
+      if (isHost) {
+        minimizeSalonToMap(session.id, title ?? session.title);
+      } else {
+        leaveActiveSalonSession();
+      }
+    },
+    [activeSalonSessionRef, leaveActiveSalonSession, minimizeSalonToMap, user?.salonId]
+  );
 
   const openAdminPanel = useCallback(
     (options?: { tab?: 'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support' | 'sponsors' | 'reports'; supportMessageId?: string }) => {
@@ -1036,7 +1109,18 @@ export default function App() {
     const session = activeSalonSessionRef.current;
     const persistedSalonId = session?.id;
     const salonFullScreen = session?.viewMode === 'full';
-    if (salonFullScreen && persistedSalonId) {
+    if (salonFullScreen && persistedSalonId && session) {
+      const isSalonHost =
+        session.isHost === true ||
+        (user?.salonId != null && user.salonId === persistedSalonId);
+      if (!isSalonHost) {
+        emitLeaveSalon(persistedSalonId);
+        clearSalonUrlFromBar();
+        closeActiveSalonSession();
+        setView({ type: 'home' });
+        setTab(nextTab);
+        return;
+      }
       if (nextTab === 'map') {
         minimizeSalonToMap(persistedSalonId, session.title);
       } else {
@@ -1053,7 +1137,7 @@ export default function App() {
       setView({ type: 'home' });
     }
     setTab(nextTab);
-  }, [activeLiveViewerSessionRef, activeSalonSessionRef, minimizeSalonToMap, tabRef]);
+  }, [activeLiveViewerSessionRef, activeSalonSessionRef, closeActiveSalonSession, minimizeSalonToMap, tabRef, user?.salonId]);
 
   const handleGlobalSearchSelect = useCallback(
     (item: GlobalSearchResultItem) => {
@@ -1212,19 +1296,20 @@ export default function App() {
     activeSalonSession?.isHost ||
       (user?.salonId != null && user.salonId === activeSalonSession?.id)
   );
-  const showActiveSalonBanner = Boolean(
-    activeSalonSession && !salonFullScreen && view.type !== 'live' && token && user
-  );
   const activeLiveSessionId =
     activeLiveViewerSession?.id ?? (user?.isLive && user.liveId ? user.liveId : null);
   const activeLiveIsHost = Boolean(
     activeLiveViewerSession?.isHost || (user?.isLive && user.liveId === activeLiveSessionId)
   );
   const showActiveLiveBanner = Boolean(
-    activeLiveSessionId && !liveFullScreen && !salonFullScreen && token && user
+    activeLiveSessionId &&
+      !liveFullScreen &&
+      !salonFullScreen &&
+      token &&
+      user &&
+      activeLiveIsHost
   );
   const mapTabActiveForOverlay = tab === 'map' && !profileOpen && view.type === 'home';
-  const showActiveSalonBannerInHeader = showActiveSalonBanner && !mapTabActiveForOverlay;
   const showActiveLiveBannerInHeader = showActiveLiveBanner && !mapTabActiveForOverlay;
   const showSalonPageShell = Boolean(
     activeSalonSession && (salonFullScreen || salonVideoFloatActive)
@@ -1250,7 +1335,7 @@ export default function App() {
   const reelsTabMounted = tab === 'reels' && tabContentBase;
   const reelsTabHiddenUnderOverlay = profileOpen || adminOpen || settingsOpen;
   const appa2 = isAppa2Layout(appLayout);
-  const showHeaderSessionBanner = showActiveSalonBannerInHeader || showActiveLiveBannerInHeader;
+  const showHeaderSessionBanner = showActiveLiveBannerInHeader;
 
   return (
     <div
@@ -1378,26 +1463,6 @@ export default function App() {
 
       {showHeaderSessionBanner ? (
         <div className="ms-active-session-banner-slot">
-          {showActiveSalonBannerInHeader && activeSalonSession && token && user ? (
-            <ActiveSalonSessionBanner
-              salonId={activeSalonSession.id}
-              fallbackTitle={activeSalonSession.title}
-              isHost={activeSalonSession.isHost}
-              token={token}
-              user={user}
-              onReturn={() =>
-                openSalonPage(
-                  activeSalonSession.id,
-                  activeSalonSession.title,
-                  activeSalonIsHost
-                )
-              }
-              onLeaveSalon={leaveActiveSalonSession}
-              onSalonEnded={
-                activeSalonIsHost ? handleOwnSalonEnded : () => handleSalonForcedEnd('ended')
-              }
-            />
-          ) : null}
           {showActiveLiveBannerInHeader && activeLiveSessionId && token && user ? (
             <ActiveLiveBanner
               liveId={activeLiveSessionId}
@@ -1484,6 +1549,12 @@ export default function App() {
                     setProfilePreview(null);
                     openLive(liveId);
                   }}
+                  onOpenFeedPost={(post) => {
+                    setFocusFeedPostId(post.id);
+                    closeProfile();
+                    setTab('actualite');
+                    setView({ type: 'home' });
+                  }}
                 />
               </Suspense>
             )}
@@ -1555,15 +1626,7 @@ export default function App() {
                     onMapSalonActive={handleMapSalonActive}
                     onLeaveSalon={leaveActiveSalonSession}
                     onSalonRestoreFailed={() => handleSalonForcedEnd('ended')}
-                    mapActiveSalonSession={
-                      showActiveSalonBanner && activeSalonSession
-                        ? {
-                            id: activeSalonSession.id,
-                            title: activeSalonSession.title,
-                            isHost: activeSalonSession.isHost,
-                          }
-                        : null
-                    }
+                    mapActiveSalonSession={null}
                     mapActiveLiveSession={
                       showActiveLiveBanner && activeLiveSessionId
                         ? { id: activeLiveSessionId, isHost: activeLiveIsHost }
