@@ -36002,7 +36002,28 @@ CHANGEMENTS
 
 
 ================================================================================
-MODIF 1301 — BUGBOT FIXES PUSH + GROUP CHAT — Soundy Dev
+MODIF 1302 — LIVE THÉÂTRE VIDÉO COLLAPSÉE — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Spectateur live : zone vidéo vide, seul le chrome (« Don ») visible — wrapper
+ plein écran chat sans flex-1 hors mode pinned.
+
+CHANGEMENTS / FIX
+-----
+ LiveVideoStage.tsx, LiveKitVideoStage.tsx
+ ─────────────────
+ • `.live-video-theater-body` toujours en flex-1 min-h-0
+
+ index.css
+ ─────────────────
+ • Règle `.live-video-theater-body` ; pinned stage garde position relative
+
+================================================================================
+Fin MODIF 1302 — 2026-08-03
+================================================================================
 Date : 2026-08-03
 ================================================================================
 
@@ -36051,4 +36072,757 @@ CHANGEMENTS
 
 ================================================================================
 Fin MODIF 1302 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1303 — LIVE BARRE OBJECTIF (HOST DRAG + VISIBILITÉ) — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+Objectif visible sur la vidéo live ; barre déplaçable/réglable par l'hôte ;
+option « visible spectateurs » désactivable (hôte seul).
+
+CHANGEMENTS
+-----
+ LiveVideoGoalOverlay · LivePage · LiveHostPanel · socket donation_goal_overlay
+
+================================================================================
+Fin MODIF 1303 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1304 — LIVE PROFIL HÔTE SANS PiP — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic nom hôte (barre meta live) : profil + PiP vidéo flottant indésirable.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/App.tsx
+ ─────────────────
+ • openProfile : live plein écran → session minimisée sans dispatchLiveBeforeMinimize
+ • closeProfile : retour live → réouverture plein écran
+
+ web/app/src/components/LiveVideoTheaterChrome.tsx
+ ─────────────────
+ • stopPropagation sur le bouton profil hôte
+
+================================================================================
+Fin MODIF 1304 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1305 — LIVE SPECTATEUR : PiP AU LIEU DU BANDEAU — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+ Spectateurs : pas de ActiveLiveBanner ; live minimisé → PiP vidéo flottant.
+ Hôte : bandeau conservé.
+
+CHANGEMENTS
+-----
+ web/app/src/App.tsx — showActiveLiveBanner réservé à l'hôte ; openProfile
+ active le PiP spectateur ; effet sync PiP si session minimisée sans float.
+
+================================================================================
+Fin MODIF 1305 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1306 — SALON AUDITEUR : PAS DE BANDEAU / PAS DE MINIMISÉ — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+ Auditeurs : plus de MapHostedSalonBanner ; pas de salon en arrière-plan.
+ Soit plein écran salon, soit quitter (back, onglet, profil).
+
+CHANGEMENTS
+-----
+ web/app/src/App.tsx — bandeau réservé à l'hôte ; back/onglet/profil quittent
+ la session auditeur ; effet nettoie session minimisée auditeur.
+
+================================================================================
+Fin MODIF 1306 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1307 — LIVE PiP CLOUDFLARE HLS RÉATTACH — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ PiP live : vidéo noire (flux Cloudflare) — le portal remonte le <video> et
+ détache hls.js.
+
+CHANGEMENTS
+-----
+ LiveVideoStage.tsx — useLayoutEffect à l’entrée PiP : retry HLS + play.
+
+================================================================================
+Fin MODIF 1307 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1308 — PROFIL SHOWCASE BEATCASTEL — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+ Profil démo BeatCastel : bio, posts, reels, 2 albums, programmation,
+ 36 abonnés / 57 favoris ; followingCount sur profil visiteur.
+
+CHANGEMENTS
+-----
+ commun/backend/src/seed-beatcastel-profile.ts (+ test)
+ seed-msdev-showcase.ts · seed-msdev.ts · scripts seed production
+ profile.ts · UserProfilePage · types.ts
+
+================================================================================
+Fin MODIF 1308 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1309 — LIVE PiP HEADER BOUTONS — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+ Inverser l’ordre des boutons ancrer (↙) et quitter (×) dans l’en-tête PiP live.
+
+CHANGEMENTS
+-----
+ web/app/src/components/LiveVideoStage.tsx
+ web/app/src/components/LiveKitVideoStage.tsx
+ ─────────────────
+ • Après pause éventuelle : ancrer puis quitter/fermer (au lieu de quitter puis ancrer).
+
+================================================================================
+Fin MODIF 1309 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1310 — PROFIL ONGLET PUBLICATIONS — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+ Afficher sur l’onglet Profil les publications fil (hors événements), ex. posts BeatCastel.
+
+CHANGEMENTS
+-----
+ web/app/src/components/UserPostsSection.tsx (nouveau)
+ web/app/src/pages/UserProfilePage.tsx · ProfilePage.tsx
+ web/app/src/App.tsx — onOpenFeedPost profil visité → Actualité
+ locales fr/en — sectionPublications, noPublications
+
+================================================================================
+Fin MODIF 1310 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1311 — SALON HÔTE : PAS DE BANDEAU SANS SESSION — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Compte hôte (ex. demo_test_founder + salon showcase) : bandeau salon affiché
+ partout car user.salonId créait une session minimisée même sans avoir ouvert
+ le salon dans l’onglet courant.
+
+CHANGEMENTS
+-----
+ web/app/src/App.tsx — sync /auth/me seulement si activeSalonSession.id matche
+ déjà ; plus de création auto viewMode minimized depuis user.salonId seul.
+
+================================================================================
+Fin MODIF 1311 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1312 — RETRAIT BANDEAU SALON (HÔTE) — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+ Plus de MapHostedSalonBanner / bandeau header ni chip carte pour session salon.
+
+CHANGEMENTS
+-----
+ web/app/src/App.tsx — suppression ActiveSalonSessionBanner ; mapActiveSalonSession null.
+
+================================================================================
+Fin MODIF 1312 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1313 — PROFIL EN DIRECT : CHIP ÉCOUTE → LIVE — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Profil hôte live : chip « En écoute » avec « Rejoindre le salon » car salonId
+ hôte coexistant ; currentListening vient du live.
+
+CHANGEMENTS
+-----
+ UserProfilePage.tsx · ProfilePage.tsx — si isLive : En direct + ouvrir live.
+ locales joinLiveListening, liveListeningStatus, etc.
+
+================================================================================
+Fin MODIF 1313 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1314 — PROFIL LIVE + SALON DEUX CHIPS — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+ En-tête profil : chip live et chip salon visibles chacun quand actifs (live + salon).
+
+CHANGEMENTS
+-----
+ commun/backend/src/lib/profile.ts — liveListening, salonListening
+ web/app/src/types.ts · UserProfilePage · ProfilePage
+
+================================================================================
+Fin MODIF 1314 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1315 — PROFIL UN SEUL CTA LIVE OU SALON — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+ Un seul bouton : live prioritaire (chip en-tête), salon si pas de live ;
+ suppression du gros bouton live dans l’onglet Profil.
+
+CHANGEMENTS
+-----
+ UserProfilePage.tsx · ProfilePage.tsx · UserProfileView.tsx
+
+================================================================================
+Fin MODIF 1315 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1316 — PROFIL CTA LIVE/SALON — REFONTE UX — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+ Carte profil live/salon : gradient, pulse, spectateurs, pill Rejoindre/Ouvrir.
+
+CHANGEMENTS
+-----
+ ProfileCurrentListening.tsx — variant live | salon
+ UserProfilePage.tsx · ProfilePage.tsx · locales sessionJoin/sessionOpen
+
+================================================================================
+Fin MODIF 1316 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1317 — PROFIL GRILLE PHOTOS + MODAL PUBLICATION — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+ Onglet profil : grille 3 colonnes (images seules), clic → popup publication complète.
+
+CHANGEMENTS
+-----
+ FeedPostDetailModal.tsx · UserPostsSection.tsx (refonte)
+ UserProfilePage — popup local (plus redirect Actualité)
+ seed-beatcastel-profile — imageUrl posts démo + backfill
+
+================================================================================
+Fin MODIF 1317 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1318 — PUBLICATIONS MULTI-IMAGES — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+ Publications fil avec plusieurs images ; grille profil (badge) ; carrousel modal.
+
+CHANGEMENTS
+-----
+ schema · feedPosts · feed route · contentModeration — imageUrls[]
+ web feedPostMedia.ts · UserPostsSection · FeedPostDetailModal
+ seed BeatCastel post_04 (3 photos)
+
+================================================================================
+Fin MODIF 1318 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1319 — REELS ONGLET SLIDES VIDES (VIRTUALISATION) — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Onglet Reels : slides noires (`reel-slide` avec `aria-hidden`, sans vidéo) quand
+ l’index algorithme / ancre diverge du scroll réel — fenêtre de rendu trop étroite.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/reelsRenderWindow.ts
+ ─────────────────
+ • readDomScrollIndex() — fallback si hauteur 0 ou ref absente
+
+ web/app/src/pages/ReelsTabPage.tsx
+ ─────────────────
+ • layoutScrollIndex synchronisé au scroll / goToIndex / deep link
+ • reelRenderCenters (useMemo) inclut toujours l’index DOM visible
+
+ web/app/src/lib/reelsRenderWindow.test.ts
+ ─────────────────
+ • test fallback readDomScrollIndex
+
+================================================================================
+Fin MODIF 1319 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1320 — STORIES ACTUALITÉ : LIVE BEATCASTEL DANS LE RAIL — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ BeatCastel en direct sur la carte mais absent du carrousel stories (Actualité) :
+ seuls les favoris / stories actives y figuraient ; BeatCastel n’est pas dans les
+ favoris seed listener (contrairement à Nova Sound, DJ Melody, etc.).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/StoriesInlineBar.tsx
+ ─────────────────
+ • Tous les lives éligibles anneau (GET /lives + isStoryRingLive) dans le rail
+ • Filtre final : favori OU story active OU isLive
+
+ commun/backend/src/seed-favorite-feed.ts
+ ─────────────────
+ • prod-seed-bot-beat-castel dans PREFERRED_FAVORITE_HOST_IDS (listener démo)
+
+================================================================================
+Fin MODIF 1320 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1321 — FIL ACTUALITÉ : 10 PUBLICATIONS SHOWCASE (MULTI-PHOTOS) — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+ Fil d’accueil Actualité (comptes suivis) : 10 publications démo variées —
+ texte seul, une image, galeries multi-images.
+
+CHANGEMENTS
+-----
+ commun/backend/src/seed-favorite-feed.ts — FAVORITE_FEED_SHOWCASE (10 posts)
+ commun/backend/src/seed-favorite-feed.test.ts
+
+================================================================================
+Fin MODIF 1321 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1322 — STORY LIVE PREVIEW : LECTURE HLS (BEATCASTEL) — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic anneau LIVE → StoryLivePreviewViewer : écran sombre (dégradé seul) — pas de
+ vidéo ; seule une image cover était affichée (pas de flux HLS démo Cloudflare).
+
+CHANGEMENTS
+-----
+ web/app/src/components/StoryLivePreviewViewer.tsx — useCloudflareHlsPlayback
+ (aligné LivePipPreviewFloat), obsIngestLive pour presentationDemoStream
+
+================================================================================
+Fin MODIF 1322 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1323 — STORY LIVE PREVIEW : CADRAGE 16:9 / OBJECT-CONTAIN — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+ Aperçu live stories : flux 16:9 (BeatCastel) mal cadré en panneau 9:16 + object-cover.
+
+CHANGEMENTS
+-----
+ StoryLivePreviewViewer — panneau selon videoAspectRatio, media object-contain,
+ dégradés header/footer uniquement.
+
+================================================================================
+Fin MODIF 1323 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1324 — STORIES LIVE : 10 S AUTO PUIS STORY SUIVANTE — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+ Bandeau stories : aperçu live 10 s puis enchaînement story / anneau suivant.
+
+CHANGEMENTS
+-----
+ storyViewerNav — STORY_LIVE_PREVIEW_DURATION_MS, resolveAfterLivePreview
+ StoryLivePreviewViewer — timer onPreviewElapsed
+ StoriesInlineBar · MapStoriesAccordion — live prioritaire au tap, advanceAfterLivePreview
+
+================================================================================
+Fin MODIF 1324 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1325 — STORY LIVE PREVIEW : NAV MANUELLE STORY SUIVANTE — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+ Passer manuellement au segment suivant depuis l’aperçu live (tap, swipe, bouton).
+
+CHANGEMENTS
+-----
+ StoryLivePreviewViewer — zones tap, swipe horizontal, bouton Story suivante, flèches clavier
+ resolveBeforeLivePreview · StoriesInlineBar / MapStoriesAccordion — canNext / canPrev
+
+================================================================================
+Fin MODIF 1325 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1326 — STORY VIEWER : BARRES PROGRESSION AU PREMIER PLAN — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+ Segments de progression + en-tête visibles par-dessus le média (style stories).
+
+CHANGEMENTS
+-----
+ StoryViewer — média plein cadre, overlay z-40 (barres, header, légende bas)
+ StoryProgressBars — className optionnel, fond barre légèrement plus lisible
+
+================================================================================
+Fin MODIF 1326 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1326 — BARRES PROGRESSION STORIES + LIVE PREVIEW — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+ Barres segment Instagram visibles sur StoryViewer (stack manquant) et aperçu live.
+
+CHANGEMENTS
+-----
+ StoryProgressBars.tsx · StoryViewer fallback segment · StoriesInlineBar stack fallback
+ StoryLivePreviewViewer — barre rouge 10 s (sync auto-advance)
+
+================================================================================
+Fin MODIF 1326 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1327 — FIL ACCUEIL : PUBLICATIONS SHOWCASE DES AUTEURS SUIVIS — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur Actualité (Accueil), le fil `followingOnly` n’affichait surtout que des événements
+ des hôtes live showcase : les 10 publications démo étaient en favoris mais leurs auteurs
+ n’étaient pas tous dans les abonnements curatés msdev.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/seed-favorite-feed.ts
+ ─────────────────
+ • getFavoriteShowcaseFollowAuthorIds() — auteurs des posts showcase
+
+ commun/backend/src/seed-msdev-showcase.ts
+ ─────────────────
+ • resolveShowcaseFollowTargetIds() inclut hôtes live + auteurs showcase
+
+ commun/backend/src/seed-favorite-feed.test.ts · seed-msdev-showcase.test.ts
+ ─────────────────
+ • Test followingOnly + 10 showcase ; attentes abonnements étendues
+
+FICHIERS MODIFIÉS
+-----
+ seed-favorite-feed.ts · seed-msdev-showcase.ts · tests associés
+
+BUILD (si vérifié)
+-----
+ commun/backend → vitest seed-favorite-feed + seed-msdev-showcase + feedPosts → ✅
+
+================================================================================
+Fin MODIF 1327 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1328 — APERÇU LIVE STORIES : FLÈCHE SUIVANTE — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+ Remplacer le bouton pleine largeur « Story suivante » par une flèche à droite du CTA Rejoindre.
+
+CHANGEMENTS
+-----
+ web/app/src/components/StoryLivePreviewViewer.tsx — rangée flex Rejoindre + chevron 44×44
+
+================================================================================
+Fin MODIF 1328 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1329 — CAROUSEL STORIES ACCUEIL : UNIQUEMENT COMPTES SUIVIS — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bandeau stories Actualité listait tous les lives publics et stories hors abonnements
+ (~28 anneaux) au lieu des stories / lives / salons des utilisateurs suivis.
+
+CHANGEMENTS / FIX
+-----
+ StoriesInlineBar — GET /users/me/following, filtre lives + stories + entrées
+ mapStoriesFeed — salon actif sur anneau, filterMapStoryEntriesToFollowing, isFavorite corrigé
+
+BUILD (si vérifié)
+-----
+ web/app → vitest mapStoriesFeed.test.ts → (à lancer)
+
+================================================================================
+Fin MODIF 1329 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1330 — STORIES ACCUEIL : SALONS SUIVIS (API /salons) — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Faux badges « Salon » (profil avec salon + story/reel) ; salons offline suivis mal
+ sourceés ; clic n’ouvrait pas le salon.
+
+CHANGEMENTS
+-----
+ StoriesInlineBar — listSalons + hôtes suivis hors live, onOpenSalon au tap
+ MapStoryRing — badge salon si entrée salon-only (pas story/reel/live)
+ mapStoriesFeed — salonId via personToEntry uniquement ; salonTitle
+
+================================================================================
+Fin MODIF 1330 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1331 — CARTE : SIDEBAR FILTRE LIVES (CHIP) — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le chip « Lives » activait le filtre carte mais le panneau latéral restait en mode
+ « Suivi » (mapSidebarFollowingContent) : pas de sections Lives / Suggestions.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ───────────────────────────────
+ • mapSidebarPanelContent : mapSidebarContent si filtre carte actif, sinon Suivi
+ • toggleLivesFilter : ouvre la liste carte (setNearbyPeopleVisible)
+ • NearbyPeoplePanel reçoit mapSidebarPanelContent
+
+ web/app/src/components/NearbyPeoplePanel.tsx
+ ─────────────────────────────────────────────
+ • Sections filtre (Suivi / Lives zone / Suggestions) quand !content.noFilters
+ • Même logique pour Salon et Événement
+
+BUILD (si vérifié)
+-----
+ web/app → vitest mapSidebarContent.test.ts → ✅
+
+================================================================================
+Fin MODIF 1331 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1332 — STORY VIEWER : MÉDIA + TEXTE SEUL — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur desktop (sm+), la carte story en sm:h-auto sans contenu in-flow : hauteur ~0,
+ image invisible ; story texte seul : légende en bas sans corps centré.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/StoryViewer.tsx
+ • Hauteur sm explicite min(85dvh, 720px) ; image/vidéo w-full h-full object-cover
+ • Story texte seul ou image en erreur : texte centré dans le cadre
+ • Légende bas dupliquée masquée pour texte seul
+
+================================================================================
+Fin MODIF 1332 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1333 — STORIES : SUITE CARROUSEL → LIVES SUIVIS — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Enchaîner « story suivante » ne passait pas aux anneaux live suivis (live seul entre
+ deux auteurs story) : navigation limitée aux piles buildStoryUserStacks.
+
+CHANGEMENTS / FIX
+-----
+ storyViewerNav — resolveNextAfterLastStorySegment (ordre bandeau)
+ StoriesInlineBar — goNextStory / canNextStory ouvrent StoryLivePreviewViewer
+
+BUILD (si vérifié)
+-----
+ web/app → vitest storyViewerNav.test.ts → ✅
+
+================================================================================
+Fin MODIF 1333 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1334 — CARTE LIVES : OVERLAY RAYON + VIEWPORT LISTE — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Comprendre visuellement quels lives sont listés : centre requête, rayon réglages,
+ zone sidebar au zoom ville.
+
+CHANGEMENTS / FIX
+-----
+ lib/geoCircle.ts — anneau lat/lng (grand cercle)
+ globe3d/SoundyGlobeQueryRadiusRing.tsx — cercle rouge sur le globe
+ MapView — cercle Leaflet + rectangle viewport violet + légende
+ HomePage — livesListRadiusOverlay quand filtre Lives actif
+
+BUILD (si vérifié)
+-----
+ web/app → vitest geoCircle.test.ts → (à lancer)
+
+================================================================================
+Fin MODIF 1334 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1338 — GLOBE LIVES VIEWPORT 4000 KM — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Rayon viewport Lives sur le globe : 400 km → 4000 km (sidebar + cercle violet).
+
+CHANGEMENTS / FIX
+-----
+ mapMarkerVisibility.ts — GLOBE_LIVES_VIEWPORT_RADIUS_KM = 4000
+
+================================================================================
+Fin MODIF 1338 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1339 — AUDIT TECHNIQUE : FIX BUILD CASSÉ (tsc -b) — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Audit technique complet (@soundy-cto + @soundy-dev) : `npm run build` (web/app)
+ échouait réellement (`tsc -b`) suite au travail en cours MODIF 1334 (overlay rayon
+ lives). `npx tsc --noEmit -p tsconfig.json` seul ne détectait pas la régression
+ (tsconfig racine "solution style", ne type-check pas les projets référencés) —
+ seul `tsc -b` (utilisé par `npm run build`) l'exposait. Un cache `.tsbuildinfo`
+ périmé masquait aussi une 2e erreur (`GLOBE_LIVES_VIEWPORT_RADIUS_KM` introuvable
+ dans un test, en réalité bien exporté).
+
+CHANGEMENTS / FIX
+-----
+ components/GlobeView.tsx
+ ─────────────────
+ • Import du type `MapBounds` manquant (depuis `mapMarkerVisibility.ts`).
+ • Prop `livesListRadius` retypée `{ lat, lng, radiusKm } | null` (au lieu de
+   `{ center: [number, number]; radiusKm; unlimitedQuery? }`, qui ne correspondait
+   pas à la forme réellement transmise par `MapView.tsx`).
+ • `globeLivesListRadius` simplifié (plus de cast/branche `'center' in ...` invalide).
+
+ App.tsx
+ ─────────────────
+ • Suppression de `handleOwnSalonEnded` (callback mort — son unique point d'appel
+   `onSalonEnded` avait déjà été retiré ailleurs dans le diff en cours, laissant un
+   `no-unused-vars` bloquant en `tsc -b`).
+
+ node_modules/.tmp/tsconfig.{app,node}.tsbuildinfo
+ ─────────────────
+ • Cache incrémental purgé (corrompu par des runs `tsc` interrompus pendant l'audit).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/GlobeView.tsx → type/props livesListRadius corrigés
+ web/app/src/App.tsx → callback mort supprimé
+
+BUILD (si vérifié)
+-----
+ web/app → npm run build → ✅ (1m28s, 0 erreur tsc, 0 erreur vite)
+ commun/backend → npm run build (tsc) → ✅
+
+================================================================================
+Fin MODIF 1339 — 2026-08-03
 ================================================================================
