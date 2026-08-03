@@ -264,7 +264,7 @@ Lot 7 Scale données  → pgStore.ts, STACK-CIBLE.md
 - Ce mémo
 - `commun/docs/STACK-CIBLE.md`
 - `commun/docs/COUT-APPLICATION.md`
-- `commun/docs/RENDEZ-VOUS-AVOCAT-SOUNDY.md`
+- `commun/docs/juridique/RENDEZ-VOUS-AVOCAT.md`
 - Prévisionnel 12 mois (trésorerie, salaire cible, charges infra)
 - Statuts SASU projetés (objet social incluant « édition logicielle » et « R&D »)
 

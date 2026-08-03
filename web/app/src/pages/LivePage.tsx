@@ -55,7 +55,6 @@ import { syncLiveDonationGoals, syncLiveDonationOptions } from '../lib/liveDonat
 import { LiveDonationSheet } from '../components/LiveDonationSheet';
 import { FollowUserButton } from '../components/FollowUserButton';
 import { LiveGiftOverlay } from '../components/LiveGiftOverlay';
-import { LiveViewerRewardsStrip } from '../components/LiveViewerRewardsStrip';
 import { LiveParticipantsPopover } from '../components/LiveParticipantsPopover';
 import { LiveHostActionsPopover } from '../components/LiveHostActionsPopover';
 import { LiveVipModeratorsPopover } from '../components/LiveVipModeratorsPopover';
@@ -83,9 +82,7 @@ const LIVE_MAX_DURATION_MS = 8 * 60 * 60 * 1000;
 const LIVE_CHAT_HIDDEN_KEY = 'melosong_live_chat_hidden';
 
 function readLiveChatPinned(): boolean {
-  const stored = getStorageItem(STORAGE_KEYS.liveChatPinned);
-  if (stored === '1') return true;
-  return false;
+  return getStorageItem(STORAGE_KEYS.liveChatPinned) === '1';
 }
 
 function readFullscreenChatOverlay(): boolean {
@@ -128,6 +125,7 @@ export function LivePage({
   const [chatHidden, setChatHidden] = useState(false);
   const [chatMinimized, setChatMinimized] = useState(false);
   const [chatPinned, setChatPinned] = useState(readLiveChatPinned);
+  const [videoExpanded, setVideoExpanded] = useState(false);
   const [fullscreenChatOverlay, setFullscreenChatOverlay] = useState(readFullscreenChatOverlay);
   const [privateTarget, setPrivateTarget] = useState<DmContact | null>(null);
   const [showDonSheet, setShowDonSheet] = useState(false);
@@ -1092,6 +1090,7 @@ export function LivePage({
   }, [cameraError, setCameraError]);
 
   const handleVideoExpandedChange = useCallback((expanded: boolean) => {
+    setVideoExpanded(expanded);
     if (expanded) {
       if (chatHiddenBeforeExpandRef.current === null) {
         chatHiddenBeforeExpandRef.current = chatHiddenRef.current;
@@ -1147,7 +1146,7 @@ export function LivePage({
       }
       return;
     }
-    if (chatMinimized) {
+    if (!chatPinned && chatMinimized) {
       setChatMinimized(false);
       return;
     }
@@ -1157,7 +1156,7 @@ export function LivePage({
     } catch {
       /* ignore */
     }
-  }, [chatHidden, chatMinimized]);
+  }, [chatHidden, chatMinimized, chatPinned]);
 
   const toggleChatPin = useCallback(() => {
     setChatPinned((prev) => {
@@ -1667,7 +1666,7 @@ export function LivePage({
                     className="shrink-0"
                     onFollowingChange={setHostFollowing}
                   />
-                  {!chatPinned && chatHidden ? (
+                  {token && !chatPinned && chatHidden ? (
                     <>
                       <LiveParticipantsPopover
                         liveId={liveId}
@@ -1712,14 +1711,6 @@ export function LivePage({
       />
       </div>
 
-      {!isHost && hostCanReceiveDonations && viewerDonationOptions.length > 0 && (
-        <LiveViewerRewardsStrip
-          options={viewerDonationOptions}
-          onSelect={(amount) => openDonSheet(amount)}
-          disabled={!token}
-        />
-      )}
-
       <ChatRoomProvider
         roomId={liveId}
         roomType="live"
@@ -1748,6 +1739,7 @@ export function LivePage({
         liveTheaterChrome
         chatPinned={chatPinned}
         onToggleChatPin={toggleChatPin}
+        videoExpanded={videoExpanded}
         chatHidden={chatHidden}
         onToggleChat={toggleChatHidden}
         chatTitle={t('live.publicChat')}
@@ -1824,6 +1816,9 @@ export function LivePage({
               onToggleFullscreenChatOverlay={toggleFullscreenChatOverlay}
               viewerPlaybackPaused={!isHost ? viewerPlaybackPaused : undefined}
               onToggleViewerPlaybackPaused={!isHost ? toggleViewerPlaybackPaused : undefined}
+              onOpenDonation={
+                !isHost && hostCanReceiveDonations && token ? () => openDonSheet() : undefined
+              }
               videoFloat={livePipActive ? livePip : undefined}
               onDismissPip={dismissLivePip}
               onPipOpen={!isHost ? openLivePip : undefined}
@@ -1888,6 +1883,9 @@ export function LivePage({
             onToggleFullscreenChatOverlay={toggleFullscreenChatOverlay}
             viewerPlaybackPaused={!isHost ? viewerPlaybackPaused : undefined}
             onToggleViewerPlaybackPaused={!isHost ? toggleViewerPlaybackPaused : undefined}
+            onOpenDonation={
+              !isHost && hostCanReceiveDonations && token ? () => openDonSheet() : undefined
+            }
             videoFloat={livePipActive ? livePip : undefined}
             onDismissPip={dismissLivePip}
             onPipOpen={!isHost ? openLivePip : undefined}

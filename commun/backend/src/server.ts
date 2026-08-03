@@ -673,6 +673,14 @@ app.get('/privacy', sendPublicLegalPage);
 app.get('/terms', sendPublicLegalPage);
 app.get('/cookies', sendPublicLegalPage);
 app.get('/legal/mentions', sendPublicLegalPage);
+app.get('/legal/community-guidelines', sendPublicLegalPage);
+app.get('/legal/subprocessors', sendPublicLegalPage);
+app.get('/legal/copyright', sendPublicLegalPage);
+app.get('/legal/branded-content', sendPublicLegalPage);
+app.get('/legal/advertising-policy', sendPublicLegalPage);
+app.get('/legal/moderation-appeals', sendPublicLegalPage);
+app.get('/legal/minors', sendPublicLegalPage);
+app.get('/legal/mobile-stores', sendPublicLegalPage);
 
 /** Page msdev : URL smartphone + QR (même réseau Wi‑Fi). */
 app.get('/msdev-mobile', (req, res) => {

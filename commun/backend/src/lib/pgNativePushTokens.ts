@@ -36,6 +36,19 @@ export async function deleteNativePushTokenByToken(token: string): Promise<void>
   await pool.query('DELETE FROM native_push_tokens WHERE token = $1', [token]);
 }
 
+/** Dé-enregistrement utilisateur : ne supprime que les tokens appartenant à `userId`. */
+export async function deleteNativePushTokenByTokenForUser(
+  token: string,
+  userId: string
+): Promise<boolean> {
+  const pool = getPool();
+  const res = await pool.query('DELETE FROM native_push_tokens WHERE token = $1 AND user_id = $2', [
+    token,
+    userId,
+  ]);
+  return (res.rowCount ?? 0) > 0;
+}
+
 export async function listNativePushTokensForUser(
   userId: string
 ): Promise<NativePushTokenRecord[]> {

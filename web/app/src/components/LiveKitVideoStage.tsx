@@ -35,7 +35,7 @@ import {
   LiveVideoStageOverlayLeaveButton,
   LiveVideoStagePlaceholder,
 } from './LiveVideoStagePlaceholder';
-import { LiveTheaterStatusBar, LiveVideoChromeButton } from './LiveVideoTheaterChrome';
+import { LiveTheaterStatusBar, LiveVideoChromeButton, LiveVideoGiftIcon } from './LiveVideoTheaterChrome';
 import { useLiveVideoChromeAutoHide } from '../hooks/useLiveVideoChromeAutoHide';
 import {
   LIVE_CAMERA_HOST_LIVEKIT_START,
@@ -400,12 +400,16 @@ export type LiveKitVideoStageProps = {
   videoAspectRatio?: LiveVideoAspectRatioPreset;
   /** Chat flottant interactif (FloatingSalonChat) — rendu dans `.live-video-container` en live théâtre. */
   floatingChat?: ReactNode;
+  /** Chat épinglé en colonne gauche (plein écran live). */
+  pinnedChatFullscreen?: ReactNode;
   chatVisible?: boolean;
   onToggleFloatingChat?: () => void;
   fullscreenChatOverlayVisible?: boolean;
   onToggleFullscreenChatOverlay?: () => void;
   viewerPlaybackPaused?: boolean;
   onToggleViewerPlaybackPaused?: () => void;
+  /** Spectateur : ouvrir la feuille de don / pourboire. */
+  onOpenDonation?: () => void;
   /** PiP flottant in-app : vidéo seule déplaçable, toujours au premier plan. */
   videoFloat?: VideoPipFloatApi;
   /** Fermer le PiP sans rouvrir le live plein écran. */
@@ -441,12 +445,14 @@ export function LiveKitVideoStage({
   videoResolution: videoResolutionProp,
   videoAspectRatio: videoAspectRatioProp,
   floatingChat,
+  pinnedChatFullscreen,
   chatVisible = false,
   onToggleFloatingChat,
   fullscreenChatOverlayVisible = false,
   onToggleFullscreenChatOverlay,
   viewerPlaybackPaused = false,
   onToggleViewerPlaybackPaused,
+  onOpenDonation,
   videoFloat,
   onDismissPip,
   onPipOpen,
@@ -792,6 +798,7 @@ export function LiveKitVideoStage({
     : undefined;
 
   const shouldPortalPip = Boolean(videoFloat && typeof document !== 'undefined');
+  const pinnedFullscreenActive = Boolean(isVideoExpanded && pinnedChatFullscreen && !videoFloat);
 
   const videoContainer = (
     <div
@@ -800,13 +807,23 @@ export function LiveKitVideoStage({
       data-live-host={isHost ? 'true' : undefined}
       className={`live-video-container live-video-container--theater ${getLiveVideoAspectRatioClass(videoAspectRatio)} relative w-full h-full min-h-0 flex flex-col overflow-hidden${
         isLandscapeTheater ? ' live-video-container--landscape-theater' : ''
-      }${videoFloat ? ' live-video-pip-float pointer-events-auto' : ''}`}
+      }${
+        videoFloat ? ' live-video-pip-float pointer-events-auto' : ''
+      }${pinnedFullscreenActive ? ' live-video-container--pinned-chat-fullscreen' : ''}`}
       style={{
         ...pipContainerStyle,
         ['--live-aspect-ratio' as string]: getLiveVideoAspectRatioCss(videoAspectRatio),
         ['--live-stack-width-ratio' as string]: getLiveStackWidthRatioCss(videoAspectRatio),
       }}
     >
+      {pinnedFullscreenActive ? pinnedChatFullscreen : null}
+      <div
+        className={
+          pinnedFullscreenActive
+            ? 'live-pinned-chat-fullscreen-stage flex flex-col flex-1 min-h-0 min-w-0 overflow-hidden'
+            : undefined
+        }
+      >
       {/* Draggable PiP header — shown only when floating */}
       {videoFloat && (
         <div
@@ -980,6 +997,17 @@ export function LiveKitVideoStage({
               {viewerPlaybackPaused ? <LiveVideoPlayIcon /> : <LiveVideoPauseIcon />}
             </LiveVideoChromeButton>
           ) : null}
+          {!isHost && onOpenDonation ? (
+            <LiveVideoChromeButton
+              onClick={onOpenDonation}
+              ariaLabel={t('live.headerDonate')}
+              title={t('live.headerDonate')}
+              className="ring-1 ring-amber-400/40 text-amber-200 min-h-11 min-w-11"
+            >
+              <LiveVideoGiftIcon />
+              <span className="hidden sm:inline">{t('live.headerDonateShort')}</span>
+            </LiveVideoChromeButton>
+          ) : null}
         </div>
         )}
       </div>
@@ -999,7 +1027,7 @@ export function LiveKitVideoStage({
         malgré MODIF 930 et MODIF 935.
       */}
       {!videoFloat && floatingChat}
-      {isVideoExpanded && fullscreenChatOverlayVisible && !floatingChat ? (
+      {isVideoExpanded && fullscreenChatOverlayVisible && !floatingChat && !pinnedChatFullscreen ? (
         <div
           className="live-chat-video-overlay-shell absolute inset-0 z-[35] pointer-events-none"
           aria-hidden={false}
@@ -1025,6 +1053,7 @@ export function LiveKitVideoStage({
         <p className="live-theater-status-bar__text">{status}</p>
       </LiveTheaterStatusBar>
       ) : null}
+      </div>
     </div>
   );
 

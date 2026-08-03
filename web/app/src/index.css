@@ -4459,27 +4459,13 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   justify-content: flex-start;
 }
 
-/* Bandeau actions spectateur live — intégré au header (LiveHostTopBar.trailing) */
-.live-viewer-action-bar {
-  flex-shrink: 0;
-  position: relative;
-  z-index: 30;
-  isolation: isolate;
-}
-
-.ms-salon-fullscreen-overlay .live-viewer-chrome {
-  flex-shrink: 0;
-  position: relative;
-  z-index: 35;
-  isolation: isolate;
-  padding-top: env(safe-area-inset-top, 0px);
-}
-
-/* Chat live épinglé à gauche — colonne étroite, flex (pas grille salon 30 %) */
+/* Live chat épinglé à gauche — flex row (pas la grille salon 30 %). */
 .room-theater-side-row--live-left {
   display: flex;
   flex-direction: row;
   align-items: stretch;
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .room-theater-layout--live-theater-fill .room-theater-chat-dock--live-left {
@@ -4497,6 +4483,10 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 }
 
 @media (min-width: 640px) {
+  .room-theater-side-row--live-left {
+    display: flex;
+  }
+
   .room-theater-layout--live-theater-fill .room-theater-chat-dock--live-left {
     width: min(260px, 28vw);
     min-width: 11rem;
@@ -4507,6 +4497,36 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
     min-width: 11rem;
     max-width: min(280px, 30vw);
     width: min(260px, 28vw);
+  }
+
+  .room-theater-side-row--live-left .room-theater-video-stage--live-theater {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .room-theater-side-row--live-left .live-video-container--theater {
+    flex: 1 1 0;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .room-theater-side-row--live-left .live-theater-stage-stack,
+  .room-theater-side-row--live-left .live-theater-hero-wrap,
+  .room-theater-side-row--live-left .live-theater-hero,
+  .room-theater-side-row--live-left .live-theater-hero__frame {
+    flex: 1 1 0;
+    min-height: 0;
+    height: 100%;
+    max-height: none;
+  }
+
+  .room-theater-side-row--live-left .live-theater-hero-wrap {
+    width: 100%;
+    aspect-ratio: unset;
+    margin-inline: 0;
   }
 }
 
@@ -4526,6 +4546,51 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   flex: 1 1 0;
   min-width: 0;
   min-height: min(36dvh, 240px);
+}
+
+.live-video-container--pinned-chat-fullscreen {
+  flex-direction: row;
+}
+
+.live-pinned-chat-fullscreen-dock {
+  flex: 0 0 auto;
+  width: min(72vw, 280px);
+  max-width: min(40vw, 320px);
+  min-width: 11rem;
+  z-index: 40;
+}
+
+@media (min-width: 640px) {
+  .live-pinned-chat-fullscreen-dock {
+    width: min(320px, 28vw);
+    min-width: 240px;
+  }
+}
+
+.live-pinned-chat-fullscreen-stage {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Bandeau actions spectateur live — intégré au header (LiveHostTopBar.trailing) */
+.live-viewer-action-bar {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 30;
+  isolation: isolate;
+}
+
+.ms-salon-fullscreen-overlay .live-viewer-chrome {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 35;
+  isolation: isolate;
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .ms-salon-fullscreen-overlay .room-theater-stack-column--live-theater {

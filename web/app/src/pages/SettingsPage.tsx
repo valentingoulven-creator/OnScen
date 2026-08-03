@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LEGAL, type LegalKey } from '../content/legal';
+import { LEGAL, type LegalKey, LEGAL_PRIVACY_EMAIL } from '../content/legal';
 import { resetCookieConsent } from '../lib/cookieConsent';
 import { LegalDocumentView } from '../components/LegalDocumentView';
 import {
@@ -836,9 +836,29 @@ export function SettingsPage({
                     )}
                   </SettingsRow>
                   <SettingsRow label={t('settings.legalTerms')} onClick={() => setLegal('terms')} />
+                  <SettingsRow
+                    label={t('settings.legalCommunity')}
+                    onClick={() => setLegal('communityGuidelines')}
+                  />
                   <SettingsRow label={t('settings.legalPrivacy')} onClick={() => setLegal('privacy')} />
                   <SettingsRow label={t('settings.legalCookies')} onClick={() => setLegal('cookies')} />
                   <SettingsRow label={t('settings.legalRgpd')} onClick={() => setLegal('rgpd')} />
+                  <SettingsRow
+                    label={t('settings.legalCopyright')}
+                    onClick={() => setLegal('copyrightNotice')}
+                  />
+                  <SettingsRow
+                    label={t('settings.legalModerationAppeals')}
+                    onClick={() => setLegal('moderationAppeals')}
+                  />
+                  <SettingsRow
+                    label={t('settings.legalAdvertising')}
+                    onClick={() => setLegal('advertisingPolicy')}
+                  />
+                  <SettingsRow
+                    label={t('settings.legalBrandedContent')}
+                    onClick={() => setLegal('brandedContent')}
+                  />
                   <SettingsRow
                     label={t('settings.legalApiPlatforms')}
                     hint={t('settings.legalApiPlatformsHint')}
@@ -881,10 +901,10 @@ export function SettingsPage({
                   <p className="text-[11px] text-gray-400 leading-relaxed">
                     {t('settings.dataRightsHint')} :{' '}
                     <a
-                      href="mailto:privacy@getsoundy.com"
+                      href={`mailto:${LEGAL_PRIVACY_EMAIL}`}
                       className="text-purple-400 underline"
                     >
-                      privacy@getsoundy.com
+                      {LEGAL_PRIVACY_EMAIL}
                     </a>
                   </p>
                 </div>

@@ -26,6 +26,7 @@ import {
 import { checkChatRateLimit } from '../lib/chatRateLimit';
 import { appendGroupSystemMessage, usernameOf } from '../lib/groupSystemMessages';
 import { clientTriedForgedSystemMessage } from '../lib/groupMessageValidation';
+import { sanitizeChatText } from '../lib/sanitizeUserText';
 
 export const groupsRouter = Router();
 
@@ -469,7 +470,10 @@ groupsRouter.post('/:groupId/messages', authenticateJWT, asyncHandler(async (req
     return;
   }
 
-  if (!content?.trim()) {
+  const sanitizedContent = content
+    ? sanitizeChatText(String(content).slice(0, 2000))
+    : '';
+  if (!sanitizedContent) {
     res.status(400).json({ error: 'Message vide' });
     return;
   }
@@ -484,7 +488,7 @@ groupsRouter.post('/:groupId/messages', authenticateJWT, asyncHandler(async (req
     id: `gm_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
     groupId,
     senderId: me,
-    content: content.trim(),
+    content: sanitizedContent,
     timestamp: Date.now(),
   };
   db.groupMessages.push(msg);

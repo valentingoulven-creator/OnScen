@@ -1,0 +1,11 @@
+{
+  "name": "soundy-juridique",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dossier-avocat": "node scripts/build-dossier-avocat.mjs"
+  },
+  "dependencies": {
+    "marked": "^15.0.6"
+  }
+}

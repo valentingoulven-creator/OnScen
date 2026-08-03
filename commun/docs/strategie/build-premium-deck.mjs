@@ -978,7 +978,7 @@ newSlide(
       s,
       [
         'Tester : getsoundy.com',
-        'Partenaire : contact@getsoundy.com',
+        'Partenaire : admin@getsoundy.com',
         'Créateur : lance ton salon ou live',
       ],
       2.65,

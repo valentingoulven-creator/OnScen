@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Synthèse BIC — Tarifs sponsoring Soundy</title>
+  <style>/* ============================================================
+   Soundy · Dossier avocat — feuille de style PDF
+   Design professionnel unifié pour tous les documents du dossier.
+   ============================================================ */
+
+:root {
+  --sy-ink: #17172a;
+  --sy-ink-soft: #4b4b63;
+  --sy-muted: #6b7280;
+  --sy-purple: #6d28d9;
+  --sy-purple-deep: #3b1f7a;
+  --sy-purple-soft: #ede9fe;
+  --sy-purple-line: #c4b5fd;
+  --sy-border: #e2e2ef;
+  --sy-row: #f8f7fc;
+  --sy-amber: #b45309;
+  --sy-amber-bg: #fffbeb;
+  --sy-amber-line: #fde68a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.55;
+  color: var(--sy-ink);
+  max-width: 100%;
+  margin: 0;
+  padding: 0 4mm;
+}
+
+/* ---------- En-tête de document (bandeau + carte méta) ---------- */
+
+.doc-header {
+  display: block;
+  border-bottom: 3px solid var(--sy-purple);
+  padding-bottom: 10px;
+  margin-bottom: 18px;
+}
+
+.doc-header__brand {
+  display: block;
+  font-size: 10.5pt;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sy-purple);
+}
+
+.doc-header__brand span {
+  color: var(--sy-ink-soft);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.doc-header__category {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 8.5pt;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--sy-purple-deep);
+  background: var(--sy-purple-soft);
+  border: 1px solid var(--sy-purple-line);
+  border-radius: 999px;
+  padding: 3px 12px;
+}
+
+.doc-header__title {
+  margin: 10px 0 2px;
+  font-size: 21pt;
+  font-weight: 800;
+  color: var(--sy-ink);
+  line-height: 1.2;
+}
+
+.doc-meta {
+  display: block;
+  margin-top: 10px;
+  font-size: 8.5pt;
+  color: var(--sy-muted);
+  border-top: 1px solid var(--sy-border);
+  padding-top: 8px;
+}
+
+.doc-meta strong {
+  color: var(--sy-ink-soft);
+}
+
+.doc-banner {
+  font-size: 8pt;
+  color: var(--sy-muted);
+  margin: 0 0 4px;
+}
+
+/* ---------- Bandeau d'avertissement (indicatif / non contractuel) --- */
+
+.doc-warning {
+  background: var(--sy-amber-bg);
+  border: 1px solid var(--sy-amber-line);
+  border-left: 4px solid var(--sy-amber);
+  color: #7c4a03;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 9pt;
+  margin: 0 0 18px;
+  page-break-inside: avoid;
+}
+
+.doc-warning strong {
+  color: var(--sy-amber);
+}
+
+/* ---------- Titres ---------- */
+
+h1 {
+  font-size: 18pt;
+  color: var(--sy-ink);
+  border-bottom: 2px solid var(--sy-purple);
+  padding-bottom: 6px;
+  margin: 28px 0 14px;
+  page-break-after: avoid;
+}
+
+h1:first-of-type {
+  margin-top: 0;
+}
+
+h2 {
+  font-size: 13.5pt;
+  color: var(--sy-purple-deep);
+  border-bottom: 1px solid var(--sy-purple-line);
+  padding-bottom: 4px;
+  margin-top: 22px;
+  page-break-after: avoid;
+}
+
+h3 {
+  font-size: 11.5pt;
+  color: var(--sy-purple);
+  margin-top: 16px;
+  page-break-after: avoid;
+}
+
+p {
+  margin: 8px 0;
+}
+
+/* ---------- Tables ---------- */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+  border: 1px solid var(--sy-border);
+}
+
+th {
+  background-color: var(--sy-purple);
+  color: #ffffff;
+  font-weight: 600;
+  text-align: left;
+  padding: 7px 10px;
+  border: 1px solid var(--sy-purple-deep);
+}
+
+td {
+  padding: 6px 10px;
+  border: 1px solid var(--sy-border);
+  vertical-align: top;
+}
+
+tr:nth-child(even) td {
+  background-color: var(--sy-row);
+}
+
+/* ---------- Code / citations ---------- */
+
+code {
+  background-color: #f1f0f7;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 8.7pt;
+  font-family: Consolas, 'Courier New', monospace;
+  color: var(--sy-purple-deep);
+}
+
+pre {
+  background-color: #f1f0f7;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 9pt;
+  line-height: 1.4;
+  overflow-x: auto;
+  page-break-inside: avoid;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+blockquote {
+  border-left: 4px solid var(--sy-purple);
+  margin: 12px 0;
+  padding: 8px 16px;
+  background-color: var(--sy-purple-soft);
+  color: var(--sy-purple-deep);
+  border-radius: 0 6px 6px 0;
+}
+
+hr {
+  border: none;
+  border-top: 2px solid var(--sy-border);
+  margin: 24px 0;
+}
+
+ul,
+ol {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+li {
+  margin: 3px 0;
+}
+
+strong {
+  color: var(--sy-ink);
+}
+
+/* ---------- Pied de document ---------- */
+
+.doc-footer {
+  margin-top: 28px;
+  padding-top: 10px;
+  border-top: 1px solid var(--sy-border);
+  font-size: 8pt;
+  color: var(--sy-muted);
+  text-align: center;
+}
+
+/* ---------- Impression ---------- */
+
+@page {
+  margin: 16mm 14mm 18mm 14mm;
+}
+
+@media print {
+  h1,
+  h2,
+  h3 {
+    page-break-after: avoid;
+  }
+  table,
+  pre,
+  blockquote,
+  .doc-warning {
+    page-break-inside: avoid;
+  }
+}
+</style>
+</head>
+<body>
+  <header class="doc-header">
+    <span class="doc-header__brand">SOUNDY <span>· stratégie commerciale</span></span>
+    <span class="doc-header__category">Synthèse BIC · Tarifs sponsor</span>
+    <h1 class="doc-header__title" style="border:none;margin-top:10px;padding-bottom:0;">Synthèse BIC — Tarifs sponsoring Soundy</h1>
+    <p class="doc-meta"><strong>getsoundy.com</strong> · Document interne · Généré le 03 août 2026</p>
+  </header>
+  <div class="doc-warning">
+    <strong>⚠ Chiffres indicatifs.</strong> Recaler trimestriellement avec factures infra et expert-comptable. Ne constitue pas un audit financier.
+  </div>
+  <p><strong>Valentin Goulven · Soundy · getsoundy.com · 3 août 2026</strong><br>Document interne · chiffres indicatifs · recaler avec expert-comptable.</p>
+<hr>
+<h2>Grille commerciale retenue (HT · forfait / semaine · sans CPM)</h2>
+<table>
+<thead>
+<tr>
+<th>Emplacement</th>
+<th>Prix / semaine</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Icône Sponso (carte)</td>
+<td><strong>99 €</strong></td>
+</tr>
+<tr>
+<td>Onglet Musique</td>
+<td><strong>119 €</strong></td>
+</tr>
+<tr>
+<td>Bandeau carte · Reel</td>
+<td><strong>129 €</strong></td>
+</tr>
+<tr>
+<td>Fil d&#39;actualité</td>
+<td><strong>149 €</strong></td>
+</tr>
+<tr>
+<td><strong>Packs</strong> Carte 199 € · Actu &amp; Reel 249 € · Musique &amp; Actu 229 € · <strong>Complet 499 €</strong></td>
+<td></td>
+</tr>
+</tbody></table>
+<p>Pas de facturation au nombre de vues (phase lancement) · badge « Sponsorisé » (DSA).</p>
+<hr>
+<h2>Charges mensuelles modélisées (bootstrap)</h2>
+<table>
+<thead>
+<tr>
+<th>Poste</th>
+<th>€ HT / mois</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Infra (VPS prod + staging, PostgreSQL Scaleway, domaine, S3, variables modération/streaming)</td>
+<td><strong>80 – 200</strong></td>
+</tr>
+<tr>
+<td>Pro &amp; outils (compta, juridique amorti, Apple/Google, dev tools)</td>
+<td><strong>130 – 280</strong></td>
+</tr>
+<tr>
+<td>Temps fondateur (maintenance, évolutions, ops campagnes sponsor) — <strong>45 €/h</strong></td>
+<td><strong>1 200 – 1 800</strong></td>
+</tr>
+<tr>
+<td><strong>Total à couvrir (fourchette)</strong></td>
+<td><strong>≈ 1 400 – 2 300 €</strong></td>
+</tr>
+<tr>
+<td><strong>Référence de travail</strong></td>
+<td><strong>≈ 2 000 € HT / mois</strong></td>
+</tr>
+</tbody></table>
+<p>Sources infra : documentation interne Soundy (Scaleway fr-par-2, prod + staging, PG managé).</p>
+<hr>
+<h2>Point mort commercial</h2>
+<p>Pour couvrir <strong>~2 000 € HT / mois</strong> avec la grille actuelle :</p>
+<table>
+<thead>
+<tr>
+<th>Levier</th>
+<th>Volume indicatif</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Mix moyen ~132 € / semaine-emplacement</td>
+<td><strong>≈ 15 – 16</strong> semaines-emplacement / mois</td>
+</tr>
+<tr>
+<td>Pack Complet 499 €</td>
+<td><strong>≈ 4</strong> packs / mois</td>
+</tr>
+<tr>
+<td>Objectif business plan M12</td>
+<td><strong>5 – 8</strong> clients récurrents × <strong>2</strong> semaines-emplacement en moyenne → zone de point mort</td>
+</tr>
+</tbody></table>
+<p><strong>Coût marginal technique</strong> d’une campagne : <strong>~2 – 8 €</strong> (API sponsors, stockage créa) → marge brute variable élevée ; le seuil dépend surtout du <strong>temps</strong> (paramétrage, conformité, reporting) et des <strong>charges fixes</strong>.</p>
+<hr>
+<h2>Projection 12 mois</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>M0 – M6</th>
+<th>M7 – M12 (cible)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Infra totale</td>
+<td>80 – 250 €/mois</td>
+<td>200 – 450 €/mois</td>
+</tr>
+<tr>
+<td>CA sponsors visé</td>
+<td>0 – 2 000 €/mois</td>
+<td><strong>~3 300 €/mois</strong> (40 k€ ARR)</td>
+</tr>
+<tr>
+<td>Ratio infra / CA</td>
+<td>élevé (investissement)</td>
+<td><strong>&lt; 15 %</strong></td>
+</tr>
+</tbody></table>
+<p>À l’objectif <strong>40 k€ ARR sponsors</strong>, l’infra reste une fraction du chiffre ; la couverture des coûts devient <strong>soutenable</strong> si le volume commercial est atteint.</p>
+<hr>
+<h2>Pourquoi ces prix (en 4 points)</h2>
+<ol>
+<li><strong>≥ coût marginal + ops</strong> : plancher <strong>99 €</strong> (format simple) ; formats premium <strong>149 €</strong> (fil).  </li>
+<li><strong>Packs</strong> pour augmenter le panier sans CPM (<strong>199 – 499 €</strong>).  </li>
+<li><strong>Alignement marché</strong> : rester <strong>sous</strong> les campagnes Meta/TikTok en CPM, tout en <strong>ne vendant pas</strong> au CPM tant que l’audience n’est pas mesurable.  </li>
+<li><strong>Volume modeste</strong> suffit à couvrir le bootstrap (<strong>~15</strong> semaines-emplacement / mois).</li>
+</ol>
+<hr>
+<p><strong>Document complet :</strong> <code>JUSTIFICATION-TARIFS-SPONSOR-SOUNDY.md</code> (infra détaillée, sensibilité, règles de décision).</p>
+<p><em>Soundy · Synthèse tarifs sponsor · usage BIC / financement / partenaires</em></p>
+
+  <footer class="doc-footer">Soundy · Synthèse BIC · Tarifs sponsor · getsoundy.com · 03 août 2026</footer>
+</body>
+</html>

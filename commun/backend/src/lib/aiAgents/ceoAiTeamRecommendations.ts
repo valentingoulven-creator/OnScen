@@ -273,7 +273,7 @@ function buildLegalRec(founder: CeoFounderContext | null, live: LiveSignals): Ai
     whyNow: [
       `[FACT] legalPublisherComplete = ${live.legalPublisherComplete}.`,
       ...legalGaps.slice(0, 4).map((g) => `[FACT] ${g.id} (${g.severity}) : ${g.whyItMatters}`),
-      '[FACT] TODO-MANUAL C6 LCEN · docs/RENDEZ-VOUS-AVOCAT-SOUNDY.md — RDV avocat prévu.',
+      '[FACT] TODO-MANUAL C6 LCEN · docs/RENDEZ-VOUS-AVOCAT.md — RDV avocat prévu.',
       '[FACT] Stores mobile : IAP Apple/Google + Sign in with Apple = conformité obligatoire.',
     ],
     whyCeoAloneIsInsufficient: [

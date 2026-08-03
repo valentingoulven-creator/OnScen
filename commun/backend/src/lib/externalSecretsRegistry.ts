@@ -143,7 +143,7 @@ export const EXTERNAL_SECRET_PROVIDERS: ExternalSecretProviderDef[] = [
     fields: [
       { key: 'VAPID_PUBLIC_KEY', kind: 'public', format: 'token', required: true, placeholder: 'BN…' },
       { key: 'VAPID_PRIVATE_KEY', kind: 'secret', format: 'token', required: true, placeholder: '…' },
-      { key: 'VAPID_SUBJECT', kind: 'public', format: 'mailtoOrUrl', required: false, placeholder: 'mailto:contact@getsoundy.com' },
+      { key: 'VAPID_SUBJECT', kind: 'public', format: 'mailtoOrUrl', required: false, placeholder: 'mailto:admin@getsoundy.com' },
     ],
   },
   {

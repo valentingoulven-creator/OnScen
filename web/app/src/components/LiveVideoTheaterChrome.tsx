@@ -5,6 +5,16 @@ export const LIVE_THEATER_CHROME_BTN_CLASS =
 
 const CHROME_BTN = LIVE_THEATER_CHROME_BTN_CLASS;
 
+export function LiveVideoGiftIcon() {
+  return (
+    <svg aria-hidden className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="8" width="18" height="13" rx="1" />
+      <path d="M12 8V21M3 12h18M12 8c-2-3-5-3-5 0s3 3 5 0M12 8c2-3 5-3 5 0s-3 3-5 0" />
+      <path d="M7.5 8H16.5C17.9 8 19 6.9 19 5.5S17.9 3 16.5 3C14 3 12 8 12 8S10 3 7.5 3 4 3.6 4 5.5 4 8 7.5 8Z" />
+    </svg>
+  );
+}
+
 export function LiveVideoChromeButton({
   onClick,
   ariaLabel,

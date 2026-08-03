@@ -69,7 +69,7 @@ export function getCeoStrategicKnowledge() {
       'commun/docs/COUT-APPLICATION.md',
       'commun/docs/STACK-CIBLE.md',
       'commun/docs/INFRA-SOUNDY.md',
-      'commun/docs/audit-pre-prod-2026.md',
+      'commun/docs/audit/AUDIT-PRE-PROD-2026-06-30.md',
       'TODO-MANUAL.md',
     ],
     aiTeam: {

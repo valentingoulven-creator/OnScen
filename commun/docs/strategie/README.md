@@ -11,9 +11,9 @@
 | `SOUNDY-PRESENTATION-PRODUIT.pptx` | Même contenu en PowerPoint (10 slides · compatible Google Slides) |
 | `build-produit-presentation.mjs` | Script de génération du `.pptx` produit |
 | `build-premium-deck.mjs` | Script de génération du deck premium clair |
-| `../SOUNDY-PRESENTATION.html` | Présentation produit interactive (13 slides · navigateur) |
-| `../Soundy-Presentation.pptx` | Présentation produit FR (13 slides · screenshots) |
-| `../SOUNDY-PRESENTATION-MAIRIES-BARS.html` | Présentation visuelle mairies & bars (14 slides · carte, globe, reels, musique) |
+| `../presentations/SOUNDY-PRESENTATION.html` | Présentation produit interactive (13 slides · navigateur) |
+| `../presentations/Soundy-Presentation.pptx` | Présentation produit FR (13 slides · screenshots) |
+| `../presentations/SOUNDY-PRESENTATION-MAIRIES-BARS.html` | Présentation visuelle mairies & bars (14 slides · carte, globe, reels, musique) |
 | `../capture-presentation-screenshots.mjs` | Captures mobile prod (`demo-test@getsoundy.com`) — carte, globe, reels, musique |
 
 ## Régénérer les PDF

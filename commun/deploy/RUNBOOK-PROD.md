@@ -61,7 +61,7 @@ OAuth Google / Facebook / Apple / Instagram, Stripe, contrÃ´le d'accÃ¨s â�
 
 Les crÃ©ateurs doivent disposer dâ€™un compte **Stripe Connect** (`stripeConnectAccountId` sur le profil) pour recevoir les pourboires. La commission est appliquÃ©e via `application_fee_amount` ; le crÃ©ateur reÃ§oit le solde (frais Stripe en sus).
 
-Voir aussi `docs/MENTIONS-LEGALES-DONS.md`.
+Voir aussi `commun/docs/juridique/MENTIONS-LEGALES-DONS.md`.
 
 ### Cloudflare Stream (live vidÃ©o CDN â€” optionnel)
 

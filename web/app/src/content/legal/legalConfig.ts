@@ -162,7 +162,7 @@ export const LEGAL_FIELD_DEFINITIONS: readonly LegalFieldMeta[] = [
       'Doit être une boîte professionnelle lue régulièrement. ' +
       'ATTENTION : ne pas utiliser une adresse Gmail personnelle en production.',
     // TODO: ⚠️ Remplacer par une adresse professionnelle @getsoundy.com lue régulièrement
-    example: 'contact@getsoundy.com',
+    example: 'admin@getsoundy.com',
   },
   {
     key: 'privacyEmail',
@@ -174,7 +174,7 @@ export const LEGAL_FIELD_DEFINITIONS: readonly LegalFieldMeta[] = [
       'Doit être distincte de la boîte contact si possible. ' +
       'ATTENTION : ne pas utiliser une adresse Gmail personnelle en production.',
     // TODO: ⚠️ Remplacer par une adresse professionnelle dédiée RGPD
-    example: 'privacy@getsoundy.com',
+    example: 'admin@getsoundy.com',
   },
   {
     key: 'dpoEmail',
@@ -186,7 +186,7 @@ export const LEGAL_FIELD_DEFINITIONS: readonly LegalFieldMeta[] = [
       'Requis notamment si traitement à grande échelle de données sensibles, ou autorité publique. ' +
       'Pour une plateforme B2C standard de taille modeste : facultatif mais recommandé.',
     // TODO: Laisser vide si non applicable — ou indiquer l'e-mail du DPO si désigné
-    example: 'dpo@getsoundy.com  —  ou laisser vide',
+    example: 'admin@getsoundy.com  —  ou laisser vide',
   },
 
   // ── Médiation consommation (recommandé B2C France) ─────────────────────────

@@ -77,8 +77,10 @@ export interface FloatingSalonChatProps {
   headerExtra?: ReactNode;
   /** Live théâtre : masque les toggles fond transparent/gris ; garde headerExtra (participants/VIP). */
   compactHeader?: boolean;
-  /** Épingler le chat en colonne gauche (live théâtre). */
+  /** Épingler / dépingler (dock gauche ou overlay live théâtre). */
   onTogglePin?: () => void;
+  /** true = chat épinglé (dock ou overlay visible) — bouton affiche « Dépingler ». */
+  pinned?: boolean;
   minimized?: boolean;
   onToggleMinimize?: () => void;
   onHide?: () => void;
@@ -91,6 +93,7 @@ export function FloatingSalonChat({
   headerExtra,
   compactHeader = false,
   onTogglePin,
+  pinned = false,
   minimized = false,
   onToggleMinimize,
   onHide,
@@ -437,9 +440,30 @@ export function FloatingSalonChat({
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onTogglePin}
-              title="Épingler à gauche"
-              className={`${compactHeader ? HEADER_ICON_BTN : HEADER_ICON_BTN_COMPACT} text-gray-500 hover:text-amber-300 hover:bg-white/10`}
-              aria-label="Épingler le chat à gauche"
+              title={
+                pinned
+                  ? compactHeader
+                    ? 'Dépingler le chat'
+                    : 'Détacher le chat'
+                  : compactHeader
+                    ? 'Épingler le chat'
+                    : 'Épingler à gauche'
+              }
+              className={`${compactHeader ? HEADER_ICON_BTN : HEADER_ICON_BTN_COMPACT} ${
+                pinned
+                  ? 'text-amber-300 bg-amber-950/40'
+                  : 'text-gray-500 hover:text-amber-300 hover:bg-white/10'
+              }`}
+              aria-label={
+                pinned
+                  ? compactHeader
+                    ? 'Dépingler le chat'
+                    : 'Détacher le chat'
+                  : compactHeader
+                    ? 'Épingler le chat'
+                    : 'Épingler le chat à gauche'
+              }
+              aria-pressed={pinned}
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
                 <path

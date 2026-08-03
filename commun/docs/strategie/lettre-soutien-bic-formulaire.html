@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="description" content="Formulaire — lettre de soutien BIC · projet Soundy · Valentin Goulven" />
+  <title>Lettre de soutien BIC — Soundy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0b0b0f;
+      --panel: #12121a;
+      --panel2: #0f0f16;
+      --border: #1e1e2f;
+      --purple: #7c3aed;
+      --purple-hover: #6d28d9;
+      --text: #f4f4f8;
+      --muted: #9ca3af;
+      --letter-bg: #fff;
+      --letter-text: #111;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      font-family: 'Plus Jakarta Sans', 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .app-header {
+      padding: 1rem 1rem 0.5rem;
+      max-width: 72rem;
+      margin: 0 auto;
+    }
+    .app-header h1 {
+      margin: 0;
+      font-size: clamp(1.125rem, 2.5vw, 1.5rem);
+      font-weight: 800;
+    }
+    .app-header p {
+      margin: 0.35rem 0 0;
+      font-size: 0.8125rem;
+      color: var(--muted);
+      max-width: 40rem;
+    }
+    .layout {
+      display: grid;
+      gap: 1rem;
+      padding: 0.75rem 1rem 2rem;
+      max-width: 72rem;
+      margin: 0 auto;
+    }
+    @media (min-width: 1024px) {
+      .layout {
+        grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+        align-items: start;
+      }
+    }
+    .form-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 1rem 1.125rem;
+    }
+    .form-panel h2 {
+      margin: 0 0 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+    input, select, textarea {
+      width: 100%;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      color: var(--text);
+      font: inherit;
+      font-size: 0.875rem;
+      padding: 0.625rem 0.75rem;
+      min-height: 44px;
+      margin-bottom: 0.75rem;
+    }
+    textarea {
+      min-height: 5rem;
+      resize: vertical;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: 2px solid rgba(124, 58, 237, 0.45);
+      outline-offset: 1px;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+    }
+    button {
+      font: inherit;
+      font-size: 0.875rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 0.75rem;
+      cursor: pointer;
+      min-height: 44px;
+      padding: 0.5rem 1rem;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .btn-primary {
+      background: var(--purple);
+      color: #fff;
+    }
+    .btn-primary:hover { background: var(--purple-hover); }
+    .btn-secondary {
+      background: var(--panel2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: #1a1a26; }
+    .preview-wrap {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 1rem;
+      overflow: hidden;
+    }
+    .preview-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .preview-toolbar span {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .letter-page {
+      background: var(--letter-bg);
+      color: var(--letter-text);
+      border-radius: 0.5rem;
+      padding: clamp(1.25rem, 4vw, 2.5rem);
+      font-size: 11pt;
+      line-height: 1.55;
+      max-width: 210mm;
+      margin: 0 auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    }
+    .letter-page .letter-header {
+      font-size: 10pt;
+      margin-bottom: 1.5rem;
+      white-space: pre-line;
+    }
+    .letter-page .letter-object {
+      font-weight: 700;
+      margin: 1rem 0 1.25rem;
+    }
+    .letter-page p {
+      margin: 0 0 0.85rem;
+      text-align: justify;
+    }
+    .letter-page .signature {
+      margin-top: 2rem;
+      white-space: pre-line;
+    }
+    .toast {
+      position: fixed;
+      bottom: max(1rem, env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%) translateY(120%);
+      background: #1a1a26;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.65rem 1rem;
+      border-radius: 0.75rem;
+      font-size: 0.8125rem;
+      opacity: 0;
+      transition: transform 0.25s, opacity 0.25s;
+      z-index: 100;
+      pointer-events: none;
+    }
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+    @media print {
+      body { background: #fff; }
+      .app-header, .form-panel, .preview-toolbar, .toast { display: none !important; }
+      .layout { display: block; padding: 0; max-width: none; }
+      .preview-wrap {
+        border: none;
+        padding: 0;
+        background: transparent;
+      }
+      .letter-page {
+        box-shadow: none;
+        border-radius: 0;
+        max-width: none;
+        padding: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <h1>Lettre de soutien — candidature BIC</h1>
+    <p>
+      Remplissez le formulaire : la lettre se génère automatiquement. Imprimez-la ou enregistrez-la en PDF
+      (Ctrl+P → « Enregistrer au format PDF »). Projet <strong>Soundy</strong> — Valentin Goulven, Le Crès.
+    </p>
+  </header>
+
+  <div class="layout">
+    <aside class="form-panel" aria-label="Formulaire">
+      <h2>Signataire</h2>
+      <label for="signatoryName">Nom et prénom *</label>
+      <input id="signatoryName" type="text" autocomplete="name" placeholder="Ex. Marie Dupont" required />
+
+      <label for="signatoryRole">Fonction *</label>
+      <input id="signatoryRole" type="text" placeholder="Ex. Directrice, gérant, président…" required />
+
+      <label for="organization">Organisation / entreprise *</label>
+      <input id="organization" type="text" placeholder="Ex. Salle XYZ, association…" required />
+
+      <label for="city">Ville (signature) *</label>
+      <input id="city" type="text" placeholder="Ex. Montpellier" required />
+
+      <label for="contactLine">Coordonnées (optionnel, en-tête)</label>
+      <input id="contactLine" type="text" placeholder="Email ou téléphone professionnel" />
+
+      <h2 style="margin-top: 1rem">Contenu</h2>
+      <label for="relation">Lien avec le projet</label>
+      <select id="relation">
+        <option value="discovered">J’ai découvert le projet Soundy et souhaite le soutenir</option>
+        <option value="met">J’ai échangé avec Valentin Goulven et pris connaissance du projet</option>
+        <option value="partner">Je suis en relation professionnelle avec le porteur du projet</option>
+        <option value="local">Je suis acteur du territoire (culture, économie, innovation)</option>
+        <option value="custom">Autre (préciser ci-dessous)</option>
+      </select>
+
+      <label for="customRelation">Précision (si « Autre » ou complément)</label>
+      <textarea id="customRelation" rows="2" placeholder="Ex. Nous accueillons des événements musicaux locaux…"></textarea>
+
+      <label for="supportType">Type de soutien (optionnel)</label>
+      <select id="supportType">
+        <option value="none">Recommandation pour le BIC uniquement</option>
+        <option value="mentor">Recommandation + disponibilité pour un échange ponctuel</option>
+        <option value="network">Recommandation + mise en relation sur mon réseau</option>
+        <option value="partner">Recommandation + intérêt pour un partenariat futur</option>
+      </select>
+
+      <label for="letterDate">Date de la lettre</label>
+      <input id="letterDate" type="date" />
+
+      <div class="actions">
+        <button type="button" class="btn-primary" id="btnPrint">Imprimer / PDF</button>
+        <button type="button" class="btn-secondary" id="btnCopy">Copier le texte</button>
+      </div>
+    </aside>
+
+    <section class="preview-wrap">
+      <div class="preview-toolbar">
+        <span>Aperçu de la lettre</span>
+      </div>
+      <article class="letter-page" id="letterPreview" aria-live="polite"></article>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const fields = [
+      'signatoryName', 'signatoryRole', 'organization', 'city', 'contactLine',
+      'relation', 'customRelation', 'supportType', 'letterDate',
+    ];
+
+    function formatDateFr(iso) {
+      if (!iso) {
+        const d = new Date();
+        return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+      }
+      const [y, m, day] = iso.split('-').map(Number);
+      if (!y || !m || !day) return iso;
+      return new Date(y, m - 1, day).toLocaleDateString('fr-FR', {
+        day: 'numeric', month: 'long', year: 'numeric',
+      });
+    }
+
+    function relationParagraph(relation, custom) {
+      const customTrim = (custom || '').trim();
+      const base = {
+        discovered:
+          'J’ai pris connaissance du projet **Soundy** porté par M. Valentin Goulven et souhaite apporter mon soutien à sa démarche.',
+        met:
+          'J’ai eu l’occasion d’échanger avec **M. Valentin Goulven** et de découvrir le projet **Soundy** qu’il développe.',
+        partner:
+          'Dans le cadre de notre relation professionnelle, j’ai pu apprécier le travail et la vision de **M. Valentin Goulven** autour du projet **Soundy**.',
+        local:
+          'En tant qu’acteur du territoire, j’ai pris connaissance du projet **Soundy** porté par **M. Valentin Goulven**, domicilié au Crès.',
+        custom: customTrim || 'J’ai pris connaissance du projet **Soundy** porté par M. Valentin Goulven.',
+      };
+      let text = base[relation] || base.met;
+      text = text.replace(/\*\*/g, '');
+      if (relation !== 'custom' && customTrim) {
+        text += ' ' + customTrim;
+      }
+      if (relation === 'custom' && customTrim) {
+        text = customTrim.charAt(0).toUpperCase() + customTrim.slice(1);
+        if (!/[.!?]$/.test(text)) text += '.';
+      }
+      return text;
+    }
+
+    function supportClosing(supportType) {
+      switch (supportType) {
+        case 'mentor':
+          return 'Je recommande favorablement l’étude de sa candidature et reste disponible pour un échange ponctuel si besoin.';
+        case 'network':
+          return 'Je recommande favorablement l’étude de sa candidature et reste disposé(e), dans la limite de mes disponibilités, à faciliter des mises en relation utiles au projet.';
+        case 'partner':
+          return 'Je recommande favorablement l’étude de sa candidature et suis ouvert(e) à explorer, le moment venu, des synergies avec mon activité.';
+        default:
+          return 'Je recommande donc favorablement l’étude de sa candidature au BIC.';
+      }
+    }
+
+    function buildLetter() {
+      const name = $('signatoryName').value.trim() || '[Nom Prénom]';
+      const role = $('signatoryRole').value.trim() || '[Fonction]';
+      const org = $('organization').value.trim() || '[Organisation]';
+      const city = $('city').value.trim() || '[Ville]';
+      const contact = $('contactLine').value.trim();
+      const dateStr = formatDateFr($('letterDate').value);
+      const intro = relationParagraph($('relation').value, $('customRelation').value);
+      const closing = supportClosing($('supportType').value);
+
+      const headerLines = [name, role, org].filter(Boolean);
+      if (contact) headerLines.push(contact);
+
+      const body = [
+        headerLines.join('\n'),
+        '',
+        `Objet : Lettre de soutien à la candidature de M. Valentin Goulven au BIC — projet Soundy`,
+        '',
+        'Madame, Monsieur,',
+        '',
+        `Par la présente, je soussigné(e) ${name}, ${role} au sein de ${org}, atteste mon soutien à la candidature de M. Valentin Goulven, domicilié au Crès (Hérault), au Business & Innovation Centre (BIC), pour le développement du projet Soundy.`,
+        '',
+        intro,
+        '',
+        'Soundy est une application numérique dédiée à la promotion et à la visibilité des artistes et des événements musicaux. Le projet vise à faciliter la découverte de concerts, soirées, festivals et lives, à mettre en lumière les créateurs locaux et à valoriser les lieux qui accueillent la vie musicale. À mes yeux, cette initiative répond à un besoin concret de visibilité pour la filière musicale et l’attractivité culturelle de notre territoire.',
+        '',
+        'M. Valentin Goulven dispose, à mon sens, des qualités et de la détermination nécessaires pour mener ce projet. L’accompagnement proposé par le BIC lui permettrait de structurer le lancement, le modèle économique et le déploiement du produit dans de bonnes conditions.',
+        '',
+        closing,
+        '',
+        `Fait à ${city}, le ${dateStr}`,
+        '',
+        'Signature :',
+        name,
+        role,
+      ].join('\n');
+
+      return body;
+    }
+
+    function renderPreview() {
+      const text = buildLetter();
+      const html = text
+        .split('\n\n')
+        .map((block) => {
+          if (block.startsWith('Objet :')) {
+            return `<p class="letter-object">${escapeHtml(block)}</p>`;
+          }
+          if (block.startsWith('Signature :')) {
+            return `<div class="signature">${escapeHtml(block).replace(/\n/g, '<br>')}</div>`;
+          }
+          if (block.includes('\n') && !block.startsWith('Madame')) {
+            return `<div class="letter-header">${escapeHtml(block).replace(/\n/g, '<br>')}</div>`;
+          }
+          return `<p>${escapeHtml(block).replace(/\n/g, '<br>')}</p>`;
+        })
+        .join('');
+      $('letterPreview').innerHTML = html;
+    }
+
+    function escapeHtml(s) {
+      return s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function showToast(msg) {
+      const t = $('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(showToast._tid);
+      showToast._tid = setTimeout(() => t.classList.remove('show'), 2400);
+    }
+
+    fields.forEach((id) => {
+      $(id).addEventListener('input', renderPreview);
+      $(id).addEventListener('change', renderPreview);
+    });
+
+    $('btnPrint').addEventListener('click', () => {
+      const missing = ['signatoryName', 'signatoryRole', 'organization', 'city'].filter(
+        (id) => !$(id).value.trim()
+      );
+      if (missing.length) {
+        showToast('Renseignez les champs obligatoires (*)');
+        missing[0] && $(missing[0]).focus();
+        return;
+      }
+      window.print();
+    });
+
+    $('btnCopy').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(buildLetter());
+        showToast('Lettre copiée dans le presse-papiers');
+      } catch {
+        showToast('Copie impossible — utilisez Imprimer / PDF');
+      }
+    });
+
+    $('letterDate').valueAsDate = new Date();
+    renderPreview();
+  </script>
+</body>
+</html>

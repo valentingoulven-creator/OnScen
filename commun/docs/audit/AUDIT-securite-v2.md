@@ -2,7 +2,7 @@
 
 Périmètre : vérification des corrections de `MODIF 960` (voir `modification.txt` lignes 20442-20533) + repasse OWASP complète (régression). Méthode : `git ls-files`, `git check-ignore -v`, `git status`, `git diff`, `git cat-file`, `git ls-tree`, `gh repo view`, lecture de code ligne à ligne, exécution des tests unitaires (`vitest`).
 
-Rapport de référence : `commun/docs/audit/AUDIT-securite.md` — score initial **78/100**, 1 Critical · 1 High · 2 Medium · 3 Low.
+Rapport de référence : `commun/docs/audit/archive/AUDIT-securite.md` — score initial **78/100**, 1 Critical · 1 High · 2 Medium · 3 Low.
 
 ---
 
