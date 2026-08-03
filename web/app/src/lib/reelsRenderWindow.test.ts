@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   collectReelsRenderCenters,
   getScrollDerivedIndex,
+  readDomScrollIndex,
   REELS_RENDER_WINDOW,
   shouldRenderReelSlide,
 } from './reelsRenderWindow';
@@ -34,5 +35,11 @@ describe('reelsRenderWindow', () => {
     expect(shouldRenderReelSlide(12, centers, REELS_RENDER_WINDOW)).toBe(true);
     expect(shouldRenderReelSlide(10, centers, REELS_RENDER_WINDOW)).toBe(true);
     expect(shouldRenderReelSlide(50, centers, REELS_RENDER_WINDOW)).toBe(false);
+  });
+
+  it('readDomScrollIndex falls back when height is zero', () => {
+    const el = { scrollTop: 2400, clientHeight: 0 } as HTMLElement;
+    expect(readDomScrollIndex(el, 10, 3)).toBe(3);
+    expect(readDomScrollIndex(null, 10, 3)).toBe(3);
   });
 });

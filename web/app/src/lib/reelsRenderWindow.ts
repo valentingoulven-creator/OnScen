@@ -38,3 +38,14 @@ export function shouldRenderReelSlide(
   }
   return false;
 }
+
+/** DOM scroll position → slide index, or fallback when layout is not ready (hidden tab, h=0). */
+export function readDomScrollIndex(
+  scrollEl: HTMLElement | null,
+  itemCount: number,
+  fallbackIndex: number
+): number {
+  if (!scrollEl || itemCount <= 0) return fallbackIndex;
+  if (scrollEl.clientHeight <= 0) return fallbackIndex;
+  return getScrollDerivedIndex(scrollEl.scrollTop, scrollEl.clientHeight, itemCount);
+}

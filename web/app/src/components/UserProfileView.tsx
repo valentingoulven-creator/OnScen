@@ -1,7 +1,4 @@
-﻿import { useTranslation } from 'react-i18next';
-import { formatCompactCount } from '../lib/formatCount';
-import { resolveProfileLiveId } from '../lib/profileLive';
-import { ensureYoutubeLinkedToJoinSalon } from '../lib/platformConnect';
+import { useTranslation } from 'react-i18next';
 import type { MatchStatus, MusicMatch, NearbyPerson, User } from '../types';
 
 interface UserProfileViewProps {
@@ -42,28 +39,9 @@ export function UserProfileView({
   profileMeetsAge,
   sending,
   error,
-  onOpenLive,
-  onOpenSalon,
   onSendHeart,
-  meConnectedPlatforms,
 }: UserProfileViewProps) {
   const { t } = useTranslation();
-
-  const isLiveHost = Boolean(profile?.isLive || preview?.isLive);
-  const liveId = resolveProfileLiveId(profile, preview);
-  const liveViewers = profile?.liveViewersCount ?? preview?.liveViewersCount;
-  const activeSalonId = profile?.salonId ?? preview?.salonId;
-  const activeSalonTitle = profile?.salonTitle ?? preview?.salonTitle;
-  const isSalonHost = isSelf;
-
-  const openActiveSalon = () => {
-    if (!activeSalonId || !onOpenSalon) return;
-    const platform = profile?.currentListening?.platform ?? preview?.currentListening?.platform ?? 'youtube';
-    if (!ensureYoutubeLinkedToJoinSalon(meConnectedPlatforms, isSalonHost, platform)) {
-      return;
-    }
-    onOpenSalon(activeSalonId, activeSalonTitle, isSalonHost);
-  };
 
   const memberDate = profile?.memberSince
     ? new Date(profile.memberSince).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
@@ -110,24 +88,6 @@ export function UserProfileView({
         </p>
       ) : null}
 
-      {isLiveHost && liveId && onOpenLive && (
-        <button
-          type="button"
-          onClick={() => onOpenLive(liveId)}
-          className="w-full py-3.5 rounded-2xl font-bold text-white flex items-center justify-center gap-2 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 shadow-lg shadow-red-900/40 transition active:scale-[0.99]"
-        >
-          <span className="text-lg" aria-hidden>
-            🔴
-          </span>
-          Rejoindre le live
-          {liveViewers != null && (
-            <span className="text-sm font-semibold text-red-100/90">
-              · {formatCompactCount(liveViewers)} spectateurs
-            </span>
-          )}
-        </button>
-      )}
-
       {memberDate ? (
         <p className="text-[10px] text-gray-600 text-center py-2">
           {t('profile.memberSince', { date: memberDate })}
@@ -170,20 +130,6 @@ export function UserProfileView({
       )}
 
       {error && profile && <p className="text-xs text-red-400">{error}</p>}
-
-      {activeSalonId && onOpenSalon && !profile?.currentListening && !preview?.currentListening ? (
-        <button
-          type="button"
-          onClick={openActiveSalon}
-          className="w-full min-h-[44px] rounded-xl border border-purple-500/30 bg-purple-950/30 px-4 py-3 text-left hover:bg-purple-950/45 transition-colors"
-        >
-          <p className="text-[10px] font-bold uppercase tracking-wider text-purple-400">Salon actif</p>
-          <p className="text-sm font-semibold text-white truncate">
-            {activeSalonTitle || 'Salon de musique'}
-          </p>
-          <p className="text-xs text-purple-200/80 mt-1">Appuyer pour rejoindre</p>
-        </button>
-      ) : null}
     </div>
   );
 }

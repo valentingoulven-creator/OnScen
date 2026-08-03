@@ -68,7 +68,7 @@ import { CreateReelSheet } from '../components/CreateReelSheet';
 import { ConfirmModal } from '../components/ConfirmModal';
 import {
   collectReelsRenderCenters,
-  getScrollDerivedIndex,
+  readDomScrollIndex,
   shouldRenderReelSlide,
 } from '../lib/reelsRenderWindow';
 
@@ -336,6 +336,8 @@ export function ReelsTabPage({
   const pausedByPageHiddenRef = useRef(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [scrollAnchorIndex, setScrollAnchorIndex] = useState(0);
+  /** Slide index from scroll metrics — keeps virtualization aligned with visible slide. */
+  const [layoutScrollIndex, setLayoutScrollIndex] = useState(0);
   const [muted, setMuted] = useState(() => !readReelsUnmutedPreference());
   const mutedRef = useRef(muted);
   const [playbackPaused, setPlaybackPaused] = useState(false);
@@ -374,6 +376,7 @@ export function ReelsTabPage({
     activeIndexRef.current = 0;
     setScrollAnchorIndex(0);
     scrollAnchorIndexRef.current = 0;
+    setLayoutScrollIndex(0);
     const el = scrollRef.current;
     if (el) el.scrollTo({ top: 0, behavior: 'auto' });
   }, [deferredSearchQuery]);
@@ -430,6 +433,7 @@ export function ReelsTabPage({
     activeIndexRef.current = index;
     setScrollAnchorIndex(index);
     scrollAnchorIndexRef.current = index;
+    setLayoutScrollIndex(index);
     const el = scrollRef.current;
     if (el) scrollToDisplayIndex(el, index);
     onIntentHandled?.();
@@ -445,6 +449,7 @@ export function ReelsTabPage({
     activeIndexRef.current = index;
     setScrollAnchorIndex(index);
     scrollAnchorIndexRef.current = index;
+    setLayoutScrollIndex(index);
     initialScrollDone.current = true;
     const el = scrollRef.current;
     if (el) scrollToDisplayIndex(el, index);
@@ -578,6 +583,7 @@ export function ReelsTabPage({
     setActiveIndex(clamped);
     setScrollAnchorIndex(clamped);
     scrollAnchorIndexRef.current = clamped;
+    setLayoutScrollIndex(clamped);
   }, [displayItems.length]);
 
   const updateScrollAnchorFromScroll = useCallback(() => {
@@ -589,6 +595,7 @@ export function ReelsTabPage({
       scrollAnchorIndexRef.current = clamped;
       setScrollAnchorIndex(clamped);
     }
+    setLayoutScrollIndex(clamped);
     return clamped;
   }, [displayItems.length]);
 
@@ -1235,6 +1242,18 @@ export function ReelsTabPage({
     }
   }, [token, pendingPublishReel, publishingReel, refreshFeedWithStart, t]);
 
+  const reelRenderCenters = useMemo(() => {
+    const domIndex = readDomScrollIndex(
+      scrollRef.current,
+      displayItems.length,
+      layoutScrollIndex
+    );
+    return collectReelsRenderCenters(
+      [scrollAnchorIndex, activeIndex, domIndex],
+      displayItems.length
+    );
+  }, [displayItems.length, scrollAnchorIndex, activeIndex, layoutScrollIndex]);
+
   return (
     <div
       data-reels-root
@@ -1278,20 +1297,7 @@ export function ReelsTabPage({
             onTouchCancel={onTouchCancel}
           >
             {displayItems.map((item, index) => {
-              const scrollEl = scrollRef.current;
-              const domScrollIndex =
-                scrollEl && displayItems.length > 0
-                  ? getScrollDerivedIndex(
-                      scrollEl.scrollTop,
-                      scrollEl.clientHeight,
-                      displayItems.length
-                    )
-                  : null;
-              const renderCenters = collectReelsRenderCenters(
-                [scrollAnchorIndex, activeIndex, domScrollIndex],
-                displayItems.length
-              );
-              if (!shouldRenderReelSlide(index, renderCenters)) {
+              if (!shouldRenderReelSlide(index, reelRenderCenters)) {
                 // Hors fenêtre : spacer de même hauteur (.reel-slide = 100% du
                 // conteneur), aucun <video>/<img> monté — préserve le scrollHeight
                 // total du feed sans le coût mémoire/DOM d'un rendu complet.
