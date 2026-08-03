@@ -466,6 +466,8 @@ function GoalsTab({
   const activeGoals = goals.filter((g) => !g.completedAt);
   const doneGoals = goals.filter((g) => !!g.completedAt);
 
+  const overlayVisibleToViewers = session.goalOverlay.visibleToViewers;
+
   const addGoal = () => {
     const target = parseFloat(form.target);
     if (!form.label.trim() || isNaN(target) || target <= 0) return;
@@ -494,6 +496,25 @@ function GoalsTab({
 
   return (
     <div className="flex flex-col gap-4 pb-2">
+      <HostPanelSection title={t('live.goalOverlaySectionTitle')}>
+        <label className="flex items-start gap-3 min-h-11 touch-manipulation cursor-pointer">
+          <input
+            type="checkbox"
+            className="mt-1 w-4 h-4 rounded border-[#333] accent-purple-500"
+            checked={overlayVisibleToViewers}
+            onChange={(e) =>
+              update((prev) => ({
+                goalOverlay: { ...prev.goalOverlay, visibleToViewers: e.target.checked },
+              }))
+            }
+          />
+          <span className="text-xs text-gray-300 leading-snug">
+            {t('live.goalOverlayVisibleToViewers')}
+          </span>
+        </label>
+        <p className="text-[10px] text-gray-500 mt-2 leading-relaxed">{t('live.goalOverlayHostHint')}</p>
+      </HostPanelSection>
+
       {activeGoals.length === 0 && !creating && (
         <HostPanelEmptyState
           icon="🎯"

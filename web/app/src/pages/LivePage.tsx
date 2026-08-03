@@ -51,7 +51,8 @@ import { LiveVideoGoalOverlay } from '../components/LiveVideoGoalOverlay';
 import { useLiveHostSession } from '../hooks/useLiveHostSession';
 import { firstActiveGoal, activePublicGoals, withGoalProgress, type GoalProgressStats } from '../lib/liveGoalProgress';
 import { enqueueRewardFromGift, patchLiveHostSession } from '../lib/liveHostSession';
-import { syncLiveDonationGoals, syncLiveDonationOptions } from '../lib/liveDonationOptions';
+import { syncLiveDonationGoals, syncLiveDonationOptions, syncLiveDonationGoalOverlay } from '../lib/liveDonationOptions';
+import { DEFAULT_LIVE_GOAL_OVERLAY, normalizeGoalOverlay } from '../lib/liveGoalOverlay';
 import { LiveDonationSheet } from '../components/LiveDonationSheet';
 import { FollowUserButton } from '../components/FollowUserButton';
 import { LiveGiftOverlay } from '../components/LiveGiftOverlay';
@@ -573,7 +574,15 @@ export function LivePage({
     if (!isHost || !liveId || !live?.isActive) return;
     syncLiveDonationOptions(liveId, hostSession.rewards);
     syncLiveDonationGoals(liveId, hostSession.goals);
-  }, [isHost, liveId, live?.isActive, hostSession.rewards, hostSession.goals]);
+    syncLiveDonationGoalOverlay(liveId, hostSession.goalOverlay);
+  }, [
+    isHost,
+    liveId,
+    live?.isActive,
+    hostSession.rewards,
+    hostSession.goals,
+    hostSession.goalOverlay,
+  ]);
 
   const viewerStreamEnded = !isHost && streamEndedReason !== null && live?.isActive === false;
   const streamEndedTitle = t('live.streamEnded');
@@ -616,6 +625,62 @@ export function LivePage({
     () => (isHost ? firstActiveGoal(hostSession.goals, goalStats, liveId) : null),
     [isHost, hostSession.goals, goalStats, liveId],
   );
+
+  const goalOverlayOnVideo = useMemo(() => {
+    const prefs = normalizeGoalOverlay(
+      isHost ? hostSession.goalOverlay : live?.donationGoalOverlay ?? DEFAULT_LIVE_GOAL_OVERLAY,
+    );
+    const goalOnVideo = isHost
+      ? activeGoal
+      : viewerActiveGoals[0] && prefs.visibleToViewers
+        ? viewerActiveGoals[0]
+        : null;
+    return { prefs, goalOnVideo };
+  }, [
+    isHost,
+    hostSession.goalOverlay,
+    live?.donationGoalOverlay,
+    activeGoal,
+    viewerActiveGoals,
+  ]);
+
+  const handleGoalOverlayPosition = useCallback(
+    (pos: { xPct: number; yPct: number }) => {
+      patchLiveHostSession(liveId, (prev) => ({
+        goalOverlay: { ...prev.goalOverlay, ...pos },
+      }));
+    },
+    [liveId],
+  );
+
+  const handleGoalManualCurrent = useCallback(
+    (value: number | null) => {
+      if (!activeGoal) return;
+      patchLiveHostSession(liveId, (prev) => ({
+        goals: prev.goals.map((g) => {
+          if (g.id !== activeGoal.id) return g;
+          if (value == null) {
+            const { manualCurrent: _removed, ...rest } = g;
+            return rest as typeof g;
+          }
+          return { ...g, manualCurrent: value };
+        }),
+      }));
+    },
+    [liveId, activeGoal],
+  );
+
+  const liveVideoGoalOverlayEl =
+    goalOverlayOnVideo.goalOnVideo && !viewerStreamEnded ? (
+      <LiveVideoGoalOverlay
+        goal={goalOverlayOnVideo.goalOnVideo}
+        xPct={goalOverlayOnVideo.prefs.xPct}
+        yPct={goalOverlayOnVideo.prefs.yPct}
+        editable={isHost}
+        onPositionChange={isHost ? handleGoalOverlayPosition : undefined}
+        onManualCurrentChange={isHost ? handleGoalManualCurrent : undefined}
+      />
+    ) : null;
 
   useEffect(() => {
     const id = window.setInterval(() => setGoalTick(Date.now()), 30_000);
@@ -1423,7 +1488,7 @@ export function LivePage({
   const hostVideoOverlay =
     isHost && !viewerStreamEnded ? (
       <>
-        {activeGoal ? <LiveVideoGoalOverlay goal={activeGoal} /> : null}
+        {liveVideoGoalOverlayEl}
         <LiveRewardRequestsStrip
           items={hostSession.rewardQueue}
           onOpenPanel={() => openHostPanel('don', 'rewards')}
@@ -1824,9 +1889,15 @@ export function LivePage({
               onPipOpen={!isHost ? openLivePip : undefined}
               onLeaveLive={!isHost ? leaveLive : undefined}
               hostActionsChrome={hostActionsChrome}
+              liveSessionTitle={live.title}
+              liveHostName={live.hostName}
+              liveHostAvatarUrl={live.hostAvatarUrl}
+              liveHostId={live.hostId}
+              onOpenHostProfile={onOpenProfile}
               overlay={
                 !isHost && !viewerStreamEnded ? (
                   <>
+                    {liveVideoGoalOverlayEl}
                     {hostCanReceiveDonations && !livePipActive && (
                       <LiveGiftOverlay liveId={liveId} visible />
                     )}
@@ -1891,9 +1962,15 @@ export function LivePage({
             onPipOpen={!isHost ? openLivePip : undefined}
             onLeaveLive={!isHost ? leaveLive : undefined}
             hostActionsChrome={hostActionsChrome}
+            liveSessionTitle={live.title}
+            liveHostName={live.hostName}
+            liveHostAvatarUrl={live.hostAvatarUrl}
+            liveHostId={live.hostId}
+            onOpenHostProfile={onOpenProfile}
             overlay={
               <>
                 {hostVideoOverlay}
+                {!isHost && liveVideoGoalOverlayEl}
                 {!isHost && hostCanReceiveDonations && !viewerStreamEnded && !livePipActive ? (
                   <LiveGiftOverlay liveId={liveId} visible />
                 ) : null}

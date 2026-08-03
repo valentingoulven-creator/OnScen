@@ -26,8 +26,16 @@ export function getGoalCurrent(goal: LiveGoal, stats: GoalProgressStats): number
   }
 }
 
+function resolveGoalCurrent(goal: LiveGoal, stats: GoalProgressStats): number {
+  const computed = getGoalCurrent(goal, stats);
+  if (goal.manualCurrent != null && Number.isFinite(goal.manualCurrent)) {
+    return Math.min(goal.target, Math.max(0, goal.manualCurrent));
+  }
+  return computed;
+}
+
 export function withGoalProgress(goal: LiveGoal, stats: GoalProgressStats): LiveGoal {
-  const current = getGoalCurrent(goal, stats);
+  const current = resolveGoalCurrent(goal, stats);
   const completedAt =
     !goal.completedAt && current >= goal.target ? Date.now() : goal.completedAt;
   return { ...goal, current, completedAt };
@@ -56,6 +64,7 @@ export function publicGoalsToLiveGoals(goals: LivePublicGoal[], liveId: string):
     liveId,
     current: 0,
     createdAt: 0,
+    ...(g.displayCurrent != null ? { manualCurrent: g.displayCurrent } : {}),
   }));
 }
 

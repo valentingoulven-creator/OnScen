@@ -13,12 +13,15 @@ import {
   LIVES_COUNTRY_FILTER_ALL,
   setLivesCountryFilter,
 } from '../lib/liveCountry';
+import { pickFollowedActiveLives } from '../lib/followedLives';
 import {
   getLivesGeo,
   MAP_GEO_CHANGED_EVENT,
   setLivesGeo,
   type LivesGeoPrefs,
 } from '../lib/livesGeo';
+import { getDistanceKm } from '../lib/mapMarkerVisibility';
+import { isValidLatLng } from '../lib/mapCoords';
 import {
   getNearbyPanelPreferences,
   isNearbyDistanceFilterActive,
@@ -28,7 +31,7 @@ import {
   sortLivesForNearby,
   type NearbyPanelPreferences,
 } from '../lib/nearbyPanelSettings';
-import { SETTINGS_CHANGED_EVENT } from '../lib/settings';
+import { getNearbyRadiusKm, SETTINGS_CHANGED_EVENT } from '../lib/settings';
 import { FilterIcon } from './FilterIcon';
 import { FollowUserButton } from './FollowUserButton';
 import { MapLocationPicker } from './MapLocationPicker';
@@ -437,21 +440,15 @@ export function LivesBrowseGrid({
   const loadLives = useCallback(() => {
     if (!token) return;
     setLoading(true);
-    const prefs = getNearbyPanelPreferences();
     api
-      .getLives(token, {
-        latitude: geo.latitude,
-        longitude: geo.longitude,
-        radiusKm: geo.radiusKm,
-        distanceFilter: isNearbyDistanceFilterActive(prefs),
-      })
+      .getLives(token, { distanceFilter: false })
       .then((r) => {
-        const active = r.lives.filter((l) => l.isActive);
+        const active = r.lives.filter((l) => l.isActive !== false);
         setLives(active);
         onLivesChange?.(active);
       })
       .finally(() => setLoading(false));
-  }, [token, geo.latitude, geo.longitude, geo.radiusKm, onLivesChange]);
+  }, [token, onLivesChange]);
 
   useVisibleInterval(loadLives, 12_000, isActive);
 
@@ -470,15 +467,23 @@ export function LivesBrowseGrid({
     [lives, countryFilter, showCountryFilter]
   );
 
-  const sortedLives = useMemo(
-    () => sortLivesForNearby(filteredLives, panelPrefs.sortBy),
-    [filteredLives, panelPrefs.sortBy]
+  const suiviLives = useMemo(
+    () => pickFollowedActiveLives(filteredLives, followingIds),
+    [filteredLives, followingIds]
   );
 
-  const suiviLives = useMemo(
-    () => sortedLives.filter((l) => followingIds.has(l.hostId)),
-    [sortedLives, followingIds]
-  );
+  const sortedLives = useMemo(() => {
+    let pool = filteredLives;
+    if (isNearbyDistanceFilterActive(panelPrefs)) {
+      const g = getLivesGeo();
+      const radius = getNearbyRadiusKm();
+      pool = pool.filter((l) => {
+        if (!isValidLatLng(l.latitude, l.longitude)) return false;
+        return getDistanceKm(g.latitude, g.longitude, l.latitude, l.longitude) <= radius;
+      });
+    }
+    return sortLivesForNearby(pool, panelPrefs.sortBy);
+  }, [filteredLives, panelPrefs.sortBy, panelPrefs.filterByDistance, geo]);
 
   const suggestionsLives = useMemo(
     () =>

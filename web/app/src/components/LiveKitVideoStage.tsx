@@ -35,7 +35,7 @@ import {
   LiveVideoStageOverlayLeaveButton,
   LiveVideoStagePlaceholder,
 } from './LiveVideoStagePlaceholder';
-import { LiveTheaterStatusBar, LiveVideoChromeButton, LiveVideoGiftIcon } from './LiveVideoTheaterChrome';
+import { LiveTheaterStatusBar, LiveVideoChromeButton, LiveVideoGiftIcon, LiveTheaterLiveMetaBar } from './LiveVideoTheaterChrome';
 import { useLiveVideoChromeAutoHide } from '../hooks/useLiveVideoChromeAutoHide';
 import {
   LIVE_CAMERA_HOST_LIVEKIT_START,
@@ -420,6 +420,11 @@ export type LiveKitVideoStageProps = {
   hostActionsChrome?: ReactNode;
   /** Spectateur : quitter le live depuis le placeholder théâtre. */
   onLeaveLive?: () => void;
+  liveSessionTitle?: string;
+  liveHostName?: string;
+  liveHostAvatarUrl?: string;
+  liveHostId?: string;
+  onOpenHostProfile?: (userId: string) => void;
 };
 
 export function LiveKitVideoStage({
@@ -458,6 +463,11 @@ export function LiveKitVideoStage({
   onPipOpen,
   hostActionsChrome,
   onLeaveLive,
+  liveSessionTitle,
+  liveHostName,
+  liveHostAvatarUrl,
+  liveHostId,
+  onOpenHostProfile,
 }: LiveKitVideoStageProps) {
   const videoResolution = getLiveVideoResolutionPreset(videoResolutionProp);
   const videoAspectRatio = getLiveVideoAspectRatioPreset(videoAspectRatioProp);
@@ -818,11 +828,9 @@ export function LiveKitVideoStage({
     >
       {pinnedFullscreenActive ? pinnedChatFullscreen : null}
       <div
-        className={
-          pinnedFullscreenActive
-            ? 'live-pinned-chat-fullscreen-stage flex flex-col flex-1 min-h-0 min-w-0 overflow-hidden'
-            : undefined
-        }
+        className={`live-video-theater-body flex flex-col flex-1 min-h-0 min-w-0 w-full overflow-hidden${
+          pinnedFullscreenActive ? ' live-pinned-chat-fullscreen-stage' : ''
+        }`}
       >
       {/* Draggable PiP header — shown only when floating */}
       {videoFloat && (
@@ -849,6 +857,16 @@ export function LiveKitVideoStage({
               {viewerPlaybackPaused ? <LiveVideoPlayIcon /> : <LiveVideoPauseIcon />}
             </button>
           ) : null}
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={videoFloat.onClose}
+            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition text-sm"
+            title={t('live.anchorVideoPip')}
+            aria-label={t('live.anchorVideoPip')}
+          >
+            &#x2199;
+          </button>
           {(!isHost && onLeaveLive) || onDismissPip ? (
             <button
               type="button"
@@ -861,16 +879,6 @@ export function LiveKitVideoStage({
               ×
             </button>
           ) : null}
-          <button
-            type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={videoFloat.onClose}
-            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition text-sm"
-            title={t('live.anchorVideoPip')}
-            aria-label={t('live.anchorVideoPip')}
-          >
-            &#x2199;
-          </button>
         </div>
       )}
 
@@ -932,6 +940,17 @@ export function LiveKitVideoStage({
         ) : null}
 
         {overlay}
+
+        {showVideo && !streamEnded && !videoFloat && liveSessionTitle?.trim() ? (
+          <LiveTheaterLiveMetaBar
+            liveTitle={liveSessionTitle}
+            hostName={liveHostName ?? ''}
+            hostAvatarUrl={liveHostAvatarUrl}
+            hostId={liveHostId}
+            onOpenHostProfile={onOpenHostProfile}
+            visible={chromeVisible}
+          />
+        ) : null}
 
         {!videoFloat && (
         <div

@@ -20,10 +20,18 @@ export function isStoryRingLive(live: Live): boolean {
 
 export type ActiveLiveHostInfo = { liveId: string; liveViewersCount?: number };
 
-export function buildActiveLiveByHost(lives: Live[]): Map<string, ActiveLiveHostInfo> {
+export function buildActiveLiveByHost(
+  lives: Live[],
+  opts?: { storyRingOnly?: boolean }
+): Map<string, ActiveLiveHostInfo> {
+  const storyRingOnly = opts?.storyRingOnly !== false;
   const map = new Map<string, ActiveLiveHostInfo>();
   for (const live of lives) {
-    if (!isStoryRingLive(live)) continue;
+    if (storyRingOnly) {
+      if (!isStoryRingLive(live)) continue;
+    } else if (!isActiveMapLive(live)) {
+      continue;
+    }
     const prev = map.get(live.hostId);
     if (!prev || (live.viewersCount ?? 0) >= (prev.liveViewersCount ?? 0)) {
       map.set(live.hostId, { liveId: live.id, liveViewersCount: live.viewersCount });
