@@ -9,6 +9,7 @@ import { UserReelsSection } from '../components/UserReelsSection';
 import { UserLivesSection } from '../components/UserLivesSection';
 import { UserCompositionsSection } from '../components/UserCompositionsSection';
 import { UserEventsSection } from '../components/UserEventsSection';
+import { UserPostsSection } from '../components/UserPostsSection';
 import { ProfileVisitorActionsMenu } from '../components/ProfileVisitorActionsMenu';
 import { ProfileHeaderSection } from '../components/ProfileHeaderSection';
 import { ProfileStatsRow } from '../components/ProfileStatsRow';
@@ -18,6 +19,7 @@ import { ProfilePhotoViewer } from '../components/ProfilePhotoViewer';
 import { HostRatingBlock } from '../components/HostRatingBlock';
 import { FollowUserButton } from '../components/FollowUserButton';
 import { ensureYoutubeLinkedToJoinSalon } from '../lib/platformConnect';
+import { resolveProfileLiveId } from '../lib/profileLive';
 import { useUserProfile } from '../hooks/useUserProfile';
 import type { FeedPost, NearbyPerson } from '../types';
 
@@ -136,6 +138,8 @@ export function UserProfilePage({
   const currentListening = profile?.currentListening ?? preview?.currentListening;
   const activeSalonId = profile?.salonId ?? preview?.salonId;
   const activeSalonTitle = profile?.salonTitle ?? preview?.salonTitle;
+  const profileIsLiveHost = Boolean(profile?.isLive ?? preview?.isLive);
+  const profileLiveId = resolveProfileLiveId(profile, preview);
 
   const openActiveSalon = () => {
     if (!activeSalonId || !onSelectSalon) return;
@@ -145,6 +149,15 @@ export function UserProfilePage({
     }
     onSelectSalon(activeSalonId, activeSalonTitle, isSelf);
   };
+
+  const liveListening =
+    profile?.liveListening ?? (profileIsLiveHost ? currentListening : undefined);
+  const salonListening =
+    profile?.salonListening ?? (!profileIsLiveHost && activeSalonId ? currentListening : undefined);
+
+  const showLiveChip = Boolean(profileIsLiveHost && profileLiveId && onOpenLive && liveListening);
+  const showSalonChip = Boolean(activeSalonId && onSelectSalon && !profileIsLiveHost);
+  const showSessionChips = showLiveChip || showSalonChip;
 
   const shellClass = mapOverlay
     ? 'absolute inset-x-0 bottom-0 top-[10%] flex flex-col min-h-0 max-h-none overflow-hidden bg-[#0b0b0f] rounded-t-2xl border-t border-[#1e1e2f] shadow-[0_-8px_40px_rgba(0,0,0,0.55)] pointer-events-auto'
@@ -246,7 +259,7 @@ export function UserProfilePage({
                     profile ? (
                       <ProfileStatsRow
                         followers={profile.favoritesCount}
-                        following={undefined}
+                        following={profile.followingCount}
                         thirdValue={profile.stats?.salonsHosted ?? 0}
                       />
                     ) : undefined
@@ -281,35 +294,48 @@ export function UserProfilePage({
                   }
                 />
 
-                {(currentListening || activeSalonId) && (
+                {showSessionChips ? (
                   <div className="px-4 pb-2 max-w-lg mx-auto w-full">
-                    {currentListening ? (
+                    {showLiveChip && liveListening ? (
                       <ProfileCurrentListening
-                        listening={currentListening}
-                        {...(activeSalonId && onSelectSalon
-                          ? {
-                              onClick: openActiveSalon,
-                              clickAriaLabel: 'Rejoindre le salon',
-                            }
-                          : {})}
+                        variant="live"
+                        listening={liveListening}
+                        viewersCount={profile?.liveViewersCount ?? preview?.liveViewersCount}
+                        actionLabel={t('profile.sessionJoin', { defaultValue: 'Rejoindre' })}
+                        onClick={() => onOpenLive!(profileLiveId!)}
+                        clickAriaLabel={t('profile.joinLiveListening', { defaultValue: 'Rejoindre le live' })}
+                        statusActiveLabel={t('profile.liveListeningStatus', { defaultValue: 'En direct' })}
+                        statusPausedLabel={t('profile.liveListeningStatus', { defaultValue: 'En direct' })}
                       />
-                    ) : activeSalonId && onSelectSalon ? (
-                      <button
-                        type="button"
-                        onClick={openActiveSalon}
-                        className="w-full min-h-[44px] rounded-xl border border-purple-500/30 bg-purple-950/30 px-4 py-3 text-left hover:bg-purple-950/45 transition-colors"
-                      >
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-purple-400">
-                          Salon actif
-                        </p>
-                        <p className="text-sm font-semibold text-white truncate">
-                          {activeSalonTitle || 'Salon de musique'}
-                        </p>
-                        <p className="text-xs text-purple-200/80 mt-1">Appuyer pour rejoindre</p>
-                      </button>
+                    ) : showSalonChip ? (
+                      salonListening ? (
+                        <ProfileCurrentListening
+                          variant="salon"
+                          listening={salonListening}
+                          actionLabel={t('profile.sessionJoin', { defaultValue: 'Rejoindre' })}
+                          onClick={openActiveSalon}
+                          clickAriaLabel={t('profile.joinSalonListening', { defaultValue: 'Rejoindre le salon' })}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={openActiveSalon}
+                          className="w-full min-h-[44px] rounded-xl border border-purple-500/30 bg-purple-950/30 px-4 py-3 text-left hover:bg-purple-950/45 transition-colors"
+                        >
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-purple-400">
+                            {t('profile.activeSalonLabel', { defaultValue: 'Salon actif' })}
+                          </p>
+                          <p className="text-sm font-semibold text-white truncate">
+                            {activeSalonTitle || t('profile.defaultSalonTitle', { defaultValue: 'Salon de musique' })}
+                          </p>
+                          <p className="text-xs text-purple-200/80 mt-1">
+                            {t('profile.tapToJoinSalon', { defaultValue: 'Appuyer pour rejoindre' })}
+                          </p>
+                        </button>
+                      )
                     ) : null}
                   </div>
-                )}
+                ) : null}
 
                 <ProfileTabBar
                   active={profileTab}
@@ -330,27 +356,30 @@ export function UserProfilePage({
         {!loading && (profile || preview) && (
           <div className="max-w-lg mx-auto w-full px-4 space-y-5 pt-4">
             {profileTab === 'profil' ? (
-              <UserProfileView
-                profile={profile}
-                preview={preview}
-                displayName={displayName}
-                isSelf={isSelf}
-                isMatched={isMatched}
-                justMatched={justMatched}
-                matchStatus={matchStatus}
-                heartSent={heartSent}
-                heartToast={heartToast}
-                heartAllowed={heartAllowed}
-                heartBlockReason={heartBlockReason}
-                profileIsSingle={profileIsSingle}
-                profileMeetsAge={profileMeetsAge}
-                sending={sending}
-                error={error}
-                onOpenLive={onOpenLive}
-                onOpenSalon={onSelectSalon}
-                onSendHeart={() => void sendHeart()}
-                meConnectedPlatforms={me?.connectedPlatforms}
-              />
+              <>
+                <UserProfileView
+                  profile={profile}
+                  preview={preview}
+                  displayName={displayName}
+                  isSelf={isSelf}
+                  isMatched={isMatched}
+                  justMatched={justMatched}
+                  matchStatus={matchStatus}
+                  heartSent={heartSent}
+                  heartToast={heartToast}
+                  heartAllowed={heartAllowed}
+                  heartBlockReason={heartBlockReason}
+                  profileIsSingle={profileIsSingle}
+                  profileMeetsAge={profileMeetsAge}
+                  sending={sending}
+                  error={error}
+                  onOpenLive={onOpenLive}
+                  onOpenSalon={onSelectSalon}
+                  onSendHeart={() => void sendHeart()}
+                  meConnectedPlatforms={me?.connectedPlatforms}
+                />
+                <UserPostsSection userId={userId} hideSectionTitle />
+              </>
             ) : profileTab === 'reels' ? (
               onOpenReel && (
                 <UserReelsSection

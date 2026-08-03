@@ -9,6 +9,8 @@ interface UserAvatarOnlineProps {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'profile' | 'hero';
   isOnline?: boolean;
   isLive?: boolean;
+  /** Salon d'écoute actif (anneau violet, hors live). */
+  isSalon?: boolean;
   liveViewersCount?: number;
   className?: string;
 }
@@ -33,16 +35,6 @@ const DOT = {
   hero: 'w-4 h-4 border-2',
 };
 
-const LIVE_BADGE = {
-  xs: 'text-[5px] px-0.5',
-  sm: 'text-[6px] px-0.5',
-  md: 'text-[7px] px-1',
-  lg: 'text-[8px] px-1',
-  xl: 'text-[8px] px-1',
-  profile: 'text-[9px] px-1.5',
-  hero: 'text-[9px] px-1.5',
-};
-
 const VIEWER_COUNT = {
   xs: 'text-[8px] min-w-[1rem]',
   sm: 'text-[9px] min-w-[1.1rem]',
@@ -60,6 +52,7 @@ export const UserAvatarOnline = memo(function UserAvatarOnline({
   size = 'md',
   isOnline,
   isLive,
+  isSalon,
   liveViewersCount,
   className = '',
 }: UserAvatarOnlineProps) {
@@ -93,6 +86,8 @@ export const UserAvatarOnline = memo(function UserAvatarOnline({
           ? showViewers
             ? `En live · ${liveViewersCount} spectateurs`
             : 'En live'
+          : isSalon
+            ? 'Salon ouvert'
           : isOnline
             ? 'En ligne'
             : undefined
@@ -111,7 +106,9 @@ export const UserAvatarOnline = memo(function UserAvatarOnline({
           className={`rounded-full ${
             isLive
               ? 'p-[2.5px] bg-gradient-to-br from-red-500 via-rose-500 to-red-600 shadow-[0_0_10px_rgba(239,68,68,0.55)]'
-              : ''
+              : isSalon
+                ? 'p-[2.5px] bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]'
+                : ''
           }`}
         >
           {showInitials ? (
@@ -132,15 +129,7 @@ export const UserAvatarOnline = memo(function UserAvatarOnline({
             />
           )}
         </div>
-        {isLive && (
-          <span
-            className={`absolute -bottom-0.5 left-1/2 -translate-x-1/2 ${LIVE_BADGE[size]} font-extrabold uppercase leading-none bg-red-600 text-white rounded border border-[#12121a] whitespace-nowrap`}
-            aria-hidden
-          >
-            live
-          </span>
-        )}
-        {isOnline && !isLive && (
+        {isOnline && !isLive && !isSalon && (
           <span
             className={`absolute bottom-0 right-0 ${DOT[size]} rounded-full bg-green-500 border-[#12121a]`}
             title="En ligne"

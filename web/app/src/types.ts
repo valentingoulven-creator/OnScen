@@ -908,6 +908,8 @@ export interface User {
   stats?: UserProfileStats;
   /** Nombre d'utilisateurs ayant mis ce profil en favoris (public). */
   favoritesCount?: number;
+  /** Nombre d'hôtes mis en favoris par ce profil (public). */
+  followingCount?: number;
   /** Le visiteur a liké (favori) ce profil. */
   isFavorite?: boolean;
   hostRating?: HostRatingSummary;
@@ -933,6 +935,10 @@ export interface User {
   /** Salon d'écoute actif de l'hôte */
   salonId?: string;
   salonTitle?: string;
+  /** Morceau en cours sur le live (si isLive). */
+  liveListening?: CurrentListening;
+  /** Morceau en cours dans le salon hébergé (si salon actif). */
+  salonListening?: CurrentListening;
   /** Morceau en cours (salon ou live animé). */
   currentListening?: CurrentListening;
   /** Propriétaire du profil uniquement */
@@ -1232,6 +1238,15 @@ export interface LivePublicGoal {
   type: LivePublicGoalType;
   target: number;
   label: string;
+  /** Progression affichée (fixée par l'hôte, optionnel). */
+  displayCurrent?: number;
+}
+
+/** Barre objectif sur la vidéo live (position + visibilité spectateurs). */
+export interface LiveDonationGoalOverlay {
+  visibleToViewers: boolean;
+  xPct: number;
+  yPct: number;
 }
 
 export interface Live {
@@ -1273,6 +1288,8 @@ export interface Live {
   donationOptions?: LiveDonationOption[];
   /** Goals publiés par l'hôte (progression calculée côté client). */
   donationGoals?: LivePublicGoal[];
+  /** Barre objectif sur la vidéo (position + visible spectateurs). */
+  donationGoalOverlay?: LiveDonationGoalOverlay;
   /** Pourboires activés sur ce live (false si l'hôte a lancé sans RIB). */
   tipsEnabled?: boolean;
   /** Catégorie de contenu : musique, danse ou artistique. */
@@ -1528,6 +1545,7 @@ export interface FeedPost {
   userId: string;
   content: string;
   imageUrl?: string;
+  imageUrls?: string[];
   videoUrl?: string;
   createdAt: number;
   author: FeedPostAuthor;

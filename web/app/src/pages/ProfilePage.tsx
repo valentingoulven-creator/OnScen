@@ -30,6 +30,7 @@ import { ProfileReelRecorder } from '../components/ProfileReelRecorder';
 import { UserReelsSection } from '../components/UserReelsSection';
 import { UserCompositionsSection } from '../components/UserCompositionsSection';
 import { UserEventsSection } from '../components/UserEventsSection';
+import { UserPostsSection } from '../components/UserPostsSection';
 import { UserLivesSection } from '../components/UserLivesSection';
 import { CreatorDashboardCard } from '../components/CreatorDashboardCard';
 import { PlatformConnectCard } from '../components/PlatformConnectCard';
@@ -772,35 +773,49 @@ export function ProfilePage({
               <span>{t('profile.editProfile')}</span>
             </button>
           </div>
-          {(user.currentListening || user.salonId) && (
+          {(user.isLive && user.liveId && onOpenLive && (user.liveListening ?? user.currentListening)) ||
+          (user.salonId && onOpenSalon && !user.isLive) ? (
             <div className="px-4 pb-2 max-w-lg mx-auto w-full">
-              {user.currentListening ? (
+              {user.isLive && user.liveId && onOpenLive && (user.liveListening ?? user.currentListening) ? (
                 <ProfileCurrentListening
-                  listening={user.currentListening}
-                  {...(user.salonId && onOpenSalon
-                    ? {
-                        onClick: () => onOpenSalon(user.salonId!, user.salonTitle, true),
-                        clickAriaLabel: 'Ouvrir le salon',
-                      }
-                    : {})}
+                  variant="live"
+                  listening={user.liveListening ?? user.currentListening!}
+                  viewersCount={user.liveViewersCount}
+                  actionLabel={t('profile.sessionJoin', { defaultValue: 'Rejoindre' })}
+                  onClick={() => onOpenLive(user.liveId!)}
+                  clickAriaLabel={t('profile.joinLiveListening', { defaultValue: 'Rejoindre le live' })}
+                  statusActiveLabel={t('profile.liveListeningStatus', { defaultValue: 'En direct' })}
+                  statusPausedLabel={t('profile.liveListeningStatus', { defaultValue: 'En direct' })}
                 />
               ) : user.salonId && onOpenSalon ? (
-                <button
-                  type="button"
-                  onClick={() => onOpenSalon(user.salonId!, user.salonTitle, true)}
-                  className="w-full min-h-[44px] rounded-xl border border-purple-500/30 bg-purple-950/30 px-4 py-3 text-left hover:bg-purple-950/45 transition-colors"
-                >
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-purple-400">
-                    Salon actif
-                  </p>
-                  <p className="text-sm font-semibold text-white truncate">
-                    {user.salonTitle || 'Salon de musique'}
-                  </p>
-                  <p className="text-xs text-purple-200/80 mt-1">Appuyer pour ouvrir</p>
-                </button>
+                user.salonListening ? (
+                  <ProfileCurrentListening
+                    variant="salon"
+                    listening={user.salonListening}
+                    actionLabel={t('profile.sessionOpen', { defaultValue: 'Ouvrir' })}
+                    onClick={() => onOpenSalon(user.salonId!, user.salonTitle, true)}
+                    clickAriaLabel={t('profile.openSalonListening', { defaultValue: 'Ouvrir le salon' })}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onOpenSalon(user.salonId!, user.salonTitle, true)}
+                    className="w-full min-h-[44px] rounded-xl border border-purple-500/30 bg-purple-950/30 px-4 py-3 text-left hover:bg-purple-950/45 transition-colors"
+                  >
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-purple-400">
+                      {t('profile.activeSalonLabel', { defaultValue: 'Salon actif' })}
+                    </p>
+                    <p className="text-sm font-semibold text-white truncate">
+                      {user.salonTitle || t('profile.defaultSalonTitle', { defaultValue: 'Salon de musique' })}
+                    </p>
+                    <p className="text-xs text-purple-200/80 mt-1">
+                      {t('profile.tapToOpenSalon', { defaultValue: 'Appuyer pour ouvrir' })}
+                    </p>
+                  </button>
+                )
               ) : null}
             </div>
-          )}
+          ) : null}
           <ProfileTabBar
             active={profileTab}
             onChange={(id) => {
@@ -873,10 +888,13 @@ export function ProfilePage({
           <UserEventsSection userId={user.id} onOpenPost={onOpenFeedPost} />
         )}
 
-        {profileTab === 'profil' && (
-          <p className="text-[10px] text-gray-600 text-center py-2">
-            {t('profile.memberSince', { date: memberDate })}
-          </p>
+        {profileTab === 'profil' && user && (
+          <>
+            <UserPostsSection userId={user.id} hideSectionTitle onOpenPost={onOpenFeedPost} />
+            <p className="text-[10px] text-gray-600 text-center py-2">
+              {t('profile.memberSince', { date: memberDate })}
+            </p>
+          </>
         )}
         </div>
       </div>
