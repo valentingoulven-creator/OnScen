@@ -1,4 +1,27 @@
-﻿================================================================================
+================================================================================
+MODIF 794 — Outil lettre de soutien BIC (formulaire HTML)
+Date : 2026-07-31
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Simplifier la rédaction des lettres de soutien pour la candidature BIC (Soundy).
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/lettre-soutien-bic-formulaire.html
+ ─────────────────
+ • Formulaire + aperçu live, impression / PDF, copie texte.
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/strategie/lettre-soutien-bic-formulaire.html → nouveau
+
+================================================================================
+Fin — 2026-07-31
+================================================================================
+
+================================================================================
 MODIF 793 — Onboarding profil : type, ville et DOB obligatoires
 Date : 2026-07-30
 ================================================================================
@@ -34958,3 +34981,1074 @@ BUILD (si vérifié)
 Fin MODIF 1277 — 2026-07-30
 ================================================================================
 
+================================================================================
+MODIF 1278 — Connexion Google grisée en production — Soundy Dev
+Date : 2026-07-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En production (getsoundy.com), la connexion Google doit être visible mais
+ grisée et non cliquable, en attendant la validation OAuth Google. msdev et
+ preprod restent fonctionnels pour les tests.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/AuthPage.tsx
+ ─────────────────
+ • `googleOAuthDisabled` quand `VITE_APP_ENV=production`
+ • Bouton « Continuer avec Google » : disabled, opacity/grayscale, pas de redirect
+ • Texte explicatif sous le bouton (i18n)
+
+ web/app/src/locales/fr.json · en.json
+ ─────────────────
+ • `auth.continueWithGoogleDisabledHint`
+
+COMPORTEMENT
+-----
+ • Production (`VITE_APP_ENV=production`) : bouton Google grisé, non cliquable
+ • msdev / localhost : Google OAuth inchangé (actif si backend configuré)
+ • preprod/staging : Google OAuth inchangé
+ • Email/mot de passe, Apple, Face ID : inchangés
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/AuthPage.tsx → disable Google OAuth en prod
+ web/app/src/locales/fr.json → hint désactivé
+ web/app/src/locales/en.json → hint désactivé
+ modification.txt → MODIF 1278
+
+NOTE
+-----
+ ios/apptel importe AuthPage via alias web/app/src — pas de fichier miroir séparé.
+
+================================================================================
+Fin MODIF 1278 — 2026-07-30
+================================================================================
+
+================================================================================
+MODIF 1279 — Présentation produit : inversion slides 9 et 10 — Soundy Dev
+Date : 2026-07-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Inverser l'ordre des slides 9/10 dans la présentation produit Soundy (HTML, PPTX, PDF).
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.html
+ ─────────────────
+ • Slide 9 (data-slide 8) : Reels artistiques (était page 10)
+ • Slide 10 (data-slide 9) : Comment Soundy est rémunéré (était page 9)
+ • Sommaire : items 7/8 inversés (Reels avant Modèle économique)
+
+ commun/docs/strategie/build-produit-presentation.mjs
+ ─────────────────
+ • Slides PPTX 9/10 inversées + sommaire aligné
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.html → ordre slides 9/10
+ commun/docs/strategie/build-produit-presentation.mjs → ordre PPTX
+ commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.pptx → régénéré
+ commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.pdf → régénéré
+ commun/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.print.html → régénéré
+ modification.txt → MODIF 1279
+
+BUILD (si vérifié)
+-----
+ commun/docs/strategie/ → npm run produit && npm run produit:pdf → ✅
+
+================================================================================
+Fin MODIF 1279 — 2026-07-30
+================================================================================
+
+================================================================================
+MODIF 1280 — Live spectateur : bandeau récompenses → bouton chrome Dons — Soundy Dev
+Date : 2026-07-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bandeau horizontal `LiveViewerRewardsStrip` (scroll « Demande de musique 10 € », etc.)
+ encombrait la vue live spectateur. Remplacer par un bouton compact dans le chrome vidéo
+ (top-left, à côté de pause), ouvrant la feuille de don existante.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/LivePage.tsx
+ ─────────────────
+ • Suppression rendu `LiveViewerRewardsStrip` (spectateur).
+ • Prop `onOpenDonation` passée à `LiveVideoStage` et `LiveKitVideoStage`.
+
+ web/app/src/components/LiveVideoStage.tsx
+ web/app/src/components/LiveKitVideoStage.tsx
+ ─────────────────
+ • Prop `onOpenDonation?: () => void` (spectateur uniquement).
+ • Bouton « Don » / icône cadeau après pause dans `div.absolute top-2 left-2`.
+
+ web/app/src/components/LiveVideoTheaterChrome.tsx
+ ─────────────────
+ • `LiveVideoGiftIcon` (SVG partagé pour le bouton chrome).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/LivePage.tsx → retrait strip + câblage openDonSheet
+ web/app/src/components/LiveVideoStage.tsx → bouton don chrome
+ web/app/src/components/LiveKitVideoStage.tsx → bouton don chrome
+ web/app/src/components/LiveVideoTheaterChrome.tsx → icône cadeau
+ modification.txt → MODIF 1280
+
+NOTE
+-----
+ • Vue hôte inchangée (`LiveRewardRequestsStrip` conservé).
+ • `LiveViewerRewardsStrip.tsx` laissé en place (non utilisé) — suppression optionnelle ultérieure.
+ • Test msdev : `/live/prod-seed-salon-beat-castel` connecté en spectateur.
+
+================================================================================
+Fin MODIF 1280 — 2026-07-30
+================================================================================
+
+================================================================================
+MODIF 1281 — Live : chat épinglé visible en plein écran — Soundy Dev
+Date : 2026-07-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En mode live, quand le chat est épinglé à gauche, il disparaît au passage en
+ plein écran (Fullscreen API ou fallback CSS landscape-theater). Le chat détaché
+ (flottant) fonctionnait déjà car rendu à l'intérieur de `.live-video-container`.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/LivePage.tsx
+ ─────────────────
+ • État `videoExpanded` synchronisé via `onExpandedChange`.
+ • Prop `videoExpanded` passée à `RoomTheaterLayout`.
+
+ web/app/src/components/RoomTheaterLayout.tsx
+ ─────────────────
+ • Dock gauche masqué pendant le plein écran ; clone interactif
+   `pinnedChatFullscreenWindow` injecté dans la scène vidéo via `cloneElement`.
+ • Chat flottant inchangé (`floatingChat`).
+
+ web/app/src/components/LiveVideoStage.tsx
+ web/app/src/components/LiveKitVideoStage.tsx
+ ─────────────────
+ • Prop `pinnedChatFullscreen` rendue en colonne gauche dans le conteneur vidéo
+   quand `isVideoExpanded`.
+ • Overlay OBS (`LiveChatVideoOverlay`) désactivé si chat épinglé plein écran.
+
+ web/app/src/index.css
+ ─────────────────
+ • Layout flex row `.live-video-container--pinned-chat-fullscreen` +
+   `.live-pinned-chat-fullscreen-dock` (native FS + landscape-theater).
+
+ web/app/src/lib/mobileSalonLiveSafari.test.ts
+ ─────────────────
+ • Assertions CSS + câblage pinned fullscreen.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/LivePage.tsx → état videoExpanded
+ web/app/src/components/RoomTheaterLayout.tsx → dock épinglé plein écran
+ web/app/src/components/LiveVideoStage.tsx → rendu pinnedChatFullscreen
+ web/app/src/components/LiveKitVideoStage.tsx → rendu pinnedChatFullscreen
+ web/app/src/index.css → CSS colonne gauche plein écran
+ web/app/src/lib/mobileSalonLiveSafari.test.ts → tests
+ modification.txt → MODIF 1281
+
+BUILD (si vérifié)
+-----
+ web/app → npx vitest run mobileSalonLiveSafari → ✅ 9/9
+
+NOTE
+-----
+ • Comportement chat détaché/flottant inchangé.
+ • Test msdev : `/live/prod-seed-salon-beat-castel` — épingler le chat, plein écran.
+
+================================================================================
+Fin MODIF 1281 — 2026-07-30
+================================================================================
+
+================================================================================
+MODIF 1282 — Live : chat flottant uniquement (suppression épinglé) — Soundy Dev
+Date : 2026-07-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le chat live restait visible en permanence via le mode « épinglé à gauche » (colonne
+ dock fixe). L'utilisateur souhaite uniquement le chat détaché/flottant, ouvert et
+ déplaçable à la demande — pas de sidebar chat toujours à l'écran.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/LivePage.tsx
+ ─────────────────
+ • Suppression état `chatPinned`, `readLiveChatPinned`, `toggleChatPin`, `videoExpanded`.
+ • `chatDock="floating"` en permanence (spectateur et hôte).
+ • Popovers participants/VIP dans le header quand le chat est masqué.
+
+ web/app/src/components/RoomTheaterLayout.tsx
+ ─────────────────
+ • Suppression props `chatPinned`, `onToggleChatPin`, `videoExpanded`.
+ • Suppression dock gauche live (`liveLeftPinned`, `useLiveChatDockWidth`, clone plein écran).
+ • Bouton épingler retiré du `FloatingSalonChat` live.
+
+ web/app/src/components/LiveVideoStage.tsx
+ web/app/src/components/LiveKitVideoStage.tsx
+ ─────────────────
+ • Suppression prop/rendu `pinnedChatFullscreen`.
+
+ web/app/src/index.css
+ ─────────────────
+ • Suppression CSS colonne chat épinglé live + plein écran (MODIF 1281).
+
+ web/app/src/lib/mobileSalonLiveSafari.test.ts
+ ─────────────────
+ • Assertions mises à jour : floating only, plus de pinned.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/LivePage.tsx → chat flottant forcé
+ web/app/src/components/RoomTheaterLayout.tsx → simplification live theater
+ web/app/src/components/LiveVideoStage.tsx → retrait pinned fullscreen
+ web/app/src/components/LiveKitVideoStage.tsx → retrait pinned fullscreen
+ web/app/src/index.css → retrait CSS épinglé live
+ web/app/src/lib/mobileSalonLiveSafari.test.ts → tests
+ modification.txt → MODIF 1282
+
+BUILD (si vérifié)
+-----
+ web/app → npx vitest run mobileSalonLiveSafari → ✅ 8/8
+
+NOTE
+-----
+ • Hôte et spectateur : même UX chat flottant (pas de dock gauche).
+ • Test msdev : `/live/prod-seed-salon-beat-castel` — vidéo pleine largeur, 💬 ouvre le chat flottant.
+
+================================================================================
+Fin MODIF 1282 — 2026-07-30
+================================================================================
+
+================================================================================
+MODIF 1283 — Live : bouton « Dépingler » sur chat flottant — Soundy Dev
+Date : 2026-07-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En mode live théâtre, le chat flottant (FloatingSalonChat) n'avait plus de contrôle
+ pour le masquer depuis son en-tête (MODIF 1282 — suppression du dock épinglé).
+ L'utilisateur souhaite un bouton « dépingler » visible dans le header (⠿ 💬 CHAT …)
+ pour fermer l'overlay et revenir à la vidéo seule jusqu'à réouverture via 💬.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/FloatingSalonChat.tsx
+ ios/apptel/src/components/FloatingSalonChat.tsx
+ ─────────────────
+ • Prop `pinned` + libellés contextuels (compactHeader live : « Dépingler le chat »).
+ • État actif ambre quand épinglé ; cible tactile 44×44 px (HEADER_ICON_BTN).
+
+ web/app/src/components/RoomTheaterLayout.tsx
+ ─────────────────
+ • Live théâtre : `pinned` + `onTogglePin={onToggleChat}` sur FloatingSalonChat.
+
+ web/app/src/lib/mobileSalonLiveSafari.test.ts
+ ─────────────────
+ • Test présence du bouton dépingler live théâtre.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/FloatingSalonChat.tsx → pin/unpin overlay live
+ ios/apptel/src/components/FloatingSalonChat.tsx → miroir apptel
+ web/app/src/components/RoomTheaterLayout.tsx → branchement live théâtre
+ web/app/src/lib/mobileSalonLiveSafari.test.ts → test
+ modification.txt → MODIF 1283
+
+BUILD (si vérifié)
+-----
+ web/app → npx vitest run mobileSalonLiveSafari → ✅ 9/9
+
+NOTE
+-----
+ • Dépingler = masquer le chat (même effet que ×) ; réouverture via 💬 du chrome vidéo.
+ • Pas de retour du dock colonne gauche (chat flottant uniquement, MODIF 1282).
+
+================================================================================
+Fin MODIF 1283 — 2026-07-30
+================================================================================
+
+================================================================================
+MODIF 1284 — Live : rétablir chat épinglé colonne gauche — Soundy Dev
+Date : 2026-07-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ MODIF 1282 avait supprimé le dock chat épinglé à gauche (floating-only). L'utilisateur
+ souhaite retrouver le flux épingler → colonne latérale gauche + vidéo à droite ;
+ dépingler → chat flottant ou masqué (comportement détaché conservé).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/LivePage.tsx
+ ─────────────────
+ • État `chatPinned` (persisté `STORAGE_KEYS.liveChatPinned`) + `toggleChatPin`.
+ • `chatDock={chatPinned ? 'left' : 'floating'}` ; `videoExpanded` pour plein écran.
+ • Popovers participants/VIP dans le header quand chat masqué et non épinglé.
+
+ web/app/src/components/RoomTheaterLayout.tsx
+ ─────────────────
+ • Props `chatPinned`, `onToggleChatPin`, `videoExpanded`.
+ • Dock gauche live (`room-theater-chat-dock--live-left`) + clone plein écran
+   `pinnedChatFullscreenWindow` injecté dans la scène vidéo.
+ • FloatingSalonChat : pin/unpin réel (`chatPinned`, `onToggleChatPin`).
+
+ web/app/src/components/LiveVideoStage.tsx
+ web/app/src/components/LiveKitVideoStage.tsx
+ ─────────────────
+ • Prop `pinnedChatFullscreen` — colonne chat visible en plein écran si épinglé.
+ • Overlay OBS désactivé quand chat épinglé plein écran.
+
+ web/app/src/index.css
+ ─────────────────
+ • CSS dock gauche live + `.live-video-container--pinned-chat-fullscreen`.
+
+ web/app/src/lib/mobileSalonLiveSafari.test.ts
+ ─────────────────
+ • Assertions pin/unpin + CSS colonne épinglée.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/LivePage.tsx → état chatPinned + câblage layout
+ web/app/src/components/RoomTheaterLayout.tsx → dock gauche + clone FS
+ web/app/src/components/LiveVideoStage.tsx → pinnedChatFullscreen
+ web/app/src/components/LiveKitVideoStage.tsx → pinnedChatFullscreen
+ web/app/src/index.css → CSS épinglé live
+ web/app/src/lib/mobileSalonLiveSafari.test.ts → tests
+ modification.txt → MODIF 1284
+
+BUILD (si vérifié)
+-----
+ web/app → npx vitest run mobileSalonLiveSafari → ✅ 9/9
+
+NOTE
+-----
+ • Épingler (📌) : colonne chat à gauche ; dépingler : retour flottant (💬 rouvre).
+ • Plein écran + chat épinglé : colonne chat dans le conteneur vidéo.
+ • Test msdev : `/live/prod-seed-salon-beat-castel` — épingler, plein écran, dépingler.
+
+================================================================================
+Fin MODIF 1284 — 2026-07-30
+================================================================================
+
+================================================================================
+MODIF 1285 — Live : vidéo visible avec chat épinglé — Soundy Dev
+Date : 2026-07-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En mode chat épinglé (colonne gauche), la vidéo HLS/LiveKit ne s'affichait plus :
+ seul le chrome « Don » était visible. MODIF 1284 avait réintroduit le dock épinglé
+ sans les règles layout live-left (MODIF 1012 / 1258) : la grille salon 30 % +
+ largeurs `salon-theater-chat-width` écrasaient la scène vidéo.
+
+CAUSE RACINE
+----
+ • Absence de `room-theater-side-row--live-left` → `display: grid` salon appliqué au live.
+ • Largeurs chat salon (240–480 px) réutilisées au lieu de `soundy-live-chat-dock-width`.
+ • Pas de min-height / flex-fill sur `.room-theater-video-stage--live-theater` en mode épinglé.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/RoomTheaterLayout.tsx
+ ─────────────────
+ • Hook `useLiveChatDockWidth` + bornes live dédiées.
+ • Classe `room-theater-side-row--live-left` ; pas de `gridTemplateColumns` en mode épinglé.
+ • `shrink-0` sur le dock live-left ; resize avec clamp live.
+
+ web/app/src/index.css
+ ─────────────────
+ • Flex row `.room-theater-side-row--live-left` (override grille salon sm+).
+ • Largeurs dock live-left étroites (200 px mobile / 260 px desktop).
+ • Scène vidéo flex-fill + min-height mobile en layout épinglé.
+
+ web/app/src/lib/mobileSalonLiveSafari.test.ts
+ ─────────────────
+ • Assertions live-left + hook largeur live.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/RoomTheaterLayout.tsx → layout live-left restauré
+ web/app/src/index.css → CSS vidéo + chat épinglé
+ web/app/src/lib/mobileSalonLiveSafari.test.ts → tests
+ modification.txt → MODIF 1285
+
+BUILD (si vérifié)
+-----
+ web/app → npx vitest run mobileSalonLiveSafari → ✅ 10/10
+
+NOTE
+-----
+ • Chat flottant et plein écran + épinglé inchangés (MODIF 1281/1284).
+ • Test msdev : `/live/prod-seed-salon-beat-castel` — épingler → vidéo à droite visible.
+
+================================================================================
+Fin MODIF 1285 — 2026-07-30
+================================================================================
+
+================================================================================
+MODIF 1286 — Doc onboarding développeur — Soundy Dev
+Date : 2026-07-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Préparer l'arrivée d'un nouveau développeur : point d'entrée unique (setup,
+architecture, conventions, environnements, première semaine) sans dupliquer
+les docs existantes.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/ONBOARDING-DEVELOPPEUR.md
+ ─────────────────
+ • Nouveau guide onboarding FR (12 sections + checklist).
+ • Références vers AGENTS.md, STACK-CIBLE, INFRA, ENVIRONNEMENTS, TODO-MANUAL,
+   SOUNDY-DEV-AGENT, comptes démo msdev, état projet juillet 2026.
+
+ AGENTS.md
+ ─────────────────
+ • Section « Nouveau développeur » avec lien vers ONBOARDING-DEVELOPPEUR.md.
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/ONBOARDING-DEVELOPPEUR.md → doc onboarding (création)
+ AGENTS.md → lien onboarding
+ modification.txt → MODIF 1286
+
+BUILD (si vérifié)
+-----
+ N/A (documentation uniquement)
+
+================================================================================
+Fin MODIF 1286 — 2026-07-30
+================================================================================
+
+================================================================================
+MODIF 1287 — Documents commerciaux sponsors (devis, contrat, reporting) — Soundy Dev
+Date : 2026-07-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Préparer trois modèles commerciaux professionnels pour la vente managed de
+ campagnes sponsoring : devis, contrat type combiné et rapport de performance.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/commercial/
+ ─────────────────
+ • MODELE-DEVIS-SPONSOR.md — modèle de devis avec placeholders annonceur,
+   grille 7 emplacements, formule CPM, packages, conditions commerciales.
+ • CONTRAT-TYPE-SPONSOR.md — devis + 12 articles CGV (paiement, PI, RGPD,
+   résiliation, responsabilité) + disclaimer validation juridique.
+ • REPORTING-SPONSOR-TEMPLATE.md — synthèse KPI, tableaux jour/semaine,
+   répartition geo, ROI, captures, recommandations renouvellement.
+ • README.md — index du dossier, workflow, sources tarifaires.
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/strategie/commercial/MODELE-DEVIS-SPONSOR.md → création
+ commun/docs/strategie/commercial/CONTRAT-TYPE-SPONSOR.md → création
+ commun/docs/strategie/commercial/REPORTING-SPONSOR-TEMPLATE.md → création
+ commun/docs/strategie/commercial/README.md → création
+ modification.txt → MODIF 1287
+
+BUILD (si vérifié)
+-----
+ N/A (documentation uniquement)
+
+================================================================================
+Fin MODIF 1287 — 2026-07-30
+================================================================================
+
+================================================================================
+MODIF 1288 — Dossier avocat (documents à valider) — Soundy Dev
+Date : 2026-07-31
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Regrouper en un seul dossier tous les textes et modèles à faire relire par un
+ avocat (utilisateurs, monétisation, sponsors, RGPD, audit) avant diffusion.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/juridique/dossier-avocat-a-valider/
+ ─────────────────
+ • README.md — guide d’usage, structure, sources canoniques, lacunes connues.
+ • CHECKLIST-VALIDATION-AVOCAT.md — priorités et cases à cocher post-RDV.
+ • 01-commercial-sponsors/ — copies devis, contrat, reporting.
+ • 02-documents-utilisateurs/ — exports Markdown CGU, privacy, mentions, etc.
+ • 03-monetisation/, 04-rgpd-entreprise/, 05-audit-et-preparation/,
+   06-donnees-editeur/, 07-annexes-produit/.
+ commun/docs/juridique/scripts/export-dossier-avocat.mjs
+ ─────────────────
+ • Régénère exports .md depuis web/app/src/content/legal/*.ts + copies statiques.
+ commun/docs/RENDEZ-VOUS-AVOCAT-SOUNDY.md
+ commun/docs/strategie/commercial/README.md
+ ─────────────────
+ • Lien vers le dossier avocat.
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/juridique/ → dossier avocat + script export
+ commun/docs/RENDEZ-VOUS-AVOCAT-SOUNDY.md → lien dossier
+ commun/docs/strategie/commercial/README.md → lien dossier
+ modification.txt → MODIF 1288
+
+BUILD (si vérifié)
+-----
+ N/A (documentation)
+
+================================================================================
+Fin MODIF 1288 — 2026-07-31
+================================================================================
+
+================================================================================
+MODIF 1289 — Dossier avocat : PDF uniquement — Soundy Dev
+Date : 2026-07-31
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le dossier transmis à l'avocat ne doit contenir que des PDF, pas de Markdown
+ ni sources TypeScript.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/juridique/
+ ─────────────────
+ • scripts/build-dossier-avocat.mjs, generate-dossier-avocat-pdfs.mjs — export
+   Markdown intermédiaire + génération Edge headless.
+ • dossier-avocat-a-valider/ — 22 PDF (structure 01–07 + 00-LISEZMOI/CHECKLIST).
+ • DOSSIER-AVOCAT-LISEZMOI.md, CHECKLIST-VALIDATION-AVOCAT.md — sources hors dossier PDF.
+ • package.json (marked), pdf-style.css, README.md.
+ • _build-dossier-avocat/ gitignored.
+ .gitignore → _build-dossier-avocat/
+ commun/docs/RENDEZ-VOUS-AVOCAT-SOUNDY.md, strategie/commercial/README.md → liens PDF.
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/juridique/ → pipeline PDF + dossier nettoyé
+ modification.txt → MODIF 1289
+
+BUILD (si vérifié)
+-----
+ npm run dossier-avocat --prefix commun/docs/juridique → ✅ 22 PDF
+
+================================================================================
+Fin MODIF 1289 — 2026-07-31
+================================================================================
+
+================================================================================
+MODIF 1290 — Réorganisation commun/docs (index, archives, doublons) — Soundy Dev
+Date : 2026-07-31
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Dossier commun/docs encombré : doublons audits v1/v2, HTML intermédiaires,
+ fichiers juridiques et présentations à la racine, brouillons obsolètes.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/README.md
+ ─────────────────
+ • Index par thème (dev, juridique, audit, stratégie, présentations).
+ audit/
+ ─────────────────
+ • README.md · v1 déplacés dans audit/archive/ · AUDIT-PRE-PROD-2026-06-30.md.
+ • Suppression audit-pre-prod-2026.md (doublon antérieur).
+ juridique/
+ ─────────────────
+ • RENDEZ-VOUS-AVOCAT-SOUNDY.md · MENTIONS-LEGALES-DONS.md déplacés ici.
+ presentations/ · administratif/ · reports/archive/
+ ─────────────────
+ • Présentations HTML/PPTX racine · attestation INPI · Sumup/boutons-app archivés.
+ Suppressions / gitignore
+ ─────────────────
+ • loadtest-output.txt · HTML PDF intermédiaires (strategie, e-Soleau).
+ • Chemins export dossier avocat + RUNBOOK + ceoStrategicKnowledge mis à jour.
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/ (structure) · .gitignore · chemins référencés
+ modification.txt → MODIF 1290
+
+BUILD (si vérifié)
+-----
+ npm run dossier-avocat --prefix commun/docs/juridique → ✅ 22 PDF
+
+================================================================================
+Fin MODIF 1290 — 2026-07-31
+================================================================================
+
+================================================================================
+MODIF 1291 — Modèles lettres de soutien Soundy (10 registres) — Soundy Dev
+Date : 2026-07-31
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Fournir dix lettres de soutien génériques (tout type d’artiste) pour dossiers
+ BIC, partenaires ou communication, avec des styles d’écriture distincts.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/LETTRES-SOUTIEN-SOUNDY-MODELES.md
+ ─────────────────
+ • 10 modèles : institutionnel, convivial, pro EN, poétique, entrepreneurial,
+   académique, court RS, émotionnel, associatif, journalistique.
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/strategie/LETTRES-SOUTIEN-SOUNDY-MODELES.md → création
+ modification.txt → MODIF 1291
+
+BUILD (si vérifié)
+-----
+ N/A
+
+================================================================================
+Fin MODIF 1291 — 2026-07-31
+================================================================================
+
+================================================================================
+MODIF 1292 — Lettres de soutien Soundy en .docx — Soundy Dev
+Date : 2026-07-31
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Disposer des dix modèles de lettres de soutien au format Word pour dossiers
+ BIC / partenaires.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/generate-lettres-soutien-docx.mjs
+ commun/docs/strategie/lettres-soutien/*.docx (10 fichiers)
+ commun/docs/strategie/package.json → script lettres-soutien, dep docx
+ LETTRES-SOUTIEN-SOUNDY-MODELES.md → lien dossier .docx
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/strategie/ → génération et sortie .docx
+ modification.txt → MODIF 1292
+
+BUILD (si vérifié)
+-----
+ npm run lettres-soutien --prefix commun/docs/strategie → ✅ 10 .docx
+
+================================================================================
+Fin MODIF 1292 — 2026-07-31
+================================================================================
+
+================================================================================
+MODIF 1293 — TODO-MANUAL revue CTO (2026-07-31) — Soundy Dev
+Date : 2026-07-31
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Mettre à jour le backlog manuel post-audit (prod fermée, Google prod, live QA,
+ juridique PDF, priorités fondateur).
+
+CHANGEMENTS / FIX
+-----
+ TODO-MANUAL.md
+ ─────────────────
+ • Sections prod/accès, juridique/dossiers, re-QA live MODIF 1280–1285.
+ • Chemins commun/docs/juridique et strategie/commercial.
+ • Tableau priorisation CTO + handoff agents.
+
+FICHIERS MODIFIÉS
+-----
+ TODO-MANUAL.md
+ modification.txt → MODIF 1293
+
+BUILD (si vérifié)
+-----
+ N/A
+
+================================================================================
+Fin MODIF 1293 — 2026-07-31
+================================================================================
+
+================================================================================
+MODIF 1294 — Vérification CTO prod (lecture seule) + correction TODO-MANUAL — Soundy Dev
+Date : 2026-07-31
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande : « fait tout les todo que tu peux faire sans moi ». Revue @soundy-cto
+ de TODO-MANUAL.md pour distinguer items déjà résolus mais mal documentés
+ (corrigeables sans le fondateur) de ceux bloqués sur décision/compte externe.
+ Aucune modification de code ni de secret — uniquement lecture (grep local,
+ npm run lint, ssh soundy-prod en lecture, curl API publique).
+
+CHANGEMENTS / FIX
+-----
+ TODO-MANUAL.md
+ ─────────────────
+ • C6 Mentions légales LCEN : ⚠️ Partiel → ✅ Complet (vérifié via
+   GET /api/legal/publisher → complete:true, source legal-publisher.json prod).
+ • ELEV-07 OAuth en mémoire : ⏳ Ouvert → ✅ Résolu (code déjà Redis-backed via
+   lib/optionalRedis.ts + fallback mémoire ; REDIS_URL confirmé présent en prod).
+ • LOOP-01 boucle console : fermé et vérifié (aucun doublon "Sessions live"
+   dans popularInterests.ts).
+ • React Compiler / ESLint : ⚠️ Warn → ✅ 0 warning react-compiler (npm run lint,
+   web/app) ; 8 warnings react-hooks/exhaustive-deps restants (catégorie à part).
+ • NOUVEAU 🔴 : détection Stripe STRIPE_SECRET_KEY=sk_test_... en prod alors que
+   APP_ENV=production et DONATIONS_ENABLED=1 — signalé, AUCUNE bascule effectuée
+   (décision fondateur requise, argent réel en jeu).
+ • F1 alert()/window.confirm() : scope précisé (~80 appels / 20 fichiers, dont
+   ~35 dans DmPage.tsx) — volontairement non traité en autonomie (blast radius
+   trop large sans QA visuelle 390 px) ; plan de migration par lots documenté
+   pour @soundy-dev-agent (ToastProvider à créer + ConfirmModal déjà réutilisable).
+ • Tableau de priorisation et section « Vérifications CTO du 2026-07-31 » ajoutés.
+
+FICHIERS MODIFIÉS
+-----
+ TODO-MANUAL.md → statuts corrigés + nouvelle alerte Stripe test/prod
+ modification.txt → MODIF 1294
+
+BUILD (si vérifié)
+-----
+ web/app → npm run lint → ✅ (8 warnings exhaustive-deps, 0 erreur, 0 warning react-compiler)
+
+================================================================================
+Fin MODIF 1294 — 2026-07-31
+================================================================================
+
+================================================================================
+MODIF 1295 — REFONTE DESIGN DOSSIER AVOCAT + MODELE SPONSOR SANS CPM — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+Demande : @soundy-cto — vérification totale des documents du dossier avocat
+(commun/docs/juridique/dossier-avocat-a-valider) et refonte du design (plus
+professionnel). Contrainte métier : la partie sponsor ne doit pas reposer sur
+un nombre de vues/CPM, Soundy n'ayant pas encore d'utilisateurs au lancement.
+Demande : passer à une offre de sponsoring généraliste, forfaitaire, à la
+semaine, sans CPM pour le moment.
+
+Audit : confirmé qu'aucune logique CPM n'existe côté code (grep backend/src
+« cpm » = 0 résultat) — le modèle CPM n'existait que dans les documents
+commerciaux/juridiques. Changement donc limité à la documentation.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/juridique/pdf-style.css
+ ─────────────────
+ • Refonte complète : palette Soundy (violet #6d28d9), en-tête de document
+   structuré (bandeau catégorie + titre + méta), encart d'avertissement
+   « document indicatif », tables avec en-têtes violets, pied de page,
+   variables CSS, meilleure hiérarchie typographique.
+
+ commun/docs/juridique/scripts/generate-dossier-avocat-pdfs.mjs
+ ─────────────────
+ • wrapHtml() : nouveau gabarit HTML (bandeau marque, catégorie par dossier,
+   titre extrait du Markdown, encart avertissement, pied de page).
+ • Ajout categoryLabelFor() (mapping dossier → libellé de catégorie affiché).
+ • extractTitle() : retire le `# Titre` du Markdown (affiché désormais dans
+   le bandeau) pour éviter le doublon de titre.
+ • printPdf() : ajout du flag --print-to-pdf-no-header (suppression de
+   l'en-tête/pied par défaut Chromium : URL locale, date brute).
+
+ commun/docs/strategie/commercial/MODELE-DEVIS-SPONSOR.md
+ commun/docs/strategie/commercial/CONTRAT-TYPE-SPONSOR.md
+ commun/docs/strategie/commercial/REPORTING-SPONSOR-TEMPLATE.md
+ commun/docs/strategie/ONE-PAGER-SPONSOR-COMMERCIAL.md
+ ─────────────────
+ • Suppression totale du modèle CPM / estimation d'audience / impressions
+   comme base de facturation.
+ • Nouvelle offre unique : « Sponsoring généraliste hebdomadaire » — forfait
+   fixe à la semaine, multi-emplacements en rotation, sans engagement de
+   volume de vues (grille : Semaine Découverte 149 €, Pack 4 semaines 520 €,
+   Offre fondateur 79 €, Emplacement dédié 199 €).
+ • Contrat type : Article 4 réécrit (forfait sans CPM, absence de garantie de
+   vues, compensation uniquement en cas d'interruption technique > 24h) ;
+   Annexe A grille tarifaire sans CPM ; nouvelle clause « Évolution
+   tarifaire » (transition vers un modèle à l'audience annoncée à l'avance,
+   sans effet rétroactif, une fois un volume d'utilisateurs mesurable atteint).
+ • Reporting : recentré sur la confirmation de diffusion (captures d'écran,
+   calendrier hebdo) ; section impressions/CTR/CPM déplacée en indicateurs
+   optionnels non contractuels.
+ • One-pager : tableau comparatif et tarifs alignés sur le forfait sans CPM.
+
+ commun/docs/juridique/CHECKLIST-VALIDATION-AVOCAT.md
+ ─────────────────
+ • Point de vigilance contrat sponsor mis à jour (forfait hebdomadaire sans
+   CPM / absence de garantie de vues, au lieu de « KPI / CPM »).
+
+VÉRIFICATION / RÉGÉNÉRATION
+-----
+ • npm run dossier-avocat --prefix commun/docs/juridique → 22 PDF régénérés
+   avec le nouveau design dans dossier-avocat-a-valider/ (build intermédiaire
+   _build-dossier-avocat/ gitignored).
+ • Rendu vérifié visuellement (capture Edge headless du HTML source du devis
+   sponsor) : bandeau catégorie, titre, encart avertissement, tables violettes
+   conformes au nouveau design.
+
+AUDIT COMPLÉMENTAIRE (lecture seule — pour l'avocat, non modifié)
+-----
+ • LEGAL_REPORT.md, RENDEZ-VOUS-AVOCAT-SOUNDY.md, TODO-MANUAL-extrait, modèles
+   legal-publisher.*.json relus : cohérents avec les changements ci-dessus,
+   aucune référence CPM à corriger côté RGPD/CGU/mentions légales.
+ • commun/docs/juridique/ et commun/docs/strategie/commercial/ restent non
+   versionnés dans Git (`git status` → `??`) — inchangé par cette session,
+   signalé pour suivi (voir échange précédent sur le contenu GitHub).
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/juridique/pdf-style.css → refonte design complète
+ commun/docs/juridique/scripts/generate-dossier-avocat-pdfs.mjs → gabarit HTML + catégories + no-header
+ commun/docs/juridique/CHECKLIST-VALIDATION-AVOCAT.md → mention CPM → forfait
+ commun/docs/strategie/commercial/MODELE-DEVIS-SPONSOR.md → offre forfaitaire sans CPM
+ commun/docs/strategie/commercial/CONTRAT-TYPE-SPONSOR.md → offre forfaitaire sans CPM
+ commun/docs/strategie/commercial/REPORTING-SPONSOR-TEMPLATE.md → reporting sans CPM
+ commun/docs/strategie/ONE-PAGER-SPONSOR-COMMERCIAL.md → tarifs sans CPM
+ commun/docs/juridique/dossier-avocat-a-valider/**/*.pdf → 22 PDF régénérés
+ modification.txt → MODIF 1295
+
+BUILD (si vérifié)
+-----
+ commun/docs/juridique → npm run dossier-avocat → ✅ (22 PDF générés, aucune erreur Edge)
+
+================================================================================
+Fin MODIF 1295 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1296 — SPONSOR PAR EMPLACEMENT + PACKS MULTI — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+Demande : l'offre sponso doit être par emplacement (fil d'actu, bandeau carte,
+icône Sponso carte, reel, onglet Musique) et proposer une offre sur plusieurs
+emplacements — tout en conservant le forfait hebdomadaire sans CPM.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/commercial/MODELE-DEVIS-SPONSOR.md
+ commun/docs/strategie/commercial/CONTRAT-TYPE-SPONSOR.md
+ commun/docs/strategie/commercial/REPORTING-SPONSOR-TEMPLATE.md
+ commun/docs/strategie/ONE-PAGER-SPONSOR-COMMERCIAL.md
+ commun/docs/strategie/commercial/README.md
+ ─────────────────
+ • Catalogue 5 emplacements : feed_inline, map_banner, map_sidebar_events,
+   reels_sponsored, music_tab (forfait HT / semaine : 149 / 129 / 99 / 129 / 119 €).
+ • Packs : Carte 199 €, Actu & Reel 249 €, Musique & Actu 229 €, Complet 499 €.
+ • Suppression de l'offre « généraliste en rotation ».
+ • Reporting et contrat alignés (1 emplacement = 1 diffusion dédiée ; packs listés).
+ • Note music_tab : commercialisé selon dispo technique (pas encore dans admin
+   SponsorPlacement — à brancher produit).
+
+BUILD (si vérifié)
+-----
+ commun/docs/juridique → npm run dossier-avocat → ✅ (22 PDF)
+
+================================================================================
+Fin MODIF 1296 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1297 — SYNC AUTO DOC → GOOGLE DRIVE — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+Demande : à chaque modification des documents du repo, mettre à jour le dossier
+Google Drive (commun/docs, docs/).
+
+CHANGEMENTS / FIX
+-----
+ commun/scripts/sync-docs-gdrive.ps1
+ commun/scripts/watch-docs-gdrive.mjs
+ commun/scripts/install-docs-gdrive-sync.ps1
+ commun/docs/GOOGLE-DRIVE-DOCS-SYNC.md
+ package.json, AGENTS.md
+ ─────────────────
+ • npm run docs:gdrive:sync / watch / install
+ • Watcher Node (debounce 3 s) ; hook git post-commit si docs/ touchés
+ • Exclusion node_modules et youtube-audit-demo-credentials.local.txt
+
+FICHIERS MODIFIÉS
+-----
+ scripts sync + doc GOOGLE-DRIVE-DOCS-SYNC.md → npm scripts docs:gdrive:*
+
+================================================================================
+Fin MODIF 1297 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1297 — DOC JUSTIFICATION TARIFS SPONSOR (COÛTS / POINT MORT) — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+Demande @soundy-cto : document pour justifier les prix sponsor (infra + projection,
+coût dev, couverture minimale de tous les coûts).
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/commercial/JUSTIFICATION-TARIFS-SPONSOR-SOUNDY.md
+ commun/docs/strategie/commercial/README.md
+ ─────────────────
+ • Nouveau doc : coûts infra M0–M24, pro/outils, temps fondateur (45 €/h),
+   coût marginal vs complet, lien avec grille 99–499 €, point mort ~12–16
+   semaines-emplacement/mois ou ~4 packs Complet pour ~2 000 € charges/mois,
+   benchmark marché, sensibilité.
+
+================================================================================
+Fin MODIF 1297 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1298 — PDF JUSTIFICATION TARIFS + SYNTHÈSE BIC — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+CHANGEMENTS
+-----
+ • JUSTIFICATION-TARIFS-SPONSOR-SYNTHESE-BIC.md (1 page)
+ • commercial/generate-tarifs-sponsor-pdf.mjs + npm run tarifs-sponsor-pdf
+ • export dossier avocat → 07-annexes-produit (2 MD + PDF)
+ • PDF commercial/pdf/ + dossier-avocat-a-valider/07-annexes-produit/
+
+================================================================================
+Fin MODIF 1298 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1299 — CINQ DOCUMENTS JURIDIQUES IN-APP (MANQUEMENTS COMPARATIF TI/IG) — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+Comparatif juridique TikTok/Instagram : combler les principaux manquements côté
+documents utilisateurs (règles communauté, branded content, pub, modération/recours,
+droits d'auteur).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/content/legal/communityGuidelines.ts
+ web/app/src/content/legal/brandedContent.ts
+ web/app/src/content/legal/advertisingPolicy.ts
+ web/app/src/content/legal/moderationAppeals.ts
+ web/app/src/content/legal/copyrightNotice.ts
+ web/app/src/content/legal/index.ts, terms.ts, types.ts
+ web/app/src/pages/SettingsPage.tsx + i18n fr/en
+ commun/backend/src/lib/legalConstants.ts (CURRENT_TERMS_VERSION 2026-08-03)
+ commun/docs/juridique/scripts/export-dossier-avocat.mjs
+ commun/docs/juridique/CHECKLIST-VALIDATION-AVOCAT.md
+ ─────────────────
+ • 5 docs exposés Réglages → Légal + export dossier avocat 02-documents-utilisateurs
+ • Fix syntaxe TS apostrophe section « droits d'auteur » (communityGuidelines)
+
+FICHIERS MODIFIÉS
+-----
+ legal/* + settings + backend terms version + export juridique
+
+BUILD (si vérifié)
+-----
+ web/app → npm run build → ✅
+ commun/docs/juridique → npm run dossier-avocat → ✅ (39 PDF)
+
+================================================================================
+Fin MODIF 1299 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1300 — CONTACTS LÉGAUX → admin@getsoundy.com — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+Unifier les adresses de contact affichées (légal, RGPD, droits d'auteur, commercial).
+
+CHANGEMENTS
+-----
+ web/app/src/content/legal/types.ts + fichiers legal (cookies, CGU, communauté)
+ commun/backend/src/lib/legalConstants.ts, legalDocuments.ts
+ Paramètres (mailto), i18n, legal-publisher template/example + msdev local
+ docs stratégie / présentation, geo User-Agent, VAPID défaut
+
+
+================================================================================
+MODIF 1301 — BUGBOT FIXES PUSH + GROUP CHAT — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Revue Bugbot : unregister push sans ownership token ; messages groupe sans
+ sanitize ni plafond longueur (vs DM).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/pgNativePushTokens.ts
+ ─────────────────
+ • deleteNativePushTokenByTokenForUser(token, userId)
+
+ commun/backend/src/routes/nativePush.ts
+ ─────────────────
+ • /native/unregister : DELETE scoping user_id ; 404 si token absent
+
+ commun/backend/src/routes/groups.ts
+ ─────────────────
+ • POST messages : sanitizeChatText + slice(0, 2000) comme dm.ts
+
+FICHIERS MODIFIÉS
+-----
+ pgNativePushTokens.ts, nativePush.ts, groups.ts
+
+================================================================================
+Fin MODIF 1301 — 2026-08-03
+================================================================================
+
+================================================================================
+MODIF 1302 — DOSSIER VALIDATION JURIDIQUE SANS NOM D’APP — Soundy Dev
+Date : 2026-08-03
+================================================================================
+
+OBJECTIF
+----
+Retirer les mentions « Soundy » des documents de vérification / dossier avocat
+(nom commercial en cours de changement).
+
+CHANGEMENTS
+-----
+ commun/docs/juridique/*.md · scripts PDF · pdf-style.css
+ RENDEZ-VOUS-AVOCAT.md · COMPARATIF-JURIDIQUE-TIKTOK-INSTAGRAM.md
+ TODO-MANUAL, commun/docs/README, références croisées
+
+================================================================================
+Fin MODIF 1302 — 2026-08-03
+================================================================================

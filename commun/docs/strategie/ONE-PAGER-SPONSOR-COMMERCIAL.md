@@ -3,109 +3,78 @@
 | | Instagram / TikTok | **Soundy** |
 |---|-------------------|------------|
 | Audience | Généraliste | **Musique live, sorties et événements** |
-| Contexte | Scroll passif | **Carte géolocalisée, salons, lives, agenda 3 jours** |
-| CPM France | 6–18 € | **Dès 3 €** (lancement · palier early-stage) |
+| Contexte | Scroll passif | **Carte géolocalisée, salons, lives, onglet Musique** |
+| Tarification | CPM variable (6–18 € en France) | **Forfait fixe / semaine / emplacement, sans CPM** *(lancement)* |
 | Formats | Interstitiels intrusifs | **Natifs** (badge « Sponsorisé » · DSA) |
 | Géolocalisation | Approximative | **Ville, région, viewport carte** |
 
 ---
 
-## Emplacements disponibles (7 · en production)
+## 5 emplacements · forfait hebdomadaire (sans CPM)
 
-| Emplacement | Surface | Idéal pour |
-|-------------|---------|------------|
-| **Sidebar carte · Sponso** | Pin ✨ sur la carte + carrousel événements sponsorisés | **Soirées bar, concerts, dates** |
-| **Bandeau carte** | Carrousel en tête de la carte | Notoriété locale, ouverture de saison |
-| **Fil d'actualité** | Carte native entre les posts | Annonces, sorties, line-up |
-| **Bandeau stories** | Au-dessus de la barre stories | Promo visuelle légère |
-| **Story sponsorisée** | Plein écran stories | Affiche, visuel événement |
-| **Reel sponsorisé** | Plein écran 9:16 | Clips, aftermovies, teaser DJ set |
-| **Théâtre salon** | Placement immersif en salon d'écoute | Marques partenaires, activation premium |
+Vous choisissez **un ou plusieurs emplacements** ; chaque ligne = **1 format dédié** pour **1 semaine** (ou plus), prix connu à l'avance — **pas de facturation au nombre de vues**.
 
-*Planification par dates · durée configurable · estimation d'audience avant lancement (formule transparente : utilisateurs exposés × jours × CPM ÷ 1 000).*
+| Emplacement | Code | Surface | À partir de (HT / semaine) |
+|-------------|------|---------|----------------------------|
+| **Fil d'actualité** | `feed_inline` | Carte native entre les posts | **149 €** |
+| **Carte · bandeau** | `map_banner` | Carrousel en tête de la carte | **129 €** |
+| **Carte · icône Sponso** | `map_sidebar_events` | Pin ✨ + carrousel sidebar | **99 €** |
+| **Reel sponsorisé** | `reels_sponsored` | Plein écran 9:16 | **129 €** |
+| **Onglet Musique** | `music_tab` | Encart dans l'espace Musique | **119 €** |
 
 ---
 
-## Tarifs indicatifs (France · lancement · 7 jours)
+## Packs multi-emplacements (même semaine)
 
-Grille calculée sur le palier early-stage (base ~20 000 utilisateurs actifs / 30 j · pénétration par emplacement). **Devis personnalisé** selon votre zone (ville, région, France).
+| Pack | Contenu | Prix HT / semaine |
+|------|---------|-------------------|
+| **Pack Carte** | Bandeau + icône Sponso | **199 €** |
+| **Pack Actu & Reel** | Fil d'actu + Reel | **249 €** |
+| **Pack Musique & Actu** | Onglet Musique + Fil d'actu | **229 €** |
+| **Pack Complet** | Les 5 emplacements | **499 €** |
 
-| Offre | Durée | À partir de |
-|-------|-------|-------------|
-| **Sidebar carte · Sponso** | 7 jours | **~150 € HT** |
-| **Reel sponsorisé** | 7 jours | **~150 € HT** |
-| **Bandeau stories** | 7 jours | **~150 € HT** |
-| **Bandeau carte** | 7 jours | **~250 € HT** |
-| **Story sponsorisée** | 7 jours | **~280 € HT** |
-| **Fil d'actualité** | 7 jours | **~525 € HT** |
-| **Théâtre salon** | 7 jours | **~85 € HT** |
-| **Pack Starter** | 7 jours | Sponso + 1 Reel · **199 € HT** |
-
-*Packages Pro Ville, Premium Musique et Takeover (occupation multi-emplacements sur une zone) sur devis.*
+*−10 % sur un même pack pour **4 semaines consécutives**. Offre **sponsor fondateur** : −25 % sur 6 mois (stock limité, avec accord).*
 
 ---
 
-## Cas d'usage · bar / salle / Marie
+## Cas d'usage · bar / salle / label
 
-1. **Créez votre événement** sur Soundy (date, lieu, affiche) — ou nous le paramétrons pour vous.
-2. **Campagne Sidebar carte · Sponso** : pin visible sur la carte + section ✨ en tête de la sidebar « Autour » / « Pays ».
-3. **Les fans à proximité** voient votre soirée dans la fenêtre **3 prochains jours** (filtre carte Événement).
-4. **Option Reel** : teaser 15–60 s pour amplifier la promo avant le jour J.
+1. **Soirée locale** → **Pack Carte** (99 + 129 € regroupés) : pin + bandeau pendant la semaine de l'événement.
+2. **Sortie album** → **Fil d'actu** + **Reel** (Pack Actu & Reel 249 €) ou emplacements séparés.
+3. **Découverte artistes** → **Onglet Musique** seul ou **Pack Musique & Actu**.
 
-> *Exemple : bar 150 places · soirée electro vendredi · Montpellier → pin carte + carrousel Sponso · estimation audience fournie avant paiement.*
+> *Exemple : bar · vendredi · Montpellier → icône Sponso 99 € HT / semaine · diffusion garantie sur le format, sans CPM.*
 
 ---
 
 ## Ce que comprend une campagne
 
-1. **Visibilité** devant une audience musique & sorties — estimation chiffrée avant lancement.
-2. **Transparence** : badge « Sponsorisé » (conformité DSA / RGPD).
-3. **Planification** : dates début / fin · durée d'affichage · zone géographique.
-4. **Ciblage** : France entière, région ou focus ville (viewport carte).
-5. **Accompagnement** : validation logo, bannière, visuel story / Reel · lien billetterie ou site.
+1. **Un emplacement = un format** (créa adaptée, diffusion sur toute la semaine réservée).
+2. **Transparence** : badge « Sponsorisé », **prix fixe**, pas de surprise liée à l'audience.
+3. **Planification** : dates · zone géographique · lien billetterie ou site.
+4. **Confirmation de diffusion** : rapport + captures en fin de campagne.
 
 ---
 
 ## Pour qui ?
 
-- **Bars, clubs et salles** 50 à 500 places
-- **Festivals** et billetteries (early bird, line-up, aftermovie)
-- **Labels indépendants** (sorties, clips, showcases)
-- Marques **boisson, audio, mode** (16–35 ans)
-- **Disquaires** et retail musique
+- **Bars, clubs et salles** · **Festivals** · **Labels** · Marques **boisson / audio / mode** · **Disquaires**
 
 ---
 
-## La plateforme (juillet 2026 · prod)
+## La plateforme (prod)
 
-- Application **en production** sur [getsoundy.com](https://getsoundy.com)
-- **5 espaces** : Actualités · Carte · Direct · Messages · Reels
-- **Carte** : événements (browse 3 jours), salons, lives, filtres Lives / Salon / Événement, vue **globe 3D**
-- Salons d'écoute YouTube synchronisés · Lives vidéo (LiveKit / Cloudflare) · Pourboires **Stripe Connect**
-- **PWA** + applications natives **iOS / Android** (Capacitor)
-- Hébergement **France** (Scaleway) · Conformité **RGPD** · modération & signalement intégrés
-
----
-
-## Offre fondateur · lieux pilotes
-
-> **Sidebar carte · Sponso — 7 jours à 99 € HT** au lieu de ~150 €  
-> Estimation d'audience personnalisée · visuels validés sous 48 h · lancement sous 72 h
-
-*10 places · **Occitanie**, Paris et Lyon en priorité · réservé aux établissements et organisateurs d'événements.*
+[getsoundy.com](https://getsoundy.com) — Actualités · Carte · Direct · Messages · Reels · **Musique** · Lives · RGPD · hébergement France (Scaleway)
 
 ---
 
 ## Contact
 
-**Demandez votre devis** : emplacement souhaité · dates · ville / région · lien billetterie si disponible.
-
 | | |
 |---|---|
-| **Site** | [getsoundy.com](https://getsoundy.com) |
-| **Email** | [contact@getsoundy.com](mailto:contact@getsoundy.com) |
-| **Étapes** | Échange 15 min → estimation audience → devis → campagne live |
+| **Email** | [admin@getsoundy.com](mailto:admin@getsoundy.com) |
+| **Étapes** | 15 min → emplacement(s) ou pack → devis → campagne live |
 
 ---
 
-*Soundy · Document commercial · Juillet 2026 · Tarifs indicatifs palier lancement — devis définitif sur demande*
+*Soundy · Document commercial · Forfait / semaine / emplacement ou pack — sans CPM*

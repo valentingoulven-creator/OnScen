@@ -1,0 +1,584 @@
+{
+  "mentions": {
+    "title": "Mentions légales",
+    "updated": "22 juin 2026",
+    "sections": [
+      {
+        "heading": "Éditeur du site et de l’application",
+        "body": "L’application Soundy et le site associé sont édités par :\n\n{{publisherName}}\n{{legalForm}}\n{{address}}\nSIREN / SIRET : {{siren}}\n{{rcs}}\n{{capital}}\n\nContact : {{contactEmail}}\n\nDirecteur de la publication : {{publicationDirector}}"
+      },
+      {
+        "heading": "Hébergement",
+        "body": "L’hébergement est assuré par :\n{{hostName}}\n{{hostAddress}}\n{{hostPhone}}\nPays : {{hostCountry}}\n\nLes données techniques (logs, adresses IP) peuvent transiter par cet hébergeur."
+      },
+      {
+        "heading": "Activité du service",
+        "body": "Soundy est une application sociale autour de la musique : salons d’écoute géolocalisés, lives, messagerie, carte des utilisateurs et contenus musicaux via YouTube. Soundy n’est pas un service de rencontre sentimental.\n\nDomaine de production : getsoundy.com"
+      },
+      {
+        "heading": "Propriété intellectuelle",
+        "body": "L’ensemble des éléments composant Soundy (textes, interface, logo, charte, code source, sauf composants open source et contenus tiers) est protégé par le droit d’auteur. Toute reproduction ou représentation non autorisée est interdite.\n\nLes marques YouTube, Google et autres mentionnées appartiennent à leurs propriétaires respectifs. Soundy n’est pas affilié, sponsorisé ou approuvé par ces sociétés, sauf accord écrit contraire."
+      },
+      {
+        "heading": "Données personnelles et cookies",
+        "body": "Le traitement des données personnelles est décrit dans la Politique de confidentialité et le document Conformité RGPD accessibles depuis les paramètres de l’application.\n\nL’application utilise le stockage local du navigateur (localStorage) pour conserver le jeton de session, certaines préférences (rayon de recherche, langue, confidentialité) et des réglages d’affichage."
+      },
+      {
+        "heading": "Signalement de contenu illicite",
+        "body": "Conformément à la réglementation applicable, vous pouvez signaler tout contenu illicite via le bouton « Signaler » dans l’application ou par e-mail : {{contactEmail}}, en précisant le contexte (salon, live, message, profil), la nature du contenu et vos coordonnées."
+      },
+      {
+        "heading": "Point de contact DSA (Digital Services Act)",
+        "body": "Conformément au Règlement (UE) 2022/2065 sur les services numériques (Digital Services Act — DSA), un point de contact unique est désigné pour les autorités compétentes des États membres, la Commission européenne et les utilisateurs :\n\nPoint de contact DSA : {{contactEmail}}\n\nVous pouvez soumettre des notifications de contenus illicites ou des réclamations relatives à la modération via cet e-mail ou via le bouton « Signaler » dans l’application.\nDélais de traitement : contenus graves (haine, CSAM, terrorisme) sous 24 h ; autres signalements sous 7 jours ouvrés."
+      },
+      {
+        "heading": "Médiation et litiges",
+        "body": "En cas de litige de consommation, vous pouvez recourir gratuitement à un médiateur de la consommation conformément aux articles L.612-1 et suivants du Code de la consommation, ou à la plateforme européenne de règlement en ligne des litiges : https://ec.europa.eu/consumers/odr/\n\nDroit applicable : droit français. Tribunaux compétents : selon les règles de droit commun, sous réserve des dispositions impératives protectrices du consommateur."
+      }
+    ]
+  },
+  "terms": {
+    "title": "Conditions générales d'utilisation",
+    "updated": "9 juillet 2026",
+    "sections": [
+      {
+        "heading": "1. Objet et acceptation",
+        "body": "Les présentes Conditions générales d'utilisation (« CGU ») régissent l'accès et l'utilisation de l'application Soundy (« l'Application », « le Service »), accessible via navigateur web ou PWA.\n\nEn créant un compte ou en utilisant le Service, vous acceptez sans réserve les CGU, la Politique de confidentialité, les **Règles de la communauté**, les Mentions légales et, le cas échéant, les Conditions relatives aux API YouTube et aux contenus sponsorisés.\n\nSi vous n'acceptez pas ces documents, vous ne devez pas utiliser le Service."
+      },
+      {
+        "heading": "2. Description du Service",
+        "body": "Soundy permet notamment :\n• de visualiser sur une carte des salons d’écoute musicale et des lives à proximité ;\n• de créer ou rejoindre des salons YouTube et d’écouter de façon synchronisée via la plateforme ;\n• d’échanger via chat public (salon, live) et messages privés ;\n• de publier ou consulter des reels, stories et autres contenus visuels, de suivre des utilisateurs, d’envoyer des réactions gratuites, des pourboires volontaires en live ou des abonnements mensuels créateurs / Soundy+ (paiement Stripe, réservé aux 18 ans et plus — voir « Pourboires, abonnements et monétisation »).\n\nSoundy est une plateforme sociale dédiée à la musique et aux arts du spectacle. Les contenus publiés ou diffusés en direct (reels, stories, lives, photos de profil, etc.) doivent avoir un lien direct avec une activité artistique ou créative : chant, musique, danse, interprétation, composition, DJ set, performance scénique, répétition, cours ou démonstration artistique, etc.\n\nLe Service ne constitue pas un service de rencontre, de conseil juridique, médical ou financier, ni une plateforme de streaming généraliste (jeux vidéo, IRL du quotidien, vlogs, talk-shows non musicaux, etc.)."
+      },
+      {
+        "heading": "3. Éligibilité et compte",
+        "body": "Vous devez avoir au moins 13 ans pour créer un compte et utiliser Soundy. Si vous avez entre 13 et 18 ans, vous déclarez avoir l’autorisation de votre représentant légal.\n\nLancer un live (diffusion artistique) est réservé aux utilisateurs de 16 ans et plus.\n\nLes paiements (pourboires, abonnements) et la réception de monétisation en tant que créateur sont réservés aux 18 ans et plus (voir « Pourboires, abonnements et monétisation »).\n\nVous vous engagez à fournir des informations exactes lors de l’inscription et à maintenir la confidentialité de vos identifiants. Toute activité réalisée depuis votre compte est réputée effectuée par vous.\n\nL’éditeur peut suspendre ou supprimer un compte en cas de violation des CGU, sans indemnité, après notification lorsque la loi l’exige."
+      },
+      {
+        "heading": "4. Comportement des utilisateurs",
+        "body": "Vous vous engagez à respecter les **Règles de la communauté** (Paramètres > Légal) et notamment à :\n• respecter les lois applicables et les droits des tiers ;\n• ne pas harceler, menacer, discriminer ou publier de contenus illicites, haineux, pornographiques impliquant des mineurs, ou portant atteinte à la vie privée d’autrui ;\n• ne pas usurper l’identité d’une personne ou d’une entité ;\n• ne pas perturber le Service (spam, bots non autorisés, attaques informatiques) ;\n• ne pas collecter des données d’autres utilisateurs à des fins commerciales non consenties ;\n• publier et diffuser uniquement des contenus conformes à l’orientation artistique de Soundy (voir section 2 et 5).\n\nNe sont notamment pas acceptés sur Soundy : lives, reels, stories ou autres publications de type jeu vidéo, streaming IRL sans lien artistique, vlogs du quotidien, talk-shows ou discussions sans rapport avec la musique ou les arts du spectacle, ainsi que tout contenu qui détourne le Service de sa finalité musicale et artistique.\n\nLes hosts de salons et lives peuvent modérer le chat (suppression de messages, bannissement) dans les limites prévues par l’Application. L’éditeur peut interrompre, masquer ou supprimer tout contenu ou live non conforme, et suspendre le compte concerné."
+      },
+      {
+        "heading": "5. Contenus et musique",
+        "body": "Vous êtes seul responsable des contenus que vous publiez (messages, propositions de morceaux, reels, stories, lives, photos de profil).\n\nOrientation artistique : reels, stories, lives et publications visuelles doivent mettre en avant une activité liée au chant, à la musique, à la danse ou à toute forme d’expression artistique ou de performance scénique. Les contenus de jeu vidéo, IRL sans dimension artistique, vlogs ou formats généralistes non musicaux ne sont pas autorisés et peuvent être retirés sans préavis.\n\nUploads audio (compositions, reels) : vous ne pouvez publier que des créations dont vous êtes l'auteur ou pour lesquelles vous disposez des droits d'exploitation nécessaires. Soundy peut analyser automatiquement les fichiers audio uploadés (empreinte ACRCloud) pour détecter des correspondances avec des morceaux commerciaux protégés et refuser la publication en cas de correspondance.\n\nPour signaler une utilisation non autorisée de votre musique : admin@getsoundy.com (voir aussi le signalement « Droits d'auteur » dans l'application).\n\nLa lecture musicale dans les salons s'effectue via YouTube : vous devez disposer des droits et abonnements nécessaires auprès de Google/YouTube. Soundy ne fournit pas de licence musicale propre et ne remplace pas les conditions d'utilisation de YouTube.\n\nSalons YouTube :\n• La lecture utilise le lecteur officiel YouTube IFrame API ; en production, la vidéo doit rester visible (pas de mode audio seul).\n• L'aperçu d'écoute depuis la carte est limité à 10 minutes par session pour les participants ; ouvrez le salon pour poursuivre.\n\nVous accordez à l'éditeur une licence non exclusive, mondiale et gratuite pour héberger, afficher et diffuser vos contenus dans le cadre du fonctionnement du Service."
+      },
+      {
+        "heading": "6. Géolocalisation et visibilité",
+        "body": "Le Service utilise votre position pour afficher des contenus à proximité. Par défaut, la position affichée aux autres utilisateurs est floutée (environ 50 m). Vous pouvez masquer votre position sur la carte (icône œil barré en haut de l’écran), limiter la précision (ville uniquement) ou refuser le partage de distance via le même menu.\n\nVous restez responsable des risques liés à la divulgation de votre localisation approximative."
+      },
+      {
+        "heading": "7. Messages privés et modération",
+        "body": "Les messages privés et chats peuvent être stockés sur les serveurs du Service pour assurer la délivrabilité et l’historique des conversations.\n\nL’éditeur peut intervenir en cas de signalement d’abus manifeste, sans obligation de surveillance générale et préalable de tous les contenus."
+      },
+      {
+        "heading": "8. Propriété intellectuelle de Soundy",
+        "body": "Soundy, son interface, sa marque et ses éléments originaux restent la propriété de l’éditeur ou de ses concédants. Aucune cession de droits de propriété intellectuelle n’est consentie au-delà d’une licence d’utilisation personnelle, non exclusive et révocable, pour la durée d’utilisation du Service conformément aux CGU."
+      },
+      {
+        "heading": "9. Disponibilité et évolutions",
+        "body": "Le Service est fourni « en l’état ».\n\nL’éditeur peut faire évoluer les fonctionnalités, les CGU et les tarifs éventuels. Les CGU applicables sont celles en vigueur à la date d’utilisation ; en cas de changement substantiel, une information pourra être affichée dans l’Application."
+      },
+      {
+        "heading": "10. Limitation de responsabilité",
+        "body": "Dans les limites autorisées par la loi, l’éditeur n’est pas responsable des dommages indirects, pertes de données, préjudices résultant de l’utilisation de services tiers (YouTube, réseau mobile), ou de contenus publiés par les utilisateurs.\n\nLa responsabilité totale de l’éditeur, si elle devait être engagée, est limitée au montant éventuellement payé par l’utilisateur au cours des douze derniers mois pour le Service, ou à 100 € en l’absence de paiement."
+      },
+      {
+        "heading": "11. Résiliation",
+        "body": "Vous pouvez cesser d’utiliser le Service à tout moment et demander la suppression de votre compte via ${LEGAL_CONTACT_EMAIL}.\n\nL’éditeur peut résilier l’accès en cas de manquement grave ou répété aux CGU."
+      },
+      {
+        "heading": "12. Droit applicable et contact",
+        "body": "Les CGU sont régies par le droit français. Tout litige relève des tribunaux français compétents, sous réserve des règles impératives applicables aux consommateurs.\n\nContact : ${LEGAL_CONTACT_EMAIL}"
+      }
+    ]
+  },
+  "privacy": {
+    "title": "Politique de confidentialité",
+    "updated": "15 juillet 2026",
+    "sections": [
+      {
+        "heading": "6. Sécurité",
+        "body": "Nous mettons en œuvre des mesures appropriées : authentification par jeton (JWT), mots de passe hachés (bcrypt), floutage des coordonnées, contrôles d'accès aux salons sur invitation, chiffrement HTTPS recommandé en production.\n\nAucun système n'étant totalement sécurisé, vous devez protéger vos identifiants et signaler toute compromission à ${LEGAL_PRIVACY_EMAIL}."
+      },
+      {
+        "heading": "7. Vos droits (RGPD)",
+        "body": "Vous disposez des droits suivants, dans les conditions du RGPD :\n\n• Accès et copie de vos données ;\n• Rectification des données inexactes ;\n• Effacement (« droit à l'oubli ») ;\n• Limitation du traitement ;\n• Opposition, notamment pour les traitements fondés sur l'intérêt légitime ;\n• Portabilité des données que vous nous avez fournies, dans un format structuré ;\n• Retrait du consentement lorsque le traitement est fondé sur le consentement, sans affecter la licéité antérieure.\n\nPour exercer vos droits : ${LEGAL_PRIVACY_EMAIL}. Une pièce d'identité pourra être demandée en cas de doute raisonnable sur votre identité.\n\nFonctionnalités disponibles directement dans l'app :\n• Export de vos données (JSON) → Paramètres > Exporter mes données\n• Suppression de votre compte → Paramètres > Supprimer mon compte\n\nRéclamation auprès de la CNIL : www.cnil.fr"
+      },
+      {
+        "heading": "9. Mineurs",
+        "body": "Le Service s'adresse aux personnes de 13 ans et plus. Lors de l'inscription, chaque utilisateur confirme activement avoir au moins 13 ans (case à cocher obligatoire). Les paiements et la monétisation créateur sont réservés aux 18 ans et plus. Nous ne collectons pas sciemment de données concernant des enfants de moins de 13 ans. Si vous êtes parent et pensez qu'un mineur nous a transmis des données, contactez-nous à ${LEGAL_PRIVACY_EMAIL} pour demander la suppression."
+      }
+    ]
+  },
+  "cookies": {
+    "title": "Politique cookies",
+    "updated": "15 juillet 2026",
+    "sections": [
+      {
+        "heading": "1. Qu'est-ce qu'un cookie ?",
+        "body": "Un cookie est un petit fichier texte déposé sur votre terminal (ordinateur, smartphone) lors de la visite d'un site. Soundy utilise également le stockage local du navigateur (localStorage) pour certaines préférences."
+      },
+      {
+        "heading": "2. Cookies strictement nécessaires",
+        "body": "Ces cookies sont indispensables au fonctionnement du service. Ils ne nécessitent pas votre consentement préalable (RGPD / directive ePrivacy).\n\n• soundy_auth : cookie httpOnly sécurisé contenant votre jeton de session web. Durée : session ou 7 jours si « rester connecté ».\n• Préférences essentielles en localStorage : langue, consentement cookies (soundy_cookie_consent_v1).\n\nSur l'application mobile native (Capacitor), la session est stockée dans le Keychain iOS / Keystore Android."
+      },
+      {
+        "heading": "3. Cookies et services tiers (consentement requis)",
+        "body": "Ces services ne sont chargés que si vous choisissez « Tout accepter » dans la bannière cookies :\n\n• Stripe.js : traitement sécurisé des paiements (pourboires, abonnements créateurs) sur le web.\n• YouTube IFrame API : lecteur intégré lorsque vous visionnez du contenu YouTube dans l'application.\n• Sentry : surveillance des erreurs techniques (stack traces anonymisées, session replay masquée) pour améliorer la stabilité de l'application.\n\nVous pouvez retirer votre consentement à tout moment via Paramètres > Préférences cookies."
+      },
+      {
+        "heading": "4. Durée de conservation",
+        "body": "• Cookie de session : supprimé à la fermeture du navigateur (sauf « rester connecté » : 7 jours).\n• Consentement cookies (localStorage) : conservé jusqu'à modification ou effacement du stockage local.\n• Cookies tiers : selon les politiques de Stripe et Google/YouTube."
+      },
+      {
+        "heading": "5. Gérer vos choix",
+        "body": "• Refuser ou accepter les cookies non essentiels via la bannière affichée lors de votre première visite web.\n• Modifier votre choix : Paramètres > Préférences cookies.\n• Effacer les cookies via les paramètres de votre navigateur.\n\nContact : admin@getsoundy.com"
+      }
+    ]
+  },
+  "rgpd": {
+    "title": "Conformité RGPD",
+    "updated": "21 juin 2026",
+    "sections": [
+      {
+        "heading": "1. Engagement",
+        "body": "Soundy s'engage à traiter les données personnelles conformément au Règlement (UE) 2016/679 (RGPD) et à la loi française « Informatique et Libertés ».\n\nCe document complète la Politique de confidentialité en détaillant les traitements principaux, les mesures de conformité et les actions attendues avant une mise en production publique."
+      },
+      {
+        "heading": "2. Registre des activités de traitement (synthèse)",
+        "body": "| Traitement | Finalité | Base légale | Catégories de données | Durée |\n| Comptes utilisateurs | Création et gestion du compte | Contrat (CGU) | Identité, contact, profil | Durée du compte |\n| Géolocalisation | Carte, proximité, salons | Contrat + consentement navigateur | Position, préférences | Session / compte |\n| Salons & lecture | Service cœur | Contrat | Contenu musical, présence | Durée du salon / compte |\n| Chat & MP | Communication | Contrat | Contenu des messages | Historique conversation |\n| Modération | Sécurité | Intérêt légitime | Messages, bans, signalements | Durée nécessaire |\n| Logs techniques | Sécurité, debug | Intérêt légitime | IP, horodatage | 12 mois max (prod.) |\n| OAuth YouTube / Instagram | Liaison compte (prod.) | Contrat / consentement | Identifiant plateforme, jetons | Jusqu'à déconnexion |"
+      },
+      {
+        "heading": "3. Minimisation et privacy by design",
+        "body": "• Position floutée (~50 m) par défaut avant affichage aux autres utilisateurs.\n• Mode fantôme : retrait de la carte « personnes proches ».\n• Option « ville uniquement » sans coordonnées précises pour les autres.\n• Option de ne pas partager la distance en kilomètres.\n• Salons sur invitation : limitation des participants.\n• Pas de profilage publicitaire basé sur les données de navigation dans la version actuelle.\n\n**Décisions automatisées** : des filtres automatiques (modération NSFW, anti-spam) peuvent entraîner un blocage temporaire ou une mise en attente de contenu. Vous pouvez contester via **Recours modération** (Paramètres > Légal). Aucune décision produisant des effets juridiques similaires à un jugement humain sans intervention n'est appliquée au-delà de la modération UGC."
+      },
+      {
+        "heading": "4. Exercice des droits — procédure interne",
+        "body": "Toute demande (accès, rectification, effacement, portabilité, opposition) adressée à ${LEGAL_PRIVACY_EMAIL} doit être traitée dans un délai d'un mois (prolongation possible de deux mois si complexité, avec information de l'utilisateur).\n\nVérification d'identité avant divulgation ou suppression de données sensibles.\n\nEn cas de demande d'effacement : suppression du compte, des messages associés (sous réserve des obligations légales de conservation), et retrait de la carte.\n\nFonctionnalités disponibles dans l'application :\n• Export de vos données (JSON) : Paramètres > Exporter mes données\n• Suppression de compte : Paramètres > Supprimer mon compte\n• Contact RGPD : ${LEGAL_PRIVACY_EMAIL}"
+      },
+      {
+        "heading": "5. Violations de données (data breach)",
+        "body": "En cas de violation de données personnelles susceptible d'engendrer un risque pour les droits et libertés, l'éditeur notifiera la CNIL dans les 72 heures lorsque requis et informera les personnes concernées lorsque le risque est élevé, conformément aux articles 33 et 34 du RGPD."
+      },
+      {
+        "heading": "6. Analyse d'impact (AIPD / DPIA)",
+        "body": "Le traitement de géolocalisation en temps réel et la visibilité sur une carte peuvent nécessiter une analyse d'impact relative à la protection des données (AIPD) avant déploiement à grande échelle, compte tenu des risques de réidentification malgré le floutage.\n\nMesures d'atténuation déjà prévues : floutage, mode fantôme, précision ville, limitation du rayon d'affichage, modération."
+      },
+      {
+        "heading": "7. Sous-traitants et accords",
+        "body": "Avant production, l'éditeur doit :\n• recenser tous les sous-traitants (hébergeur, CDN, e-mail, analytics éventuels) ;\n• signer des accords de traitement (DPA / art. 28 RGPD) ;\n• documenter les transferts hors UE et les garanties associées.\n\n**Liste publique** : voir « Liste des sous-traitants » (Paramètres > Légal).\n\nServices tiers intégrés ou liés : Google/YouTube (API Services), Meta/Instagram, hébergeur Scaleway, CARTO/OSM pour les tuiles carte.\n\nStatut des DPA (process juridique — modèles standard des prestataires) :\n• Scaleway SAS — modèle DPA disponible, signature éditeur requise\n• Cloudflare, Inc. — DPA en ligne accepté à l'inscription\n• Stripe Payments Europe, Ltd — DPA Stripe standard\n• Resend, Inc. — DPA disponible sur demande\n• Sightengine — modération UGC (si activé)"
+      },
+      {
+        "heading": "8. Cookies et consentement",
+        "body": "Les préférences stockées en localStorage pour le fonctionnement essentiel (session, paramètres) relèvent de l'intérêt du service et ne nécessitent pas de bandeau cookies au sens strict si aucun traceur publicitaire tiers n'est déposé.\n\nSi des outils d'audience (ex. Matomo, Google Analytics) sont ajoutés ultérieurement, un mécanisme de consentement conforme (refus aussi simple qu'acceptation) sera mis en place."
+      },
+      {
+        "heading": "9a. Loi sur les services numériques (DSA) — art. 16",
+        "body": "Le DSA (Règlement (UE) 2022/2065) impose aux plateformes hébergeant des contenus générés par des utilisateurs de mettre en place un mécanisme de signalement accessible.\n\nMécanisme en place :\n• Signalements disponibles depuis les contenus (messages, reels, profils) via l'interface de l'application.\n• Section « Signaler un contenu illicite (DSA) » accessible dans Paramètres > Légal & RGPD.\n• Les signalements sont traités par l'équipe de modération via l'espace administrateur (AdminReportsTab).\n\nObligations supplémentaires pour les Very Large Online Platforms (VLOP) — à surveiller si Soundy dépasse 45 millions d'utilisateurs actifs mensuels dans l'UE."
+      },
+      {
+        "heading": "10. Contact",
+        "body": "Questions relatives à la conformité RGPD : ${LEGAL_PRIVACY_EMAIL}"
+      }
+    ]
+  },
+  "apiPlatforms": {
+    "title": "YouTube — conditions des API",
+    "updated": "28 juin 2026",
+    "sections": [
+      {
+        "heading": "1. Rôle de Soundy",
+        "body": "Soundy permet de lier un compte YouTube, d’afficher des métadonnées de morceaux (titre, artiste, miniature) et d’ouvrir la lecture via le lecteur officiel YouTube. Soundy ne stocke ni ne redistribue de fichiers audio en dehors des mécanismes autorisés par Google/YouTube."
+      },
+      {
+        "heading": "2. YouTube / Google — API Services",
+        "body": "Lorsque les API YouTube (YouTube Data API, lecteur embarqué, etc.) sont utilisées, l’utilisation est soumise notamment à :\n\n• YouTube Terms of Service : https://www.youtube.com/t/terms\n• YouTube API Services Terms of Service : https://developers.google.com/youtube/terms/api-services-terms-of-service\n• YouTube API Branding Guidelines : https://developers.google.com/youtube/branding_guidelines\n• Google API Services User Data Policy : https://developers.google.com/terms/api-services-user-data-policy\n• Google Privacy Policy : https://policies.google.com/privacy\n• Conditions d’utilisation des API Google : https://developers.google.com/terms\n\nExigences clés pour les applications utilisant les API Google (résumé) :\n• Fournir une politique de confidentialité claire et un lien vers les CGU de Soundy.\n• Obtenir le consentement de l’utilisateur pour l’accès à ses données Google/YouTube lorsque requis (OAuth scope youtube.readonly).\n• Utiliser les données Google uniquement pour fournir ou améliorer les fonctionnalités visibles par l’utilisateur dans Soundy.\n• Ne pas vendre les données utilisateur obtenues via les API Google.\n• Permettre la révocation de l’accès (déconnexion du compte YouTube dans Soundy).\n• Afficher les attributions YouTube requises (badge ou texte « YouTube », lien « Ouvrir sur YouTube ») lors de l’utilisation du lecteur ou des métadonnées, conformément aux YouTube API Branding Guidelines.\n• Ne pas stocker les données API YouTube au-delà de 24 heures (Soundy applique un cache serveur de 1 heure maximum sur toutes les réponses YouTube Data API v3 : recherche, playlists, éléments de playlist).\n• Ne pas afficher de contenu YouTube dans un player personnalisé contournant le lecteur officiel IFrame API.\n• Ne pas permettre la lecture audio sans afficher le player vidéo YouTube en production (strictCompliance activé en production).\n• Aperçu carte : l’écoute YouTube intégrée depuis la carte est limitée à 10 minutes par session pour les participants non-hôtes ; ouvrir le salon complet permet de poursuivre l’écoute conformément aux ToS YouTube."
+      },
+      {
+        "heading": "3. Données échangées avec YouTube",
+        "body": "Peuvent être traités : identifiant utilisateur Google, jetons d’accès OAuth (en production), métadonnées de lecture (titre, artiste, identifiant vidéo, état de lecture pour synchronisation des salons).\n\nScope OAuth demandé (production) :\n• YouTube : youtube.readonly (listage des playlists privées de l’hôte).\n\nCes données sont traitées par Google selon sa politique. Soundy limite sa conservation aux besoins du Service (jetons chiffrés, révocation à la déconnexion, cache API YouTube 1 h max)."
+      },
+      {
+        "heading": "4. Responsabilité de l’utilisateur",
+        "body": "Vous devez disposer d’un compte Google/YouTube valide et respecter les conditions de la plateforme.\n\nPour héberger un salon YouTube : compte Google/YouTube valide.\n\nToute utilisation illicite du contenu (téléchargement non autorisé, contournement DRM) est interdite et peut entraîner la suspension de votre compte Soundy et de votre compte Google/YouTube."
+      },
+      {
+        "heading": "5. Révocation et suppression",
+        "body": "Vous pouvez déconnecter YouTube depuis les paramètres de profil Soundy. Vous pouvez également révoquer l’accès de Soundy depuis les paramètres de sécurité de votre compte Google.\n\nLa déconnexion supprime l’autorisation de lecture hébergée via YouTube dans les salons que vous animez."
+      },
+      {
+        "heading": "6. Évolutions et conformité produit",
+        "body": "Avant toute mise en production utilisant les API officielles, l’éditeur de Soundy doit :\n• enregistrer le projet auprès de la console développeur Google ;\n• obtenir les quotas et validations requis (audit Google OAuth pour youtube.readonly si nécessaire) ;\n• intégrer les écrans d’autorisation OAuth conformes ;\n• mettre à jour la Politique de confidentialité avec le détail des scopes utilisés.\n\nLes liens vers les documents officiels prévalent en cas de divergence avec ce résumé."
+      }
+    ]
+  },
+  "licenses": {
+    "title": "Licences & crédits",
+    "updated": "3 juin 2026",
+    "sections": [
+      {
+        "heading": "Soundy",
+        "body": "Application Soundy — projet social autour de la musique géolocalisée. Code source et documentation : voir le dépôt du projet (licence à préciser par l’éditeur)."
+      },
+      {
+        "heading": "Cartographie",
+        "body": "Tuiles carte : © CARTO, © OpenStreetMap contributors (ODbL). Attribution requise lors de l’affichage de la carte : https://www.openstreetmap.org/copyright"
+      },
+      {
+        "heading": "Avatars (démo)",
+        "body": "Avatars générés via DiceBear (styles adventurer, etc.) — voir https://www.dicebear.com/licenses"
+      },
+      {
+        "heading": "Musique et médias",
+        "body": "Pochettes et extraits : métadonnées et liens fournis par YouTube ou les utilisateurs. Droits sur les enregistrements : titulaires respectifs."
+      },
+      {
+        "heading": "Bibliothèques open source",
+        "body": "React, Vite, Tailwind CSS, Leaflet, Socket.io client, Express, bcryptjs, jsonwebtoken, TypeScript, et autres dépendances listées dans package.json — chaque composant est soumis à sa licence (MIT, Apache-2.0, BSD, etc.)."
+      },
+      {
+        "heading": "Icônes et polices",
+        "body": "Interface Soundy : polices système et ressources intégrées. Vérifier les licences de toute ressource graphique ajoutée ultérieurement."
+      }
+    ]
+  },
+  "creatorMonetization": {
+    "title": "Pourboires, abonnements et monétisation créateurs",
+    "updated": "7 juin 2026 (seuils d’âge)",
+    "sections": [
+      {
+        "heading": "1. Nature des paiements",
+        "body": "Les montants versés via la fonction « Pourboire » ou « Don » pendant un live, ainsi que les abonnements mensuels à un créateur ou à Soundy+, sont des gratifications volontaires de soutien au créateur ou à la plateforme.\n\nIl ne s’agit pas de dons à une association ou à un organisme à but non lucratif ouvrant droit à réduction ou crédit d’impôt au sens des articles 200 et 238 bis du Code général des impôts.\n\nSoundy agit en qualité d’intermédiaire technique ; le bénéficiaire du pourboire est l’hôte du live concerné ; le bénéficiaire de l’abonnement créateur est le profil concerné."
+      },
+      {
+        "heading": "2. Environnement de test",
+        "body": "Les paiements sont traités via Stripe en mode production sécurisé. Aucun paiement réel n’est effectué lors de tests internes. Des plafonds journaliers peuvent s’appliquer selon la configuration de la plateforme."
+      },
+      {
+        "heading": "3. Paiements en production",
+        "body": "En production, les pourboires sont traités via Stripe Payment Intents ; les abonnements récurrents via Stripe Checkout (mode subscription) et Stripe Billing.\n\nLe numéro de carte, la date d’expiration et le cryptogramme (CVV) ne transitent jamais par les serveurs Soundy : la saisie s’effectue via Stripe.js, Stripe Checkout ou le portail client Stripe, avec authentification forte (DSP2 / SCA) lorsque requis.\n\nLes montants sont exprimés en euros (EUR). Des frais de traitement peuvent être appliqués par Stripe et, le cas échéant, par votre établissement bancaire."
+      },
+      {
+        "heading": "4. Âge minimum et consentement",
+        "body": "Compte Soundy : à partir de 13 ans (voir CGU).\n\nLancer un live (contenu artistique) : à partir de 16 ans.\n\nEffectuer un pourboire payant ou souscrire un abonnement : à partir de 18 ans.\n\nRecevoir des pourboires ou abonnements en tant que créateur : à partir de 18 ans.\n\nEn validant un paiement, vous confirmez remplir la condition d’âge ou disposer de l’autorisation légale requise pour utiliser un moyen de paiement."
+      },
+      {
+        "heading": "5. Abonnements récurrents",
+        "body": "Les abonnements sont facturés mensuellement jusqu’à résiliation. Vous pouvez gérer ou annuler votre abonnement via le portail client Stripe (production) ; l’accès aux avantages liés au statut supporter reste actif jusqu’à la fin de la période en cours.\n\nLes paliers et tarifs (ex. Supporter 4,99 €/mois, Super fan 9,99 €/mois, Soundy+) sont configurables par l’éditeur et affichés avant validation.\n\nUne commission plateforme distincte peut être prélevée sur les abonnements créateurs (pourcentage configurable via SUBSCRIPTION_PLATFORM_COMMISSION_PERCENT, documenté dans l’application)."
+      },
+      {
+        "heading": "5 bis. Commission sur les pourboires live",
+        "body": "Sur chaque pourboire payant en production, Soundy prélève une commission plateforme de 30 % par défaut (variable DONATION_PLATFORM_FEE_PERCENT).\n\nExemple pour un pourboire de 10 € : commission Soundy 3 €, part créateur estimée 7 € avant frais de traitement Stripe (modèle Stripe Connect).\n\nLa répartition (montant, commission Soundy, net créateur estimé, mention des frais Stripe) est affichée avant validation du paiement.\n\nLes pourboires ne constituent pas des dons associatifs ouvrant droit à reçu fiscal."
+      },
+      {
+        "heading": "6. Montants, plafonds et remboursements",
+        "body": "Pourboires : montant libre entre 1 € et 100 € par opération (sauf modification par l’éditeur).\n\nAbonnements : paliers mensuels affichés dans l’interface.\n\nLes remboursements sont examinés au cas par cas conformément aux CGU, au droit de la consommation et à la politique Stripe. Les pourboires et abonnements validés ne sont en principe pas remboursables sauf erreur manifeste, fraude ou obligation légale.\n\nL’éditeur peut désactiver la fonctionnalité, plafonner les montants ou suspendre un compte en cas d’abus ou de fraude."
+      },
+      {
+        "heading": "7. Données et sécurité",
+        "body": "Soundy ne conserve pas les numéros de carte complets ni les CVV. Seuls des identifiants de transaction Stripe (PaymentIntent, Subscription, Customer) et les montants sont enregistrés pour assurer le crédit du soutien et la traçabilité comptable.\n\nLes logs techniques ne contiennent pas de PAN (numéro de carte).\n\nPour l’exercice de vos droits sur les données liées au paiement, contactez également Stripe conformément à sa politique de confidentialité."
+      },
+      {
+        "heading": "8. Réclamations et contact",
+        "body": "Pour toute question relative aux pourboires ou abonnements : ${LEGAL_CONTACT_EMAIL}.\n\nConditions Stripe (consommateurs) : https://stripe.com/fr/legal/consumer\n\nEn cas de litige de consommation, les règles des CGU (droit français, médiation) s’appliquent."
+      }
+    ]
+  },
+  "communityGuidelines": {
+    "title": "Règles de la communauté",
+    "updated": "3 août 2026",
+    "sections": [
+      {
+        "heading": "1. Objet",
+        "body": "Les présentes Règles de la communauté complètent les Conditions générales d'utilisation (CGU). Elles décrivent ce qui est autorisé ou interdit sur Soundy (getsoundy.com) pour préserver un environnement centré sur la **musique, les arts du spectacle et les sorties**.\n\nEn cas de contradiction, les CGU prévalent. Tout manquement peut entraîner avertissement, restriction de fonctionnalités, retrait de contenu ou suspension de compte."
+      },
+      {
+        "heading": "2. Contenus autorisés",
+        "body": "Soundy est une plateforme **musique & live** : chant, instruments, DJ set, danse, performance scénique, promotion d'événements musicaux, salons d'écoute, reels et lives artistiques, partage de sorties et d'actualités liées à la scène.\n\nLes contenus doivent respecter la loi française et européenne, les droits des tiers et la dignité des personnes."
+      },
+      {
+        "heading": "3. Contenus interdits",
+        "body": "Sont notamment interdits :\n\n• **Violence & incitation** : menaces, glorification de violences, terrorisme, automutilation.\n• **Haine & discrimination** : propos ou symboles haineux (origine, religion, genre, orientation, handicap, etc.).\n• **Contenus sexuels** : nudité explicite, contenus impliquant des mineurs (tolérance zéro — signalement aux autorités).\n• **Harcèlement** : intimidation, stalking, doxxing, chantage.\n• **Droit d'auteur** : musique, vidéos ou visuels sans droits (voir Politique droits d'auteur).\n• **Arnaques & spam** : phishing, faux profils, bots, publicité non déclarée (voir Contenus sponsorisés).\n• **Détournement du service** : jeux vidéo, IRL sans dimension artistique, vlogs non musicaux, contenus généralistes type réseau social généraliste."
+      },
+      {
+        "heading": "4. Lives, reels et stories",
+        "body": "• Les lives sont réservés aux **16 ans et plus** (CGU).\n• Pas de contenu dangereux ( défis dangereux, usage irresponsable d'armes ou substances ).\n• Pas de diffusion de concerts ou enregistrements protégés sans autorisation.\n• Modération live : l'hôte et Soundy peuvent couper un live non conforme."
+      },
+      {
+        "heading": "5. Messages privés & géolocalisation",
+        "body": "• Pas de sollicitations commerciales massives en DM.\n• Ne pas utiliser la carte pour harceler ou traquer une personne.\n• Respecter le mode fantôme et les paramètres de confidentialité d'autrui."
+      },
+      {
+        "heading": "6. Contenus sponsorisés et partenariats",
+        "body": "Tout contenu rémunéré ou fourni par une marque doit être **clairement identifié** (ex. mention « Sponsorisé », « Partenariat rémunéré »). Voir le document **Contenus sponsorisés et partenariats** dans Paramètres > Légal.\n\nLes campagnes achetées directement auprès de Soundy (annonceurs B2B) affichent le badge « Sponsorisé » géré par la plateforme."
+      },
+      {
+        "heading": "7. Signalement & modération",
+        "body": "Signalez tout contenu via **Signaler** dans l'app ou ${LEGAL_CONTACT_EMAIL}.\n\nSoundy peut retirer un contenu, limiter sa visibilité ou suspendre un compte. Vous pouvez demander un **recours** (voir Modération et recours).\n\nSoundy n'a pas l'obligation de surveiller l'intégralité des contenus en amont ; des outils automatiques (modération image/vidéo, empreinte audio) peuvent être utilisés."
+      },
+      {
+        "heading": "8. Contact",
+        "body": "Questions : ${LEGAL_CONTACT_EMAIL}"
+      }
+    ]
+  },
+  "brandedContent": {
+    "title": "Contenus sponsorisés et partenariats",
+    "updated": "3 août 2026",
+    "sections": [
+      {
+        "heading": "1. Objet",
+        "body": "Ce document s'applique lorsque vous publiez sur Soundy un contenu **réalisé pour ou avec une marque, un lieu, un label ou un annonceur**, en échange d'une contrepartie (argent, produits, invitation, visibilité contractuelle), que la publication soit rémunérée par Soundy ou directement par le partenaire."
+      },
+      {
+        "heading": "2. Obligation de transparence",
+        "body": "Vous devez **informez clairement** le public :\n\n• Dans la **légende, le titre ou la description** : mentions du type « Sponsorisé », « En partenariat avec [marque] », « Publicité » ou « Contenu promotionnel ».\n• Pour les **lives** : annonce verbale ou texte visible en début de diffusion lorsque le live est rémunéré par un partenaire.\n• Conformité **ARPP** (France) et **DSA** : pas de dissimulation du caractère commercial.\n\nSoundy peut exiger la modification ou le retrait d'un contenu dont l'étiquetage est insuffisant."
+      },
+      {
+        "heading": "3. Contenu autorisé",
+        "body": "• Promotion de **sorties, concerts, festivals, sorties d'album**, lieux musicaux, produits liés à la musique ou à la fête **dans le respect de la loi** (alcool : public majeur, pas d'incitation à l'abus ; jeux d'argent : uniquement opérateurs agréés, interdit aux mineurs).\n• Respect des **Règles de la communauté** et des CGU.\n• Vous devez disposer des **droits** sur les visuels, musiques et marques affichés."
+      },
+      {
+        "heading": "4. Contenu interdit",
+        "body": "• Fausses déclarations (avis non sincères, témoignages inventés).\n• Promotion de produits ou services **interdits** sur Soundy (voir Politique publicitaire).\n• Contournement des campagnes Soundy (sponsorisation non déclarée d'un annonceur qui devrait passer par un contrat Soundy lorsque applicable).\n• Ciblage ou contenu inapproprié pour les **mineurs** lorsque le contenu est accessible à un public 13+."
+      },
+      {
+        "heading": "5. Données & mesure",
+        "body": "Si une marque vous demande des statistiques (vues, clics), ne communiquez que des données **autorisées** par Soundy et la réglementation. Ne transmettez pas de données personnelles d'autres utilisateurs."
+      },
+      {
+        "heading": "6. Campagnes via Soundy (annonceurs B2B)",
+        "body": "Les annonceurs qui achètent des emplacements natifs (fil, carte, reels, etc.) passent par un **contrat avec Soundy**. Le badge « Sponsorisé » est affiché par la plateforme. Les créateurs **n'ont pas** à dupliquer l'étiquetage pour ces emplacements, sauf s'ils republient le contenu ailleurs sur Soundy en dehors de l'emplacement acheté."
+      },
+      {
+        "heading": "7. Sanctions",
+        "body": "Non-respect : retrait de contenu, démonétisation, suspension. En cas de pratique commerciale trompeuse, Soundy peut signaler aux autorités compétentes."
+      },
+      {
+        "heading": "8. Contact",
+        "body": "Questions partenariats : ${LEGAL_CONTACT_EMAIL}"
+      }
+    ]
+  },
+  "advertisingPolicy": {
+    "title": "Politique publicitaire",
+    "updated": "3 août 2026",
+    "sections": [
+      {
+        "heading": "1. Objet",
+        "body": "Cette politique s'applique aux **annonces et contenus sponsorisés** diffusés par Soundy (badge « Sponsorisé ») et aux exigences minimales pour les **contenus promotionnels publiés par les utilisateurs** (voir Contenus sponsorisés et partenariats).\n\nElle complète les contrats B2B annonceurs (devis, CGV annonceurs)."
+      },
+      {
+        "heading": "2. Formats concernés",
+        "body": "• Emplacements natifs : fil d'actualité, carte (bandeau, icône Sponso), reels sponsorisés, onglet Musique (selon disponibilité).\n• Contenus marque publiés par les créateurs avec contrepartie."
+      },
+      {
+        "heading": "3. Contenus publicitaires interdits ou restreints",
+        "body": "**Interdits** (liste non exhaustive) :\n• Contenu illégal, haineux, diffamatoire, pornographique, exploitant des mineurs.\n• Arnaques, malware, phishing, crypto non régulée, jeux d'argent non agréés.\n• Médicaments sur ordonnance, tabac, armes, contrefaçons.\n• Publicité politique électorale non conforme à la loi française.\n\n**Restreints** (validation Soundy + secteur ARPP) :\n• **Alcool** : public majeur, pas d'incitation à l'abus, mentions légales françaises (« L'abus d'alcool est dangereux pour la santé »).\n• **Jeux et paris** : opérateurs agréés ANJ uniquement, interdiction mineurs.\n• **Diététique / santé** : allégations vérifiables, pas de promesses médicales non autorisées."
+      },
+      {
+        "heading": "4. Transparence",
+        "body": "• Toute annonce Soundy affiche le label **« Sponsorisé »** (DSA).\n• Pas de pratiques trompeuses (fausses reviews, faux comptes, clickbait mensonger).\n• Les annonceurs garantissent disposer des droits sur les créations transmises."
+      },
+      {
+        "heading": "5. Ciblage",
+        "body": "• Ciblage géographique (ville, région, France) selon contrat.\n• Soundy **ne vend pas** de données nominatives utilisateurs aux annonceurs.\n• Pas de ciblage sensible interdit (ex. exploitation de données de santé ou d'enfants)."
+      },
+      {
+        "heading": "6. Modération & refus",
+        "body": "Soundy se réserve le droit de **refuser, suspendre ou retirer** une annonce non conforme, sans remboursement si le refus est imputable à l'annonceur (contenu illicite ou non conforme à cette politique)."
+      },
+      {
+        "heading": "7. Contact commercial",
+        "body": "Campagnes B2B : admin@getsoundy.com"
+      }
+    ]
+  },
+  "moderationAppeals": {
+    "title": "Modération et recours",
+    "updated": "3 août 2026",
+    "sections": [
+      {
+        "heading": "1. Principes",
+        "body": "Soundy modère les contenus signalés et peut agir **sans surveillance générale préalable** de tous les contenus (LCEN / DSA).\n\nDécisions possibles : aucune suite, avertissement, retrait de contenu, restriction de fonctionnalités (live, DM, visibilité), suspension temporaire ou définitive de compte."
+      },
+      {
+        "heading": "2. Motifs fréquents",
+        "body": "• Violation des **Règles de la communauté** ou des CGU.\n• Signalement **DSA** (contenu illicite).\n• **Droits d'auteur** (voir Politique droits d'auteur).\n• Comportement frauduleux, spam, sécurité du Service.\n• Contenu **non musical / non artistique** (détournement du Service)."
+      },
+      {
+        "heading": "3. Décisions automatisées",
+        "body": "Soundy peut utiliser des **outils automatiques** (modération image/vidéo, détection audio, anti-spam) pour pré-modérer ou signaler des contenus. Une intervention humaine intervient pour les sanctions de compte et les cas contestés lorsque nécessaire.\n\nConformément au RGPD, vous pouvez contester une décision fondée sur un traitement automatisé en contactant ${LEGAL_PRIVACY_EMAIL}."
+      },
+      {
+        "heading": "4. Demander un recours",
+        "body": "Si vous estimez qu'une sanction (retrait, restriction, suspension) est une **erreur** :\n\n1. Envoyez un e-mail à **${LEGAL_CONTACT_EMAIL}** avec l'objet « Recours modération ».\n2. Indiquez votre **pseudo**, la **date** et la **nature** de la mesure.\n3. Expliquez **pourquoi** le contenu ou le compte devrait être rétabli.\n\n**Délai de réponse visé :** 14 jours ouvrés (peut être plus long en période de forte activité).\n\nSoundy peut maintenir la mesure si la violation est avérée ou en cas de risque pour les utilisateurs."
+      },
+      {
+        "heading": "5. Signalements DSA",
+        "body": "Pour contester une décision relative à un **signalement de contenu illicite**, précisez-le dans votre recours. Soundy fournira une motivation succincte lorsque la réglementation l'exige.\n\nPoint de contact DSA : voir Mentions légales."
+      },
+      {
+        "heading": "6. Autorités",
+        "body": "Soundy coopère avec les autorités compétentes (dont PHAROS pour contenus particulièrement graves) conformément à la loi."
+      }
+    ]
+  },
+  "copyrightNotice": {
+    "title": "Politique droits d'auteur et retrait de contenus",
+    "updated": "3 août 2026",
+    "sections": [
+      {
+        "heading": "1. Respect des droits",
+        "body": "Soundy respecte les droits d'auteur, droits voisins et marques. Les utilisateurs ne doivent publier que des contenus dont ils détiennent les droits ou une autorisation d'exploitation.\n\nLa lecture dans les salons via **YouTube IFrame API** est soumise aux conditions YouTube. Les **uploads** (compositions, reels) peuvent être analysés automatiquement (empreinte audio type ACRCloud) pour détecter des correspondances avec des enregistrements commerciaux."
+      },
+      {
+        "heading": "2. Signaler une atteinte",
+        "body": "Si vous estimez qu'un contenu sur Soundy porte atteinte à vos droits, contactez :\n\n**${COPYRIGHT_CONTACT_EMAIL}**\n\nOu utilisez la catégorie **« Droits d'auteur »** dans **Signaler** (application).\n\nVotre notification doit contenir, dans la mesure du possible :\n• Vos coordonnées (nom, e-mail, qualité : titulaire ou mandataire).\n• Identification de l'œuvre protégée.\n• URL ou description précise du contenu sur Soundy (profil, reel, live, message).\n• Déclaration de bonne foi que l'usage n'est pas autorisé.\n• Déclaration sur l'honneur de l'exactitude des informations."
+      },
+      {
+        "heading": "3. Traitement des notifications",
+        "body": "Soundy examine les notifications **dans un délai raisonnable** (objectif : 7 jours ouvrés ; contenus graves traités en priorité).\n\nMesures possibles : retrait ou blocage de l'accès au contenu, avertissement ou suspension du compte récidiviste, conservation de logs pour litiges.\n\nSoundy n'est pas juge du fond des litiges de propriété intellectuelle ; en cas de contestation sérieuse, les parties sont invitées à se rapprocher amiablement ou devant les tribunaux compétents."
+      },
+      {
+        "heading": "4. Contre-notification (utilisateur)",
+        "body": "Si votre contenu a été retiré et que vous estimez qu'il s'agit d'une erreur ou que vous disposez d'une autorisation, vous pouvez envoyer une **contre-notification** à ${COPYRIGHT_CONTACT_EMAIL} en expliquant les motifs et, le cas échéant, en joignant les preuves de licence.\n\nSoundy peut restaurer le contenu si la situation le justifie, sans préjuger du litige entre parties."
+      },
+      {
+        "heading": "5. Comptes récidivistes",
+        "body": "Soundy peut **fermer définitivement** les comptes ayant fait l'objet de retraits répétés pour atteinte aux droits d'auteur, conformément aux CGU."
+      },
+      {
+        "heading": "6. Contact général",
+        "body": "Autres signalements : ${LEGAL_CONTACT_EMAIL}"
+      }
+    ]
+  },
+  "minorsPolicy": {
+    "title": "Protection des mineurs et adolescents",
+    "updated": "3 août 2026",
+    "sections": [
+      {
+        "heading": "1. Tranches d'âge",
+        "body": "• **13 ans minimum** pour créer un compte (confirmation à l'inscription).\n• **13–17 ans** : déclaration d'autorisation du représentant légal recommandée (CGU).\n• **16 ans minimum** pour **lancer un live** (diffusion artistique).\n• **18 ans minimum** pour **paiements** (pourboires, abonnements) et **recevoir** de la monétisation créateur.\n\nSoundy ne collecte pas sciemment de données d'enfants **de moins de 13 ans**."
+      },
+      {
+        "heading": "2. Fonctionnalités sensibles",
+        "body": "• **Géolocalisation** : la position est floutée par défaut (~50 m) ; les mineurs doivent être sensibilisés aux risques de partage de localisation (voir CGU §6).\n• **Messages privés** : disponibles selon le produit ; les parents sont invités à dialoguer avec leur enfant sur les contacts en ligne.\n• **Lives & reels** : orientation artistique obligatoire ; modération renforcée sur signalements impliquant des mineurs."
+      },
+      {
+        "heading": "3. Contenus inacceptables impliquant des mineurs",
+        "body": "Tolérance **zéro** pour :\n• Contenu sexuel impliquant un mineur (CSAM) — suppression immédiate, signalement aux autorités, conservation des logs pour enquête.\n• Grooming, sollicitation, extorsion.\n• Exploitation ou mise en danger d'un mineur.\n\nUtilisez **Signaler** en urgence ou contactez ${LEGAL_CONTACT_EMAIL}."
+      },
+      {
+        "heading": "4. Rôle des parents et tuteurs",
+        "body": "Si vous êtes parent ou tuteur légal :\n• Vous pouvez demander l'**accès, la rectification ou la suppression** des données de votre enfant en contactant ${LEGAL_PRIVACY_EMAIL}, avec justificatif d'autorité parentale si nécessaire.\n• Encouragez votre enfant à utiliser des pseudos non identifiants et à ne pas partager d'informations personnelles en public."
+      },
+      {
+        "heading": "5. Évolutions produit",
+        "body": "Soundy pourra introduire des **paramètres renforcés** pour les comptes 13–17 ans (visibilité, DM, recommandations). Les CGU et cette politique seront mises à jour en conséquence."
+      },
+      {
+        "heading": "6. Contact",
+        "body": "Données personnelles mineurs : ${LEGAL_PRIVACY_EMAIL}\nAutres : ${LEGAL_CONTACT_EMAIL}"
+      }
+    ]
+  },
+  "mobileStores": {
+    "title": "Applications mobiles et règles des stores",
+    "updated": "3 août 2026",
+    "sections": [
+      {
+        "heading": "1. Objet",
+        "body": "Soundy est disponible ou le sera via **applications natives** (iOS / Android, Capacitor) et en **PWA web**. Les stores Apple et Google imposent des règles **supplémentaires** aux CGU Soundy."
+      },
+      {
+        "heading": "2. Achats intégrés (IAP)",
+        "body": "• Sur **iOS et Android**, les achats numériques consommables dans l'app (abonnements créateurs, pourboires, Soundy+, contenus numériques) doivent en principe passer par **Apple In-App Purchase** et **Google Play Billing**, conformément aux règles des stores (ex. Apple App Store Review Guideline 3.1.1).\n\n• Sur le **site web** (getsoundy.com), les paiements peuvent être traités via **Stripe** selon les Conditions de monétisation créateurs.\n\n• Soundy met en place des **garde-fous** empêchant les flux Stripe non conformes dans les builds natifs lorsque les IAP ne sont pas encore disponibles. L'objectif produit est d'**aligner** web et mobile sur les règles stores avant diffusion App Store / Play."
+      },
+      {
+        "heading": "3. Sign in with Apple",
+        "body": "Si Soundy propose **Google** (ou autre connexion tierce) sur iOS, **Sign in with Apple** doit être proposé dans les mêmes conditions (exigence Apple). Voir la configuration produit et les CGU."
+      },
+      {
+        "heading": "4. Confidentialité (Privacy Nutrition Labels)",
+        "body": "Les fiches **App Privacy** (Apple) et **Data safety** (Google) doivent refléter la Politique de confidentialité Soundy (données collectées, géoloc, identifiants, contenus UGC). Mettre à jour les déclarations stores à chaque évolution significative du traitement."
+      },
+      {
+        "heading": "5. Contenu et modération",
+        "body": "Les apps soumises aux stores doivent respecter les **Règles de la communauté**, la modération des signalements et l'absence de contenu illicite au moment de la review. Soundy se réserve le droit de retirer une version store non conforme."
+      },
+      {
+        "heading": "6. Mises à jour",
+        "body": "Les versions des applications peuvent être imposées pour des raisons de **sécurité** ou de conformité légale."
+      },
+      {
+        "heading": "7. Contact",
+        "body": "Questions : ${LEGAL_CONTACT_EMAIL}"
+      }
+    ]
+  },
+  "subprocessors": {
+    "title": "Liste des sous-traitants",
+    "updated": "3 août 2026",
+    "sections": [
+      {
+        "heading": "1. Objet",
+        "body": "Cette page liste les **prestataires** qui traitent des données personnelles pour le compte de Soundy (getsoundy.com), dans le cadre de l'hébergement, de la sécurité, des paiements, de la modération ou des communications.\n\nElle complète la Politique de confidentialité. Une version contractuelle (DPA art. 28) est disponible pour les partenaires B2B sur demande."
+      },
+      {
+        "heading": "2. Sous-traitants principaux",
+        "body": "| Prestataire | Service | Données concernées | Localisation |\n|-------------|---------|-------------------|--------------|\n| **Scaleway SAS** | VPS, PostgreSQL managé, Object Storage | Données applicatives, fichiers, logs | France / UE |\n| **Cloudflare, Inc.** | CDN, WAF, DNS, protection DDoS | IP, en-têtes HTTP, cache | UE / US (SCC) |\n| **Stripe, Inc.** | Paiements, Stripe Connect | Identifiants transaction, e-mail facturation | UE / US (SCC, DPA) |\n| **LiveKit, Inc.** | WebRTC salons / signalisation | Métadonnées session, identifiants | UE / US (DPA) |\n| **Cloudflare Stream** | Retransmission live HLS | Flux vidéo, métadonnées | UE / US |\n| **Sightengine** | Modération images/vidéos | Contenus UGC analysés | UE |\n| **ACRCloud** | Empreinte audio catalogue | Fichiers audio/vidéo uploadés | Selon contrat |\n| **Functional Software, Inc. (Sentry)** | Monitoring erreurs | Stack traces, contexte technique (consentement cookies) | UE / US |\n| **Resend, Inc.** | E-mails transactionnels | Adresse e-mail, contenu mails système | US (SCC) |\n| **Google LLC** | YouTube API, OAuth | Tokens OAuth, métadonnées lecture | US (SCC, DPA Google) |\n\nCartographie : **CARTO / OpenStreetMap** (tuiles — requêtes depuis l'appareil utilisateur). **DiceBear** (avatars par défaut — URLs)."
+      },
+      {
+        "heading": "3. Mises à jour",
+        "body": "Soundy met à jour cette liste lors de l'ajout ou du remplacement d'un sous-traitant significatif. Dernière révision indiquée en en-tête du document.\n\nPour toute question : ${LEGAL_PRIVACY_EMAIL}"
+      },
+      {
+        "heading": "4. Transferts hors UE",
+        "body": "Lorsque des données sont traitées hors EEE, Soundy s'appuie sur des **clauses contractuelles types** ou autres garanties prévues par le RGPD (art. 46). Détail dans la Politique de confidentialité §8."
+      }
+    ]
+  },
+  "donations": {
+    "title": "Pourboires, abonnements et monétisation créateurs",
+    "updated": "7 juin 2026 (seuils d’âge)",
+    "sections": [
+      {
+        "heading": "1. Nature des paiements",
+        "body": "Les montants versés via la fonction « Pourboire » ou « Don » pendant un live, ainsi que les abonnements mensuels à un créateur ou à Soundy+, sont des gratifications volontaires de soutien au créateur ou à la plateforme.\n\nIl ne s’agit pas de dons à une association ou à un organisme à but non lucratif ouvrant droit à réduction ou crédit d’impôt au sens des articles 200 et 238 bis du Code général des impôts.\n\nSoundy agit en qualité d’intermédiaire technique ; le bénéficiaire du pourboire est l’hôte du live concerné ; le bénéficiaire de l’abonnement créateur est le profil concerné."
+      },
+      {
+        "heading": "2. Environnement de test",
+        "body": "Les paiements sont traités via Stripe en mode production sécurisé. Aucun paiement réel n’est effectué lors de tests internes. Des plafonds journaliers peuvent s’appliquer selon la configuration de la plateforme."
+      },
+      {
+        "heading": "3. Paiements en production",
+        "body": "En production, les pourboires sont traités via Stripe Payment Intents ; les abonnements récurrents via Stripe Checkout (mode subscription) et Stripe Billing.\n\nLe numéro de carte, la date d’expiration et le cryptogramme (CVV) ne transitent jamais par les serveurs Soundy : la saisie s’effectue via Stripe.js, Stripe Checkout ou le portail client Stripe, avec authentification forte (DSP2 / SCA) lorsque requis.\n\nLes montants sont exprimés en euros (EUR). Des frais de traitement peuvent être appliqués par Stripe et, le cas échéant, par votre établissement bancaire."
+      },
+      {
+        "heading": "4. Âge minimum et consentement",
+        "body": "Compte Soundy : à partir de 13 ans (voir CGU).\n\nLancer un live (contenu artistique) : à partir de 16 ans.\n\nEffectuer un pourboire payant ou souscrire un abonnement : à partir de 18 ans.\n\nRecevoir des pourboires ou abonnements en tant que créateur : à partir de 18 ans.\n\nEn validant un paiement, vous confirmez remplir la condition d’âge ou disposer de l’autorisation légale requise pour utiliser un moyen de paiement."
+      },
+      {
+        "heading": "5. Abonnements récurrents",
+        "body": "Les abonnements sont facturés mensuellement jusqu’à résiliation. Vous pouvez gérer ou annuler votre abonnement via le portail client Stripe (production) ; l’accès aux avantages liés au statut supporter reste actif jusqu’à la fin de la période en cours.\n\nLes paliers et tarifs (ex. Supporter 4,99 €/mois, Super fan 9,99 €/mois, Soundy+) sont configurables par l’éditeur et affichés avant validation.\n\nUne commission plateforme distincte peut être prélevée sur les abonnements créateurs (pourcentage configurable via SUBSCRIPTION_PLATFORM_COMMISSION_PERCENT, documenté dans l’application)."
+      },
+      {
+        "heading": "5 bis. Commission sur les pourboires live",
+        "body": "Sur chaque pourboire payant en production, Soundy prélève une commission plateforme de 30 % par défaut (variable DONATION_PLATFORM_FEE_PERCENT).\n\nExemple pour un pourboire de 10 € : commission Soundy 3 €, part créateur estimée 7 € avant frais de traitement Stripe (modèle Stripe Connect).\n\nLa répartition (montant, commission Soundy, net créateur estimé, mention des frais Stripe) est affichée avant validation du paiement.\n\nLes pourboires ne constituent pas des dons associatifs ouvrant droit à reçu fiscal."
+      },
+      {
+        "heading": "6. Montants, plafonds et remboursements",
+        "body": "Pourboires : montant libre entre 1 € et 100 € par opération (sauf modification par l’éditeur).\n\nAbonnements : paliers mensuels affichés dans l’interface.\n\nLes remboursements sont examinés au cas par cas conformément aux CGU, au droit de la consommation et à la politique Stripe. Les pourboires et abonnements validés ne sont en principe pas remboursables sauf erreur manifeste, fraude ou obligation légale.\n\nL’éditeur peut désactiver la fonctionnalité, plafonner les montants ou suspendre un compte en cas d’abus ou de fraude."
+      },
+      {
+        "heading": "7. Données et sécurité",
+        "body": "Soundy ne conserve pas les numéros de carte complets ni les CVV. Seuls des identifiants de transaction Stripe (PaymentIntent, Subscription, Customer) et les montants sont enregistrés pour assurer le crédit du soutien et la traçabilité comptable.\n\nLes logs techniques ne contiennent pas de PAN (numéro de carte).\n\nPour l’exercice de vos droits sur les données liées au paiement, contactez également Stripe conformément à sa politique de confidentialité."
+      },
+      {
+        "heading": "8. Réclamations et contact",
+        "body": "Pour toute question relative aux pourboires ou abonnements : ${LEGAL_CONTACT_EMAIL}.\n\nConditions Stripe (consommateurs) : https://stripe.com/fr/legal/consumer\n\nEn cas de litige de consommation, les règles des CGU (droit français, médiation) s’appliquent."
+      }
+    ]
+  }
+}

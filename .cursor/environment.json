@@ -1,0 +1,20 @@
+{
+  "name": "soundy-msdev",
+  "install": "bash .cursor/cloud-install.sh",
+  "terminals": [
+    {
+      "name": "soundy-api",
+      "command": "bash -lc 'cd commun/backend && MSENV=msdev APP_ENV=msdev npm run dev:msdev'",
+      "description": "Backend msdev · port 4080"
+    },
+    {
+      "name": "soundy-web",
+      "command": "bash -lc 'cd web/app && npm run dev -- --host 0.0.0.0 --port 5173'",
+      "description": "Frontend Vite · port 5173"
+    }
+  ],
+  "ports": [
+    { "name": "web", "port": 5173 },
+    { "name": "api", "port": 4080 }
+  ]
+}

@@ -3,7 +3,7 @@ import { authenticateJWT } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { isNativePushConfigured } from '../lib/nativePush';
 import {
-  deleteNativePushTokenByToken,
+  deleteNativePushTokenByTokenForUser,
   upsertNativePushToken,
   type NativePushPlatform,
 } from '../lib/pgNativePushTokens';
@@ -44,12 +44,17 @@ nativePushRouter.post(
   '/native/unregister',
   authenticateJWT,
   asyncHandler(async (req: Request, res: Response) => {
+    const userId = (req as Request & { user: { id: string } }).user.id;
     const token = String(req.body?.token ?? '').trim();
     if (!token) {
       res.status(400).json({ error: 'Token requis.' });
       return;
     }
-    await deleteNativePushTokenByToken(token);
+    const deleted = await deleteNativePushTokenByTokenForUser(token, userId);
+    if (!deleted) {
+      res.status(404).json({ error: 'Token introuvable pour ce compte.' });
+      return;
+    }
     res.json({ ok: true });
   })
 );

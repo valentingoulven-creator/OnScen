@@ -18,9 +18,15 @@ export type LegalKey =
   | 'apiPlatforms'
   | 'licenses'
   | 'donations'
-  | 'creatorMonetization';
+  | 'creatorMonetization'
+  | 'communityGuidelines'
+  | 'brandedContent'
+  | 'advertisingPolicy'
+  | 'moderationAppeals'
+  | 'copyrightNotice';
 
-export const LEGAL_CONTACT_EMAIL = 'contact@getsoundy.com';
-export const LEGAL_PRIVACY_EMAIL = 'privacy@getsoundy.com';
+export const LEGAL_CONTACT_EMAIL = 'admin@getsoundy.com';
+export const LEGAL_PRIVACY_EMAIL = 'admin@getsoundy.com';
+export const LEGAL_COPYRIGHT_EMAIL = 'admin@getsoundy.com';
 /** Doit correspondre à backend/src/lib/legalConstants.ts */
-export const CURRENT_TERMS_VERSION = '2026-07-09';
+export const CURRENT_TERMS_VERSION = '2026-08-03';

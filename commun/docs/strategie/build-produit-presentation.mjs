@@ -223,8 +223,8 @@ slide((s) => {
     'Salons d\'écoute synchronisés',
     'Lives artistiques',
     'Onglet Musique — découverte',
-    'Modèle économique',
     'Reels artistiques',
+    'Modèle économique',
   ];
   const COL_GAP = 0.2;
   const COL_W = (CW - COL_GAP) / 2;
@@ -347,22 +347,7 @@ slide((s) => {
   phone(s, shot('13-musique.png'), 'Musique · tendances');
 });
 
-// 9 · Rémunération
-slide((s) => {
-  label(s, 'Business');
-  title(s, 'Comment Soundy est rémunéré', 0.75);
-  lede(s, 'Leviers alignés avec l\'usage — sans pub intrusive.', 1.35);
-  bullets(s, [
-    'Sponsoring natif — bars, festivals, marques (sur devis)',
-    'Pourboires créateurs pendant les lives',
-    'Abonnements Supporter / Super fan',
-    'Offres lieux partenaires (à venir)',
-  ], 1.75, LEFT_W, 1.7);
-  highlight(s, 'Grille sur devis · estimation d\'audience avant campagne.', 3.55);
-  phone(s, shot('08-profil.png'), 'Créateurs & lieux');
-});
-
-// 10 · Reels
+// 9 · Reels
 slide((s) => {
   label(s, 'Reels');
   title(s, 'Reels artistiques', 0.75);
@@ -375,6 +360,21 @@ slide((s) => {
   ], 1.75, LEFT_W, 1.7);
   highlight(s, 'Chaque Reel sert la visibilité d\'un artiste ou d\'un événement.', 3.55);
   phone(s, shot('12-reels.png'), 'Reels · artistique');
+});
+
+// 10 · Rémunération
+slide((s) => {
+  label(s, 'Business');
+  title(s, 'Comment Soundy est rémunéré', 0.75);
+  lede(s, 'Leviers alignés avec l\'usage — sans pub intrusive.', 1.35);
+  bullets(s, [
+    'Sponsoring natif — bars, festivals, marques (sur devis)',
+    'Pourboires créateurs pendant les lives',
+    'Abonnements Supporter / Super fan',
+    'Offres lieux partenaires (à venir)',
+  ], 1.75, LEFT_W, 1.7);
+  highlight(s, 'Grille sur devis · estimation d\'audience avant campagne.', 3.55);
+  phone(s, shot('08-profil.png'), 'Créateurs & lieux');
 });
 
 await pptx.writeFile({ fileName: OUT });

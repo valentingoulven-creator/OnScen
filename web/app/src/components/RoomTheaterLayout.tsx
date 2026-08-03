@@ -635,6 +635,8 @@ export interface RoomTheaterLayoutProps {
   chatPinned?: boolean;
   /** Live : bascule épingler / détacher le chat. */
   onToggleChatPin?: () => void;
+  /** Live : vidéo en plein écran (Fullscreen API ou landscape theater). */
+  videoExpanded?: boolean;
 }
 
 export function RoomTheaterLayout({
@@ -664,6 +666,7 @@ export function RoomTheaterLayout({
   liveTheaterChrome = false,
   chatPinned = false,
   onToggleChatPin,
+  videoExpanded = false,
 }: RoomTheaterLayoutProps) {
   const { width: chatDockWidth, setWidth: setChatDockWidth, commitWidth: commitChatDockWidth } =
     useTheaterChatDockWidth();
@@ -753,6 +756,8 @@ export function RoomTheaterLayout({
   const showBottomDock = !chatHidden && theaterDock === 'bottom';
   const showSideDock = showLeftDock || showRightDock;
   const liveLeftPinned = liveTheaterChrome && showLeftDock;
+  const hideLeftDockForFullscreen = liveLeftPinned && videoExpanded;
+  const showLeftDockInLayout = showLeftDock && !hideLeftDockForFullscreen;
   const activeDockWidth = liveLeftPinned ? liveChatDockWidth : chatDockWidth;
   const activeDockSetWidth = liveLeftPinned ? setLiveChatDockWidth : setChatDockWidth;
   const activeDockCommitWidth = liveLeftPinned ? commitLiveChatDockWidth : commitChatDockWidth;
@@ -838,6 +843,20 @@ export function RoomTheaterLayout({
   /** Live théâtre : pas de toggle bas-droite — le chrome vidéo 💬 + FloatingSalonChat suffisent. */
   const showVideoChatToggle = !liveTheaterChrome;
 
+  const pinnedChatFullscreenWindow = hideLeftDockForFullscreen ? (
+    <aside className="live-pinned-chat-fullscreen-dock flex flex-col min-h-0 min-w-0 h-full shrink-0 overflow-hidden bg-[#101018] border-r border-[#1e1e2f]">
+      <DockedChatHeader
+        {...dockedChatHeaderProps}
+        dockMode="right"
+        onToggleDock={() => {}}
+        showDockToggle={false}
+        pinned={chatPinned}
+        onTogglePin={liveTheaterChrome ? onToggleChatPin : undefined}
+      />
+      {!chatMinimized && <DockChatBody chat={chat} chatInput={chatInput} />}
+    </aside>
+  ) : null;
+
   const chatHiddenButton = showVideoChatToggle ? (
     <button
       type="button"
@@ -917,7 +936,6 @@ export function RoomTheaterLayout({
         title={chatTitle}
         compactHeader={liveTheaterChrome}
         headerTrailingExtra={chatHeaderTrailingExtra}
-        onTogglePin={liveTheaterChrome ? onToggleChatPin : undefined}
         headerExtra={
           liveTheaterChrome ? (
             chatHeaderExtra ?? undefined
@@ -928,6 +946,8 @@ export function RoomTheaterLayout({
             </>
           )
         }
+        pinned={liveTheaterChrome ? chatPinned : undefined}
+        onTogglePin={liveTheaterChrome ? onToggleChatPin : undefined}
         minimized={chatMinimized}
         onToggleMinimize={onToggleMinimize}
         onHide={onToggleChat}
@@ -936,10 +956,17 @@ export function RoomTheaterLayout({
       </FloatingSalonChat>
     ) : null;
 
-  const mountFloatingInVideoContainer = liveTheaterChrome && !!floatingChatWindow;
+  const mountChatInVideoContainer = liveTheaterChrome && !!floatingChatWindow;
+  const stageCloneProps: Record<string, unknown> = {};
+  if (mountChatInVideoContainer && floatingChatWindow) {
+    stageCloneProps.floatingChat = floatingChatWindow;
+  }
+  if (pinnedChatFullscreenWindow) {
+    stageCloneProps.pinnedChatFullscreen = pinnedChatFullscreenWindow;
+  }
   const stageNode =
-    mountFloatingInVideoContainer && isValidElement(stage)
-      ? cloneElement(stage, { floatingChat: floatingChatWindow } as Record<string, unknown>)
+    isValidElement(stage) && Object.keys(stageCloneProps).length > 0
+      ? cloneElement(stage, stageCloneProps)
       : stage;
 
   const videoStage = (
@@ -952,7 +979,7 @@ export function RoomTheaterLayout({
     >
       {stageNode}
 
-      {!mountFloatingInVideoContainer && floatingChatWindow}
+      {!mountChatInVideoContainer && floatingChatWindow}
 
       {chatHiddenButton}
     </div>
@@ -991,7 +1018,7 @@ export function RoomTheaterLayout({
           }${sideRowClass || ' sm:flex-row'}`}
           style={sideRowStyle}
         >
-          {showLeftDock && (
+          {showLeftDockInLayout && (
             <TheaterChatDockAside
               dockEdge="left"
               {...chatDockAsideProps}
@@ -1041,6 +1068,8 @@ export function RoomTheaterLayout({
               dockMode="right"
               onToggleDock={allowFloatingChat ? toggleDockMode : () => {}}
               showDockToggle={allowFloatingChat && !showLeftDock && !useFullWidthHeader}
+              pinned={chatPinned}
+              onTogglePin={liveTheaterChrome ? onToggleChatPin : undefined}
             />
             {!chatMinimized && <DockChatBody chat={chat} chatInput={chatInput} />}
           </div>

@@ -1,4 +1,4 @@
-# LEGAL REPORT — Soundy / MeloSongv2
+# LEGAL REPORT — Application (nom commercial à finaliser)
 **Date :** 2026-06-22  
 **Auditeur :** Expert Droit du Numérique + Conformité App Store (simulation)  
 **Avertissement :** Ce rapport est une analyse basée sur une lecture du code source et des pratiques déclarées. Il ne constitue pas un avis juridique. Consultez un avocat spécialisé avant toute mise en production mondiale.
@@ -88,7 +88,7 @@
 
 #### LEG-RGPD-007 — MOYEN : Absence de DPO nommé (si > 250 salariés ou traitement systématique)
 
-**Description :** Si Soundy traite des données à grande échelle ou de manière systématique (géolocalisation en temps réel), la nomination d'un DPO est requise.
+**Description :** Si la plateforme traite des données à grande échelle ou de manière systématique (géolocalisation en temps réel), la nomination d'un DPO est requise.
 
 ### 1.3 Points de conformité RGPD : synthèse
 
@@ -130,7 +130,7 @@
 
 ### 2.3 Ce qui est interdit
 
-| Usage | Clause | Statut Soundy |
+| Usage | Clause | Statut plateforme |
 |-------|--------|--------------|
 | Téléchargement de contenu YouTube | YouTube TOS §6, API Terms §4.H | ✅ Non implémenté |
 | Contournement du lecteur natif pour lire l'audio | YouTube API Terms §4.I | ✅ Non implémenté |
@@ -142,7 +142,7 @@
 
 #### LEG-YT-001 — CRITIQUE : Synchronisation YouTube multi-utilisateurs
 
-**Description :** Le "salon" Soundy synchronise la lecture d'une vidéo YouTube entre plusieurs utilisateurs via l'IFrame API. Chaque utilisateur voit son propre lecteur, mais le playback est coordonné.
+**Description :** Les salons de l'application synchronisent la lecture d'une vidéo YouTube entre plusieurs utilisateurs via l'IFrame API. Chaque utilisateur voit son propre lecteur, mais le playback est coordonné.
 
 **Analyse :**
 - YouTube TOS §6 : "limited, non-exclusive, non-transferable licence to access and use the Service"
@@ -218,7 +218,7 @@
 
 #### LEG-SP-001 — ÉLEVÉ : Contrôle de lecture Spotify dans les salons
 
-**Description :** L'API Spotify permet le contrôle de lecture via `POST /me/player/...` pour l'utilisateur authentifié. Soundy permet à d'autres membres du salon de contrôler la lecture Spotify d'un utilisateur.
+**Description :** L'API Spotify permet le contrôle de lecture via `POST /me/player/...` pour l'utilisateur authentifié. la plateforme permet à d'autres membres du salon de contrôler la lecture Spotify d'un utilisateur.
 
 **Spotify Developer Policy §2 :** "do not let other third-party services or applications control the playback of a user's Spotify account without their explicit consent."
 
@@ -234,7 +234,7 @@
 
 #### LEG-SP-003 — FAIBLE : `SpotifySalonDeprecatedNotice`
 
-**Description :** Un composant de dépréciation Spotify dans les salons existe. Cela suggère que Soundy a eu des problèmes de conformité Spotify par le passé et a dépréqué cette fonctionnalité. C'est une bonne pratique.
+**Description :** Un composant de dépréciation Spotify dans les salons existe. Cela suggère que la plateforme a eu des problèmes de conformité Spotify par le passé et a dépréqué cette fonctionnalité. C'est une bonne pratique.
 
 ---
 
@@ -247,7 +247,7 @@
 
 ### 4.2 Analyse
 
-| Règle | Statut Soundy |
+| Règle | Statut plateforme |
 |-------|--------------|
 | **2.1 App Completeness** | ✅ Application fonctionnelle |
 | **2.3.3 Metadata** — Pas de screenshots trompeurs | À vérifier |
@@ -270,7 +270,7 @@
 
 **Exceptions notables :**
 - Les dons/tips directs à des créateurs peuvent être exemptés (Rule 3.2.1(ii) — "tips for content")
-- Les "Reader apps" ont une exemption (mais Soundy n'est pas un Reader app)
+- Les "Reader apps" ont une exemption (mais la plateforme n'est pas un Reader app)
 
 **Action requise :**
 - Option A : Implémenter Apple IAP pour les abonnements et plans en natif iOS
@@ -281,7 +281,7 @@
 
 **Description :** Depuis iOS 14.3 (déc. 2020), Apple exige des "App Privacy Labels" dans App Store Connect décrivant précisément les données collectées.
 
-**Données collectées par Soundy à déclarer :**
+**Données collectées par la plateforme à déclarer :**
 - Localisation (géolocalisation temps réel)
 - Contenu utilisateur (messages, reels, compositions)
 - Historique de navigation (feed, salons visités)
@@ -300,7 +300,7 @@
 - La capacité de bloquer des utilisateurs
 - Un processus de modération
 
-**Statut Soundy :**
+**Statut plateforme :**
 - ✅ Système de signalement (`ReportContentModal`)
 - ✅ Blocage utilisateurs
 - ✅ Modération admin
@@ -374,7 +374,7 @@ Même problème qu'Apple : Google Play exige que les achats d'items numériques 
 
 #### LEG-MON-003 — MOYEN : Stripe Connect — obligations KYC des créateurs
 
-**Description :** Les créateurs qui reçoivent des dons via Stripe Connect doivent passer le KYC Stripe (vérification d'identité). Si Soundy ne valide pas que le créateur a complété son KYC avant de recevoir des paiements, Stripe peut bloquer les paiements et Soundy peut être considéré comme facilitateur de paiement non régulé.
+**Description :** Les créateurs qui reçoivent des dons via Stripe Connect doivent passer le KYC Stripe (vérification d'identité). Si la plateforme ne valide pas que le créateur a complété son KYC avant de recevoir des paiements, Stripe peut bloquer les paiements et la plateforme peut être considérée comme facilitateur de paiement non régulé.
 
 **Statut :** `LiveStripeConnectGate.tsx` semble gérer cette vérification. À confirmer end-to-end.
 
@@ -384,7 +384,7 @@ Même problème qu'Apple : Google Play exige que les achats d'items numériques 
 
 ### 7.1 UGC (User Generated Content)
 
-**Statut Soundy :**
+**Statut plateforme :**
 - Compositions audio uploadées par les utilisateurs
 - Reels vidéo (potentiellement avec de la musique copyrightée)
 - Stories avec musique (`StoryMusicPicker`)
@@ -393,7 +393,7 @@ Même problème qu'Apple : Google Play exige que les achats d'items numériques 
 
 #### LEG-DR-001 — CRITIQUE : Absence de Content ID / DMCA automatisé pour les reels
 
-**Description :** Les reels vidéo peuvent contenir de la musique copyrightée. Sans système de détection automatique (Content ID comme YouTube, ou Audible Magic comme TikTok), Soundy s'expose à des notifications DMCA.
+**Description :** Les reels vidéo peuvent contenir de la musique copyrightée. Sans système de détection automatique (Content ID comme YouTube, ou Audible Magic comme TikTok), la plateforme s'expose à des notifications DMCA.
 
 **Réglementation :**
 - DMCA §512 (USA) — safe harbor conditionné à un système de notice-and-takedown
@@ -415,13 +415,13 @@ Même problème qu'Apple : Google Play exige que les achats d'items numériques 
 
 #### LEG-DR-003 — MOYEN : Licence sur les contenus uploadés
 
-**Description :** Les CGU doivent inclure une licence explicite que l'utilisateur accorde à Soundy pour utiliser, héberger, afficher ses contenus.
+**Description :** Les CGU doivent inclure une licence explicite que l'utilisateur accorde à la plateforme pour utiliser, héberger, afficher ses contenus.
 
 **Action requise :** Vérifier que les CGU (`terms.ts`) incluent une clause de licence UGC explicite.
 
 ### 7.2 Droits voisins YouTube
 
-L'IFrame API YouTube affiche les vidéos avec leurs publicités et DRM intacts. Les droits sont gérés par YouTube. Soundy n'est pas responsable du contenu des vidéos YouTube embedées (sous réserve du bon usage de l'API).
+L'IFrame API YouTube affiche les vidéos avec leurs publicités et DRM intacts. Les droits sont gérés par YouTube. La plateforme n'est pas responsable du contenu des vidéos YouTube embedées (sous réserve du bon usage de l'API).
 
 ---
 
@@ -465,7 +465,7 @@ L'IFrame API YouTube affiche les vidéos avec leurs publicités et DRM intacts. 
 
 ### 9.1 Digital Services Act (DSA) — UE
 
-**Applicable à Soundy :** Oui, dès lors que Soundy opère dans l'UE.
+**Applicable à la plateforme :** Oui, dès lors qu'elle opère dans l'UE.
 
 | Obligation DSA | Statut |
 |----------------|--------|
@@ -489,7 +489,7 @@ L'IFrame API YouTube affiche les vidéos avec leurs publicités et DRM intacts. 
 
 ### 9.2 Responsabilité plateforme (France)
 
-- **Loi de confiance dans l'économie numérique (LCEN) :** Soundy est un hébergeur au sens de l'Art. 6 — responsabilité limitée si prompt retrait des contenus signalés.
+- **Loi de confiance dans l'économie numérique (LCEN) :** La plateforme est un hébergeur au sens de l'Art. 6 — responsabilité limitée si prompt retrait des contenus signalés.
 - **Condition :** Réactivité dans la modération des signalements (idéalement < 24h pour contenus graves, < 7 jours pour autres).
 
 ---

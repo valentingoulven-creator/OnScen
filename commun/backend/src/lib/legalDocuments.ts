@@ -1,4 +1,5 @@
 ﻿import { applyPublisherTemplate } from './legalPublisher';
+import { LEGAL_PRIVACY_EMAIL } from './legalConstants';
 
 /** Mirrors app/src/content/legal — kept in sync for API-served merged documents. */
 
@@ -184,7 +185,7 @@ const politiqueCookies: LegalDocument = {
     },
     {
       heading: '3. Contact',
-      body: 'privacy@getsoundy.com — Paramètres > Préférences cookies pour modifier votre choix.',
+      body: `${LEGAL_PRIVACY_EMAIL} — Paramètres > Préférences cookies pour modifier votre choix.`,
     },
   ],
 };

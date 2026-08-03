@@ -84,9 +84,9 @@ Ce document décrit fidèlement l’état du produit Soundy tel que documenté d
 | Éditeur | Valentin Goulven (Soundy) |
 | Directeur de publication | Valentin Goulven |
 | Hébergeur (LCEN) | Scaleway SAS, 8 rue de la Ville l’Évêque, 75008 Paris |
-| Contact général | contact@getsoundy.com |
-| Données personnelles (DPO) | privacy@getsoundy.com |
-| Droits d’auteur | copyright@getsoundy.com |
+| Contact général | admin@getsoundy.com |
+| Données personnelles (DPO) | admin@getsoundy.com |
+| Droits d’auteur | admin@getsoundy.com |
 | Administration | admin@getsoundy.com |
 
 ---

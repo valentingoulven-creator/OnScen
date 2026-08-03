@@ -1,4 +1,5 @@
 import type { LegalDocument } from './types';
+import { LEGAL_PRIVACY_EMAIL } from './types';
 
 /** Politique cookies et traceurs (ePrivacy / CNIL) */
 export const politiqueCookies: LegalDocument = {
@@ -23,7 +24,7 @@ export const politiqueCookies: LegalDocument = {
     },
     {
       heading: '5. Gérer vos choix',
-      body: '• Refuser ou accepter les cookies non essentiels via la bannière affichée lors de votre première visite web.\n• Modifier votre choix : Paramètres > Préférences cookies.\n• Effacer les cookies via les paramètres de votre navigateur.\n\nContact : privacy@getsoundy.com',
+      body: `• Refuser ou accepter les cookies non essentiels via la bannière affichée lors de votre première visite web.\n• Modifier votre choix : Paramètres > Préférences cookies.\n• Effacer les cookies via les paramètres de votre navigateur.\n\nContact : ${LEGAL_PRIVACY_EMAIL}`,
     },
   ],
 };

@@ -4,8 +4,7 @@
 **Date de consolidation :** 2026-07-22
 **Méthode :** fusion et dédoublonnage des 6 audits thématiques (v1 + v2) et des 2 rapports finaux existants dans `commun/docs/audit/`, puis vérification ponctuelle de l'état réel du code (`web/app/src/`, `commun/backend/src/`) et de la production (SSH lecture seule sur `soundy-prod`/`soundy-staging`, `git log`/`git ls-tree` sur le dépôt distant) pour dater précisément chaque finding.
 
-**Sources fusionnées (conservées intactes, non modifiées) :**
-`AUDIT-securite.md`/`-v2` · `AUDIT-stripe.md`/`-v2` · `AUDIT-db-infra.md`/`-v2` · `AUDIT-legal-youtube-copyright.md`/`-v2` · `AUDIT-apis-externes-performance.md`/`-v2` · `AUDIT-architecture-code.md`/`-v2` · `AUDIT-RAPPORT-FINAL.md` (2026-07-07) · `AUDIT-RAPPORT-FINAL-v2.md` (2026-07-08).
+**Sources fusionnées (v1 dans `audit/archive/`, v2 à la racine de `audit/`) :**
 
 **Convention de statut utilisée dans ce document :**
 - ✅ **Résolu** — corrigé en code **et** effectif en production/dépôt distant (vérifié).

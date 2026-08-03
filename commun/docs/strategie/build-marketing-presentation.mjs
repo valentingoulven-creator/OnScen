@@ -243,7 +243,7 @@ slide((s) => {
     { x: 0.55, y: 3.05, w: 7.5, h: 0.7, fontSize: 13, color: C.muted, margin: 0 },
   );
   addKpiRow(s, ['5 onglets', 'Prod France', 'RGPD · Scaleway', 'PWA + mobile'], 4.35);
-  s.addText('getsoundy.com  ·  contact@getsoundy.com', {
+  s.addText('getsoundy.com  ·  admin@getsoundy.com', {
     x: 0.55,
     y: 5.05,
     w: 8,
@@ -568,7 +568,7 @@ slide((s) => {
     line: { color: C.purpleLight, width: 0 },
     rectRadius: 0.08,
   });
-  s.addText('contact@getsoundy.com  ·  Devis : emplacement · dates · ville · billetterie', {
+  s.addText('admin@getsoundy.com  ·  Devis : emplacement · dates · ville · billetterie', {
     x: 0.7,
     y: 4.88,
     w: 5.8,
@@ -625,7 +625,7 @@ slide((s) => {
   addTitle(s, 'PROCHAINE ÉTAPE', 'Contact & démo', 'Prêts à écouter — et sortir — ensemble ?');
   addBullets(s, [
     'Tester l\'app : getsoundy.com (web, PWA, mobile)',
-    'Bar / salle / festival : devis Sponso · contact@getsoundy.com',
+    'Bar / salle / festival : devis Sponso · admin@getsoundy.com',
     'Créateur : lancer un salon ou un live près de chez vous',
     'One-pager commercial & estimation audience sur demande',
     'Échange 15 min → estimation audience → devis → campagne live',

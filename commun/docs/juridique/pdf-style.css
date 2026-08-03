@@ -1,0 +1,265 @@
+/* ============================================================
+   Dossier avocat — feuille de style PDF
+   Design professionnel unifié pour tous les documents du dossier.
+   ============================================================ */
+
+:root {
+  --sy-ink: #17172a;
+  --sy-ink-soft: #4b4b63;
+  --sy-muted: #6b7280;
+  --sy-purple: #6d28d9;
+  --sy-purple-deep: #3b1f7a;
+  --sy-purple-soft: #ede9fe;
+  --sy-purple-line: #c4b5fd;
+  --sy-border: #e2e2ef;
+  --sy-row: #f8f7fc;
+  --sy-amber: #b45309;
+  --sy-amber-bg: #fffbeb;
+  --sy-amber-line: #fde68a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.55;
+  color: var(--sy-ink);
+  max-width: 100%;
+  margin: 0;
+  padding: 0 4mm;
+}
+
+/* ---------- En-tête de document (bandeau + carte méta) ---------- */
+
+.doc-header {
+  display: block;
+  border-bottom: 3px solid var(--sy-purple);
+  padding-bottom: 10px;
+  margin-bottom: 18px;
+}
+
+.doc-header__brand {
+  display: block;
+  font-size: 10.5pt;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sy-purple);
+}
+
+.doc-header__brand span {
+  color: var(--sy-ink-soft);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.doc-header__category {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 8.5pt;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--sy-purple-deep);
+  background: var(--sy-purple-soft);
+  border: 1px solid var(--sy-purple-line);
+  border-radius: 999px;
+  padding: 3px 12px;
+}
+
+.doc-header__title {
+  margin: 10px 0 2px;
+  font-size: 21pt;
+  font-weight: 800;
+  color: var(--sy-ink);
+  line-height: 1.2;
+}
+
+.doc-meta {
+  display: block;
+  margin-top: 10px;
+  font-size: 8.5pt;
+  color: var(--sy-muted);
+  border-top: 1px solid var(--sy-border);
+  padding-top: 8px;
+}
+
+.doc-meta strong {
+  color: var(--sy-ink-soft);
+}
+
+.doc-banner {
+  font-size: 8pt;
+  color: var(--sy-muted);
+  margin: 0 0 4px;
+}
+
+/* ---------- Bandeau d'avertissement (indicatif / non contractuel) --- */
+
+.doc-warning {
+  background: var(--sy-amber-bg);
+  border: 1px solid var(--sy-amber-line);
+  border-left: 4px solid var(--sy-amber);
+  color: #7c4a03;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 9pt;
+  margin: 0 0 18px;
+  page-break-inside: avoid;
+}
+
+.doc-warning strong {
+  color: var(--sy-amber);
+}
+
+/* ---------- Titres ---------- */
+
+h1 {
+  font-size: 18pt;
+  color: var(--sy-ink);
+  border-bottom: 2px solid var(--sy-purple);
+  padding-bottom: 6px;
+  margin: 28px 0 14px;
+  page-break-after: avoid;
+}
+
+h1:first-of-type {
+  margin-top: 0;
+}
+
+h2 {
+  font-size: 13.5pt;
+  color: var(--sy-purple-deep);
+  border-bottom: 1px solid var(--sy-purple-line);
+  padding-bottom: 4px;
+  margin-top: 22px;
+  page-break-after: avoid;
+}
+
+h3 {
+  font-size: 11.5pt;
+  color: var(--sy-purple);
+  margin-top: 16px;
+  page-break-after: avoid;
+}
+
+p {
+  margin: 8px 0;
+}
+
+/* ---------- Tables ---------- */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+  border: 1px solid var(--sy-border);
+}
+
+th {
+  background-color: var(--sy-purple);
+  color: #ffffff;
+  font-weight: 600;
+  text-align: left;
+  padding: 7px 10px;
+  border: 1px solid var(--sy-purple-deep);
+}
+
+td {
+  padding: 6px 10px;
+  border: 1px solid var(--sy-border);
+  vertical-align: top;
+}
+
+tr:nth-child(even) td {
+  background-color: var(--sy-row);
+}
+
+/* ---------- Code / citations ---------- */
+
+code {
+  background-color: #f1f0f7;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 8.7pt;
+  font-family: Consolas, 'Courier New', monospace;
+  color: var(--sy-purple-deep);
+}
+
+pre {
+  background-color: #f1f0f7;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 9pt;
+  line-height: 1.4;
+  overflow-x: auto;
+  page-break-inside: avoid;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+blockquote {
+  border-left: 4px solid var(--sy-purple);
+  margin: 12px 0;
+  padding: 8px 16px;
+  background-color: var(--sy-purple-soft);
+  color: var(--sy-purple-deep);
+  border-radius: 0 6px 6px 0;
+}
+
+hr {
+  border: none;
+  border-top: 2px solid var(--sy-border);
+  margin: 24px 0;
+}
+
+ul,
+ol {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+li {
+  margin: 3px 0;
+}
+
+strong {
+  color: var(--sy-ink);
+}
+
+/* ---------- Pied de document ---------- */
+
+.doc-footer {
+  margin-top: 28px;
+  padding-top: 10px;
+  border-top: 1px solid var(--sy-border);
+  font-size: 8pt;
+  color: var(--sy-muted);
+  text-align: center;
+}
+
+/* ---------- Impression ---------- */
+
+@page {
+  margin: 16mm 14mm 18mm 14mm;
+}
+
+@media print {
+  h1,
+  h2,
+  h3 {
+    page-break-after: avoid;
+  }
+  table,
+  pre,
+  blockquote,
+  .doc-warning {
+    page-break-inside: avoid;
+  }
+}
