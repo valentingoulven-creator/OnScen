@@ -90,8 +90,8 @@ export const SALON_LIVE_BOT_SEEDS: SalonLiveBotSeed[] = [
     trackTitle: 'HUMBLE.',
     artist: 'Kendrick Lamar',
     trackId: 'tvTRZ0-26n0',
-    listenersCount: 40,
-    viewersCount: 40,
+    listenersCount: 100_000,
+    viewersCount: 100_000,
   },
   {
     userId: `${SALON_LIVE_ID_PREFIX}bot-indie-mau`,

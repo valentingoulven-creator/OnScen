@@ -10,12 +10,14 @@ import {
   listUserCompositions,
   type PublicComposition,
 } from './compositions';
+import { isFavoritesAlbumId } from './musicFavoritesIds';
 import {
   scheduleDeleteAlbumFromPg,
   scheduleDeleteAlbumsByUserFromPg,
   schedulePersistAlbumToPg,
 } from './pgAlbums';
 import { schedulePersist } from './persist';
+import { notifyFollowersCreatorActivity } from './followActivityNotifications';
 
 const MAX_ALBUMS_PER_USER = parseInt(process.env.MAX_ALBUMS_PER_USER ?? '30', 10) || 30;
 
@@ -122,10 +124,22 @@ export function createUserAlbum(
   db.albums.push(album);
   schedulePersistAlbumToPg(album);
   schedulePersist();
+  const author = db.users.get(userId);
+  if (author) {
+    notifyFollowersCreatorActivity({
+      creator: author,
+      type: 'album_published',
+      message: `${author.username} a publié l'album « ${album.title} » 💿`,
+      albumId: album.id,
+    });
+  }
   return publicAlbum(album);
 }
 
 export function deleteUserAlbum(albumId: string, userId: string): boolean {
+  if (isFavoritesAlbumId(albumId, userId)) {
+    return false;
+  }
   const index = db.albums.findIndex((a) => a.id === albumId && a.userId === userId);
   if (index < 0) return false;
 

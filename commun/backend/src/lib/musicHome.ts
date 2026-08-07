@@ -2,6 +2,7 @@ import { db, type UserAlbum, type UserComposition, type UserReel } from '../mode
 import { getCompositionUpvoteCount, userHasCompositionUpvote } from './compositionUpvotes';
 import { getWeeklyCompositionPlayCounts } from './compositionPlays';
 import { getFollowingIds } from './follows';
+import { ensureFavoritesAlbum, favoritesAlbumId } from './musicFavorites';
 import { isAdminBlockedReel, isPrivateReel } from './reels';
 import {
   getWeekStart,
@@ -36,6 +37,8 @@ export interface MusicTrackItem {
   userHasUpvoted?: boolean;
   weeklyPlayCount?: number;
   createdAt: number;
+  /** Fichier audio jouable (lecteur global façon Spotify). */
+  fileUrl: string;
 }
 
 export interface MusicWeeklyReelItem {
@@ -109,6 +112,7 @@ function compositionTrack(c: UserComposition, viewerId: string): MusicTrackItem 
     upvoteCount: getCompositionUpvoteCount(c.id),
     userHasUpvoted: userHasCompositionUpvote(c.id, viewerId),
     createdAt: c.createdAt,
+    fileUrl: c.fileUrl,
   };
 }
 
@@ -250,6 +254,18 @@ export function buildMusicHome(viewerId: string): MusicHomePayload {
     .slice(0, 12)
     .map((c) => compositionTrack(c, viewerId));
 
+  ensureFavoritesAlbum(viewerId);
+  const favId = favoritesAlbumId(viewerId);
+  const libraryAlbums = db.albums
+    .filter((a) => a.userId === viewerId)
+    .sort((a, b) => {
+      if (a.id === favId) return -1;
+      if (b.id === favId) return 1;
+      return b.updatedAt - a.updatedAt;
+    })
+    .slice(0, 12)
+    .map(albumItem);
+
   return {
     discover: {
       albums: albumsForUserIds(everyone, 16),
@@ -260,11 +276,7 @@ export function buildMusicHome(viewerId: string): MusicHomePayload {
       tracks: tracksForUserIds(following, viewerId, 12),
     },
     library: {
-      albums: db.albums
-        .filter((a) => a.userId === viewerId)
-        .sort((a, b) => b.updatedAt - a.updatedAt)
-        .slice(0, 12)
-        .map(albumItem),
+      albums: libraryAlbums,
       tracks: looseTracks,
     },
     popular,

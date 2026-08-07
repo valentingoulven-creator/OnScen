@@ -28,7 +28,7 @@
 ---
 ## Slide 4 — Produit (features en production)
 - **Salons** YouTube synchronisés — public ou privé, file d'attente, chat, ancrage carte
-- **Direct (Live)** — vidéo LiveKit/Cloudflare HLS, chat, pourboires Stripe Connect (30 %), abonnements créateur
+- **Direct (Live)** — vidéo LiveKit/Cloudflare HLS, chat, pourboires Stripe Connect (50 %), abonnements créateur
 - **Actualités + Stories + Reels** — feed social, algo Soundy, reels sponsorisés (1/5 par défaut)
 - **Carte** — événements, salons, personnes proches, bannières sponsor `map_banner`
 - **Admin sponsors** — 4 emplacements natifs (carte, feed, stories, reels) déjà codés
@@ -46,7 +46,7 @@
 ---
 ## Slide 6 — Modèle économique
 - **Sponsors natifs** *(priorité court terme)* — carte 800–2 000 €/mois, pack feed+stories 1 500–4 000 €, reels 2 000–8 000 €, takeover 5 000–15 000 €
-- **Commissions créateurs** — pourboires live (30 % plateforme), abonnements Supporter/Super fan (4,99–9,99 €/mois)
+- **Commissions créateurs** — pourboires live (50 % plateforme), abonnements Supporter/Super fan (4,99–9,99 €/mois)
 - **Soundy+** — abonnement plateforme 2,99–4,99 €/mois (badge, filtres carte, moins de sponsors)
 - **B2B lieux** *(roadmap M7–M9)* — Soundy Pro Lieu 49–149 €/mois
 - Répartition cible M24 *(hyp.)* : sponsors 45–55 % · commissions 25–35 % · Soundy+ 10–15 % · B2B 5–15 %

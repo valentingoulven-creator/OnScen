@@ -1,5 +1,17 @@
+import type { Live } from '../types';
 import { formatCompactCount } from './formatCount';
 import { usernameMapLabelHtml, type UsernameWaveTint } from './usernameColor';
+
+/** Pseudo hôte pour marqueurs carte (évite le libellé générique « Live »). */
+export function liveMapHostLabel(l: Pick<Live, 'hostName' | 'title'>): string {
+  const raw = l.hostName?.trim() ?? '';
+  if (raw && !/^live$/i.test(raw)) return raw;
+  const title = l.title?.trim() ?? '';
+  const fromTitle = title.match(/^Live\s*[—–-]\s*(.+)$/i)?.[1]?.trim();
+  if (fromTitle) return fromTitle;
+  if (title && !/^live$/i.test(title)) return title;
+  return raw || 'Hôte';
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -12,6 +24,13 @@ function escapeHtml(value: string): string {
 export function buildOverviewGeoMarkerHtml(opts: {
   kind: 'salon' | 'live';
   isLive: boolean;
+  hostLabel?: string;
+  usernameColor?: string | null;
+  wave?: UsernameWaveTint | null;
+  /** Affiche le badge « LIVE » (défaut : false pour pins live carte). */
+  showLiveBadge?: boolean;
+  /** Affiche le pseudo sous le pin (défaut : false). */
+  showHostLabel?: boolean;
 }): string {
   if (opts.kind === 'salon' && !opts.isLive) {
     return `<div class="map-marker-overview-pin map-marker-overview-pin--salon" role="img"><span class="map-marker-overview-salon-badge">SALON</span><span class="map-marker-overview-dot salon"></span></div>`;
@@ -19,9 +38,18 @@ export function buildOverviewGeoMarkerHtml(opts: {
 
   const liveClass = opts.isLive || opts.kind === 'live' ? ' map-marker-overview-pin--live' : '';
   const dotClass = 'map-marker-overview-dot live';
-  const liveBadge = '<span class="map-marker-overview-live-badge">LIVE</span>';
+  const liveBadge =
+    opts.showLiveBadge === true
+      ? '<span class="map-marker-overview-live-badge">LIVE</span>'
+      : '';
+  const hostLabel = opts.hostLabel?.trim();
+  const nameHtml =
+    opts.showHostLabel === true && hostLabel && hostLabel.length > 0
+      ? usernameMapLabelHtml(hostLabel, opts.usernameColor, { wave: opts.wave ?? undefined, maxLength: 14 })
+      : '';
+  const labeledClass = nameHtml ? ' map-marker-overview-pin--labeled' : '';
 
-  return `<div class="map-marker-overview-pin${liveClass}" role="img">${liveBadge}<span class="${dotClass}"></span></div>`;
+  return `<div class="map-marker-overview-pin${liveClass}${labeledClass}" role="img">${liveBadge}<span class="${dotClass}"></span>${nameHtml}</div>`;
 }
 
 function buildParticipantCountHtml(count: number | undefined, kind: 'live' | 'salon'): string {
@@ -31,16 +59,26 @@ function buildParticipantCountHtml(count: number | undefined, kind: 'live' | 'sa
   return `<span class="map-marker-participant-count ${kindClass}">${escapeHtml(formatCompactCount(safe))}</span>`;
 }
 
-/** Marqueur live zoom ville/rue — point rouge + pseudo (sans avatar). */
+/** Marqueur live zoom ville/rue — point rouge + spectateurs ; pseudo au survol (globe) si demandé. */
 export function buildFlatLiveMarkerHtml(
   hostName: string,
   usernameColor?: string | null,
   wave?: UsernameWaveTint | null,
-  opts?: { viewersCount?: number }
+  opts?: {
+    viewersCount?: number;
+    live?: Pick<Live, 'hostName' | 'title'>;
+    /** `hover` = pseudo visible au survol (globe) ; défaut = masqué (carte plate). */
+    hostLabelMode?: 'none' | 'hover';
+  }
 ): string {
   const count = buildParticipantCountHtml(opts?.viewersCount, 'live');
-  const label = usernameMapLabelHtml(hostName, usernameColor, { wave: wave ?? undefined });
-  return `<div class="map-marker live"><div class="map-marker-dot-row"><span class="map-marker-live-dot" aria-hidden="true"></span>${count}</div>${label}</div>`;
+  const mode = opts?.hostLabelMode ?? 'none';
+  const labelText = opts?.live ? liveMapHostLabel(opts.live) : hostName;
+  const hoverLabel =
+    mode === 'hover' && labelText
+      ? `<span class="map-marker-host-hover-label">${usernameMapLabelHtml(labelText, usernameColor, { wave: wave ?? undefined })}</span>`
+      : '';
+  return `<div class="map-marker live map-marker-live--compact"><div class="map-marker-dot-row"><span class="map-marker-live-dot" aria-hidden="true"></span>${count}</div>${hoverLabel}</div>`;
 }
 
 /** Marqueur salon zoom ville/rue — point violet + pseudo (sans avatar). */

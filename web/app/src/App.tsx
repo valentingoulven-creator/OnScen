@@ -49,6 +49,7 @@ import type { GlobalSearchResultItem } from './lib/globalSearch';
 import { nearbyPreviewFromSearchItem } from './components/ProfileSearchBar';
 import { requestMapFlyToPlace } from './lib/mapSearchIntent';
 import { MainTabNav } from './components/MainTabNav';
+import { MusicPlayerBar } from './components/MusicPlayerBar';
 import { PlatformConnectPrompt } from './components/PlatformConnectPrompt';
 import { SalonYoutubeJoinModal } from './components/SalonYoutubeJoinModal';
 import { ensureYoutubeLinkedToJoinSalon } from './lib/platformConnect';
@@ -162,7 +163,7 @@ export default function App() {
   const [adminOpen, setAdminOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [adminInitialTab, setAdminInitialTab] = useState<
-    'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support' | 'sponsors' | 'reports'
+    'accounts' | 'access' | 'content' | 'analytics' | 'stats' | 'costs' | 'support' | 'sponsors' | 'reports'
   >('accounts');
   const [adminHighlightSupportMessageId, setAdminHighlightSupportMessageId] = useState<string | undefined>();
   const [profileOpenContact, setProfileOpenContact] = useState(false);
@@ -846,7 +847,7 @@ export default function App() {
   );
 
   const openAdminPanel = useCallback(
-    (options?: { tab?: 'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support' | 'sponsors' | 'reports'; supportMessageId?: string }) => {
+    (options?: { tab?: 'accounts' | 'access' | 'content' | 'analytics' | 'stats' | 'costs' | 'support' | 'sponsors' | 'reports'; supportMessageId?: string }) => {
       const session = activeSalonSessionRef.current;
       if (session?.viewMode === 'full') {
         dispatchSalonBeforeMinimize();
@@ -928,6 +929,8 @@ export default function App() {
 
   const openOwnProfile = useCallback(() => {
     if (tabRef.current === 'reels') stopReelsMedia();
+    setSettingsOpen(false);
+    setAdminOpen(false);
     setProfileOpen(true);
   }, [stopReelsMedia, tabRef]);
 
@@ -1758,6 +1761,8 @@ export default function App() {
         )}
 
       </main>
+
+      <MusicPlayerBar onOpenProfile={openProfile} />
 
       {!appa2 && (
         <MainTabNav

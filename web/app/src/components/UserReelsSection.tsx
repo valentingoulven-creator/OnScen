@@ -13,7 +13,7 @@ import {
   payloadTooLargeForMsdev,
   validateReelVideoFile,
 } from '../lib/reelRecording';
-import { ProfileReelPreview } from './ProfileReelPreview';
+import { ProfileReelsViewer } from './ProfileReelsViewer';
 import { ConfirmModal } from './ConfirmModal';
 import type { MusicReel } from '../content/reels';
 
@@ -207,7 +207,7 @@ export function UserReelsSection({
   isOwner,
   canViewPrivateReels = false,
   refreshKey = 0,
-  onOpenReel,
+  onOpenReel: _onOpenReel,
   layout = 'carousel',
   defaultOwnerTab = 'published',
   hideSectionTitle = false,
@@ -228,7 +228,7 @@ export function UserReelsSection({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteReelId, setConfirmDeleteReelId] = useState<string | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
-  const [previewReel, setPreviewReel] = useState<MusicReel | null>(null);
+  const [profileReelsViewerId, setProfileReelsViewerId] = useState<string | null>(null);
 
   const [importing, setImporting] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -357,13 +357,10 @@ export function UserReelsSection({
     void loadReels();
   }, [loadReels, refreshKey]);
 
-  const handleReelClick = useCallback(
-    (reel: MusicReel) => {
-      if (!reel?.id) return;
-      onOpenReel(reel.id);
-    },
-    [onOpenReel]
-  );
+  const handleReelClick = useCallback((reel: MusicReel) => {
+    if (!reel?.id) return;
+    setProfileReelsViewerId(reel.id);
+  }, []);
 
   const requestDeleteReel = (reelId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -377,7 +374,7 @@ export function UserReelsSection({
     setDeletingId(reelId);
     try {
       await api.deleteReel(token, reelId);
-      if (previewReel?.id === reelId) setPreviewReel(null);
+      if (profileReelsViewerId === reelId) setProfileReelsViewerId(null);
       await loadReels();
       setConfirmDeleteReelId(null);
     } catch (err) {
@@ -626,7 +623,13 @@ export function UserReelsSection({
         </div>
       )}
 
-      {previewReel && <ProfileReelPreview reel={previewReel} onClose={() => setPreviewReel(null)} />}
+      {profileReelsViewerId && reels.length > 0 && (
+        <ProfileReelsViewer
+          reels={reels}
+          initialReelId={profileReelsViewerId}
+          onClose={() => setProfileReelsViewerId(null)}
+        />
+      )}
 
       <ConfirmModal
         open={confirmDeleteReelId !== null}

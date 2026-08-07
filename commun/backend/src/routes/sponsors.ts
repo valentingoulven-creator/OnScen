@@ -1,6 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
 import {
+  isValidSponsorPlacement,
+  trackSponsorAnalyticsEvent,
+  type SponsorAnalyticsEvent,
+} from '../lib/sponsorAnalytics';
+import {
   listActiveFeedAds,
   listActiveMapAds,
   listActiveMapSidebarEventPosts,
@@ -56,6 +61,27 @@ function parseMapViewportQuery(req: Request): MapViewportQuery | undefined {
   if (west != null && Number.isFinite(west)) viewport.west = west;
   return Object.keys(viewport).length > 0 ? viewport : undefined;
 }
+
+/** POST /api/sponsors/track — impression ou clic sponsor (agrégats anonymes). */
+sponsorsRouter.post('/track', (req: Request, res: Response) => {
+  const { sponsorId, placement, event } = req.body ?? {};
+  if (typeof sponsorId !== 'string' || !sponsorId.trim()) {
+    res.status(400).json({ error: 'sponsorId requis' });
+    return;
+  }
+  if (!isValidSponsorPlacement(placement)) {
+    res.status(400).json({ error: 'placement invalide' });
+    return;
+  }
+  const ev: SponsorAnalyticsEvent | null =
+    event === 'impression' || event === 'click' ? event : null;
+  if (!ev) {
+    res.status(400).json({ error: 'event invalide (impression | click)' });
+    return;
+  }
+  trackSponsorAnalyticsEvent(ev, sponsorId.trim(), placement);
+  res.json({ ok: true });
+});
 
 /** Bandeaux actifs pour la carte (public, sans auth). */
 sponsorsRouter.get('/map', (req: Request, res: Response) => {

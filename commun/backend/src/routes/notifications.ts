@@ -32,6 +32,8 @@ function publicNotification(n: (typeof db.notifications)[0]) {
     groupId: n.groupId,
     postId: n.postId,
     reelId: n.reelId,
+    albumId: n.albumId,
+    compositionId: n.compositionId,
   };
 }
 

@@ -1,6 +1,5 @@
 import { db, Live, Salon, User } from '../models/schema';
-import { pushNotification } from './notifications';
-import { runInBatchesAsync } from './asyncFanOut';
+import { notifyFollowersCreatorActivity } from './followActivityNotifications';
 
 function followingSet(followerId: string): Set<string> {
   let set = db.userFollows.get(followerId);
@@ -9,6 +8,15 @@ function followingSet(followerId: string): Set<string> {
     db.userFollows.set(followerId, set);
   }
   return set;
+}
+
+function prefsMap(followerId: string): Map<string, boolean> {
+  let map = db.userFollowNotificationPrefs.get(followerId);
+  if (!map) {
+    map = new Map();
+    db.userFollowNotificationPrefs.set(followerId, map);
+  }
+  return map;
 }
 
 export function isFollowing(followerId: string, followingId: string): boolean {
@@ -23,10 +31,12 @@ export function isMutualFollow(userA: string, userB: string): boolean {
 
 export function followUser(followerId: string, followingId: string): void {
   followingSet(followerId).add(followingId);
+  prefsMap(followerId).set(followingId, true);
 }
 
 export function unfollowUser(followerId: string, followingId: string): void {
   followingSet(followerId).delete(followingId);
+  db.userFollowNotificationPrefs.get(followerId)?.delete(followingId);
 }
 
 export function getFollowingIds(followerId: string): string[] {
@@ -41,42 +51,70 @@ export function getFollowerIds(hostId: string): string[] {
   return ids;
 }
 
-/**
- * Notifie les abonnés qu'un hôte démarre un live. Le fan-out est traité par lots
- * asynchrones (cf. asyncFanOut) : pour un hôte à forte audience, un `for` synchrone
- * bloquerait l'event loop et retarderait la réponse HTTP de POST /lives/start.
- */
+/** Activité passive (salon, live, contenu) — pas les DM / tags. */
+export function isFollowActivityNotificationsEnabled(followerId: string, followingId: string): boolean {
+  if (!isFollowing(followerId, followingId)) return false;
+  return prefsMap(followerId).get(followingId) !== false;
+}
+
+export function setFollowActivityNotifications(
+  followerId: string,
+  followingId: string,
+  enabled: boolean
+): void {
+  if (!isFollowing(followerId, followingId)) {
+    throw new Error('NOT_FOLLOWING');
+  }
+  prefsMap(followerId).set(followingId, enabled);
+}
+
+export function getFollowActivityRecipientIds(creatorId: string): string[] {
+  const ids: string[] = [];
+  for (const [followerId, set] of db.userFollows) {
+    if (!set.has(creatorId) || followerId === creatorId) continue;
+    if (!isFollowActivityNotificationsEnabled(followerId, creatorId)) continue;
+    ids.push(followerId);
+  }
+  return ids;
+}
+
+export function snapshotFollowNotificationPrefs(): Record<string, Record<string, boolean>> {
+  const out: Record<string, Record<string, boolean>> = {};
+  for (const [followerId, map] of db.userFollowNotificationPrefs) {
+    if (map.size === 0) continue;
+    out[followerId] = Object.fromEntries(map.entries());
+  }
+  return out;
+}
+
+export function restoreFollowNotificationPrefs(
+  data: Record<string, Record<string, boolean>> | undefined
+): void {
+  db.userFollowNotificationPrefs.clear();
+  if (!data) return;
+  for (const [followerId, edges] of Object.entries(data)) {
+    const map = new Map<string, boolean>();
+    for (const [followingId, enabled] of Object.entries(edges ?? {})) {
+      if (typeof enabled === 'boolean') map.set(followingId, enabled);
+    }
+    if (map.size) db.userFollowNotificationPrefs.set(followerId, map);
+  }
+}
+
 export function notifyFollowersLiveStarted(live: Live, host: User): void {
-  const followerIds = getFollowerIds(host.id);
-  const message = `${host.username} est en live !`;
-  runInBatchesAsync(followerIds, (recipientId) => {
-    if (recipientId === host.id) return;
-    pushNotification({
-      recipientId,
-      senderId: host.id,
-      senderName: host.username,
-      senderAvatarUrl: host.avatarUrl,
-      type: 'live_started',
-      message,
-      liveId: live.id,
-    });
+  notifyFollowersCreatorActivity({
+    creator: host,
+    type: 'live_started',
+    message: `${host.username} est en live !`,
+    liveId: live.id,
   });
 }
 
 export function notifyFollowersSalonCreated(host: User, salon: Salon): void {
-  const followerIds = getFollowerIds(host.id);
-  const message = `${host.username} a ouvert un salon « ${salon.title} » 🎵`;
-  runInBatchesAsync(followerIds, (recipientId) => {
-    if (recipientId === host.id) return;
-    pushNotification({
-      recipientId,
-      senderId: host.id,
-      senderName: host.username,
-      senderAvatarUrl: host.avatarUrl,
-      type: 'salon_created',
-      message,
-      salonId: salon.id,
-      peerUserId: host.id,
-    });
+  notifyFollowersCreatorActivity({
+    creator: host,
+    type: 'salon_created',
+    message: `${host.username} a ouvert un salon « ${salon.title} » 🎵`,
+    salonId: salon.id,
   });
 }

@@ -27,6 +27,8 @@ import {
 } from '../lib/reels';
 import { parseFeedAlgoQuery } from '../lib/reelFeedRanking';
 import { moderateReelUpload, moderationRejectionMessage } from '../lib/contentModeration';
+import { prepareChatText } from '../lib/sanitizeUserText';
+import { likeLimiter } from '../lib/abuseRateLimits';
 
 export const reelsRouter = Router();
 
@@ -121,6 +123,7 @@ reelsRouter.post('/', authenticateJWT, asyncHandler(async (req: Request, res: Re
     mediaUrl,
     posterUrl,
     durationSec,
+    uploaderId: me,
   });
   if (!moderation.allowed) {
     res.status(422).json({ error: moderationRejectionMessage(moderation) });
@@ -194,7 +197,7 @@ reelsRouter.get('/:reelId/stats', authenticateJWT, (req: Request, res: Response)
   res.json({ stats: reelStats(reelId, me) });
 });
 
-reelsRouter.post('/:reelId/heart', authenticateJWT, (req: Request, res: Response) => {
+reelsRouter.post('/:reelId/heart', authenticateJWT, likeLimiter, (req: Request, res: Response) => {
   const reelId = req.params.reelId;
   if (!requireReel(reelId, res)) return;
   const me = (req as Request & { user: { id: string } }).user.id;
@@ -232,16 +235,28 @@ reelsRouter.post('/:reelId/comments', authenticateJWT, (req: Request, res: Respo
     res.status(404).json({ error: 'Utilisateur introuvable' });
     return;
   }
-  const content = String(req.body?.content ?? '').trim();
-  if (!content) {
+  const rawContent = String(req.body?.content ?? '').trim();
+  if (!rawContent) {
     res.status(400).json({ error: 'Commentaire vide' });
     return;
   }
-  if (content.length > 500) {
+  if (rawContent.length > 500) {
     res.status(400).json({ error: 'Commentaire trop long' });
     return;
   }
-  const comment = addReelComment(reelId, user.id, user.username, user.avatarUrl, content);
+  // Aligné sur le pipeline chat/DM (MOD-4 audit) : sanitization HTML + filtre lexical
+  // (blocage insultes graves/spam, masquage grossièretés) — les commentaires reels
+  // n'avaient auparavant aucun filtre, contrairement à toutes les autres surfaces texte.
+  const prepared = prepareChatText(rawContent);
+  if (!prepared.ok) {
+    res.status(422).json({ error: prepared.message, reason: prepared.reason });
+    return;
+  }
+  if (!prepared.text) {
+    res.status(400).json({ error: 'Commentaire vide' });
+    return;
+  }
+  const comment = addReelComment(reelId, user.id, user.username, user.avatarUrl, prepared.text);
   const payload = publicReelComment(comment);
   getIo()?.to(`reel_${reelId}`).emit('reel_comment', payload);
   res.status(201).json({ comment: payload, commentCount: getReelComments(reelId).length });

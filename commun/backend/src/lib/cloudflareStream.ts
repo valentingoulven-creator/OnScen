@@ -256,6 +256,7 @@ interface CfLiveInputVideoRaw {
   created?: string;
   status?: { state?: string };
   playback?: { hls?: string };
+  thumbnail?: string;
 }
 
 /** HLS VOD de la dernière diffusion enregistrée après `startedAfterMs` (live input partagé). */
@@ -279,6 +280,26 @@ export async function resolveLatestRecordingHlsUrl(
     if (!best || created > best.created) best = { created, hls };
   }
   return best?.hls;
+}
+
+/**
+ * URL de la miniature (thumbnail.jpg) de la vidéo actuellement `live-inprogress` pour ce
+ * live input — utilisée pour l'échantillonnage périodique de frames à des fins de
+ * modération automatique (audit MOD-3, aucun scan vidéo continu n'existant sinon).
+ * Un paramètre anti-cache (`?t=`) est ajouté pour forcer Cloudflare à ne pas resservir
+ * une image mise en cache par un fetch précédent.
+ */
+export async function getInProgressLiveThumbnailUrl(liveInputId: string): Promise<string | undefined> {
+  const accountId = getAccountId();
+  const videos = await cfRequest<CfLiveInputVideoRaw[]>(
+    'GET',
+    `/accounts/${accountId}/stream/live_inputs/${liveInputId}/videos`
+  );
+  const inProgress = videos.find((v) => v.status?.state === 'live-inprogress');
+  const thumb = inProgress?.thumbnail?.trim();
+  if (!thumb) return undefined;
+  const sep = thumb.includes('?') ? '&' : '?';
+  return `${thumb}${sep}t=${Date.now()}`;
 }
 
 export interface CloudflareLiveInputLifecycle {

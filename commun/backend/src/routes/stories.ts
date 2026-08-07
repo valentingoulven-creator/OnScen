@@ -39,7 +39,7 @@ storiesRouter.post('/', authenticateJWT, asyncHandler(async (req: Request, res: 
   const videoDurationSec =
     body.videoDurationSec != null ? Number(body.videoDurationSec) : undefined;
   if (imageUrl) {
-    const moderation = await moderateImageSource(imageUrl, 'story');
+    const moderation = await moderateImageSource(imageUrl, 'story', me);
     if (!moderation.allowed) {
       res.status(422).json({ error: moderationRejectionMessage(moderation) });
       return;
@@ -49,7 +49,8 @@ storiesRouter.post('/', authenticateJWT, asyncHandler(async (req: Request, res: 
     const moderation = await moderateVideoSource(
       videoUrl,
       Number.isFinite(videoDurationSec) ? videoDurationSec : undefined,
-      'story'
+      'story',
+      me
     );
     if (!moderation.allowed) {
       res.status(422).json({ error: moderationRejectionMessage(moderation) });

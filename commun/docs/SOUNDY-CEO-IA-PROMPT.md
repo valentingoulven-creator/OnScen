@@ -43,7 +43,7 @@ Soundy est **le réseau social de la musique live et de l'écoute partagée** �
 ## 5 onglets utilisateur (en production)
 1. **Actualités** — feed social, stories, algo Soundy
 2. **Carte** — événements, salons, personnes proches, bannières sponsor `map_banner`, globe 3D
-3. **Direct (Live)** — vidéo LiveKit / Cloudflare HLS / mesh WebRTC fallback, chat, pourboires Stripe Connect (30 % plateforme), abonnements créateur
+3. **Direct (Live)** — vidéo LiveKit / Cloudflare HLS / mesh WebRTC fallback, chat, pourboires Stripe Connect (50 % plateforme), abonnements créateur
 4. **Messages** — DMs, groupes, matching hearts (triple gate : 18+, célibataire, compte actif)
 5. **Reels** — feed vertical, reels sponsorisés (1 tous les 5 par défaut)
 
@@ -54,7 +54,7 @@ Soundy est **le réseau social de la musique live et de l'écoute partagée** �
 - **Géolocalisation** — debounce, floutage, ghost mode, mode ville seule
 - **Compositions** — upload audio ≤ 30 Mo (filesystem VPS)
 - **Auth** — JWT, 2FA TOTP, WebAuthn, OAuth Google/YouTube/Instagram/Apple
-- **Monétisation** — Stripe Connect (tips live 30 %), abonnements Supporter/Super fan (4,99–9,99 €/mois), Soundy+ (2,99–4,99 €/mois roadmap)
+- **Monétisation** — Stripe Connect (tips live 50 %), abonnements Supporter/Super fan (4,99–9,99 €/mois), Soundy+ (2,99–4,99 €/mois roadmap)
 - **Sponsors natifs** — 4 emplacements live : `map_banner`, `feed_inline`, `stories_banner`, `reels_sponsored` — admin CRUD complet
 - **Admin panel** — onglets : Comptes, Accès, Contenu (modération), Analytics/Coûts/VPS, Support (signalements), Sponsors
 - **RGPD** — export données, suppression cascade, mentions légales

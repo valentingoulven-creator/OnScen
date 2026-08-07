@@ -46,6 +46,8 @@ import {
   isUserPersistentObsLiveInput,
 } from '../lib/userObsStream';
 import { persistLiveToPgAsync } from '../lib/pgSalonsLives';
+import { startLiveContentSampling, stopLiveContentSampling } from '../lib/liveContentSampling';
+import { liveStartLimiter } from '../lib/abuseRateLimits';
 import { resolveLiveTipsEnabledAtStart } from '../lib/donations';
 import { defaultDonationOptionsForLive } from '../lib/liveDonationDefaults';
 import {
@@ -228,6 +230,10 @@ async function archiveCloudflareStreamForLive(live: Live): Promise<void> {
     }
   }
 
+  // Replay désactivé par l'hôte (Config) : on ne conserve pas l'URL VOD, même si
+  // Cloudflare a enregistré la piste côté infra (recording.mode: 'automatic').
+  if (live.replayEnabled === false) return;
+
   let vodUrl = live.cloudflarePlaybackUrl;
   try {
     const recording = await resolveLatestRecordingHlsUrl(inputId, live.startedAt);
@@ -240,7 +246,7 @@ async function archiveCloudflareStreamForLive(live: Live): Promise<void> {
   }
 }
 
-livesRouter.post('/start', authenticateJWT, async (req: Request, res: Response) => {
+livesRouter.post('/start', authenticateJWT, liveStartLimiter, async (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
   const user = db.users.get(userId);
   if (!user) {
@@ -375,6 +381,10 @@ livesRouter.post('/start', authenticateJWT, async (req: Request, res: Response) 
       notifyFollowersLiveStarted(live, host);
       notifyFavoritesLiveStarted(host, live);
     }
+    if (live.streamMode === 'cloudflare' && live.cloudflareLiveInputId) {
+      // Audit MOD-3 : échantillonnage périodique de frames pour modération auto pendant le live.
+      startLiveContentSampling(live.id, live.cloudflareLiveInputId, live.hostId);
+    }
     res.status(201).json({ live: publicLive(live, undefined, userId) });
   } catch (err) {
     // Libère la réservation : sinon cet hôte ne pourrait plus jamais démarrer de live
@@ -395,6 +405,7 @@ livesRouter.post('/stop', authenticateJWT, async (req: Request, res: Response) =
     return;
   }
   live.isActive = false;
+  stopLiveContentSampling(live.id);
   if (live.streamMode === 'cloudflare') {
     await archiveCloudflareStreamForLive(live);
   }
@@ -525,6 +536,7 @@ livesRouter.get('/:id/livekit-token', authenticateJWT, async (req: Request, res:
     return;
   }
   const isHost = live.hostId === me.id;
+  const isCoHost = !isHost && live.coHostId === me.id;
   if (!isHost) {
     if (!runOrRespondPlanError(res, () => assertViewerCanAccessLive(live, me.id))) return;
   }
@@ -540,17 +552,18 @@ livesRouter.get('/:id/livekit-token', authenticateJWT, async (req: Request, res:
   const roomName = liveKitRoomName(live.id);
 
   try {
+    const canPublish = isHost || isCoHost;
     const token = await createLiveKitToken({
       roomName,
       participantIdentity: me.id,
       participantName: user?.username ?? me.id,
-      canPublish: isHost,
+      canPublish,
     });
     res.json({
       token,
       serverUrl: getLiveKitUrl(),
       roomName,
-      canPublish: isHost,
+      canPublish,
       streamMode: 'livekit' as const,
     });
   } catch (err) {

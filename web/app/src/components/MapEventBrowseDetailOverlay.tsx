@@ -81,6 +81,8 @@ export function MapEventBrowseDetailOverlay({
     return resolveEventCoordsSync(location);
   }, [activePost.eventLocation]);
 
+  const hasMapFooterActions = Boolean(onViewOnMap || onOpenInFeed);
+
   const detailBody = (
     <>
       <div
@@ -102,16 +104,16 @@ export function MapEventBrowseDetailOverlay({
           ✕
         </button>
 
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pt-2 pb-2">
-          <FeedPostInteractions
-            post={activePost}
-            token={token}
-            onPostChange={handlePostChange}
-            onToast={showToast}
-            inlineToolbar
-          >
-            {({ toolbar, comments }) => (
-              <>
+        <FeedPostInteractions
+          post={activePost}
+          token={token}
+          onPostChange={handlePostChange}
+          onToast={showToast}
+          inlineToolbar={hasMapFooterActions}
+        >
+          {({ toolbar, comments }) => (
+            <div className="flex flex-col flex-1 min-h-0">
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pt-2 pb-2">
                 <EventCard
                   post={activePost}
                   layout="vertical"
@@ -119,41 +121,49 @@ export function MapEventBrowseDetailOverlay({
                   embedded
                   locationNavigable
                   locationCoords={locationCoords}
-                  profileActions={toolbar}
+                  profileActions={hasMapFooterActions ? toolbar : undefined}
                   onOpen={() => {}}
                   onPostChange={handlePostChange}
                 />
                 {comments ? <div className={`px-3 ${isSidebar ? 'text-sm' : ''}`}>{comments}</div> : null}
-              </>
-            )}
-          </FeedPostInteractions>
-        </div>
+              </div>
 
-        <div
-          className={`shrink-0 flex gap-2 px-3 py-2.5 border-t border-white/10 bg-[#0e0e14]/95 ${
-            isSidebar ? '' : 'pb-[max(0.75rem,env(safe-area-inset-bottom))]'
-          }`}
-        >
-          {onViewOnMap ? (
-            <button
-              type="button"
-              onClick={() => onViewOnMap(activePost)}
-              className="flex-1 min-h-[44px] px-2 py-2 rounded-xl text-xs sm:text-sm font-semibold text-purple-100 bg-purple-600 hover:bg-purple-500 transition flex items-center justify-center gap-1.5"
-            >
-              <MapViewIcon className="w-3.5 h-3.5 shrink-0" />
-              {t('map.eventsBrowseViewOnMap')}
-            </button>
-          ) : null}
-          {onOpenInFeed ? (
-            <button
-              type="button"
-              onClick={() => onOpenInFeed(activePost.id)}
-              className="flex-1 min-h-[44px] px-2 py-2 rounded-xl text-xs sm:text-sm font-semibold text-gray-200 border border-[#2d2d3d] bg-[#1a1a26] hover:bg-[#22222f] transition"
-            >
-              {t('map.eventModalOpenInFeed')}
-            </button>
-          ) : null}
-        </div>
+              <div
+                className={`shrink-0 border-t border-white/10 bg-[#0e0e14]/95 ${
+                  isSidebar
+                    ? 'px-2 py-2'
+                    : 'px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]'
+                }`}
+              >
+                {hasMapFooterActions ? (
+                  <div className="flex gap-2 w-full min-w-0">
+                    {onViewOnMap ? (
+                      <button
+                        type="button"
+                        onClick={() => onViewOnMap(activePost)}
+                        className="flex-1 min-h-[44px] px-2 py-2 rounded-xl text-xs sm:text-sm font-semibold text-purple-100 bg-purple-600 hover:bg-purple-500 transition flex items-center justify-center gap-1.5"
+                      >
+                        <MapViewIcon className="w-3.5 h-3.5 shrink-0" />
+                        {t('map.eventsBrowseViewOnMap')}
+                      </button>
+                    ) : null}
+                    {onOpenInFeed ? (
+                      <button
+                        type="button"
+                        onClick={() => onOpenInFeed(activePost.id)}
+                        className="flex-1 min-h-[44px] px-2 py-2 rounded-xl text-xs sm:text-sm font-semibold text-gray-200 border border-[#2d2d3d] bg-[#1a1a26] hover:bg-[#22222f] transition"
+                      >
+                        {t('map.eventModalOpenInFeed')}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-around gap-1 w-full min-h-[44px]">{toolbar}</div>
+                )}
+              </div>
+            </div>
+          )}
+        </FeedPostInteractions>
       </div>
 
       {toast ? (

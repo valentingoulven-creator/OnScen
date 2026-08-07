@@ -499,6 +499,11 @@ export function toggleFeedPostLike(
   return { ok: true, liked, likeCount: likes.size };
 }
 
+function publicEventUpvoteCount(post: FeedPost, realUpvoteCount: number): number {
+  const seed = post.eventUpvoteSeed ?? 0;
+  return Math.max(0, realUpvoteCount + seed);
+}
+
 export function toggleFeedPostUpvote(
   userId: string,
   postId: string
@@ -514,7 +519,7 @@ export function toggleFeedPostUpvote(
   if (upvoted) upvotes.add(userId);
   else upvotes.delete(userId);
   schedulePersistFeedPostUpvote(postId, userId, upvoted);
-  return { ok: true, upvoted, upvoteCount: upvotes.size };
+  return { ok: true, upvoted, upvoteCount: publicEventUpvoteCount(post, upvotes.size) };
 }
 
 export function addFeedPostComment(
@@ -681,7 +686,7 @@ function toPublicPost(
     likedByMe: likes ? likes.has(viewerId) : false,
     ...(post.isEvent
       ? {
-          upvoteCount: upvotes ? upvotes.size : 0,
+          upvoteCount: publicEventUpvoteCount(post, upvotes ? upvotes.size : 0),
           upvotedByMe: upvotes ? upvotes.has(viewerId) : false,
         }
       : {}),

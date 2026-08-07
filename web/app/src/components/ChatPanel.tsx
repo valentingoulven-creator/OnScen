@@ -402,10 +402,21 @@ function useChatRoom({
       setSendError(payload.message);
     };
 
+    const onMessageDenied = (payload: {
+      roomType: 'salon' | 'live' | 'dm';
+      roomId: string;
+      reason: string;
+      message: string;
+    }) => {
+      if (payload.roomType !== roomType || payload.roomId !== roomId) return;
+      setSendError(payload.message);
+    };
+
     socket.on(event, handler);
     socket.on(deletedEvent, onDeleted);
     socket.on('connect', onConnect);
     socket.on('chat_attachment_denied', onAttachmentDenied);
+    socket.on('chat_message_denied', onMessageDenied);
     if (liveReactionsEnabled) socket.on('gift_animation', onGiftAnimation);
 
     return () => {
@@ -413,6 +424,7 @@ function useChatRoom({
       socket.off(deletedEvent, onDeleted);
       socket.off('connect', onConnect);
       socket.off('chat_attachment_denied', onAttachmentDenied);
+      socket.off('chat_message_denied', onMessageDenied);
       if (liveReactionsEnabled) socket.off('gift_animation', onGiftAnimation);
     };
   }, [roomType, roomId, liveReactionsEnabled]);

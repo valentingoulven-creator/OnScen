@@ -15,7 +15,7 @@ import {
 } from '../lib/nearbyPanelSettings';
 import { SETTINGS_CHANGED_EVENT } from '../lib/settings';
 import type { MapEventFilterCriteria } from '../lib/mapEventFilter';
-import type { FeedEventType } from '../lib/eventType';
+import { getFeedEventTypeDisplayLabel, type FeedEventType } from '../lib/eventType';
 
 export type MapActiveFilterKind = 'lives' | 'salon' | 'events' | null;
 
@@ -56,9 +56,9 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 function eventTypeLabel(t: (key: string) => string, eventType: MapEventFilterCriteria['eventType']): string {
   if (eventType === 'all') return t('map.eventFilterTypeAll');
   const labels: Record<FeedEventType, string> = {
-    dance: t('feed.eventTypeDance'),
-    chant: t('feed.eventTypeChant'),
-    autre: t('feed.eventTypeAutre'),
+    dance: getFeedEventTypeDisplayLabel(t, 'dance'),
+    chant: getFeedEventTypeDisplayLabel(t, 'chant'),
+    autre: getFeedEventTypeDisplayLabel(t, 'autre'),
   };
   return labels[eventType] ?? eventType;
 }

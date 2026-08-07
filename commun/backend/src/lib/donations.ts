@@ -6,6 +6,8 @@ import { persistGiftToPgAsync } from './pgDonations';
 import { broadcastAdminDonationRecorded } from './donationsAdminBroadcast';
 import { CREATOR_MONETIZATION_MIN_AGE, creatorMeetsMonetizationAgeFromProfile } from './ageGates';
 import { getStripeClient } from './stripeClient';
+import { isProductionEnv } from './jwtSecret';
+import { isStripeLiveMode } from './stripeConfig';
 
 export {
   computeDonationFeeBreakdown,
@@ -29,10 +31,16 @@ export function isStripeConfigured(): boolean {
   return Boolean(process.env.STRIPE_SECRET_KEY?.trim());
 }
 
-/** Dons activés : simulation msdev toujours ; prod si DONATIONS_ENABLED=1 et Stripe configuré. */
+/**
+ * Dons activés : simulation msdev toujours ; staging si DONATIONS_ENABLED + Stripe ;
+ * production stricte (getsoundy.com) uniquement si clé Stripe **live** — évite les
+ * paiements « réussis » fictifs avec sk_test (audit STR-11, reco CTO 2026-08-07).
+ */
 export function isDonationsEnabled(): boolean {
   if (isMsdevRuntime()) return true;
-  return process.env.DONATIONS_ENABLED === '1' && isStripeConfigured();
+  if (process.env.DONATIONS_ENABLED !== '1' || !isStripeConfigured()) return false;
+  if (isProductionEnv()) return isStripeLiveMode();
+  return true;
 }
 
 export function isDonationSimulationMode(): boolean {

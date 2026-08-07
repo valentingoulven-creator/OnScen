@@ -39,7 +39,7 @@ describe('getDonationsSummaryReport', () => {
     process.env = envBackup;
   });
 
-  it('agrège simulation msdev et stripe avec commission 30 %', () => {
+  it('agrège simulation msdev (commission par défaut 50 %) et stripe (fee enregistré)', () => {
     recordLiveDonation({
       liveId: 'live1',
       senderId: 'fan1',
@@ -75,8 +75,9 @@ describe('getDonationsSummaryReport', () => {
 
     expect(report.allTime.count).toBe(2);
     expect(report.allTime.totalDonationsCents).toBe(1500);
-    expect(report.allTime.platformFeesCents).toBe(450);
-    expect(report.allTime.creatorPayoutsCents).toBe(1050);
+    // Simulation (5 €) utilise le défaut courant 50 % => 250 c. Stripe (10 €) garde son fee enregistré (300 c).
+    expect(report.allTime.platformFeesCents).toBe(550);
+    expect(report.allTime.creatorPayoutsCents).toBe(950);
     expect(report.allTime.simulationCount).toBe(1);
     expect(report.allTime.stripeCount).toBe(1);
     expect(report.simulationMode).toBe(true);

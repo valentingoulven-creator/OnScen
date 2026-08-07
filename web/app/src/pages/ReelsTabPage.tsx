@@ -14,6 +14,7 @@ import {
 } from '../content/reelsFeed';
 import { useAuth } from '../context/AuthContext';
 import { ReelAlbumLinkButton } from '../components/ReelAlbumLinkButton';
+import { pickReelAlbumLink } from '../lib/reelAlbumLink';
 import { ReelsSearchBar } from '../components/ReelsSearchBar';
 import { ShareLinkMenu } from '../components/ShareLinkMenu';
 import { ShareToUserSheet } from '../components/ShareToUserSheet';
@@ -66,11 +67,6 @@ import type { ReelComment, ReelStats } from '../types';
 import { ReportContentModal } from '../components/ReportContentModal';
 import { CreateReelSheet } from '../components/CreateReelSheet';
 import { ConfirmModal } from '../components/ConfirmModal';
-import {
-  collectReelsRenderCenters,
-  readDomScrollIndex,
-  shouldRenderReelSlide,
-} from '../lib/reelsRenderWindow';
 
 const SWIPE_THRESHOLD_PX = 22;
 const SWIPE_VELOCITY_PX_MS = 0.32;
@@ -336,8 +332,6 @@ export function ReelsTabPage({
   const pausedByPageHiddenRef = useRef(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [scrollAnchorIndex, setScrollAnchorIndex] = useState(0);
-  /** Slide index from scroll metrics — keeps virtualization aligned with visible slide. */
-  const [layoutScrollIndex, setLayoutScrollIndex] = useState(0);
   const [muted, setMuted] = useState(() => !readReelsUnmutedPreference());
   const mutedRef = useRef(muted);
   const [playbackPaused, setPlaybackPaused] = useState(false);
@@ -376,7 +370,6 @@ export function ReelsTabPage({
     activeIndexRef.current = 0;
     setScrollAnchorIndex(0);
     scrollAnchorIndexRef.current = 0;
-    setLayoutScrollIndex(0);
     const el = scrollRef.current;
     if (el) el.scrollTo({ top: 0, behavior: 'auto' });
   }, [deferredSearchQuery]);
@@ -433,7 +426,6 @@ export function ReelsTabPage({
     activeIndexRef.current = index;
     setScrollAnchorIndex(index);
     scrollAnchorIndexRef.current = index;
-    setLayoutScrollIndex(index);
     const el = scrollRef.current;
     if (el) scrollToDisplayIndex(el, index);
     onIntentHandled?.();
@@ -449,7 +441,6 @@ export function ReelsTabPage({
     activeIndexRef.current = index;
     setScrollAnchorIndex(index);
     scrollAnchorIndexRef.current = index;
-    setLayoutScrollIndex(index);
     initialScrollDone.current = true;
     const el = scrollRef.current;
     if (el) scrollToDisplayIndex(el, index);
@@ -583,7 +574,6 @@ export function ReelsTabPage({
     setActiveIndex(clamped);
     setScrollAnchorIndex(clamped);
     scrollAnchorIndexRef.current = clamped;
-    setLayoutScrollIndex(clamped);
   }, [displayItems.length]);
 
   const updateScrollAnchorFromScroll = useCallback(() => {
@@ -595,7 +585,6 @@ export function ReelsTabPage({
       scrollAnchorIndexRef.current = clamped;
       setScrollAnchorIndex(clamped);
     }
-    setLayoutScrollIndex(clamped);
     return clamped;
   }, [displayItems.length]);
 
@@ -1242,18 +1231,6 @@ export function ReelsTabPage({
     }
   }, [token, pendingPublishReel, publishingReel, refreshFeedWithStart, t]);
 
-  const reelRenderCenters = useMemo(() => {
-    const domIndex = readDomScrollIndex(
-      scrollRef.current,
-      displayItems.length,
-      layoutScrollIndex
-    );
-    return collectReelsRenderCenters(
-      [scrollAnchorIndex, activeIndex, domIndex],
-      displayItems.length
-    );
-  }, [displayItems.length, scrollAnchorIndex, activeIndex, layoutScrollIndex]);
-
   return (
     <div
       data-reels-root
@@ -1297,12 +1274,6 @@ export function ReelsTabPage({
             onTouchCancel={onTouchCancel}
           >
             {displayItems.map((item, index) => {
-              if (!shouldRenderReelSlide(index, reelRenderCenters)) {
-                // Hors fenêtre : spacer de même hauteur (.reel-slide = 100% du
-                // conteneur), aucun <video>/<img> monté — préserve le scrollHeight
-                // total du feed sans le coût mémoire/DOM d'un rendu complet.
-                return <div key={item.key} className="reel-slide shrink-0 snap-start snap-always" aria-hidden />;
-              }
               return item.kind === 'sponsor' ? (
                 <ReelsSponsoredSlide
                   key={item.key}
@@ -1785,6 +1756,11 @@ const ReelAuthorStack = memo(function ReelAuthorStack({
   const avatarUserId = authorId || reel.id;
   const canOpenProfile = !!authorId && !!onOpenAuthor;
 
+  const openProfile = (e: { stopPropagation: () => void }) => {
+    e.stopPropagation();
+    if (authorId && onOpenAuthor) onOpenAuthor(authorId);
+  };
+
   const card = (
     <div className="reel-author-card max-w-[88%] rounded-xl bg-black/55 backdrop-blur-md border border-white/12 px-2.5 py-2 shadow-lg">
       <div className="flex items-start gap-2 min-w-0">
@@ -1811,6 +1787,14 @@ const ReelAuthorStack = memo(function ReelAuthorStack({
             ) : null}
           </div>
           <p className="mt-0.5 text-sm font-bold text-white leading-snug line-clamp-2 drop-shadow-sm">{reel.title}</p>
+          {canOpenProfile ? (
+            <span className="mt-1.5 inline-flex items-center gap-1 min-h-[28px] text-[11px] font-semibold text-pink-200">
+              {t('reels.viewProfile')}
+              <span aria-hidden className="text-pink-300/90">
+                →
+              </span>
+            </span>
+          ) : null}
         </div>
       </div>
     </div>
@@ -1827,11 +1811,8 @@ const ReelAuthorStack = memo(function ReelAuthorStack({
   return (
     <button
       type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        onOpenAuthor!(authorId);
-      }}
-      className="pointer-events-auto text-left rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors"
+      onClick={openProfile}
+      className="pointer-events-auto text-left rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors w-full max-w-[88%]"
       aria-label={t('reels.openAuthorProfile', { username: displayName })}
     >
       {card}
@@ -1881,6 +1862,7 @@ const ReelSlide = memo(
   const [durationSec, setDurationSec] = useState<number | undefined>(reel.durationSec);
   const [currentTimeSec, setCurrentTimeSec] = useState(0);
   const showPosterOnly = isImageOnly || videoFailed;
+  const albumLink = pickReelAlbumLink(reel);
   const showDurationBadge = !isImageOnly && !videoFailed && durationSec != null && durationSec > 0;
   const durationBadgeText =
     showDurationBadge && isActive
@@ -2221,7 +2203,7 @@ const ReelSlide = memo(
         </div>
       )}
       <div className="reel-slide__scrim absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/40 pointer-events-none" />
-      {reel.link?.trim() ? <ReelAlbumLinkButton url={reel.link} /> : null}
+      {albumLink ? <ReelAlbumLinkButton url={albumLink} /> : null}
       <div className="reel-meta-stack absolute bottom-14 left-4 right-24 z-10 flex flex-col items-start gap-1.5">
         {durationBadgeText != null && (
           <span

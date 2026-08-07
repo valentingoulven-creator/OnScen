@@ -209,9 +209,11 @@ export function deleteUserAccountCascade(userId: string): void {
   for (const [followerId, following] of db.userFollows) {
     if (followerId === userId) {
       db.userFollows.delete(followerId);
+      db.userFollowNotificationPrefs.delete(followerId);
       continue;
     }
     if (following.delete(userId)) {
+      db.userFollowNotificationPrefs.get(followerId)?.delete(userId);
       if (following.size) db.userFollows.set(followerId, following);
       else db.userFollows.delete(followerId);
     }

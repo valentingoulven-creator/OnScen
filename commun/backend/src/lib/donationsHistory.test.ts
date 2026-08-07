@@ -51,8 +51,8 @@ describe('donationsHistory', () => {
       recipientId: 'host1',
       amountEur: 10,
       amountCents: 1000,
-      platformFeeCents: 300,
-      creatorNetCents: 700,
+      platformFeeCents: 500,
+      creatorNetCents: 500,
       liveTitle: 'Session test',
       paymentMode: 'simulation',
     });

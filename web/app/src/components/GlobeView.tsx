@@ -32,8 +32,10 @@ import { clusterLiveMapMarkers, type MapLiveLocationCluster } from '../lib/mapLi
 import {
   linkedSalonIdsForLiveDedup,
   mergeLivesWithLiveSalons,
+  salonToMapLive,
   splitSalonsForMapMarkers,
 } from '../lib/mapLiveSalonMarkers';
+import { liveMapHostLabel } from '../lib/mapOverviewMarkerHtml';
 import {
   filterPeopleForZoom,
   filterSalonsForZoom,
@@ -180,6 +182,8 @@ export interface GlobeViewProps {
   ) => void;
   onGlobeAltitudeChange?: (altitude: number) => void;
   onGlobePovChange?: (lat: number, lng: number, altitude: number) => void;
+  /** Centre sous la caméra (rotation / zoom) — cercles rayon lives. */
+  onGlobeViewCenterChange?: (lat: number, lng: number) => void;
   livesFilterOn?: boolean;
   salonFilterOn?: boolean;
   eventsFilterOn?: boolean;
@@ -194,12 +198,20 @@ export interface GlobeViewProps {
   livesListRadius?: { lat: number; lng: number; radiusKm: number } | null;
   livesListViewportBounds?: MapBounds | null;
   livesListViewportCircle?: { lat: number; lng: number; radiusKm: number } | null;
+  livesListPinCircle?: { lat: number; lng: number; radiusKm: number } | null;
 }
 
 export interface GlobeViewHandle {
   getPointOfView: () => { lat: number; lng: number; altitude: number } | null;
   setAltitude: (altitude: number, durationMs?: number) => void;
   flyTo: (lat: number, lng: number, altitude?: number, durationMs?: number) => void;
+}
+
+function clusterLiveHostLabel(cluster: MapLiveLocationCluster): string {
+  if (cluster.lives[0]) return liveMapHostLabel(cluster.lives[0]);
+  const salon = cluster.salons[0];
+  if (salon) return liveMapHostLabel(salonToMapLive(salon));
+  return 'Live';
 }
 
 function buildEventClusterGlobeLabel(cluster: MapEventCityCluster): string {
@@ -244,6 +256,7 @@ export const GlobeView = memo(
       onZoomToFlat,
       onGlobeAltitudeChange,
       onGlobePovChange,
+      onGlobeViewCenterChange,
       livesFilterOn = false,
       salonFilterOn = false,
       eventsFilterOn = false,
@@ -254,6 +267,7 @@ export const GlobeView = memo(
       devMarkerDragEnabled = false,
       onDevMarkerDragEnd,
       livesListViewportCircle = null,
+      livesListPinCircle = null,
     }: GlobeViewProps,
     ref
   ) {
@@ -294,6 +308,8 @@ export const GlobeView = memo(
     onGlobeAltitudeChangeRef.current = onGlobeAltitudeChange;
     const onGlobePovChangeRef = useRef(onGlobePovChange);
     onGlobePovChangeRef.current = onGlobePovChange;
+    const onGlobeViewCenterChangeRef = useRef(onGlobeViewCenterChange);
+    onGlobeViewCenterChangeRef.current = onGlobeViewCenterChange;
     const onGlobeUnavailableRef = useRef(onGlobeUnavailable);
     onGlobeUnavailableRef.current = onGlobeUnavailable;
     const onPrepareFlatMapRef = useRef(onPrepareFlatMap);
@@ -312,6 +328,12 @@ export const GlobeView = memo(
       if (err != null && !isWebGLError(err)) return;
       globeUnavailableReportedRef.current = true;
       onGlobeUnavailableRef.current?.();
+    }, []);
+
+    const emitGlobeViewCenter = useCallback((lat: number, lng: number) => {
+      if (isValidLatLng(lat, lng)) {
+        onGlobeViewCenterChangeRef.current?.(lat, lng);
+      }
     }, []);
 
     const flushPovChange = useCallback(() => {
@@ -366,6 +388,7 @@ export const GlobeView = memo(
           if (!isInteractingRef.current) {
             refreshGlobeCapitalRegion(pov.lat, pov.lng, pov.altitude);
           }
+          emitGlobeViewCenter(pov.lat, pov.lng);
           if (isValidLatLng(pov.lat, pov.lng)) {
             schedulePovChange(pov.lat, pov.lng, pov.altitude);
           }
@@ -373,7 +396,7 @@ export const GlobeView = memo(
           /* POV indisponible */
         }
       },
-      [schedulePovChange, refreshGlobeCapitalRegion]
+      [schedulePovChange, refreshGlobeCapitalRegion, emitGlobeViewCenter]
     );
 
     useEffect(() => {
@@ -458,6 +481,7 @@ export const GlobeView = memo(
                 setGlobeDetailTier(tier);
               }
               if (isValidLatLng(pov.lat, pov.lng)) {
+                emitGlobeViewCenter(pov.lat, pov.lng);
                 schedulePovChange(pov.lat, pov.lng, pov.altitude);
               }
             } catch {
@@ -483,7 +507,7 @@ export const GlobeView = memo(
       } catch {
         /* POV indisponible */
       }
-    }, [syncTierAndPovFromGlobe, schedulePovChange]);
+    }, [syncTierAndPovFromGlobe, schedulePovChange, emitGlobeViewCenter]);
 
     const salonIds = useMemo(
       () => linkedSalonIdsForLiveDedup(salons),
@@ -617,7 +641,7 @@ export const GlobeView = memo(
             type: 'live-cluster',
             color: '#ef4444',
             radius: multi ? 0.42 : 0.34,
-            label: multi ? `🔴 ${cluster.count} LIVE` : '🔴 LIVE',
+            label: multi ? `🔴 ${cluster.count} LIVE` : `🔴 ${clusterLiveHostLabel(cluster)}`,
             entity: cluster,
             count: multi ? cluster.count : undefined,
           });
@@ -662,7 +686,7 @@ export const GlobeView = memo(
             type: 'live',
             color: '#ef4444',
             radius: overviewDots ? 0.4 : 0.56,
-            label: `🔴 ${l.hostName} · LIVE`,
+            label: `🔴 ${liveMapHostLabel(l)}`,
             entity: l,
           });
         });
@@ -963,6 +987,7 @@ export const GlobeView = memo(
               devMarkerDragEnabled={devMarkerDragEnabled}
               onDevMarkerDragEnd={onDevMarkerDragEnd}
               livesListViewportCircle={livesListViewportCircle}
+              livesListPinCircle={livesListPinCircle}
             />
           </Suspense>
         )}

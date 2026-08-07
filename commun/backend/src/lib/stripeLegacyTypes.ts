@@ -16,6 +16,7 @@ import type Stripe from 'stripe';
 export type InvoiceWithLegacyFields = Stripe.Invoice & {
   payment_intent?: string | Stripe.PaymentIntent | null;
   subscription?: string | Stripe.Subscription | null;
+  application_fee_amount?: number | null;
 };
 
 export type SubscriptionWithLegacyPeriod = Stripe.Subscription & {

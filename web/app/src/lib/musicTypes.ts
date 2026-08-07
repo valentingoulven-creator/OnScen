@@ -25,6 +25,8 @@ export interface MusicTrackItem {
   userHasUpvoted?: boolean;
   weeklyPlayCount?: number;
   createdAt: number;
+  /** Fichier audio jouable (lecteur global façon Spotify). */
+  fileUrl: string;
 }
 
 export interface MusicWeeklyReelItem {

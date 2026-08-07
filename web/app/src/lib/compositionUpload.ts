@@ -58,3 +58,26 @@ export function formatDurationSec(sec?: number): string {
   const s = sec % 60;
   return `${m}:${String(s).padStart(2, '0')}`;
 }
+
+/** URL absolue pour `<audio>` (chemins `/uploads/…`, data:, blob:, http(s)). */
+export function resolveCompositionPlaybackUrl(fileUrl: string): string {
+  const trimmed = fileUrl.trim();
+  if (!trimmed) return '';
+  if (/^(https?:|data:|blob:)/i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith('/')) {
+    if (typeof window !== 'undefined') return `${window.location.origin}${trimmed}`;
+    return trimmed;
+  }
+  return trimmed;
+}
+
+/** Morceaux hébergés sur YouTube / plateformes — pas lisibles par le lecteur `<audio>` global. */
+export function isDirectAudioPlaybackUrl(fileUrl: string): boolean {
+  const u = fileUrl.trim().toLowerCase();
+  if (!u) return false;
+  if (u.startsWith('data:audio/') || u.startsWith('blob:')) return true;
+  if (u.startsWith('/uploads/compositions/')) return true;
+  if (/^https?:\/\//i.test(u) && /\.(mp3|wav|m4a|ogg|webm|flac)(\?|$)/i.test(u)) return true;
+  if (/youtube\.com|youtu\.be|music\.youtube/i.test(u)) return false;
+  return u.startsWith('/');
+}

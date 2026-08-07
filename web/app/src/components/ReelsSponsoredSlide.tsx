@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { ReelsSponsorAd } from '../types';
 import { SPONSOR_ACCENT_GRADIENTS, sponsorKindBadgeLabel } from '../lib/sponsorDisplaySpec';
 import { handleSponsorCta } from '../lib/sponsorAds';
+import { trackSponsorImpression } from '../lib/sponsorTrack';
 
 type ReelsSponsoredSlideProps = {
   ad: ReelsSponsorAd;
@@ -47,6 +48,10 @@ export const ReelsSponsoredSlide = memo(function ReelsSponsoredSlide({
     onTapCenter?.();
   };
 
+  useEffect(() => {
+    if (isActive && ad.id) trackSponsorImpression(ad.id, 'reels_sponsored');
+  }, [isActive, ad.id]);
+
   const onCtaClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     handleSponsorCta({
@@ -60,7 +65,7 @@ export const ReelsSponsoredSlide = memo(function ReelsSponsoredSlide({
       kind: ad.kind,
       logoUrl: ad.logoUrl,
       displayDurationSec: ad.displayDurationSec,
-    });
+    }, undefined, { placement: 'reels_sponsored' });
   };
 
   return (

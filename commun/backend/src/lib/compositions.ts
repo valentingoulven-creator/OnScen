@@ -21,6 +21,7 @@ import { schedulePersistAlbumToPg } from './pgAlbums';
 import { deleteCompositionUpvotes } from './compositionUpvotes';
 import { removeCompositionPlays } from './compositionPlays';
 import { schedulePersist } from './persist';
+import { notifyFollowersCreatorActivity } from './followActivityNotifications';
 
 export type PublicComposition = {
   id: string;
@@ -149,6 +150,16 @@ export async function createUserComposition(
   }
   schedulePersistCompositionToPg(composition);
   schedulePersist();
+  const author = db.users.get(userId);
+  if (author) {
+    notifyFollowersCreatorActivity({
+      creator: author,
+      type: 'track_published',
+      message: `${author.username} a publié un morceau « ${composition.title} » 🎵`,
+      compositionId: composition.id,
+      albumId: composition.albumId,
+    });
+  }
   return publicComposition(composition);
 }
 

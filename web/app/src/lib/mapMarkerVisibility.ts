@@ -393,6 +393,67 @@ export function getLivesGlobeViewportRadiusKm(
   return GLOBE_LIVES_VIEWPORT_RADIUS_KM;
 }
 
+/** Rayon d’affichage des pins live sur le globe (centre = rotation POV). */
+export function getLivesGlobePinDisplayRadiusKm(
+  tier: MapDetailTier,
+  globeAltitude: number | null | undefined
+): number {
+  const alt = globeAltitude ?? GLOBE_ALTITUDE_CITY_MAX;
+  if (tier !== 'overview') {
+    const zoomRadius = getGlobeCapitalVisibleRadiusKm(alt);
+    if (zoomRadius > 0) return zoomRadius;
+  }
+  return GLOBE_LIVES_VIEWPORT_RADIUS_KM;
+}
+
+export function filterMarkersInGlobeRadius<T extends { latitude: number; longitude: number }>(
+  markers: T[],
+  centerLat: number,
+  centerLng: number,
+  radiusKm: number
+): T[] {
+  if (!isValidLatLng(centerLat, centerLng) || radiusKm <= 0) return [];
+  return markers.filter(
+    (m) =>
+      isValidLatLng(m.latitude, m.longitude) &&
+      getDistanceKm(centerLat, centerLng, m.latitude, m.longitude) <= radiusKm
+  );
+}
+
+export type GlobeLivesClipRadiusMode = 'pins' | 'viewport';
+
+/** Clip lives globe autour du POV (évite pins mondiaux en overview). */
+export function clipLivesForGlobeView<T extends { latitude: number; longitude: number }>(
+  lives: T[],
+  centerLat: number,
+  centerLng: number,
+  tier: MapDetailTier,
+  globeAltitude: number | null | undefined,
+  radiusMode: GlobeLivesClipRadiusMode = 'pins'
+): T[] {
+  const radiusKm =
+    radiusMode === 'viewport'
+      ? getLivesGlobeViewportRadiusKm(tier, globeAltitude)
+      : getLivesGlobePinDisplayRadiusKm(tier, globeAltitude);
+  const clipped = filterMarkersInGlobeRadius(lives, centerLat, centerLng, radiusKm);
+  if (clipped.length === 0 && lives.length > 0) return lives;
+  return clipped;
+}
+
+/** Clip salons live (filtre Lives) sur le globe — même POV que les pins direct. */
+export function clipSalonsForGlobeView<T extends { latitude: number; longitude: number }>(
+  salons: T[],
+  centerLat: number,
+  centerLng: number,
+  tier: MapDetailTier,
+  globeAltitude: number | null | undefined
+): T[] {
+  const radiusKm = getLivesGlobePinDisplayRadiusKm(tier, globeAltitude);
+  const clipped = filterMarkersInGlobeRadius(salons, centerLat, centerLng, radiusKm);
+  if (clipped.length === 0 && salons.length > 0) return salons;
+  return clipped;
+}
+
 export function filterCapitalsInGlobeRegion<T extends { lat: number; lng: number }>(
   capitals: T[],
   centerLat: number,

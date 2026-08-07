@@ -1,36 +1,8 @@
-/**
- * Filtre texte chat basique — masque les insultes les plus courantes (FR/EN).
- * Complément à la modération image Sightengine ; pas de liste exhaustive.
- */
+import { applyChatModerationPolicy } from './chatModerationPolicy';
 
-const PROFANITY = [
-  'putain',
-  'merde',
-  'connard',
-  'connasse',
-  'enculé',
-  'encule',
-  'salope',
-  'pute',
-  'fdp',
-  'ntm',
-  'nique',
-  'fuck',
-  'shit',
-  'bitch',
-  'asshole',
-  'bastard',
-];
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-const PROFANITY_RE = new RegExp(
-  `\\b(${PROFANITY.map(escapeRegExp).join('|')})\\b`,
-  'gi'
-);
-
+/** @deprecated Préférer prepareChatText — ne bloque pas, masque seulement si appelé sans policy block path. */
 export function maskProfanity(input: string): string {
-  return input.replace(PROFANITY_RE, (match) => '*'.repeat(Math.min(match.length, 6)));
+  const result = applyChatModerationPolicy(input);
+  if (result.blocked) return input.replace(/\S/g, '*');
+  return result.text;
 }

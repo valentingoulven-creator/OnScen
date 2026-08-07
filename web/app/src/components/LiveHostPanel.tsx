@@ -14,18 +14,20 @@ import type {
   LiveGoal,
   LiveStats,
   RewardQueueItem,
-  TriggerRule,
   GoalType,
   TriggerAction,
   RewardType,
 } from '../lib/liveHostTypes';
 import { LiveChatConfigFields } from './LiveChatConfigFields';
 import { LiveHostMediaSettings, type LiveHostMediaSettingsProps } from './LiveHostMediaSettings';
+import { LiveHostMetaSettings } from './LiveHostMetaSettings';
+import { LiveHostAnnouncementSettings } from './LiveHostAnnouncementSettings';
+import { LiveHostPollSettings } from './LiveHostPollSettings';
 import { LiveKitCdnEgressSettings } from './LiveKitCdnEgressSettings';
 import { LiveObsIngestSettings } from './LiveCloudflareHostPanel';
 import { CreatorStripeConnectCard } from './CreatorStripeConnectCard';
 import { DONATION_MIN_AGE } from '../lib/donations';
-import type { User } from '../types';
+import type { User, LivePinnedAnnouncement, LivePoll } from '../types';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  Helpers                                                                   */
@@ -85,14 +87,6 @@ function rewardTypeLabel(r: RewardType): string {
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  Defaults                                                                  */
 /* ────────────────────────────────────────────────────────────────────────── */
-
-const DEFAULT_TRIGGERS: TriggerRule[] = [
-  { id: 't1', minAmount: 1,  actions: ['hearts_animation'],                  enabled: true },
-  { id: 't2', minAmount: 5,  actions: ['voice_thanks'],                      enabled: true },
-  { id: 't3', minAmount: 10, actions: ['fullscreen_donor', 'confetti'],      enabled: true },
-  { id: 't4', minAmount: 20, actions: ['confetti', 'chat_pin'],              enabled: true },
-  { id: 't5', minAmount: 50, actions: ['custom_alert', 'chat_pin'],         enabled: true },
-];
 
 const ALL_ACTIONS: TriggerAction[] = [
   'hearts_animation', 'voice_thanks', 'fullscreen_donor', 'confetti', 'chat_pin', 'custom_alert',
@@ -840,21 +834,26 @@ function RewardsTab({ liveId }: { liveId: string }) {
 }
 
 /* ── Triggers tab ── */
-function TriggersTab() {
+function TriggersTab({ liveId }: { liveId: string }) {
   const { t } = useTranslation();
-  const [rules, setRules] = useState<TriggerRule[]>(DEFAULT_TRIGGERS);
+  const { session, update } = useLiveHostSession(liveId);
+  const rules = session.triggers;
   const [editId, setEditId] = useState<string | null>(null);
 
   const toggleRule = (id: string) =>
-    setRules((prev) => prev.map((r) => r.id === id ? { ...r, enabled: !r.enabled } : r));
+    update((prev) => ({
+      triggers: prev.triggers.map((r) => r.id === id ? { ...r, enabled: !r.enabled } : r),
+    }));
 
   const toggleAction = (ruleId: string, action: TriggerAction) =>
-    setRules((prev) => prev.map((r) => {
-      if (r.id !== ruleId) return r;
-      const actions = r.actions.includes(action)
-        ? r.actions.filter((a) => a !== action)
-        : [...r.actions, action];
-      return { ...r, actions };
+    update((prev) => ({
+      triggers: prev.triggers.map((r) => {
+        if (r.id !== ruleId) return r;
+        const actions = r.actions.includes(action)
+          ? r.actions.filter((a) => a !== action)
+          : [...r.actions, action];
+        return { ...r, actions };
+      }),
     }));
 
   return (
@@ -969,7 +968,7 @@ function DonTab({
 
       {subTab === 'goals' && <GoalsTab liveId={liveId} goalStats={goalStats} />}
       {subTab === 'rewards' && <RewardsTab liveId={liveId} />}
-      {subTab === 'auto' && <TriggersTab />}
+      {subTab === 'auto' && <TriggersTab liveId={liveId} />}
     </div>
   );
 }
@@ -990,7 +989,12 @@ interface LiveHostPanelProps {
   liveStartedAt: number;
   initialTab?: LiveHostPanelTab;
   initialDonSubTab?: LiveHostPanelDonSubTab;
-  chatConfig?: { noLinksForParticipants?: boolean; slowModeSeconds?: number; subscribersOnly?: boolean };
+  chatConfig?: {
+    noLinksForParticipants?: boolean;
+    slowModeSeconds?: number;
+    subscribersOnly?: boolean;
+    blockedTerms?: string[];
+  };
   token?: string | null;
   isCloudflareStream?: boolean;
   isLiveKitStream?: boolean;
@@ -999,6 +1003,13 @@ interface LiveHostPanelProps {
   user?: User | null;
   onUserUpdated?: () => void;
   onClose: () => void;
+  /** Titre courant du live (modifiable en direct — Config). */
+  liveTitle?: string;
+  liveDescription?: string;
+  isSensitive?: boolean;
+  replayEnabled?: boolean;
+  pinnedAnnouncement?: LivePinnedAnnouncement;
+  activePoll?: LivePoll;
 }
 
 export function LiveHostPanel({
@@ -1018,6 +1029,12 @@ export function LiveHostPanel({
   user,
   onUserUpdated,
   onClose,
+  liveTitle = '',
+  liveDescription,
+  isSensitive,
+  replayEnabled,
+  pinnedAnnouncement,
+  activePoll,
 }: LiveHostPanelProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<PanelTab>(initialTab);
@@ -1028,6 +1045,7 @@ export function LiveHostPanel({
     noLinksForParticipants: initialChatConfig?.noLinksForParticipants ?? false,
     slowModeSeconds: initialChatConfig?.slowModeSeconds ?? 0,
     subscribersOnly: initialChatConfig?.subscribersOnly ?? false,
+    blockedTerms: initialChatConfig?.blockedTerms ?? [],
   });
 
   const emitConfigUpdate = (patch: Partial<typeof chatConfig>) => {
@@ -1035,6 +1053,27 @@ export function LiveHostPanel({
     setChatConfig(next);
     const socket = getSocket();
     socket?.emit('live_update_config', { liveId, config: next });
+  };
+
+  const emitMetaUpdate = (patch: {
+    title?: string;
+    description?: string;
+    isSensitive?: boolean;
+    replayEnabled?: boolean;
+  }) => {
+    getSocket()?.emit('live_update_meta', { liveId, ...patch });
+  };
+
+  const emitAnnouncement = (text: string | null) => {
+    getSocket()?.emit('live_pin_announcement', { liveId, text });
+  };
+
+  const emitPollCreate = (question: string, options: string[]) => {
+    getSocket()?.emit('live_poll_create', { liveId, question, options });
+  };
+
+  const emitPollClose = () => {
+    getSocket()?.emit('live_poll_close', { liveId });
   };
 
   useEffect(() => {
@@ -1047,6 +1086,7 @@ export function LiveHostPanel({
       noLinksForParticipants: initialChatConfig.noLinksForParticipants ?? false,
       slowModeSeconds: initialChatConfig.slowModeSeconds ?? 0,
       subscribersOnly: initialChatConfig.subscribersOnly ?? false,
+      blockedTerms: initialChatConfig.blockedTerms ?? [],
     });
   }, [initialChatConfig]);
 
@@ -1179,6 +1219,26 @@ export function LiveHostPanel({
             )}
             {activeTab === 'config' && (
               <div className="flex flex-col gap-3">
+                <HostConfigSection title={t('live.hostPanelConfigMeta')} icon="📝" defaultOpen>
+                  <LiveHostMetaSettings
+                    value={{ title: liveTitle, description: liveDescription, isSensitive, replayEnabled }}
+                    onChange={emitMetaUpdate}
+                  />
+                </HostConfigSection>
+                <HostConfigSection title={t('live.hostPanelConfigAnnouncement')} icon="📌">
+                  <LiveHostAnnouncementSettings
+                    announcement={pinnedAnnouncement}
+                    onPublish={(text) => emitAnnouncement(text)}
+                    onClear={() => emitAnnouncement(null)}
+                  />
+                </HostConfigSection>
+                <HostConfigSection title={t('live.hostPanelConfigPoll')} icon="🗳">
+                  <LiveHostPollSettings
+                    activePoll={activePoll}
+                    onCreate={emitPollCreate}
+                    onClose={emitPollClose}
+                  />
+                </HostConfigSection>
                 {hostMediaSettings ? (
                   <HostConfigSection title={t('live.hostPanelConfigMedia')} icon="🎥" defaultOpen>
                     <LiveHostMediaSettings {...hostMediaSettings} />

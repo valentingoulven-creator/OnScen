@@ -7,7 +7,7 @@ import {
   getPrimaryEventDate,
   resolveEventHeroVisual,
 } from '../lib/feedEvents';
-import { getMapEventDisplayIcon, type FeedEventType } from '../lib/eventType';
+import { getFeedEventTypeDisplayIcon, getFeedEventTypeDisplayLabel } from '../lib/eventType';
 import type { FeedPost } from '../types';
 import { UserAvatarOnline } from './UserAvatarOnline';
 import { UsernameDisplay } from './UsernameDisplay';
@@ -21,12 +21,6 @@ function MapPinIcon({ className }: { className?: string }) {
       <circle cx="12" cy="10" r="2.5" />
     </svg>
   );
-}
-
-function eventTypeLabel(t: ReturnType<typeof useTranslation>['t'], eventType?: FeedEventType | null): string {
-  if (eventType === 'dance') return t('feed.eventTypeDance');
-  if (eventType === 'chant') return t('feed.eventTypeChant');
-  return t('feed.eventTypeAutre');
 }
 
 export interface EventCardMapCompactProps {
@@ -82,10 +76,8 @@ export function EventCardMapCompact({
   const eventDates = getEventDates(post);
   const title = post.content.trim();
   const location = post.eventLocation?.trim() ?? '';
-  const eventTypeIcon = getMapEventDisplayIcon(post.eventType, { sponsored: sponsoredVisual });
-  const eventTypeName = sponsoredVisual
-    ? t('map.sidebarSponsoCategory', { defaultValue: 'Sponso' })
-    : eventTypeLabel(t, post.eventType);
+  const eventTypeIcon = getFeedEventTypeDisplayIcon(post.eventType, { sponsored: sponsoredVisual });
+  const eventTypeName = getFeedEventTypeDisplayLabel(t, post.eventType, { sponsored: sponsoredVisual });
 
   const heroHeight = isMap ? 'h-10' : 'h-12';
   const bodyPad = isMap ? 'p-1.5 space-y-1' : 'p-2 space-y-1.5';

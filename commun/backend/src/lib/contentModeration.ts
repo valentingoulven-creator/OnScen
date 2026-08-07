@@ -9,6 +9,9 @@ import {
   userFacingModerationMessage,
   type SightengineRejectReason,
 } from './sightengineModeration';
+import { db } from '../models/schema';
+import { appendContentReport } from './contentReports';
+import { sendMonitoringAlert } from './alertNotifier';
 
 export type ModerationContext =
   | 'story'
@@ -20,7 +23,8 @@ export type ModerationContext =
   | 'reel_poster'
   | 'dm_attachment'
   | 'salon_chat'
-  | 'live_chat';
+  | 'live_chat'
+  | 'sponsor_asset';
 
 export interface ModerationResult {
   allowed: boolean;
@@ -45,6 +49,7 @@ export function getModerationCoverage(): ModerationCoverageEntry[] {
     { surface: 'Photos profil', images: true, videos: false, route: 'PATCH /api/auth/profile' },
     { surface: 'Messages privés (image)', images: true, videos: false, route: 'POST /api/dm/thread/:userId' },
     { surface: 'Chat salon / live (socket)', images: true, videos: false, route: 'socket salon_message / live_message' },
+    { surface: 'Logos/bannières sponsors', images: true, videos: false, route: 'POST /api/admin/sponsors/upload-logo|upload-banner' },
   ];
 }
 
@@ -53,11 +58,55 @@ export function moderationRejectionMessage(result: ModerationResult): string {
   return userFacingModerationMessage(result.reason);
 }
 
-async function resolveApiResult(apiResult: {
-  ok: boolean;
-  error?: string;
-  evaluation?: { allowed: boolean; reason?: SightengineRejectReason };
-}): Promise<ModerationResult> {
+/**
+ * Escalade CSAM (MOD-8) : quand Sightengine détecte une combinaison mineur+nudité/suggestif,
+ * on ne se contente pas d'un refus générique — on journalise un signalement système
+ * (preuve interne, catégorie dédiée) et on alerte l'équipe admin immédiatement (email,
+ * criticité maximale, sans cooldown). Voir commun/docs/juridique/RUNBOOK-CSAM.md pour la
+ * procédure opérationnelle attendue côté équipe à réception de cette alerte.
+ */
+async function escalateMinorRiskDetection(
+  context: ModerationContext,
+  uploaderId: string | undefined,
+  scores: Record<string, number> | undefined
+): Promise<void> {
+  const uploader = uploaderId ? db.users.get(uploaderId) : undefined;
+  try {
+    appendContentReport({
+      reporterId: 'system:sightengine',
+      reporterUsername: 'Sightengine (détection automatique)',
+      category: 'csam_risk',
+      details: `Détection automatique bloquante sur ${context} : signal de mineur combiné à un contenu suggestif/nu. Scores Sightengine : ${JSON.stringify(scores ?? {})}. Contenu non publié.`,
+      targetUserId: uploaderId,
+    });
+  } catch (err) {
+    console.error('[moderation] Échec journalisation signalement csam_risk:', err);
+  }
+  try {
+    await sendMonitoringAlert({
+      type: 'csam_risk_detected',
+      severity: 'critical',
+      forceSend: true,
+      message:
+        `Upload BLOQUÉ automatiquement : signal de mineur + contenu suggestif/nu détecté (contexte : ${context}).\n` +
+        `Utilisateur : ${uploader?.username ?? 'inconnu'} (${uploaderId ?? 'n/a'}).\n` +
+        `Scores Sightengine : ${JSON.stringify(scores ?? {})}\n\n` +
+        `Action requise : voir RUNBOOK-CSAM.md — préserver la preuve (déjà journalisée, contenu non publié), vérifier manuellement en urgence, signaler à PHAROS (https://www.internet-signalement.gouv.fr/) si confirmé.`,
+    });
+  } catch (err) {
+    console.error('[moderation] Échec envoi alerte csam_risk_detected:', err);
+  }
+}
+
+async function resolveApiResult(
+  apiResult: {
+    ok: boolean;
+    error?: string;
+    evaluation?: { allowed: boolean; reason?: SightengineRejectReason; scores?: Record<string, number> };
+  },
+  context: ModerationContext,
+  uploaderId?: string
+): Promise<ModerationResult> {
   if (!apiResult.ok) {
     const resolved = resolveSightengineApiFailure(apiResult.error ?? 'Erreur Sightengine');
     if (resolved.allowed) {
@@ -71,6 +120,9 @@ async function resolveApiResult(apiResult: {
   }
 
   if (!apiResult.evaluation!.allowed) {
+    if (apiResult.evaluation!.reason === 'minor_risk') {
+      await escalateMinorRiskDetection(context, uploaderId, apiResult.evaluation!.scores);
+    }
     return {
       allowed: false,
       reason: apiResult.evaluation!.reason,
@@ -82,7 +134,8 @@ async function resolveApiResult(apiResult: {
 
 export async function moderateImageSource(
   source: string | undefined | null,
-  _context: ModerationContext,
+  context: ModerationContext,
+  uploaderId?: string,
 ): Promise<ModerationResult> {
   if (source == null) return { allowed: true };
   const trimmed = String(source).trim();
@@ -104,13 +157,14 @@ export async function moderateImageSource(
   }
 
   const apiResult = await checkImageWithSightengine(trimmed);
-  return resolveApiResult(apiResult);
+  return resolveApiResult(apiResult, context, uploaderId);
 }
 
 export async function moderateVideoSource(
   source: string | undefined | null,
   durationSec?: number,
-  _context: ModerationContext = 'feed_video',
+  context: ModerationContext = 'feed_video',
+  uploaderId?: string,
 ): Promise<ModerationResult> {
   if (source == null) return { allowed: true };
   const trimmed = String(source).trim();
@@ -132,15 +186,16 @@ export async function moderateVideoSource(
   }
 
   const apiResult = await checkVideoWithSightengine(trimmed, durationSec);
-  return resolveApiResult(apiResult);
+  return resolveApiResult(apiResult, context, uploaderId);
 }
 
 export async function moderateImageSources(
   sources: Array<string | undefined | null>,
   context: ModerationContext,
+  uploaderId?: string,
 ): Promise<ModerationResult> {
   for (const source of sources) {
-    const result = await moderateImageSource(source, context);
+    const result = await moderateImageSource(source, context, uploaderId);
     if (!result.allowed) return result;
   }
   return { allowed: true };
@@ -151,17 +206,18 @@ export async function moderateReelUpload(input: {
   mediaUrl: string;
   posterUrl?: string;
   durationSec?: number;
+  uploaderId?: string;
 }): Promise<ModerationResult> {
   if (input.mediaType === 'image') {
-    return moderateImageSource(input.mediaUrl, 'reel');
+    return moderateImageSource(input.mediaUrl, 'reel', input.uploaderId);
   }
 
   const posterResult = input.posterUrl
-    ? await moderateImageSource(input.posterUrl, 'reel_poster')
+    ? await moderateImageSource(input.posterUrl, 'reel_poster', input.uploaderId)
     : { allowed: true as const };
   if (!posterResult.allowed) return posterResult;
 
-  return moderateVideoSource(input.mediaUrl, input.durationSec, 'reel');
+  return moderateVideoSource(input.mediaUrl, input.durationSec, 'reel', input.uploaderId);
 }
 
 export function isImageAttachmentMime(mimeType: unknown): boolean {
@@ -173,34 +229,37 @@ export async function moderateChatAttachment(
   attachmentUrl: string | undefined,
   attachmentMimeType?: unknown,
   context: 'salon_chat' | 'live_chat' | 'dm_attachment' = 'salon_chat',
+  uploaderId?: string,
 ): Promise<ModerationResult> {
   if (!attachmentUrl?.trim()) return { allowed: true };
   if (!isImageAttachmentMime(attachmentMimeType)) {
     return { allowed: true, skipped: true };
   }
-  return moderateImageSource(attachmentUrl, context);
+  return moderateImageSource(attachmentUrl, context, uploaderId);
 }
 
 export async function moderateDmAttachment(
   attachmentUrl: string | undefined,
   attachmentMimeType?: unknown,
+  uploaderId?: string,
 ): Promise<ModerationResult> {
-  return moderateChatAttachment(attachmentUrl, attachmentMimeType, 'dm_attachment');
+  return moderateChatAttachment(attachmentUrl, attachmentMimeType, 'dm_attachment', uploaderId);
 }
 
 export async function moderateFeedPostMedia(input: {
   imageUrl?: string;
   imageUrls?: string[];
   videoUrl?: string;
+  uploaderId?: string;
 }): Promise<ModerationResult> {
   const urls =
     input.imageUrls?.length ? input.imageUrls : input.imageUrl ? [input.imageUrl] : [];
   for (const url of urls) {
-    const imageResult = await moderateImageSource(url, 'feed_post');
+    const imageResult = await moderateImageSource(url, 'feed_post', input.uploaderId);
     if (!imageResult.allowed) return imageResult;
   }
   if (input.videoUrl) {
-    return moderateVideoSource(input.videoUrl, undefined, 'feed_video');
+    return moderateVideoSource(input.videoUrl, undefined, 'feed_video', input.uploaderId);
   }
   return { allowed: true };
 }

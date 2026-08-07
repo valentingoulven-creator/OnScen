@@ -55,7 +55,7 @@ OAuth Google / Facebook / Apple / Instagram, Stripe, contrÃ´le d'accÃ¨s â�
 | Variable | Description |
 |----------|-------------|
 | `DONATIONS_ENABLED` | `1` pour activer les pourboires en production |
-| `DONATION_PLATFORM_FEE_PERCENT` | Commission Soundy sur chaque pourboire (dÃ©faut **30**) |
+| `DONATION_PLATFORM_FEE_PERCENT` | Commission Soundy sur chaque pourboire (dÃ©faut **50**) |
 | `STRIPE_SECRET_KEY` / `STRIPE_PUBLISHABLE_KEY` | ClÃ©s Stripe |
 | `STRIPE_WEBHOOK_SECRET` | Secret webhook (`/api/donations/webhook`, Ã©vÃ©nement `payment_intent.succeeded`) |
 

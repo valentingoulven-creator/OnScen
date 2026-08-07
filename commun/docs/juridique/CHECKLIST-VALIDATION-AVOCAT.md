@@ -18,7 +18,7 @@ Cocher après revue et note de l’avocat (date + initiales). Conserver une copi
 | ☐ | CGU utilisateurs | `02-documents-utilisateurs/cgu.pdf` | Âge, UGC, musique/YouTube, résiliation, loi applicable |
 | ☐ | Politique de confidentialité | `02-documents-utilisateurs/politique-confidentialite.pdf` | Bases légales, géoloc, sous-traitants, transferts hors UE |
 | ☐ | Mentions légales | `02-documents-utilisateurs/mentions-legales.pdf` | LCEN : SIREN, siège, hébergeur, directeur publication, DSA contact |
-| ☐ | Monétisation créateurs / pourboires | `02-documents-utilisateurs/monetisation-createurs.pdf` + `03-monetisation/MENTIONS-LEGALES-DONS.pdf` | « Don » vs pourboire, commission 30 %, KYC Stripe, mineurs |
+| ☐ | Monétisation créateurs / pourboires | `02-documents-utilisateurs/monetisation-createurs.pdf` + `03-monetisation/MENTIONS-LEGALES-DONS.pdf` | « Don » vs pourboire, commission 50 %, KYC Stripe, mineurs |
 | ☐ | Données éditeur | `06-donnees-editeur/legal-publisher.template.pdf` | Cohérence avec mentions & contrats |
 
 ---

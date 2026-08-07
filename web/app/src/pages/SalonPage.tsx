@@ -406,7 +406,13 @@ export function SalonPage({
     try {
       await api.deleteSalon(token, salon.id);
       if (user) {
-        setUserFromProfile({ ...user, salonId: undefined, salonTitle: undefined });
+        setUserFromProfile({
+          ...user,
+          salonId: undefined,
+          salonTitle: undefined,
+          salonListening: undefined,
+          currentListening: user.isLive ? (user.liveListening ?? user.currentListening) : undefined,
+        });
       }
       await refreshUser().catch(() => {});
       setShowEndSalonConfirm(false);

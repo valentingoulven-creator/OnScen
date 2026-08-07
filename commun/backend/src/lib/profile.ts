@@ -3,7 +3,7 @@ import { ensurePlatformAccountsFromLegacy, publicPlatformLinks } from './platfor
 import { getHostRatingSummary } from './ratings';
 import { migrateUserProfileType } from './profileTypes';
 import { VALID_RELATIONSHIP_STATUSES } from './relationshipStatus';
-import { isFollowing } from './follows';
+import { isFollowActivityNotificationsEnabled, isFollowing } from './follows';
 import { getFavoriteCount, getFollowingCount, isFavorite } from './favorites';
 import {
   getActiveLiveIdForHost,
@@ -474,6 +474,10 @@ export function publicProfile(u: User, isOwner = false, viewerId?: string) {
         : undefined,
     hostRating,
     isFollowing: following,
+    followNotificationsEnabled:
+      following && viewerId && viewerId !== snapshot.id && !isOwner
+        ? isFollowActivityNotificationsEnabled(viewerId, snapshot.id)
+        : undefined,
     isFollowingMe: followingMe,
     isSupporter: activeSub != null,
     supporterTier: activeSub?.tierLabel,

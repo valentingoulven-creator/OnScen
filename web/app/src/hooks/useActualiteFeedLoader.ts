@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { fetchStoriesBundle } from '../lib/storiesApiCache';
 import { groupStoriesByUser } from '../lib/storyViewerNav';
@@ -10,6 +10,8 @@ export function useActualiteFeedLoader(
   showNews: boolean
 ) {
   const [posts, setPosts] = useState<FeedPost[]>([]);
+  const postsRef = useRef(posts);
+  postsRef.current = posts;
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +56,36 @@ export function useActualiteFeedLoader(
     [token, loadFeedStories]
   );
 
+  const loadMoreFollowing = useCallback(async (): Promise<number> => {
+    if (!token) return 0;
+    const prev = postsRef.current;
+    if (prev.length === 0) return 0;
+    const oldest = Math.min(...prev.map((p) => p.createdAt));
+    try {
+      const feedRes = await api.getFeedPosts(token, {
+        limit: 50,
+        followingOnly: true,
+        before: oldest,
+      });
+      let added = 0;
+      setPosts((current) => {
+        const ids = new Set(current.map((p) => p.id));
+        const merged = [...current];
+        for (const p of feedRes.posts) {
+          if (!ids.has(p.id)) {
+            merged.push(p);
+            added += 1;
+          }
+        }
+        merged.sort((a, b) => b.createdAt - a.createdAt);
+        return merged;
+      });
+      return added;
+    } catch {
+      return 0;
+    }
+  }, [token]);
+
   useEffect(() => {
     if (!isActive || !token || showNews) return;
     void loadFeed();
@@ -67,6 +99,7 @@ export function useActualiteFeedLoader(
     error,
     setError,
     loadFeed,
+    loadMoreFollowing,
     loadFeedStories,
     feedStoriesByUser,
     setFeedStoriesByUser,

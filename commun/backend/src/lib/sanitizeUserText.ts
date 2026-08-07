@@ -1,6 +1,12 @@
 import sanitizeHtml from 'sanitize-html';
 
-import { maskProfanity } from './chatTextFilter';
+import {
+  applyChatModerationPolicy,
+  CHAT_MODERATION_REJECT_MESSAGE,
+  type ChatModerationOptions,
+} from './chatModerationPolicy';
+
+export { CHAT_MODERATION_REJECT_MESSAGE };
 
 /**
  * Neutralise tout HTML dans un texte libre saisi par l'utilisateur (bio, chat,
@@ -23,7 +29,27 @@ export function sanitizePlainText(input: string): string {
   }).trim();
 }
 
-/** Chat / DM — assainit le HTML puis masque les insultes grossières. */
-export function sanitizeChatText(input: string): string {
-  return maskProfanity(sanitizePlainText(input));
+/** Chat / DM — assainit le HTML puis applique la politique de modération chat. */
+export function sanitizeChatText(input: string, options?: ChatModerationOptions): string {
+  return prepareChatText(input, options).text;
+}
+
+export type PreparedChatText =
+  | { ok: true; text: string }
+  | { ok: false; text: ''; message: string; reason: string };
+
+/** Assainit + modère ; refus explicite si slurs / spam / termes bloqués. */
+export function prepareChatText(input: string, options?: ChatModerationOptions): PreparedChatText {
+  const plain = sanitizePlainText(input);
+  if (!plain) return { ok: true, text: '' };
+  const mod = applyChatModerationPolicy(plain, options);
+  if (mod.blocked) {
+    return {
+      ok: false,
+      text: '',
+      message: CHAT_MODERATION_REJECT_MESSAGE,
+      reason: mod.reason ?? 'blocked_term',
+    };
+  }
+  return { ok: true, text: mod.text };
 }

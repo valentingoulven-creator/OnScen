@@ -7,6 +7,7 @@ import { LinkifiedText } from './LinkifiedText';
 import { UsernameDisplay } from './UsernameDisplay';
 import { getFeedPostImageUrls } from '../lib/feedPostMedia';
 import type { FeedPost } from '../types';
+import { FeedPostImageGallery } from './FeedPostImageGallery';
 
 interface FeedPostDetailModalProps {
   open: boolean;
@@ -14,76 +15,6 @@ interface FeedPostDetailModalProps {
   initialImageIndex?: number;
   onClose: () => void;
   onOpenProfile?: (userId: string) => void;
-}
-
-function FeedPostImageGallery({
-  urls,
-  index,
-  onIndexChange,
-  label,
-}: {
-  urls: string[];
-  index: number;
-  onIndexChange: (next: number) => void;
-  label: string;
-}) {
-  const { t } = useTranslation();
-  const safeIndex = Math.min(Math.max(0, index), urls.length - 1);
-
-  if (urls.length === 0) return null;
-
-  const goPrev = () => onIndexChange(safeIndex <= 0 ? urls.length - 1 : safeIndex - 1);
-  const goNext = () => onIndexChange(safeIndex >= urls.length - 1 ? 0 : safeIndex + 1);
-
-  return (
-    <div className="relative bg-black/50">
-      <img
-        src={urls[safeIndex]}
-        alt=""
-        className="w-full max-h-[min(55dvh,24rem)] object-contain mx-auto"
-      />
-      {urls.length > 1 ? (
-        <>
-          <button
-            type="button"
-            onClick={goPrev}
-            className="absolute left-2 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center rounded-full bg-black/55 text-white border border-white/15 hover:bg-black/75 transition"
-            aria-label={t('profile.galleryPrev', { defaultValue: 'Image précédente' })}
-          >
-            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={goNext}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center rounded-full bg-black/55 text-white border border-white/15 hover:bg-black/75 transition"
-            aria-label={t('profile.galleryNext', { defaultValue: 'Image suivante' })}
-          >
-            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-          <p className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[11px] font-semibold text-white/90 bg-black/55 px-2.5 py-1 rounded-full border border-white/10">
-            {safeIndex + 1} / {urls.length}
-          </p>
-          <div className="flex justify-center gap-1.5 pb-2 pt-1">
-            {urls.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => onIndexChange(i)}
-                className={`w-2 h-2 rounded-full transition ${
-                  i === safeIndex ? 'bg-purple-400 scale-110' : 'bg-white/35 hover:bg-white/55'
-                }`}
-                aria-label={`${label} (${i + 1}/${urls.length})`}
-              />
-            ))}
-          </div>
-        </>
-      ) : null}
-    </div>
-  );
 }
 
 function formatWhen(ts: number, locale: string): string {

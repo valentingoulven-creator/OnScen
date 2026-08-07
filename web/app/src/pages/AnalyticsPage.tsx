@@ -1,13 +1,29 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import {
+  getAnalyticsSubTabsForRole,
+  isAnalyticsSubTabAllowed,
+  normalizeAnalyticsSubTab,
+  type AnalyticsSubTab,
+  type AnalyticsSubTabInput,
+} from '../lib/adminAnalyticsSubTabs';
+import type { StaffRole } from '../lib/adminStaffRoles';
+import { resolveStaffRole } from '../lib/adminStaffRoles';
+import { downloadAdminFullReportPdf } from '../lib/adminFullReportPdf';
+import { buildAdminFullReportPdfLabels } from '../lib/adminFullReportPdfLabels';
+import { downloadAdminStatsCsv, downloadAdminReportCsv } from '../lib/adminStatsCsvExport';
+import { fetchAdminReportBundle } from '../lib/adminReportFetch';
 import { AdminCostsTab } from './AdminCostsTab';
 import { AdminDonationsTab } from './AdminDonationsTab';
+import { AdminAnalyticsInsightsTab } from './AdminAnalyticsInsightsTab';
+import { AdminStatsTab } from './AdminStatsTab';
 import { AnalyticsVpsTab } from './AnalyticsVpsTab';
 
+export type { AnalyticsSubTab, AnalyticsSubTabInput } from '../lib/adminAnalyticsSubTabs';
+
 export type AnalyticsPeriod = 'day' | 'week' | 'month' | 'year';
-export type AnalyticsSubTab = 'overview' | 'vps' | 'costs' | 'donations';
 
 type AnalyticsSummary = Awaited<ReturnType<typeof api.getAnalyticsSummary>>;
 
@@ -130,36 +146,42 @@ function ChartCard({
 function AnalyticsSubTabBar({
   subTab,
   onChange,
+  visibleTabs,
   t,
 }: {
   subTab: AnalyticsSubTab;
   onChange: (tab: AnalyticsSubTab) => void;
+  visibleTabs: AnalyticsSubTab[];
   t: (key: string) => string;
 }) {
-  const items: { id: AnalyticsSubTab; label: string }[] = [
-    { id: 'overview', label: t('admin.analytics.subTabOverview') },
-    { id: 'vps', label: t('admin.analytics.subTabVps') },
-    { id: 'costs', label: t('admin.analytics.subTabCosts') },
-    { id: 'donations', label: t('admin.analytics.subTabDonations') },
-  ];
+  const labelKey: Record<AnalyticsSubTab, string> = {
+    platform: 'admin.analytics.subTabPlatform',
+    insights: 'admin.analytics.subTabInsights',
+    activity: 'admin.analytics.subTabActivity',
+    vps: 'admin.analytics.subTabVps',
+    costs: 'admin.analytics.subTabCosts',
+    donations: 'admin.analytics.subTabDonations',
+  };
+
+  if (visibleTabs.length <= 1) return null;
 
   return (
     <nav
       className="flex gap-1 overflow-x-auto pb-0.5 border-b border-[#1e1e2f]"
       aria-label={t('admin.analytics.subTabsAria')}
     >
-      {items.map((item) => (
+      {visibleTabs.map((id) => (
         <button
-          key={item.id}
+          key={id}
           type="button"
-          onClick={() => onChange(item.id)}
+          onClick={() => onChange(id)}
           className={`px-3 py-2 text-xs font-semibold whitespace-nowrap transition border-b-2 -mb-px ${
-            subTab === item.id
+            subTab === id
               ? 'border-purple-500 text-white'
               : 'border-transparent text-gray-500 hover:text-gray-300'
           }`}
         >
-          {item.label}
+          {t(labelKey[id])}
         </button>
       ))}
     </nav>
@@ -169,18 +191,27 @@ function AnalyticsSubTabBar({
 export function AnalyticsPage({
   onBack,
   embedded = false,
-  initialSubTab = 'overview',
+  initialSubTab = 'platform',
+  staffRole: staffRoleProp,
 }: {
   onBack?: () => void;
   embedded?: boolean;
-  initialSubTab?: AnalyticsSubTab;
+  initialSubTab?: AnalyticsSubTabInput;
+  staffRole?: StaffRole | null;
 }) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const staffRole = staffRoleProp ?? resolveStaffRole(user);
+  const visibleSubTabs = useMemo(() => getAnalyticsSubTabsForRole(staffRole), [staffRole]);
   const { t, i18n } = useTranslation();
-  const [subTab, setSubTab] = useState<AnalyticsSubTab>(initialSubTab);
+  const [subTab, setSubTab] = useState<AnalyticsSubTab>(() =>
+    normalizeAnalyticsSubTab(initialSubTab)
+  );
   const [period, setPeriod] = useState<AnalyticsPeriod>('week');
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -197,14 +228,55 @@ export function AnalyticsPage({
   }, [token, period, i18n.language, t]);
 
   useEffect(() => {
+    if (subTab !== 'activity') return;
     load();
-  }, [load]);
+  }, [load, subTab]);
 
   useEffect(() => {
-    setSubTab(initialSubTab);
+    setSubTab(normalizeAnalyticsSubTab(initialSubTab));
   }, [initialSubTab]);
 
+  useEffect(() => {
+    if (isAnalyticsSubTabAllowed(subTab, staffRole)) return;
+    const fallback = visibleSubTabs[0] ?? 'platform';
+    setSubTab(fallback);
+  }, [subTab, staffRole, visibleSubTabs]);
+
   const periodTotal = periodTotalLabel(period, t);
+
+  const handleExportFullPdf = async () => {
+    if (!token) return;
+    setExportingPdf(true);
+    setExportError(null);
+    try {
+      const bundle = await fetchAdminReportBundle(token, staffRole === 'dev', i18n.language);
+      const labels = buildAdminFullReportPdfLabels(t, bundle.platform);
+      await downloadAdminFullReportPdf(bundle, labels, i18n.language);
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : t('admin.analytics.pdf.exportError'));
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
+  const handleExportCsv = async () => {
+    if (!token) return;
+    setExportingCsv(true);
+    setExportError(null);
+    try {
+      if (staffRole === 'dev') {
+        const bundle = await fetchAdminReportBundle(token, true, i18n.language);
+        downloadAdminReportCsv(bundle, i18n.language);
+      } else {
+        const platform = await api.getStatsOverview(token);
+        downloadAdminStatsCsv(platform, i18n.language);
+      }
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : t('admin.analytics.csv.exportError'));
+    } finally {
+      setExportingCsv(false);
+    }
+  };
 
   return (
     <div className={`flex flex-col ${embedded ? '' : 'h-full min-h-0'} bg-[#0b0b0f]`}>
@@ -235,21 +307,64 @@ export function AnalyticsPage({
       )}
 
       {embedded && (
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-xs text-gray-500">{t('admin.analytics.subtitle')}</p>
+        <div className="flex flex-col gap-2 mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] text-gray-500 min-w-0">
+              {staffRole === 'dev'
+                ? t('admin.analytics.pdf.coverScopeFull')
+                : t('admin.analytics.pdf.coverScopeOperational')}
+            </p>
+            <div className="flex flex-wrap gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => void handleExportCsv()}
+                disabled={exportingCsv}
+                className="px-4 py-2 min-h-11 text-xs font-semibold border border-[#2d2d3d] text-gray-200 hover:text-white rounded-full disabled:opacity-50 touch-manipulation"
+              >
+                {exportingCsv ? t('admin.analytics.csv.exporting') : t('admin.analytics.csv.export')}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleExportFullPdf()}
+                disabled={exportingPdf}
+                className="px-4 py-2 min-h-11 text-xs font-semibold border border-purple-500/50 text-purple-100 bg-purple-950/40 hover:bg-purple-900/50 rounded-full disabled:opacity-50 touch-manipulation"
+              >
+                {exportingPdf ? t('admin.analytics.pdf.exporting') : t('admin.analytics.pdf.export')}
+              </button>
+            </div>
+          </div>
+          {exportError ? (
+            <p className="text-xs text-red-400" role="alert">
+              {exportError}
+            </p>
+          ) : null}
+        </div>
+      )}
+
+      {embedded && subTab === 'activity' && (
+        <div className="flex items-center justify-end mb-4">
           <button
             type="button"
             onClick={load}
             disabled={loading}
             className="px-3 py-1.5 text-xs border border-[#2d2d3d] text-gray-400 hover:text-white rounded-full disabled:opacity-50"
           >
-            {loading ? '...' : '↻'}
+            {loading ? '...' : t('admin.analytics.refresh')}
           </button>
         </div>
       )}
 
-      <div className={`${embedded ? '' : 'flex-1 min-h-0 overflow-y-auto'} p-4 space-y-6`}>
-        <AnalyticsSubTabBar subTab={subTab} onChange={setSubTab} t={t} />
+      <div className={`${embedded ? '' : 'flex-1 min-h-0 overflow-y-auto'} ${embedded ? 'space-y-6' : 'p-4 space-y-6'}`}>
+        <AnalyticsSubTabBar
+          subTab={subTab}
+          onChange={setSubTab}
+          visibleTabs={visibleSubTabs}
+          t={t}
+        />
+
+        {subTab === 'platform' && <AdminStatsTab embedded />}
+
+        {subTab === 'insights' && <AdminAnalyticsInsightsTab />}
 
         {subTab === 'vps' && <AnalyticsVpsTab />}
 
@@ -257,7 +372,7 @@ export function AnalyticsPage({
 
         {subTab === 'donations' && <AdminDonationsTab />}
 
-        {subTab === 'overview' && (
+        {subTab === 'activity' && (
           <>
         <div>
           <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">
@@ -310,10 +425,16 @@ export function AnalyticsPage({
                   color="purple"
                 />
                 <StatCard
-                  label={t('admin.analytics.dau24h')}
+                  label={t('admin.analytics.dau24hLastSeen')}
                   value={summary.snapshot.dau24h}
-                  sub={t('admin.analytics.dau30d', { count: summary.snapshot.dau30d })}
+                  sub={t('admin.analytics.dau30dLastSeen', { count: summary.snapshot.dau30d })}
                   color="green"
+                />
+                <StatCard
+                  label={t('admin.analytics.dau24hTracked')}
+                  value={summary.snapshot.dau24hTracked}
+                  sub={t('admin.analytics.dau30dTracked', { count: summary.snapshot.dau30dTracked })}
+                  color="blue"
                 />
                 <StatCard
                   label={t('admin.analytics.newUsersToday')}

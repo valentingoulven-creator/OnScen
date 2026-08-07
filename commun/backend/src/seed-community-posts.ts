@@ -139,6 +139,32 @@ function removeCommunityPostsFromFavoriteAuthors(): number {
   return toRemove.size;
 }
 
+function pickCommunityPostImageUrl(index: number): string | undefined {
+  if (postHash(index, 'img') % 100 >= 55) return undefined;
+  const tracks = getYoutubeDemoPool();
+  const useYoutube = tracks.length > 0 && postHash(index, 'img-src') % 2 === 0;
+  if (useYoutube) {
+    const track = tracks[postHash(index, 'img-track') % tracks.length];
+    return `https://img.youtube.com/vi/${track.trackId}/hqdefault.jpg`;
+  }
+  return UNSPLASH_IMAGES[postHash(index, 'unsplash') % UNSPLASH_IMAGES.length];
+}
+
+/** Ajoute des visuels aux publications Communauté seedées sans média (fil msdev plus vivant). */
+function backfillCommunityPostImages(): number {
+  let updated = 0;
+  for (const post of db.feedPosts) {
+    if (!post.id.startsWith(COMMUNITY_POST_ID_PREFIX)) continue;
+    if (post.imageUrl?.trim() || (post.imageUrls?.length ?? 0) > 0 || post.videoUrl?.trim()) continue;
+    const seedKey = postHash(post.id.length, post.id);
+    const imageUrl = pickCommunityPostImageUrl(seedKey);
+    if (!imageUrl) continue;
+    post.imageUrl = imageUrl;
+    updated++;
+  }
+  return updated;
+}
+
 function buildPostContent(index: number): string {
   const tracks = getYoutubeDemoPool();
   const useTrack = postHash(index, 'track') % 100 < 30 && tracks.length > 0;
@@ -194,6 +220,7 @@ export function seedCommunityPosts(options?: { force?: boolean }): SeedCommunity
   }
 
   const removedFavoriteAuthors = removeCommunityPostsFromFavoriteAuthors();
+  const backfilledImages = backfillCommunityPostImages();
 
   const authorIds = collectNonFavoriteAuthorIds();
   if (authorIds.length === 0) {
@@ -217,7 +244,6 @@ export function seedCommunityPosts(options?: { force?: boolean }): SeedCommunity
   }
 
   const now = Date.now();
-  const tracks = getYoutubeDemoPool();
   const toCreate = COMMUNITY_POST_TARGET - (options?.force ? 0 : existing);
 
   for (let j = 0; j < toCreate; j++) {
@@ -228,17 +254,7 @@ export function seedCommunityPosts(options?: { force?: boolean }): SeedCommunity
     const ageMs = Math.floor(postUnit(i, 'age') * SEED_POST_MAX_AGE_MS);
     const createdAt = now - ageMs;
 
-    const hasImage = postHash(i, 'img') % 100 < 30;
-    let imageUrl: string | undefined;
-    if (hasImage) {
-      const useYoutube = tracks.length > 0 && postHash(i, 'img-src') % 2 === 0;
-      if (useYoutube) {
-        const track = tracks[postHash(i, 'img-track') % tracks.length];
-        imageUrl = `https://img.youtube.com/vi/${track.trackId}/hqdefault.jpg`;
-      } else {
-        imageUrl = UNSPLASH_IMAGES[postHash(i, 'unsplash') % UNSPLASH_IMAGES.length];
-      }
-    }
+    const imageUrl = pickCommunityPostImageUrl(i);
 
     const postId = `${COMMUNITY_POST_ID_PREFIX}${i}-${createdAt}`;
     const post: FeedPost = {
@@ -281,7 +297,7 @@ export function seedCommunityPosts(options?: { force?: boolean }): SeedCommunity
     }
   }
 
-  if (toCreate > 0 || removed > 0 || removedFavoriteAuthors > 0) {
+  if (toCreate > 0 || removed > 0 || removedFavoriteAuthors > 0 || backfilledImages > 0) {
     schedulePersist();
   }
 
@@ -291,6 +307,8 @@ export function seedCommunityPosts(options?: { force?: boolean }): SeedCommunity
     console.log(
       `[msdev] ${toCreate} publication(s) hors favoris créée(s) (${nonFavoriteTotal} non-favoris, ${total} Communauté au total, auteurs: ${authorIds.length})`
     );
+  } else if (backfilledImages > 0) {
+    console.log(`[msdev] ${backfilledImages} publication(s) Communauté enrichie(s) avec une image`);
   } else if (removedFavoriteAuthors > 0) {
     console.log(
       `[msdev] ${removedFavoriteAuthors} publication(s) Communauté retirée(s) (auteurs favoris)`

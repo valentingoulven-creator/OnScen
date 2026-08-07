@@ -1,5 +1,5 @@
 /**
- * Test Stripe Connect split for live donation (100 EUR -> 30% platform / 70% creator).
+ * Test Stripe Connect split for live donation (100 EUR -> 50% platform / 50% creator).
  * Usage: node scripts/test-stripe-donation-split.cjs
  */
 const fs = require('fs');
@@ -12,7 +12,7 @@ const keyMatch = raw.match(/^STRIPE_SECRET_KEY=(.+)$/m);
 if (!keyMatch) throw new Error('STRIPE_SECRET_KEY missing in msdev/.env');
 
 const AMOUNT_EUR = 100;
-const FEE_PERCENT = 30;
+const FEE_PERCENT = 50;
 const amountCents = AMOUNT_EUR * 100;
 const platformFeeCents = Math.round((amountCents * FEE_PERCENT) / 100);
 const creatorNetCents = amountCents - platformFeeCents;
@@ -70,7 +70,7 @@ async function main() {
       platformFeePercent: String(FEE_PERCENT),
       platformFeeCents: String(platformFeeCents),
     },
-    description: 'Test don live Soundy — split 30/70',
+    description: 'Test don live Soundy — split 50/50',
   });
 
   console.log('PaymentIntent cree: ' + intent.id);
@@ -111,7 +111,7 @@ async function main() {
   const platformOk = appFeeAmount === platformFeeCents;
   const creatorOk = transferAmount === creatorNetCents;
 
-  console.log('\n=== Verification split 30/70 ===');
+  console.log('\n=== Verification split 50/50 ===');
   console.log((platformOk ? 'OK' : 'FAIL') + ' Plateforme: ' + (appFeeAmount || 0) / 100 + ' EUR (attendu ' + platformFeeCents / 100 + ')');
   if (transferAmount != null) {
     console.log((creatorOk ? 'OK' : 'FAIL') + ' Createur: ' + transferAmount / 100 + ' EUR (attendu ' + creatorNetCents / 100 + ')');
@@ -121,7 +121,7 @@ async function main() {
     process.exitCode = 1;
     console.log('\nEchec verification split.');
   } else {
-    console.log('\nSplit 30% / 70% confirme cote Stripe (hors frais processing Stripe).');
+    console.log('\nSplit 50% / 50% confirme cote Stripe (hors frais processing Stripe).');
   }
   console.log('Dashboard: https://dashboard.stripe.com/test/payments/' + chargeId + '\n');
 }
@@ -134,7 +134,7 @@ main().catch(function (e) {
     console.error('1. Ouvrez https://dashboard.stripe.com/test/connect');
     console.error('2. Activez Connect (Express recommande, comme Soundy)');
     console.error('3. Relancez: node scripts/test-stripe-donation-split.cjs');
-    console.error('\nLe calcul 30/70 est deja verifie dans le code (100 EUR -> 30 EUR plateforme, 70 EUR createur).');
+    console.error('\nLe calcul 50/50 est deja verifie dans le code (100 EUR -> 50 EUR plateforme, 50 EUR createur).');
   }
   process.exit(1);
 });

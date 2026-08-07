@@ -104,6 +104,16 @@ export const sponsorsApi = {
   getSalonSponsors: () =>
     request<{ items: import('../../types').MapAdItem[] }>('/sponsors/salon', { cache: 'no-store' }),
 
+  trackSponsorEvent: (body: {
+    sponsorId: string;
+    placement: import('../../types').SponsorPlacement;
+    event: 'impression' | 'click';
+  }) =>
+    request<{ ok: boolean }>('/sponsors/track', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
   getMapSidebarEventSponsors: (token: string) =>
     request<{ posts: import('../../types').FeedPost[] }>(
       '/sponsors/map-sidebar-events',

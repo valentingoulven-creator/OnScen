@@ -18,6 +18,7 @@ import { ProfileCurrentListening } from '../components/ProfileCurrentListening';
 import { ProfilePhotoViewer } from '../components/ProfilePhotoViewer';
 import { HostRatingBlock } from '../components/HostRatingBlock';
 import { FollowUserButton } from '../components/FollowUserButton';
+import { FollowProfileNotificationsButton } from '../components/FollowProfileNotificationsButton';
 import { ensureYoutubeLinkedToJoinSalon } from '../lib/platformConnect';
 import { resolveProfileLiveId } from '../lib/profileLive';
 import { useUserProfile } from '../hooks/useUserProfile';
@@ -227,9 +228,31 @@ export function UserProfilePage({
                           variant="pill"
                           className="shrink-0 [&>button]:min-h-11 [&>button]:flex [&>button]:items-center"
                           onFollowingChange={(following) =>
-                            setProfile((p) => (p ? { ...p, isFollowing: following } : p))
+                            setProfile((p) =>
+                              p
+                                ? {
+                                    ...p,
+                                    isFollowing: following,
+                                    followNotificationsEnabled: following
+                                      ? (p.followNotificationsEnabled ?? true)
+                                      : undefined,
+                                  }
+                                : p
+                            )
                           }
                         />
+                        {profile?.isFollowing ? (
+                          <FollowProfileNotificationsButton
+                            userId={userId}
+                            isFollowing={!!profile.isFollowing}
+                            initialEnabled={profile.followNotificationsEnabled !== false}
+                            onEnabledChange={(enabled) =>
+                              setProfile((p) =>
+                                p ? { ...p, followNotificationsEnabled: enabled } : p
+                              )
+                            }
+                          />
+                        ) : null}
                         {onOpenDm && (
                           <button
                             type="button"

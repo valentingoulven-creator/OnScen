@@ -1,3 +1,10 @@
+/** Upvotes événement (FR) : 6300 → "6,3k". */
+export function formatEventUpvoteCount(n: number): string {
+  const safe = Math.max(0, Math.floor(n));
+  if (safe < 1000) return String(safe);
+  return formatCompactCount(safe).replace('.', ',').replace('K', 'k');
+}
+
 /** Affiche un nombre compact : 999 → "999", 1000 → "1K", 1500 → "1.5K". */
 export function formatCompactCount(n: number): string {
   const safe = Math.max(0, Math.floor(n));

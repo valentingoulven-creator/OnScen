@@ -44,7 +44,7 @@ export function StoriesAdBanner({ onCtaSalon, onCtaLive }: StoriesAdBannerProps)
       <button
         type="button"
         key={ad.id}
-        onClick={() => handleSponsorCta(ad, { onCtaSalon, onCtaLive })}
+        onClick={() => handleSponsorCta(ad, { onCtaSalon, onCtaLive }, { placement: 'stories_banner' })}
         className={`w-full flex items-center gap-2 px-3 py-2 min-h-14 rounded-xl border border-white/10 bg-gradient-to-r ${accentGradient} text-left transition-opacity duration-200 ${
           fading ? 'opacity-0' : 'opacity-100'
         }`}

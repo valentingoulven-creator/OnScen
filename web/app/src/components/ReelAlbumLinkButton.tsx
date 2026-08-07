@@ -27,13 +27,15 @@ function ReelVinylIcon({ style, gradientId }: { style: AlbumLinkPlatformStyle; g
 interface ReelAlbumLinkButtonProps {
   url: string;
   className?: string;
+  /** fixed = position absolue sur la slide ; inline = dans un rail empilé. */
+  variant?: 'fixed' | 'inline';
 }
 
 /** Below ReelsSearchBar overlay (top-3 + h-9) — left rail, clear of header controls. */
 const REEL_ALBUM_LINK_POSITION =
   'absolute top-14 left-4 z-[15]';
 
-export function ReelAlbumLinkButton({ url, className = '' }: ReelAlbumLinkButtonProps) {
+export function ReelAlbumLinkButton({ url, className = '', variant = 'fixed' }: ReelAlbumLinkButtonProps) {
   const { t } = useTranslation();
   const gradientId = useId().replace(/:/g, '');
   const trimmed = url.trim();
@@ -85,7 +87,9 @@ export function ReelAlbumLinkButton({ url, className = '' }: ReelAlbumLinkButton
 
   return (
     <div
-      className={`reel-album-link reel-album-link--${platformStyle.platform} ${REEL_ALBUM_LINK_POSITION} flex w-11 flex-col items-center ${className}`}
+      className={`reel-album-link reel-album-link--${platformStyle.platform} ${
+        variant === 'fixed' ? REEL_ALBUM_LINK_POSITION : 'relative'
+      } flex w-11 flex-col items-center ${className}`}
     >
       {appTarget ? (
         <button type="button" {...sharedProps}>

@@ -10,13 +10,13 @@ Les montants versés lors d’un live sont des **soutiens volontaires** au créa
 
 - L’éditeur agit en qualité d’**intermédiaire technique** ; le bénéficiaire du pourboire est l’hôte du live.
 
-## 2. Commission plateforme (30 %)
+## 2. Commission plateforme (50 %)
 
 | Élément | Détail |
 |---------|--------|
 | Montant versé par l’utilisateur | Montant TTC saisi (ex. 5 €) |
-| Commission plateforme | **30 %** du montant (`DONATION_PLATFORM_FEE_PERCENT`, défaut 30) |
-| Part créateur (estimation) | **~70 %** avant frais Stripe |
+| Commission plateforme | **50 %** du montant (`DONATION_PLATFORM_FEE_PERCENT`, défaut 50) |
+| Part créateur (estimation) | **~50 %** avant frais Stripe |
 | Frais Stripe | Prélevés selon le modèle **Stripe Connect** (frais de traitement carte, hors commission plateforme) |
 
 Les pourcentages exacts peuvent être ajustés par configuration ; la **Politique monétisation créateurs** in-app fait foi.
@@ -39,4 +39,4 @@ L’éditeur ne stocke **pas** le numéro de carte complet ni le CVV. Seuls des 
 
 ## English summary (non-binding)
 
-Tips are **voluntary creator support**, not tax-deductible charitable donations. The platform retains a **30 % platform fee** on each live tip; the creator receives an estimated **70 %** before Stripe processing fees (Stripe Connect). Payment data is processed by Stripe (GDPR). Tips are generally non-refundable except error, fraud, or legal obligation. Full terms: in-app legal section « Creator monetization » and Terms of Use.
+Tips are **voluntary creator support**, not tax-deductible charitable donations. The platform retains a **50 % platform fee** on each live tip; the creator receives an estimated **50 %** before Stripe processing fees (Stripe Connect). Payment data is processed by Stripe (GDPR). Tips are generally non-refundable except error, fraud, or legal obligation. Full terms: in-app legal section « Creator monetization » and Terms of Use.

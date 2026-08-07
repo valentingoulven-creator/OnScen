@@ -12,7 +12,7 @@
 
 **L’application** est une plateforme sociale autour de la musique : profils, feed, reels, DMs, **salons audio** (YouTube), **lives vidéo** (LiveKit + Cloudflare), **géolocalisation** (« people nearby », carte), modération admin + NSFW automatisée (Sightengine).
 
-**Monétisation :** pourboires live (commission plateforme ~30 %), abonnements créateurs, abonnement premium — via **Stripe Connect** (web). App mobile Capacitor (iOS/Android) en cours.
+**Monétisation :** pourboires live (commission plateforme ~50 %), abonnements créateurs, abonnement premium — via **Stripe Connect** (web). App mobile Capacitor (iOS/Android) en cours.
 
 **Infra :** VPS Scaleway (fr-par), PostgreSQL, hébergement EU. Documents légaux in-app (CGU, privacy, DPIA, mentions, monétisation créateurs). Export / suppression de compte implémentés.
 
@@ -34,7 +34,7 @@
 
 | # | Question |
 |---|----------|
-| **4** | Nos **« pourboires » live** (soutien volontaire, 30 % plateforme, pas de reçu fiscal) — formulation et cadre juridique corrects (vs don, prestation, cadeau numérique) ? |
+| **4** | Nos **« pourboires » live** (soutien volontaire, 50 % plateforme, pas de reçu fiscal) — formulation et cadre juridique corrects (vs don, prestation, cadeau numérique) ? |
 | **5** | Avec **Stripe Connect**, quelles obligations **KYC / AML / fiscalité / TVA** pour l’éditeur et pour les créateurs (DAC7, facturation, retenue) ? |
 | **6** | Sur **iOS/Android**, Stripe in-app est-il interdit ? Comment articuler **web (Stripe)** vs **IAP Apple/Google** sans violation des règles stores ? |
 | **7** | **Sign in with Apple** est-il obligatoire dès que Google OAuth est proposé ? Conséquences si non implémenté avant soumission App Store ? |
@@ -68,7 +68,7 @@
 
 - [ ] **Dossier complet (PDF) :** `commun/docs/juridique/dossier-avocat-a-valider/` — commencer par `00-LISEZMOI-DOSSIER-AVOCAT.pdf`
 - [ ] `commun/docs/reports/LEGAL_REPORT.md` (audit interne juin 2026)
-- [ ] `commun/docs/juridique/MENTIONS-LEGALES-DONS.md` (pourboires 30 %)
+- [ ] `commun/docs/juridique/MENTIONS-LEGALES-DONS.md` (pourboires 50 %)
 - [ ] CGU / Privacy / Monétisation créateurs (`web/app/src/content/legal/` ou exports dans le dossier ci-dessus)
 - [ ] `TODO-MANUAL.md` (section Business / Légal)
 - [ ] Liste sous-traitants : Scaleway, Stripe, Cloudflare, LiveKit, Sightengine, Google (OAuth/YouTube)

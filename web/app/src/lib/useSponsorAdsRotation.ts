@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api';
 import {
   mapApiAdToMapAd,
@@ -6,6 +6,7 @@ import {
   type SponsorPlacementFetch,
 } from './sponsorAds';
 import { getDisplayDurationMs } from './sponsorDisplaySpec';
+import { SPONSOR_PLACEMENT_BY_FETCH, trackSponsorImpression } from './sponsorTrack';
 
 const SPONSOR_FETCHERS = {
   map: () => api.getMapSponsors(),
@@ -38,6 +39,15 @@ export function useSponsorAdsRotation(placement: SponsorPlacementFetch) {
 
   const count = ads.length || 0;
   const ad = count > 0 ? ads[index % count] : null;
+  const lastImpressionRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!ad?.id) return;
+    const key = `${ad.id}:${SPONSOR_PLACEMENT_BY_FETCH[placement]}`;
+    if (lastImpressionRef.current === key) return;
+    lastImpressionRef.current = key;
+    trackSponsorImpression(ad.id, SPONSOR_PLACEMENT_BY_FETCH[placement]);
+  }, [ad?.id, placement]);
 
   const goTo = useCallback((nextIndex: number) => {
     setFading(true);

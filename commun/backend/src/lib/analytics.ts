@@ -1,5 +1,7 @@
 import { db } from '../models/schema';
 
+import { recordUserLoginDay } from './userLoginRetention';
+
 export type AnalyticsEventType =
   | 'user_login'
   | 'user_login_oauth'
@@ -43,12 +45,28 @@ export function trackEvent(type: AnalyticsEventType, userId?: string): void {
 
   if (userId) {
     dauMap.set(userId, Date.now());
+    if (
+      type === 'user_login' ||
+      type === 'user_login_oauth' ||
+      type === 'user_login_biometric'
+    ) {
+      recordUserLoginDay(userId);
+    }
   }
 }
 
 /** Marque un utilisateur comme actif (pour DAU). */
 export function trackUserActive(userId: string): void {
   dauMap.set(userId, Date.now());
+}
+
+/** Utilisateurs distincts vus via trackEvent / trackUserActive depuis cutoff (carte analytics). */
+export function countTrackedActiveUsersSince(cutoffMs: number): number {
+  let count = 0;
+  for (const ts of dauMap.values()) {
+    if (ts > cutoffMs) count += 1;
+  }
+  return count;
 }
 
 export function snapshotAnalyticsBuckets(): Record<string, number> {
@@ -80,6 +98,29 @@ function getEventCount(type: AnalyticsEventType, daysBack = 0): number {
 
 function getEventCountLastNDays(type: AnalyticsEventType, n: number): number[] {
   return Array.from({ length: n }, (_, i) => getEventCount(type, n - 1 - i));
+}
+
+/** Somme des compteurs journaliers sur les N derniers jours (inclus aujourd'hui). */
+export function sumEventsLastNDays(type: AnalyticsEventType, days: number): number {
+  if (days <= 0) return 0;
+  return getEventCountLastNDays(type, days).reduce((a, b) => a + b, 0);
+}
+
+/**
+ * Somme tous les buckets journaliers d'un type d'événement, depuis le début
+ * du tracking analytics (pas de fenêtre temporelle). Utile pour des totaux
+ * "all-time" (ex. nombre de salons/lives créés depuis toujours) — sous-estime
+ * légèrement l'historique réel si le tracking a démarré après le lancement
+ * de la fonctionnalité, mais reste la meilleure source disponible (pas de
+ * table dédiée en base pour ce compteur).
+ */
+export function getEventTotalAllTime(type: AnalyticsEventType): number {
+  let total = 0;
+  const prefix = `${type}:`;
+  for (const [key, bucket] of eventBuckets.entries()) {
+    if (key.startsWith(prefix)) total += bucket.count;
+  }
+  return total;
 }
 
 export type AnalyticsPeriod = 'day' | 'week' | 'month' | 'year';
@@ -253,7 +294,7 @@ function getLoginSeriesForPeriod(period: AnalyticsPeriod): number[] {
   return mergeSeries(passwordLogins, oauthLogins);
 }
 
-function countActiveUsersSince(cutoffMs: number): number {
+export function countActiveUsersSince(cutoffMs: number): number {
   let count = 0;
   for (const user of db.users.values()) {
     if (user.lastSeenAt > cutoffMs) count += 1;
@@ -293,7 +334,9 @@ export function getAnalyticsSummary(period: AnalyticsPeriod = 'week', locale = '
     snapshot: {
       totalUsers,
       dau24h: countActiveUsersSince(oneDayAgo),
+      dau24hTracked: countTrackedActiveUsersSince(oneDayAgo),
       dau30d: countActiveUsersSince(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      dau30dTracked: countTrackedActiveUsersSince(Date.now() - 30 * 24 * 60 * 60 * 1000),
       newUsersToday,
       activeSalons,
       activeLives,

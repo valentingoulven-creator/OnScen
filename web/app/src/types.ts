@@ -518,6 +518,189 @@ export interface ExternalSecretsStatusResponse {
   envFileFound: boolean;
 }
 
+export type DeployEnvironmentId = 'dev' | 'preprod' | 'prod';
+export type EnvironmentHealthStatus = 'ok' | 'degraded' | 'down' | 'unknown';
+
+export interface EnvironmentStatusResponse {
+  id: string;
+  label: string;
+  siteUrl: string;
+  status: EnvironmentHealthStatus;
+  db?: 'ok' | 'error' | 'disabled';
+  services?: Record<string, string> | null;
+  latencyMs?: number;
+  checkedAt: string;
+  error?: string;
+}
+
+export interface StatsTopReel {
+  id: string;
+  title: string;
+  authorId: string;
+  authorName: string;
+  viewCount: number;
+}
+
+export interface StatsTopSalon {
+  id: string;
+  title: string;
+  hostName: string;
+  listenersCount: number;
+}
+
+export interface StatsTopLive {
+  id: string;
+  title: string;
+  hostName: string;
+  viewersCount: number;
+}
+
+export interface StatsOverviewResponse {
+  generatedAt: string;
+  users: {
+    total: number;
+    onlineNow: number;
+    activeToday: number;
+    activeWeek: number;
+    activeMonth: number;
+    newLast7Days: number;
+    newLast30Days: number;
+    inactive30Days: number;
+    withGeoOrCity: number;
+    pendingAccounts: number;
+    blockedAccounts: number;
+    activeTodayLastSeen: number;
+    activeWeekLastSeen: number;
+    activeMonthLastSeen: number;
+    activeTodayTracked: number;
+    activeWeekTracked: number;
+    activeMonthTracked: number;
+  };
+  content: {
+    totalReels: number;
+    activeSalonsNow: number;
+    totalSalonsCreated: number;
+    activeLivesNow: number;
+    totalLivesStarted: number;
+    totalEvents: number;
+    totalUpvotes: number;
+    totalAlbums: number;
+    totalCompositions: number;
+  };
+  music: {
+    compositionUpvotes: number;
+    eventUpvotes: number;
+    compositionPlaysTotal: number;
+    compositionPlays7d: number;
+  };
+  engagement: {
+    followRelations: number;
+    usersFollowingSomeone: number;
+    feedPostLikes: number;
+    feedPostComments: number;
+    feedPostFavorites: number;
+    totalMatches: number;
+    reelLikes: number;
+    reelComments: number;
+    directMessages: number;
+    activeCreatorSubscriptions: number;
+    activePlatformSubscriptions: number;
+  };
+  community: {
+    totalStories: number;
+    supportThreadsTotal: number;
+    supportOpen: number;
+  };
+  moderation: {
+    reportsTotal: number;
+    reportsPending: number;
+  };
+  sponsors: {
+    total: number;
+    activeNow: number;
+    activeByPlacement: Record<string, number>;
+    impressionsTotal: number;
+    clicksTotal: number;
+    ctrTotal: number;
+    impressions7d: number;
+    clicks7d: number;
+    ctr7d: number;
+    impressions30d: number;
+    clicks30d: number;
+    ctr30d: number;
+    byPlacementMetrics: {
+      placement: string;
+      impressions30d: number;
+      clicks30d: number;
+      ctr30d: number;
+    }[];
+    topByImpressions30d: {
+      sponsorId: string;
+      sponsorName: string;
+      impressions30d: number;
+      clicks30d: number;
+      ctr30d: number;
+    }[];
+  };
+  retention: {
+    cohorts: {
+      cohortWeek: string;
+      registered: number;
+      week1Retained: number;
+      week4Retained: number;
+      week1Rate: number;
+      week4Rate: number;
+      week1Mature: boolean;
+      week4Mature: boolean;
+      week1RetainedLogin: number;
+      week4RetainedLogin: number;
+      week1RateLogin: number;
+      week4RateLogin: number;
+    }[];
+  };
+  monetization: {
+    estimatedMrrCents: number;
+    estimatedMrrCreatorCents: number;
+    estimatedMrrPlatformCents: number;
+    stripeMrrCents: number;
+    simulationMrrCents: number;
+    activeSubscriptions: number;
+    activeCreatorSubscriptions: number;
+    activePlatformSubscriptions: number;
+    subscriptionsStripe: number;
+    subscriptionsSimulation: number;
+    tipsMonthCents: number;
+    tipsAllTimeCents: number;
+    tipsMonthStripeCents: number;
+    tipsMonthSimulationCents: number;
+    platformFeesMonthCents: number;
+    platformFeesAllTimeCents: number;
+    platformFeesMonthStripeCents: number;
+    platformRevenueMonthEstimateCents: number;
+    platformRevenueMonthStripeCents: number;
+    stripeReconciledMrrCents: number;
+    stripeReconciledPlatformMrrCents: number;
+    stripeMrrReconcileDeltaCents: number;
+    subscriptionInvoicesPaidMonthCents: number;
+    subscriptionPlatformFeesMonthCents: number;
+    platformFeePercent: number;
+    donationsSimulationMode: boolean;
+  };
+  analytics30d: {
+    logins: number;
+    messagesSent: number;
+    salonsCreated: number;
+    livesStarted: number;
+    reelsViewed: number;
+    matchesCreated: number;
+    favoritesAdded: number;
+    reelsCreated: number;
+  };
+  topReels: StatsTopReel[];
+  topSalons: StatsTopSalon[];
+  topLives: StatsTopLive[];
+}
+
 export interface ExternalSecretFieldError {
   field: string;
   message: string;
@@ -914,6 +1097,7 @@ export interface User {
   isFavorite?: boolean;
   hostRating?: HostRatingSummary;
   isFollowing?: boolean;
+  followNotificationsEnabled?: boolean;
   /** Le profil visité suit le visiteur (follow inverse) */
   isFollowingMe?: boolean;
   /** Le visiteur est abonné supporter de ce créateur */
@@ -1043,6 +1227,9 @@ export interface AppNotification {
     | 'event_created'
     | 'event_tagged'
     | 'story_tagged'
+    | 'album_published'
+    | 'track_published'
+    | 'reel_published'
     | 'mention'
     | 'support_contact'
     | 'support_reply'
@@ -1060,6 +1247,8 @@ export interface AppNotification {
   groupId?: string;
   postId?: string;
   reelId?: string;
+  albumId?: string;
+  compositionId?: string;
   storyId?: string;
   supportMessageId?: string;
 }
@@ -1222,6 +1411,7 @@ export interface LiveChatConfig {
   noLinksForParticipants?: boolean;
   slowModeSeconds?: number;
   subscribersOnly?: boolean;
+  blockedTerms?: string[];
 }
 
 export interface LiveDonationOption {
@@ -1249,6 +1439,23 @@ export interface LiveDonationGoalOverlay {
   yPct: number;
 }
 
+/** Annonce épinglée par l'hôte en tête du chat (distinct des animations de dons). */
+export interface LivePinnedAnnouncement {
+  text: string;
+  postedAt: number;
+}
+
+/** Sondage / Q&A live publié par l'hôte (vue publique agrégée). */
+export interface LivePoll {
+  id: string;
+  question: string;
+  options: { id: string; label: string; count: number }[];
+  totalVotes: number;
+  closedAt?: number;
+  /** Option choisie par le viewer courant (calculée côté serveur au chargement). */
+  myVote?: string;
+}
+
 export interface Live {
   id: string;
   salonId?: string;
@@ -1259,6 +1466,21 @@ export interface Live {
   hostUsernameWaveFrom?: string;
   hostUsernameWaveTo?: string;
   title: string;
+  /** Description libre du live, modifiable en direct par l'hôte. */
+  description?: string;
+  /** Contenu signalé sensible/18+ par l'hôte. */
+  isSensitive?: boolean;
+  /** Rediffusion (VOD) activée après le live. Défaut true. */
+  replayEnabled?: boolean;
+  pinnedAnnouncement?: LivePinnedAnnouncement;
+  activePoll?: LivePoll;
+  /** Duo / co-hôte (LiveKit uniquement) : utilisateur autorisé à publier sa caméra aux côtés de l'hôte. */
+  coHostId?: string;
+  coHostName?: string;
+  coHostAvatarUrl?: string;
+  coHostInvitePending?: boolean;
+  /** Visible uniquement par l'hôte : cible de l'invitation en attente. */
+  coHostInviteTargetId?: string;
   platform: 'youtube';
   playbackState: PlaybackState;
   latitude: number;
@@ -1707,6 +1929,7 @@ export interface ContentReport {
   createdAt: number;
   status?: 'pending' | 'reviewed' | 'dismissed';
   reviewedAt?: number;
+  priority?: 'urgent' | 'normal';
 }
 
 export type AiAgentId = 'ceo' | 'dev';

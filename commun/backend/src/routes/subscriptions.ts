@@ -34,6 +34,7 @@ import {
   type SubscriptionTargetType,
 } from '../lib/subscriptions';
 import { isStripeConfigured } from '../lib/donations';
+import { schedulePersist } from '../lib/persist';
 import {
   getPlatformPlanStatus,
   listPlatformPlans,
@@ -550,6 +551,13 @@ export async function handleStripeSubscriptionWebhook(req: Request, res: Respons
     const stripeSubId =
       typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
     if (stripeSubId) {
+      try {
+        const { recordStripeSubscriptionInvoicePaid } = await import('../lib/stripeSubscriptionLedger');
+        const recorded = recordStripeSubscriptionInvoicePaid(invoice, stripeSubId);
+        if (recorded) schedulePersist();
+      } catch (e) {
+        console.error('[subscriptions] invoice.paid ledger record failed:', stripeSubId, e);
+      }
       try {
         const stripeSub = (await stripe.subscriptions.retrieve(
           stripeSubId

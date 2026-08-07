@@ -7,11 +7,13 @@ import { CREATOR_MONETIZATION_MIN_AGE } from './lib/ageGates';
 import { defaultDonationOptionsForLive } from './lib/liveDonationDefaults';
 import {
   PRESENTATION_DEMO_HLS,
+  PRESENTATION_DEMO_PLAYBACK,
   PRESENTATION_DEMO_VIEWERS,
   PRESENTATION_LIVE_ID,
   buildPresentationDemoChat,
   ensurePresentationDemoAudienceUsers,
 } from './lib/presentationDemoLive';
+import { buildPlatformTrackUrl } from './lib/musicLinks';
 
 export interface SeedPresentationLiveResult {
   liveId: string;
@@ -21,7 +23,7 @@ export interface SeedPresentationLiveResult {
   viewersCount: number;
 }
 
-/** Live présentation Castelnau — 40 spectateurs, chat actif, flux HLS simulé (msdev). */
+/** Live présentation Castelnau — 40 spectateurs, chat actif, vidéo chanteur·se (msdev). */
 export function seedMsdevPresentationLive(): SeedPresentationLiveResult {
   const audienceUsersCreated = ensurePresentationDemoAudienceUsers();
   const chatMessages = buildPresentationDemoChat(PRESENTATION_LIVE_ID);
@@ -32,6 +34,31 @@ export function seedMsdevPresentationLive(): SeedPresentationLiveResult {
     if (typeof host.age === 'number' && host.age >= CREATOR_MONETIZATION_MIN_AGE) return;
     host.age = CREATOR_MONETIZATION_MIN_AGE;
     db.users.set(host.id, host);
+  };
+
+  const syncPresentationSalonPlayback = () => {
+    const salon = db.salons.get(PRESENTATION_LIVE_ID);
+    if (!salon) return;
+    const now = Date.now();
+    const { title, artist, trackId } = PRESENTATION_DEMO_PLAYBACK;
+    salon.playbackState = {
+      platform: 'youtube',
+      trackId,
+      title,
+      artist,
+      albumArtUrl: `https://img.youtube.com/vi/${trackId}/hqdefault.jpg`,
+      isPlaying: true,
+      progressMs: 45_000,
+      updatedAt: now,
+      startedAt: now - 45_000,
+      externalUrl: buildPlatformTrackUrl('youtube', trackId),
+    };
+    db.salons.set(salon.id, salon);
+    const liveRef = db.lives.get(PRESENTATION_LIVE_ID);
+    if (liveRef) {
+      liveRef.playbackState = salon.playbackState;
+      db.lives.set(liveRef.id, liveRef);
+    }
   };
 
   const applyPresentationDemoLiveFields = (target: Live) => {
@@ -45,6 +72,7 @@ export function seedMsdevPresentationLive(): SeedPresentationLiveResult {
     target.cloudflarePlaybackUrl = PRESENTATION_DEMO_HLS;
     target.contentCategory = target.contentCategory ?? 'music';
     target.videoAspectRatio = target.videoAspectRatio ?? '16:9';
+    target.title = 'Live voix — session chanteur·se';
     target.tipsEnabled = true;
     target.donationOptions = defaultDonationOptionsForLive();
     target.donationGoals = [
@@ -80,7 +108,7 @@ export function seedMsdevPresentationLive(): SeedPresentationLiveResult {
       salonId: PRESENTATION_LIVE_ID,
       hostId: host.id,
       hostName: host.username,
-      title: 'Live Rap — Castelnau-le-Lez',
+      title: 'Live voix — session chanteur·se',
       platform: 'youtube',
       playbackState: salon.playbackState,
       latitude: salon.latitude,
@@ -115,6 +143,8 @@ export function seedMsdevPresentationLive(): SeedPresentationLiveResult {
     db.salons.set(salon.id, salon);
   }
 
+  syncPresentationSalonPlayback();
+
   db.liveChats.set(PRESENTATION_LIVE_ID, chatMessages);
   if (!db.liveBans.has(PRESENTATION_LIVE_ID)) {
     db.liveBans.set(PRESENTATION_LIVE_ID, new Map());
@@ -137,7 +167,7 @@ export function ensureMsdevPresentationLive(): SeedPresentationLiveResult | null
   const result = seedMsdevPresentationLive();
   if (result.updated) {
     console.log(
-      `[msdev] Live présentation Castelnau : ${result.viewersCount} spectateurs, ${result.chatMessages} message(s), flux HLS démo`
+      `[msdev] Live présentation Castelnau : ${result.viewersCount} spectateurs, ${result.chatMessages} message(s), vidéo démo chanteur·se`
     );
   }
   return result;

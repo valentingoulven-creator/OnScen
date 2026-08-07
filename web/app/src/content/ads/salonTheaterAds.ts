@@ -5,7 +5,7 @@ export const SALON_THEATER_ADS: MapAd[] = [
   {
     id: 'salon-theater-demo',
     title: 'Solar Festival au Crès',
-    subtitle: '5e édition · 4 juillet 2026 · Montpellier',
+    subtitle: '6e édition · 4 juillet 2027 · Montpellier',
     cta: 'Billetterie',
     href: 'https://solarfestival.fr/billetterie',
     sponsor: 'Solar Festival',

@@ -1,4 +1,8 @@
 import { REEL_CATALOG_ENTRIES } from './reelsDemoCatalog';
+import { getReelDemoAuthorProfile } from './reelsDemoAuthorProfiles';
+import { getReelDemoAlbumLink, type ReelStreamingLinks } from './reelsDemoStreamingLinks';
+
+export type { ReelStreamingLinks };
 
 export interface MusicReel {
   id: string;
@@ -28,8 +32,10 @@ export interface MusicReel {
   /** public = flux Reels ; private = profil uniquement */
   visibility?: 'public' | 'private';
   isPrivate?: boolean;
-  /** Lien externe optionnel affiché sur le reel (URL validée côté serveur) */
+  /** Vinyle démo : un lien externe (Spotify, YouTube, Deezer, etc.). */
   link?: string;
+  /** Legacy feed API — un seul lien affiché via pickReelAlbumLink. */
+  streamingLinks?: ReelStreamingLinks;
   /** Vues uniques (API profil / stats) */
   viewCount?: number;
 }
@@ -80,20 +86,27 @@ export function mixkitMusic(id: number): Pick<MusicReel, 'audioUrl' | 'hasAudio'
 /** Nombre de reels vidéo du catalogue démo (Mixkit). */
 export const REELS_DEMO_VIDEO_COUNT = REEL_CATALOG_ENTRIES.length;
 
-/** Liens album démo (vinyle cliquable sur le reel). */
+/** Liens album démo (legacy lien unique — préférer streamingLinks). */
 const REEL_DEMO_ALBUM_LINKS: Partial<Record<string, string>> = {
-  'reel-vinyl': 'https://open.spotify.com/album/4LH4d3eAUQHVnovOeE5odr',
   'reel-singer':
     'http://localhost:5173/profile/user_listener?tab=compositions&album=msdev_showcase_album_01',
 };
 
-export const MUSIC_REELS: MusicReel[] = REEL_CATALOG_ENTRIES.map((entry) => ({
-  id: entry.id,
-  title: entry.title,
-  artist: entry.artist,
-  genre: entry.genre,
-  mediaType: 'video' as const,
-  ...mixkit(entry.videoId),
-  ...mixkitMusic(entry.musicId),
-  ...(REEL_DEMO_ALBUM_LINKS[entry.id] ? { link: REEL_DEMO_ALBUM_LINKS[entry.id] } : {}),
-}));
+export const MUSIC_REELS: MusicReel[] = REEL_CATALOG_ENTRIES.map((entry) => {
+  const demoAlbumLink = getReelDemoAlbumLink(entry.id);
+  const { authorId, authorUsername } = getReelDemoAuthorProfile(entry.artist);
+  const legacyLink = REEL_DEMO_ALBUM_LINKS[entry.id];
+  const link = demoAlbumLink ?? legacyLink;
+  return {
+    id: entry.id,
+    title: entry.title,
+    artist: entry.artist,
+    genre: entry.genre,
+    mediaType: 'video' as const,
+    ...mixkit(entry.videoId),
+    ...mixkitMusic(entry.musicId),
+    authorId,
+    authorUsername,
+    ...(link ? { link } : {}),
+  };
+});

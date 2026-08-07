@@ -8,6 +8,7 @@ import { db, Salon, MusicPlatform, SalonTrackProposal } from '../models/schema';
 import { recordWeeklyVote } from '../lib/weeklyVotes';
 import { schedulePersist } from '../lib/persist';
 import { authenticateJWT } from '../middleware/auth';
+import { invalidateProfileCache } from './auth';
 import { blurCoordinate } from '../lib/geo';
 import { getPublicMapCoords } from '../lib/locationPrivacy';
 import { isBotHost } from '../seed-bots';
@@ -65,7 +66,7 @@ import {
 } from '../lib/salonModeration';
 import { getActiveSalonForHost } from '../lib/profile';
 import { getActiveLiveForSalon, isSalonLiveActive, isUserHostingLive } from '../lib/liveStatus';
-import { upsertSalonToPg, markSalonInactivePgAsync, reconcileHostSalonsWithPostgres, getSalonFromStore, hydrateSalonFromPostgres } from '../lib/pgSalonsLives';
+import { upsertSalonToPg, markSalonInactivePg, markSalonInactivePgAsync, reconcileHostSalonsWithPostgres, getSalonFromStore, hydrateSalonFromPostgres } from '../lib/pgSalonsLives';
 import { refreshStaleYoutubeSalonMetadata, hasStaleYoutubeMetadata } from '../lib/youtubeMetadata';
 
 export const salonsRouter = Router();
@@ -1146,8 +1147,12 @@ salonsRouter.delete('/:id', authenticateJWT, async (req: Request, res: Response)
   db.salons.delete(salonId);
   db.salonChats.delete(salonId);
   clearSalonPlaybackData(salonId);
-  // Fix #3: marquer le salon comme inactif en PG pour ne pas le restaurer au redémarrage
-  markSalonInactivePgAsync(salonId);
+  try {
+    await markSalonInactivePg(salonId);
+  } catch (err) {
+    console.error('[salons] mark salon inactive PG:', err);
+  }
+  invalidateProfileCache(userId);
   clearNearbyCache();
   res.json({ ok: true });
 });

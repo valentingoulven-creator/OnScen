@@ -230,15 +230,20 @@ export async function syncUserMutesToPg(client: PoolClient, mutes: UserMute[]): 
   await pruneCompositePairs(client, 'user_mutes', 'muter_id', 'muted_id', pairs);
 }
 
-export async function syncUserFollowsToPg(client: PoolClient, follows: MapOfSets): Promise<void> {
+export async function syncUserFollowsToPg(
+  client: PoolClient,
+  follows: MapOfSets,
+  notificationPrefs?: Record<string, Record<string, boolean>>
+): Promise<void> {
   const pairs: Array<[string, string]> = [];
   for (const [followerId, followedIds] of Object.entries(follows)) {
     for (const followedId of followedIds) {
       pairs.push([followerId, followedId]);
+      const enabled = notificationPrefs?.[followerId]?.[followedId] !== false;
       await client.query(
-        `INSERT INTO user_follows (follower_id, followed_id) VALUES ($1, $2)
-         ON CONFLICT (follower_id, followed_id) DO NOTHING`,
-        [followerId, followedId]
+        `INSERT INTO user_follows (follower_id, followed_id, notifications_enabled) VALUES ($1, $2, $3)
+         ON CONFLICT (follower_id, followed_id) DO UPDATE SET notifications_enabled = EXCLUDED.notifications_enabled`,
+        [followerId, followedId, enabled]
       );
     }
   }
@@ -355,6 +360,7 @@ export async function syncSocialTablesFromStore(
     | 'userBlocks'
     | 'userMutes'
     | 'userFollows'
+    | 'userFollowNotificationPrefs'
     | 'userFavorites'
     | 'hostRatings'
     | 'supportContactMessages'
@@ -372,7 +378,11 @@ export async function syncSocialTablesFromStore(
   await syncLiveBansToPg(client, data.liveBans ?? []);
   await syncUserBlocksToPg(client, data.userBlocks ?? []);
   await syncUserMutesToPg(client, data.userMutes ?? []);
-  await syncUserFollowsToPg(client, data.userFollows ?? {});
+  await syncUserFollowsToPg(
+    client,
+    data.userFollows ?? {},
+    data.userFollowNotificationPrefs ?? {}
+  );
   await syncUserFavoritesToPg(client, data.userFavorites ?? []);
   await syncHostRatingsToPg(client, data.hostRatings ?? []);
   await syncSupportContactMessagesToPg(client, data.supportContactMessages ?? []);

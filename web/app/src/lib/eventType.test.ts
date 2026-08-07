@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getEventTypeIcon, getMapEventDisplayIcon, isFeedEventType } from './eventType';
+import { getEventTypeIcon, getMapEventDisplayIcon, getFeedEventTypeDisplayLabel, getFeedEventTypeDisplayIcon, isFeedEventType } from './eventType';
 
 describe('getEventTypeIcon', () => {
   it('retourne l’icône selon le type', () => {
@@ -18,6 +18,23 @@ describe('getMapEventDisplayIcon', () => {
   it('force ✨ pour les événements sponsorisés', () => {
     expect(getMapEventDisplayIcon('dance', { sponsored: true })).toBe('✨');
     expect(getMapEventDisplayIcon('chant', { sponsored: true })).toBe('✨');
+  });
+});
+
+describe('getFeedEventTypeDisplayLabel', () => {
+  const t = (key: string) => (key === 'feed.eventTypeChant' ? 'Musique' : 'Autre');
+
+  it('affiche Musique pour dance et chant', () => {
+    expect(getFeedEventTypeDisplayLabel(t, 'dance')).toBe('Musique');
+    expect(getFeedEventTypeDisplayLabel(t, 'chant')).toBe('Musique');
+    expect(getFeedEventTypeDisplayLabel(t, 'autre')).toBe('Autre');
+  });
+});
+
+describe('getFeedEventTypeDisplayIcon', () => {
+  it('utilise l’icône Musique pour dance', () => {
+    expect(getFeedEventTypeDisplayIcon('dance')).toBe('🎶');
+    expect(getFeedEventTypeDisplayIcon('chant')).toBe('🎶');
   });
 });
 

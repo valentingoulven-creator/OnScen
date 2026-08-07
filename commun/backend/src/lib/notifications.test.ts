@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, User } from '../models/schema';
-import { followUser, notifyFollowersSalonCreated } from './follows';
-import { addFavorite } from './favorites';
+import { followUser, notifyFollowersSalonCreated, setFollowActivityNotifications } from './follows';
 import {
   hasUnreadDmFromSender,
   notifyContentHeartReceived,
@@ -26,6 +25,7 @@ describe('notifications', () => {
   beforeEach(() => {
     db.users.clear();
     db.userFollows.clear();
+    db.userFollowNotificationPrefs.clear();
     db.userFavorites.clear();
     db.notifications.length = 0;
     db.users.set('alice', seedUser('alice', 'Alice'));
@@ -85,12 +85,10 @@ describe('notifications', () => {
     expect(hasUnreadDmFromSender('bob', 'alice')).toBe(true);
   });
 
-  it('notifyEventCreated notifie abonnés et favoris sans doublon', () => {
+  it('notifyEventCreated notifie les abonnés avec mute follow', async () => {
     followUser('alice', 'bob');
     followUser('carol', 'bob');
-    addFavorite('alice', 'bob');
-    addFavorite('carol', 'bob');
-    db.userFavorites.get('carol')!.get('bob')!.notificationsEnabled = false;
+    setFollowActivityNotifications('carol', 'bob', false);
 
     notifyEventCreated({
       creator: { id: 'bob', username: 'Bob' },
@@ -98,8 +96,10 @@ describe('notifications', () => {
       eventLocation: 'Paris',
     });
 
+    await new Promise((resolve) => setImmediate(resolve));
+
     const recipients = db.notifications.map((n) => n.recipientId).sort();
-    expect(recipients).toEqual(['alice', 'carol']);
+    expect(recipients).toEqual(['alice']);
     expect(db.notifications[0].type).toBe('event_created');
     expect(db.notifications[0].message).toContain('Bob a créé un événement');
     expect(db.notifications[0].message).toContain('Paris');

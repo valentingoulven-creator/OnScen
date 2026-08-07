@@ -88,6 +88,7 @@ export interface ArchivedLiveSummary {
 
 function replayUrlForLive(l: Live): string | undefined {
   if (l.streamMode !== 'cloudflare') return undefined;
+  if (l.replayEnabled === false) return undefined;
   return l.cloudflareVodPlaybackUrl ?? l.cloudflarePlaybackUrl;
 }
 

@@ -31,6 +31,14 @@ export interface TriggerRule {
   label?: string;       // message vocal custom si action = voice_thanks
 }
 
+export const DEFAULT_LIVE_TRIGGERS: TriggerRule[] = [
+  { id: 't1', minAmount: 1,  actions: ['hearts_animation'],                  enabled: true },
+  { id: 't2', minAmount: 5,  actions: ['voice_thanks'],                      enabled: true },
+  { id: 't3', minAmount: 10, actions: ['fullscreen_donor', 'confetti'],      enabled: true },
+  { id: 't4', minAmount: 20, actions: ['confetti', 'chat_pin'],              enabled: true },
+  { id: 't5', minAmount: 50, actions: ['custom_alert', 'chat_pin'],          enabled: true },
+];
+
 export type RewardType = 'music_request' | 'dedication' | 'dance' | 'backstage' | 'badge' | 'custom';
 
 export interface LiveReward {

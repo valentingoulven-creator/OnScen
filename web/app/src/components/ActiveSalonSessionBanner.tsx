@@ -93,7 +93,13 @@ export function ActiveSalonSessionBanner({
     setEndError(null);
     try {
       await api.deleteSalon(token, salonId);
-      setUserFromProfile({ ...user, salonId: undefined, salonTitle: undefined });
+      setUserFromProfile({
+        ...user,
+        salonId: undefined,
+        salonTitle: undefined,
+        salonListening: undefined,
+        currentListening: user.isLive ? (user.liveListening ?? user.currentListening) : undefined,
+      });
       await refreshUser().catch(() => {});
       setShowEndConfirm(false);
       onSalonEnded?.();

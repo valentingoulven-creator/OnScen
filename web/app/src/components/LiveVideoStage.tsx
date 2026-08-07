@@ -23,7 +23,7 @@ import {
   LiveVideoStageOverlayLeaveButton,
   LiveVideoStagePlaceholder,
 } from './LiveVideoStagePlaceholder';
-import { LiveTheaterStatusBar, LiveVideoChromeButton, LiveVideoGiftIcon, LiveTheaterLiveMetaBar } from './LiveVideoTheaterChrome';
+import { LiveTheaterStatusBar, LiveVideoChromeButton, LiveVideoGiftIcon, LiveTheaterLiveMetaBar, LIVE_THEATER_DONATE_BTN_CLASS } from './LiveVideoTheaterChrome';
 import {
   getLiveVideoAspectRatioClass,
   getLiveVideoAspectRatioCss,
@@ -972,7 +972,7 @@ export function LiveVideoStage({
                 onClick={onOpenDonation}
                 ariaLabel={t('live.headerDonate')}
                 title={t('live.headerDonate')}
-                className="ring-1 ring-amber-400/40 text-amber-200 min-h-11 min-w-11"
+                className={LIVE_THEATER_DONATE_BTN_CLASS}
               >
                 <LiveVideoGiftIcon />
                 <span className="hidden sm:inline">{t('live.headerDonateShort')}</span>

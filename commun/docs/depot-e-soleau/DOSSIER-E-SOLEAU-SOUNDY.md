@@ -175,7 +175,7 @@ Retrouver sa **communauté musicale** partout dans le monde : en écoutant ensem
 3. **Mesh WebRTC + Coturn TURN** — fallback, ~30 spectateurs max
 
 **Fonctionnalités associées :**
-- Chat live, réactions, pourboires Stripe Connect (commission plateforme 30 %)
+- Chat live, réactions, pourboires Stripe Connect (commission plateforme 50 %)
 - Abonnements créateur (Supporter 4,99 €/mois, Super fan 9,99 €/mois)
 - Notation hôte, archivage rediffusions (Soundy+ / SoundyUltra)
 - Setup assisté par chat (`StartLiveSetupChatModal`)
@@ -436,7 +436,7 @@ Grille initiale calibrée pour l’Europe ; **adaptation par pays et devise** pr
 | Source | Détail | Part cible M24 |
 |--------|--------|----------------|
 | **Sponsors natifs** | Emplacements carte, feed, stories, reels | 45–55 % |
-| **Commissions créateurs** | Pourboires live (30 % plateforme), abonnements créateur | 25–35 % |
+| **Commissions créateurs** | Pourboires live (50 % plateforme), abonnements créateur | 25–35 % |
 | **Soundy+ / SoundyUltra** | Abonnement plateforme 2,99–4,99 €/mois | 10–15 % |
 | **B2B lieux** | Soundy Pro Lieu 49–149 €/mois (roadmap) | 5–15 % |
 
@@ -461,7 +461,7 @@ Commission plateforme configurable sur abonnements créateurs.
 
 - Gratifications volontaires pendant un live
 - Paiement via Stripe Connect
-- Commission plateforme : **30 %**
+- Commission plateforme : **50 %**
 - Réservé aux 18 ans et plus
 - Cadre légal : gratification volontaire, pas un don ouvrant droit à réduction fiscale
 

@@ -1,7 +1,8 @@
 import { MAP_ADS, SALON_THEATER_ADS, type MapAd } from '../content/ads';
 import { isInMapBounds, type MapBounds } from './mapMarkerVisibility';
 
-import type { MapAdItem } from '../types';
+import type { MapAdItem, SponsorPlacement } from '../types';
+import { trackSponsorClick } from './sponsorTrack';
 
 export type SponsorPlacementFetch = 'map' | 'feed' | 'stories' | 'salon';
 
@@ -130,8 +131,12 @@ export function resolvePlacementAds(
 
 export function handleSponsorCta(
   ad: MapAd,
-  handlers?: { onCtaSalon?: () => void; onCtaLive?: () => void }
+  handlers?: { onCtaSalon?: () => void; onCtaLive?: () => void },
+  options?: { placement?: SponsorPlacement }
 ): void {
+  if (options?.placement && ad.id) {
+    trackSponsorClick(ad.id, options.placement);
+  }
   const action = ad.actionId ?? (ad.id === 'salon' ? 'salon' : ad.id === 'live' ? 'live' : undefined);
   if (action === 'salon' && handlers?.onCtaSalon) {
     handlers.onCtaSalon();
