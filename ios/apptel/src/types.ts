@@ -203,6 +203,9 @@ export interface AppNotification {
     | 'event_created'
     | 'event_tagged'
     | 'story_tagged'
+    | 'album_published'
+    | 'track_published'
+    | 'reel_published'
     | 'mention'
     | 'support_contact'
     | 'support_reply'
@@ -219,8 +222,10 @@ export interface AppNotification {
   peerUserId?: string;
   groupId?: string;
   postId?: string;
-  storyId?: string;
   reelId?: string;
+  albumId?: string;
+  compositionId?: string;
+  storyId?: string;
   supportMessageId?: string;
 }
 
