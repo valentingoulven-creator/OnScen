@@ -97,6 +97,20 @@ export const usersApi = {
       token
     ),
 
+  getFollowingStatus: (token: string, userId: string) =>
+    request<{ isFollowing: boolean; followNotificationsEnabled?: boolean }>(
+      `/users/${userId}/following-status`,
+      {},
+      token
+    ),
+
+  setFollowNotifications: (token: string, userId: string, notificationsEnabled: boolean) =>
+    request<{ ok: boolean; followingId: string; followNotificationsEnabled: boolean }>(
+      `/users/${userId}/follow-notifications`,
+      { method: 'PATCH', body: JSON.stringify({ notificationsEnabled }) },
+      token
+    ),
+
   getMyFollowing: (token: string) =>
     request<{ following: import('../../types').User[]; followingIds: string[] }>(
       '/users/me/following',

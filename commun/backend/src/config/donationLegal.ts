@@ -1,5 +1,5 @@
 /** Commission plateforme sur les pourboires live (hors abonnements). */
-export const DEFAULT_DONATION_PLATFORM_FEE_PERCENT = 30;
+export const DEFAULT_DONATION_PLATFORM_FEE_PERCENT = 50;
 
 export const DONATION_STRIPE_TERMS_URL = 'https://stripe.com/fr/legal/consumer';
 

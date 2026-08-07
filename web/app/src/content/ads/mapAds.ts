@@ -40,7 +40,7 @@ export const MAP_ADS: MapAd[] = [
   {
     id: 'solar-festival-cres',
     title: 'Solar Festival au Crès',
-    subtitle: '5e édition · 4 juillet 2026 · Lac du Crès, Montpellier · Petit Biscuit, KAS:ST & plus',
+    subtitle: '6e édition · 4 juillet 2027 · Lac du Crès, Montpellier · Petit Biscuit, KAS:ST & plus',
     cta: 'Billetterie →',
     href: 'https://solarfestival.fr/billetterie',
     accent: 'cyan',

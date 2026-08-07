@@ -10,6 +10,7 @@ import type {
   AdminReelRow,
   AdminSalonRow,
 } from '../types';
+import { AdminChatModerationPolicySheet } from '../components/AdminChatModerationPolicySheet';
 
 type ContentSection = 'salons' | 'lives' | 'events' | 'reels';
 
@@ -155,6 +156,7 @@ export function AdminContentTab({ onOpenSalon }: AdminContentTabProps) {
   const [counts, setCounts] = useState({ total: 0, blocked: 0, active: 0 });
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const [chatPolicyOpen, setChatPolicyOpen] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
@@ -247,7 +249,10 @@ export function AdminContentTab({ onOpenSalon }: AdminContentTabProps) {
         <p className="text-xs text-gray-500 mt-1">{t('admin.content.subtitle')}</p>
       </div>
 
-      <nav className="flex gap-1 overflow-x-auto pb-0.5 -mx-1 px-1" aria-label={t('admin.content.title')}>
+      <nav
+        className="flex gap-1 overflow-x-auto items-center pb-0.5 -mx-1 px-1"
+        aria-label={t('admin.content.title')}
+      >
         {sections.map((item) => (
           <button
             key={item.id}
@@ -262,7 +267,17 @@ export function AdminContentTab({ onOpenSalon }: AdminContentTabProps) {
             {item.label}
           </button>
         ))}
+        <span className="w-px h-5 bg-[#2d2d3d] shrink-0 mx-0.5" aria-hidden />
+        <button
+          type="button"
+          onClick={() => setChatPolicyOpen(true)}
+          className="shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap bg-[#1a1a26] text-purple-300 border border-purple-500/30 hover:bg-purple-600/20 min-h-11 sm:min-h-0"
+        >
+          {t('admin.content.chatPolicy.button')}
+        </button>
       </nav>
+
+      <AdminChatModerationPolicySheet open={chatPolicyOpen} onClose={() => setChatPolicyOpen(false)} />
 
       <div className="flex flex-wrap gap-2 text-[10px]">
         <span className="px-2 py-0.5 rounded-full bg-[#1a1a26] text-gray-400">
@@ -428,6 +443,12 @@ export function AdminContentTab({ onOpenSalon }: AdminContentTabProps) {
                           <div className="font-medium truncate">{l.title}</div>
                           <div className="text-xs text-gray-500 truncate">
                             {l.hostName} · {platformLabel(l.platform)}
+                            {l.isActive && !l.adminBlocked ? (
+                              <span className="text-purple-300/90 tabular-nums">
+                                {' '}
+                                · {l.viewersCount} {t('admin.stats.viewers')}
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-1 shrink-0">

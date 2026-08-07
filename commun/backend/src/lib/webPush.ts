@@ -15,8 +15,12 @@ const WEB_PUSH_TYPES = new Set<AppNotification['type']>([
   'favorite_online',
   'follow',
   'mention',
+  'event_created',
   'event_tagged',
   'story_tagged',
+  'album_published',
+  'track_published',
+  'reel_published',
   'subscription_payment_failed',
 ]);
 
@@ -47,7 +51,7 @@ function resolveNotificationUrl(n: AppNotification): string {
   if (n.salonId != null) return `/salon/${n.salonId}`;
   if (n.postId != null) return `/feed/post/${n.postId}`;
   if (n.reelId != null) return `/reels/${n.reelId}`;
-  if (n.peerUserId != null && (n.type === 'follow' || n.type === 'mention')) {
+  if (n.peerUserId != null && (n.type === 'follow' || n.type === 'mention' || n.type === 'album_published' || n.type === 'track_published' || n.type === 'reel_published')) {
     return `/profile/${n.peerUserId}`;
   }
   return '/';

@@ -35,7 +35,7 @@ import {
   LiveVideoStageOverlayLeaveButton,
   LiveVideoStagePlaceholder,
 } from './LiveVideoStagePlaceholder';
-import { LiveTheaterStatusBar, LiveVideoChromeButton, LiveVideoGiftIcon, LiveTheaterLiveMetaBar } from './LiveVideoTheaterChrome';
+import { LiveTheaterStatusBar, LiveVideoChromeButton, LiveVideoGiftIcon, LiveTheaterLiveMetaBar, LIVE_THEATER_DONATE_BTN_CLASS } from './LiveVideoTheaterChrome';
 import { useLiveVideoChromeAutoHide } from '../hooks/useLiveVideoChromeAutoHide';
 import {
   LIVE_CAMERA_HOST_LIVEKIT_START,
@@ -264,10 +264,13 @@ function LiveKitHostPublisher({
 }
 
 function LiveKitViewerSubscriber({
+  hostIdentity,
   liveCameraActive,
   liveCameraMode,
   onStreamActive,
 }: {
+  /** Identité LiveKit (userId) de l'hôte — cible explicitement son flux, même si un duo publie aussi. */
+  hostIdentity?: string;
   liveCameraActive: boolean;
   liveCameraMode?: 'camera' | 'file';
   onStreamActive: (active: boolean) => void;
@@ -277,6 +280,7 @@ function LiveKitViewerSubscriber({
     (t) =>
       !t.participant.isLocal &&
       t.source === Track.Source.Camera &&
+      (hostIdentity ? t.participant.identity === hostIdentity : true) &&
       t.publication &&
       !t.publication.isMuted &&
       (t.publication.track ?? t.publication.isSubscribed)
@@ -302,8 +306,32 @@ function LiveKitViewerSubscriber({
   );
 }
 
+/** Petite tuile vidéo (coin bas-droit) pour le second participant d'un duo — hôte ou co-hôte. */
+function LiveKitPeerTile({ identity, label }: { identity: string; label: string }) {
+  const tracks = useTracks([Track.Source.Camera], { onlySubscribed: false });
+  const track = tracks.find(
+    (t) =>
+      t.participant.identity === identity &&
+      t.source === Track.Source.Camera &&
+      t.publication?.track &&
+      !t.publication.isMuted
+  );
+  if (!track) return null;
+  return (
+    <div className="absolute bottom-3 right-3 z-20 w-20 sm:w-28 aspect-[9/16] rounded-lg overflow-hidden border-2 border-white/25 shadow-xl bg-black">
+      <VideoTrack trackRef={track} autoPlay playsInline className="w-full h-full object-cover" />
+      <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/60 text-[8px] font-bold text-white uppercase tracking-wide">
+        {label}
+      </span>
+    </div>
+  );
+}
+
 function LiveKitRoomInner({
   isHost,
+  isCoHost = false,
+  hostId,
+  coHostId,
   publishActive,
   micEnabled,
   videoDeviceId,
@@ -318,6 +346,10 @@ function LiveKitRoomInner({
   onConnectionStateChange,
 }: {
   isHost: boolean;
+  /** Duo/co-hôte accepté — publie aussi sa caméra (LiveKit multi-publisher). */
+  isCoHost?: boolean;
+  hostId?: string;
+  coHostId?: string;
   publishActive: boolean;
   micEnabled: boolean;
   videoDeviceId?: string;
@@ -349,27 +381,35 @@ function LiveKitRoomInner({
     return null;
   }
 
-  if (isHost) {
+  if (isHost || isCoHost) {
     return (
-      <LiveKitHostPublisher
-        publishActive={publishActive}
-        micEnabled={micEnabled}
-        videoDeviceId={videoDeviceId}
-        audioDeviceId={audioDeviceId}
-        videoResolution={videoResolution}
-        videoAspectRatio={videoAspectRatio}
-        onPublishChange={onHostStreamActive}
-        onError={onError}
-      />
+      <>
+        <LiveKitHostPublisher
+          publishActive={publishActive}
+          micEnabled={micEnabled}
+          videoDeviceId={videoDeviceId}
+          audioDeviceId={audioDeviceId}
+          videoResolution={videoResolution}
+          videoAspectRatio={videoAspectRatio}
+          onPublishChange={onHostStreamActive}
+          onError={onError}
+        />
+        {isCoHost && hostId ? <LiveKitPeerTile identity={hostId} label="Hôte" /> : null}
+        {isHost && coHostId ? <LiveKitPeerTile identity={coHostId} label="Duo" /> : null}
+      </>
     );
   }
 
   return (
-    <LiveKitViewerSubscriber
-      liveCameraActive={liveCameraActive}
-      liveCameraMode={liveCameraMode}
-      onStreamActive={onViewerStreamActive}
-    />
+    <>
+      <LiveKitViewerSubscriber
+        hostIdentity={hostId}
+        liveCameraActive={liveCameraActive}
+        liveCameraMode={liveCameraMode}
+        onStreamActive={onViewerStreamActive}
+      />
+      {coHostId ? <LiveKitPeerTile identity={coHostId} label="Duo" /> : null}
+    </>
   );
 }
 
@@ -377,6 +417,10 @@ export type LiveKitVideoStageProps = {
   liveId: string;
   authToken: string;
   isHost: boolean;
+  /** Duo/co-hôte accepté — publie sa caméra aux côtés de l'hôte (LiveKit multi-publisher). */
+  isCoHost?: boolean;
+  /** userId du co-hôte actif, pour afficher sa tuile vidéo. */
+  coHostId?: string;
   publishActive: boolean;
   /** Micro hôte activé (LiveKit setMicrophoneEnabled). */
   micEnabled?: boolean;
@@ -431,6 +475,8 @@ export function LiveKitVideoStage({
   liveId,
   authToken,
   isHost,
+  isCoHost = false,
+  coHostId,
   publishActive,
   micEnabled = true,
   liveCameraActive,
@@ -533,7 +579,9 @@ export function LiveKitVideoStage({
     return () => {
       fetchGenRef.current += 1;
     };
-  }, [authToken, enabled, liveId]);
+    // isCoHost inclus : un changement de statut duo doit forcer un nouveau token
+    // LiveKit (canPublish mis à jour) et une reconnexion propre de la room.
+  }, [authToken, enabled, liveId, isCoHost]);
 
   const handleRoomError = useCallback((err: Error) => {
     setRoomError(err.message || LIVE_CAMERA_VIEWER_LIVEKIT_ERROR);
@@ -573,7 +621,8 @@ export function LiveKitVideoStage({
 
   const roomEnabled = enabled && !streamEnded;
 
-  const showVideo = !streamEnded && (isHost ? hostStreamActive : viewerStreamActive);
+  const isPublisher = isHost || isCoHost;
+  const showVideo = !streamEnded && (isPublisher ? hostStreamActive : viewerStreamActive);
 
   const waitingForVideo =
     !streamEnded &&
@@ -581,7 +630,7 @@ export function LiveKitVideoStage({
     !roomError &&
     !videoTimedOut &&
     !!session &&
-    (isHost
+    (isPublisher
       ? publishActive && !hostStreamActive
       : liveCameraActive && liveCameraMode !== 'file' && !viewerStreamActive);
 
@@ -744,7 +793,7 @@ export function LiveKitVideoStage({
     // le SDK LiveKit gère le retry/backoff automatiquement, on ne fait ici que
     // rendre cet état visible côté UI (audit Low #12).
     if (isReconnecting) return 'reconnecting';
-    if (isHost) {
+    if (isPublisher) {
       return publishActive && hostStreamActive ? 'live' : publishActive ? 'loading' : 'no-camera';
     }
     if (!liveCameraActive || liveCameraMode === 'file') return 'no-camera';
@@ -761,7 +810,7 @@ export function LiveKitVideoStage({
     if (stageState === 'error') return videoErrorTitle;
     if (stageState === 'reconnecting') return LIVE_CAMERA_RECONNECTING;
     if (!session) return LIVE_CAMERA_VIEWER_LIVEKIT_CONNECTING;
-    if (isHost) {
+    if (isPublisher) {
       if (hostStreamActive) return 'Caméra active — diffusion LiveKit';
       if (publishActive) return 'Activation de la caméra…';
       return LIVE_CAMERA_HOST_LIVEKIT_START;
@@ -900,6 +949,9 @@ export function LiveKitVideoStage({
           >
             <LiveKitRoomInner
               isHost={isHost}
+              isCoHost={isCoHost}
+              hostId={liveHostId}
+              coHostId={coHostId}
               publishActive={publishActive}
               micEnabled={micEnabled}
               videoDeviceId={videoDeviceId}
@@ -1021,7 +1073,7 @@ export function LiveKitVideoStage({
               onClick={onOpenDonation}
               ariaLabel={t('live.headerDonate')}
               title={t('live.headerDonate')}
-              className="ring-1 ring-amber-400/40 text-amber-200 min-h-11 min-w-11"
+              className={LIVE_THEATER_DONATE_BTN_CLASS}
             >
               <LiveVideoGiftIcon />
               <span className="hidden sm:inline">{t('live.headerDonateShort')}</span>

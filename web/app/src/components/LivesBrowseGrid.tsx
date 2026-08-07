@@ -96,7 +96,7 @@ const LiveGridCard = memo(function LiveGridCard({
               alt=""
               loading="lazy"
               decoding="async"
-              className="absolute inset-0 w-full h-full object-cover"
+              className={`absolute inset-0 w-full h-full object-cover${live.isSensitive ? ' blur-md scale-110' : ''}`}
             />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a26] to-[#0b0b0f]" />
@@ -105,6 +105,11 @@ const LiveGridCard = memo(function LiveGridCard({
             className="absolute top-1.5 left-1.5 size-2 rounded-full bg-red-500 ring-2 ring-red-500/40 shadow-[0_0_6px_rgba(239,68,68,0.6)] live-indicator-dot"
             aria-label="En direct"
           />
+          {live.isSensitive && (
+            <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/70 text-[9px] font-black text-amber-300 tracking-wide">
+              18+
+            </span>
+          )}
           {live.hostId !== currentUserId && (
             <div
               className="absolute top-1.5 right-1.5 opacity-90 group-hover:opacity-100"

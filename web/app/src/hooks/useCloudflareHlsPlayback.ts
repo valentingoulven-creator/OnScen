@@ -157,6 +157,7 @@ export function useCloudflareHlsPlayback(opts: {
     }
 
     const hlsPlaybackUrl = withCloudflareLlHlsManifest(playbackUrl, delaySeconds);
+    const isProgressiveMp4 = /\.mp4(\?|$)/i.test(playbackUrl.trim());
 
     setPhase('loading');
     setError(null);
@@ -190,6 +191,24 @@ export function useCloudflareHlsPlayback(opts: {
     video.addEventListener('playing', onPlaying);
     video.addEventListener('waiting', onWaiting);
     video.addEventListener('loadeddata', onLoadedData);
+
+    if (isProgressiveMp4) {
+      destroyHls();
+      video.loop = true;
+      video.src = playbackUrl.trim();
+      void tryPlay();
+
+      return () => {
+        video.removeEventListener('playing', onPlaying);
+        video.removeEventListener('waiting', onWaiting);
+        video.removeEventListener('loadeddata', onLoadedData);
+        destroyHls();
+        video.pause();
+        video.loop = false;
+        video.removeAttribute('src');
+        video.load();
+      };
+    }
 
     let cancelled = false;
     let nativeBlackScreenTimer: number | undefined;

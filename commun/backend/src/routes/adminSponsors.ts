@@ -20,6 +20,7 @@ import {
 } from '../lib/sponsorPlatformConfig';
 import { saveSponsorBannerFromDataUrl } from '../lib/sponsorBannerAssets';
 import { saveSponsorLogoFromDataUrl } from '../lib/sponsorLogoAssets';
+import { moderateImageSource, moderationRejectionMessage } from '../lib/contentModeration';
 import {
   estimateSponsorAudience,
   estimateSponsorAudienceFromRecord,
@@ -218,11 +219,19 @@ adminSponsorsRouter.post('/reorder', authenticateJWT, (req: Request, res: Respon
 });
 
 adminSponsorsRouter.post('/upload-logo', authenticateJWT, async (req: Request, res: Response) => {
-  if (requireAdmin(req, res) == null) return;
+  const adminId = requireAdmin(req, res);
+  if (adminId == null) return;
   try {
     const image = String(req.body?.image ?? '').trim();
     if (!image) {
       res.status(400).json({ error: 'Image requise' });
+      return;
+    }
+    // Audit MOD-2 : les visuels sponsors échappaient jusque-là à tout scan Sightengine
+    // (contenu géré par admin, mais un compte admin compromis reste un vecteur possible).
+    const moderation = await moderateImageSource(image, 'sponsor_asset', adminId);
+    if (!moderation.allowed) {
+      res.status(422).json({ error: moderationRejectionMessage(moderation) });
       return;
     }
     const url = await saveSponsorLogoFromDataUrl(image);
@@ -233,11 +242,17 @@ adminSponsorsRouter.post('/upload-logo', authenticateJWT, async (req: Request, r
 });
 
 adminSponsorsRouter.post('/upload-banner', authenticateJWT, async (req: Request, res: Response) => {
-  if (requireAdmin(req, res) == null) return;
+  const adminId = requireAdmin(req, res);
+  if (adminId == null) return;
   try {
     const image = String(req.body?.image ?? '').trim();
     if (!image) {
       res.status(400).json({ error: 'Image requise' });
+      return;
+    }
+    const moderation = await moderateImageSource(image, 'sponsor_asset', adminId);
+    if (!moderation.allowed) {
+      res.status(422).json({ error: moderationRejectionMessage(moderation) });
       return;
     }
     const url = await saveSponsorBannerFromDataUrl(image);

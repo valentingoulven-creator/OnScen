@@ -3,10 +3,12 @@ import {
   getSightengineCredentials,
   getSightengineEroticaThreshold,
   getSightengineExplicitThreshold,
+  getSightengineMinorThreshold,
   getSightengineModels,
   getSightengineOffensiveThreshold,
   getSightengineVideoApiUrl,
   getSightengineVideoSyncMaxSec,
+  getSightengineViolenceThreshold,
   isSightengineConfigured,
   shouldModerateRemoteImageUrls,
   sightengineFailOpenOnError,
@@ -19,7 +21,7 @@ import {
   parseVideoDataUrl,
 } from './videoDataUrl';
 
-export type SightengineRejectReason = 'explicit' | 'erotica' | 'offensive';
+export type SightengineRejectReason = 'explicit' | 'erotica' | 'offensive' | 'violent' | 'minor_risk';
 
 export interface SightengineEvaluation {
   allowed: boolean;
@@ -46,11 +48,28 @@ function numScore(value: unknown): number | null {
   return value;
 }
 
+/** Score max `faces[].attributes.age.minor` (0-1) — modèle Sightengine `face-age`. */
+function extractMaxMinorScore(payload: unknown): number | null {
+  if (payload == null || typeof payload !== 'object') return null;
+  const faces = (payload as { faces?: unknown }).faces;
+  if (!Array.isArray(faces)) return null;
+  let max: number | null = null;
+  for (const face of faces) {
+    if (face == null || typeof face !== 'object') continue;
+    const attrs = (face as { attributes?: { age?: { minor?: unknown } } }).attributes;
+    const minor = numScore(attrs?.age?.minor);
+    if (minor != null && (max == null || minor > max)) max = minor;
+  }
+  return max;
+}
+
 /** Évalue la réponse JSON Sightengine (testable sans réseau). */
 export function evaluateSightenginePayload(payload: unknown): SightengineEvaluation {
   const explicitThreshold = getSightengineExplicitThreshold();
   const eroticaThreshold = getSightengineEroticaThreshold();
   const offensiveThreshold = getSightengineOffensiveThreshold();
+  const violenceThreshold = getSightengineViolenceThreshold();
+  const minorThreshold = getSightengineMinorThreshold();
 
   const scores: Record<string, number> = {};
   const nudity =
@@ -61,10 +80,30 @@ export function evaluateSightenginePayload(payload: unknown): SightengineEvaluat
   const sexualActivity = numScore(nudity?.sexual_activity);
   const sexualDisplay = numScore(nudity?.sexual_display);
   const erotica = numScore(nudity?.erotica);
+  const verySuggestive = numScore(nudity?.very_suggestive);
+  const suggestive = numScore(nudity?.suggestive);
 
   if (sexualActivity != null) scores.sexual_activity = sexualActivity;
   if (sexualDisplay != null) scores.sexual_display = sexualDisplay;
   if (erotica != null) scores.erotica = erotica;
+  if (verySuggestive != null) scores.very_suggestive = verySuggestive;
+  if (suggestive != null) scores.suggestive = suggestive;
+
+  // Détection mineur (MOD-8) : évaluée avant les seuils adultes classiques — un signal
+  // « mineur probable + nudité/suggestif même modéré » est toujours plus grave qu'une
+  // nudité adulte isolée et doit être bloqué avec un seuil plus bas et une escalade dédiée.
+  const minorScore = extractMaxMinorScore(payload);
+  if (minorScore != null) scores.minor = minorScore;
+  const nudityOrSuggestiveSignal = Math.max(
+    sexualActivity ?? 0,
+    sexualDisplay ?? 0,
+    erotica ?? 0,
+    verySuggestive ?? 0,
+    suggestive ?? 0
+  );
+  if (minorScore != null && minorScore >= minorThreshold && nudityOrSuggestiveSignal >= 0.3) {
+    return { allowed: false, reason: 'minor_risk', scores };
+  }
 
   if (sexualActivity != null && sexualActivity >= explicitThreshold) {
     return { allowed: false, reason: 'explicit', scores };
@@ -84,6 +123,34 @@ export function evaluateSightenginePayload(payload: unknown): SightengineEvaluat
   if (offensiveProb != null) scores.offensive_prob = offensiveProb;
   if (offensiveProb != null && offensiveProb >= offensiveThreshold) {
     return { allowed: false, reason: 'offensive', scores };
+  }
+
+  // Gore / armes (MOD-1) — modèles `gore-2.0`/`weapon`, activés par défaut désormais.
+  const gore =
+    payload != null && typeof payload === 'object' && 'gore' in payload
+      ? (payload as { gore?: Record<string, unknown> }).gore
+      : undefined;
+  const goreProb = numScore(gore?.prob);
+  if (goreProb != null) scores.gore_prob = goreProb;
+  if (goreProb != null && goreProb >= violenceThreshold) {
+    return { allowed: false, reason: 'violent', scores };
+  }
+
+  const weapon =
+    payload != null && typeof payload === 'object' && 'weapon' in payload
+      ? (payload as { weapon?: { classes?: Record<string, unknown> } }).weapon
+      : undefined;
+  const weaponClasses = weapon?.classes;
+  let weaponMax = 0;
+  if (weaponClasses && typeof weaponClasses === 'object') {
+    for (const value of Object.values(weaponClasses)) {
+      const n = numScore(value);
+      if (n != null && n > weaponMax) weaponMax = n;
+    }
+  }
+  if (weaponMax > 0) scores.weapon_max = weaponMax;
+  if (weaponMax >= violenceThreshold) {
+    return { allowed: false, reason: 'violent', scores };
   }
 
   return { allowed: true, scores };
@@ -358,6 +425,10 @@ export function userFacingModerationMessage(reason?: SightengineRejectReason): s
       return 'Contenu visuel refusé : symboles ou contenus choquants détectés.';
     case 'erotica':
       return 'Contenu visuel refusé : contenu suggestif non autorisé.';
+    case 'violent':
+      return 'Contenu visuel refusé : violence, arme ou contenu choquant détecté.';
+    case 'minor_risk':
+      return 'Contenu visuel refusé : ce contenu ne respecte pas nos règles de protection des mineurs.';
     case 'explicit':
     default:
       return 'Contenu visuel refusé : nudité ou contenu sexuel explicite détecté.';

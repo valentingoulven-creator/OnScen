@@ -1,4 +1,5 @@
 import { MUSIC_REELS, type MusicReel } from './reels';
+import type { ReelStreamingLinks } from './reelsDemoStreamingLinks';
 import { MAX_RECORDED_REEL_VIDEO_DATA_CHARS } from '../lib/reelRecording';
 import { isCompositionAudioUrl } from '../lib/reelCompositionAudio';
 
@@ -116,6 +117,20 @@ function str(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function parseStreamingLinksFromApi(raw: unknown): ReelStreamingLinks | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const o = raw as Record<string, unknown>;
+  const spotify = str(o.spotify);
+  const youtube = str(o.youtube);
+  const deezer = str(o.deezer);
+  if (!spotify && !youtube && !deezer) return undefined;
+  return {
+    ...(spotify ? { spotify } : {}),
+    ...(youtube ? { youtube } : {}),
+    ...(deezer ? { deezer } : {}),
+  } as ReelStreamingLinks;
+}
+
 /** Normalise la forme API (mediaUrl / champs manquants) vers MusicReel affichable. */
 export function normalizeReelFromApi(raw: ApiReel): MusicReel | null {
   const id = str(raw.id);
@@ -166,6 +181,10 @@ export function normalizeReelFromApi(raw: ApiReel): MusicReel | null {
     ...(visibility ? { visibility } : {}),
     ...(isPrivate ? { isPrivate: true } : { isPrivate: false }),
     ...(str(raw.link) ? { link: str(raw.link) } : {}),
+    ...((): Partial<MusicReel> => {
+      const streamingLinks = parseStreamingLinksFromApi(raw.streamingLinks);
+      return streamingLinks ? { streamingLinks } : {};
+    })(),
   };
 
   return canonicalReel(draft);

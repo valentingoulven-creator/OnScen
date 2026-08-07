@@ -236,7 +236,7 @@ flowchart LR
 | Source | Part cible | Lien avec sponsoring |
 |--------|------------|----------------------|
 | **Sponsors natifs** | 45 – 55 % | Ce document |
-| **Commissions créateurs** | 25 – 35 % | Pourboires live **30 %** plateforme · abos créateur |
+| **Commissions créateurs** | 25 – 35 % | Pourboires live **50 %** plateforme · abos créateur |
 | **Soundy+ / SoundyUltra** | 10 – 15 % | Réduction pub = incitation upgrade |
 | **B2B lieux (Soundy Pro)** | 5 – 15 % | Cross-sell packages lieu + visibilité |
 
@@ -257,7 +257,7 @@ flowchart LR
 | Flux | Répartition |
 |------|-------------|
 | Sponsor payant → Soundy | **100 % plateforme** (MVP) |
-| Pourboire live → créateur | **70 % créateur / 30 % Soundy** |
+| Pourboire live → créateur | **50 % créateur / 50 % Soundy** |
 | Abonnement créateur | **~90 % créateur / ~10 % Soundy** (configurable) |
 
 **Option M18+ :** partage 5–10 % du revenu sponsor avec **hôtes live** affichant un overlay (incitation qualité diffusion) — non implémenté MVP.

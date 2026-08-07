@@ -1,6 +1,5 @@
 import { db, AppNotification } from '../models/schema';
-import { getFollowerIds } from './follows';
-import { getFanIds } from './favorites';
+import { notifyFollowersCreatorActivity } from './followActivityNotifications';
 import { getIo } from './ioInstance';
 import { isAccessAdmin } from './accessControl';
 import { sendSupportAlertEmail } from './mailer';
@@ -26,6 +25,8 @@ function publicNotificationPayload(notification: AppNotification) {
     groupId: notification.groupId,
     postId: notification.postId,
     reelId: notification.reelId,
+    albumId: notification.albumId,
+    compositionId: notification.compositionId,
     supportMessageId: notification.supportMessageId,
   };
 }
@@ -60,6 +61,8 @@ export function pushNotification(
     groupId: n.groupId,
     postId: n.postId,
     reelId: n.reelId,
+    albumId: n.albumId,
+    compositionId: n.compositionId,
     supportMessageId: n.supportMessageId,
     read: false,
     createdAt: Date.now(),
@@ -254,34 +257,13 @@ export function notifyEventCreated(params: {
   postId: string;
   eventLocation?: string;
 }): void {
-  const recipientIds = new Set<string>();
-
-  for (const followerId of getFollowerIds(params.creator.id)) {
-    if (followerId !== params.creator.id) recipientIds.add(followerId);
-  }
-
-  for (const fanId of getFanIds(params.creator.id)) {
-    if (fanId === params.creator.id) continue;
-    const entry = db.userFavorites.get(fanId)?.get(params.creator.id);
-    if (entry?.notificationsEnabled === false) continue;
-    recipientIds.add(fanId);
-  }
-
   const locHint = params.eventLocation ? ` — ${params.eventLocation}` : '';
-  const message = `${params.creator.username} a créé un événement 📅${locHint}`;
-
-  for (const recipientId of recipientIds) {
-    pushNotification({
-      recipientId,
-      senderId: params.creator.id,
-      senderName: params.creator.username,
-      senderAvatarUrl: params.creator.avatarUrl,
-      type: 'event_created',
-      message,
-      postId: params.postId,
-      peerUserId: params.creator.id,
-    });
-  }
+  notifyFollowersCreatorActivity({
+    creator: params.creator,
+    type: 'event_created',
+    message: `${params.creator.username} a créé un événement 📅${locHint}`,
+    postId: params.postId,
+  });
 }
 
 export function notifySupportContact(params: {

@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LiveChatConfig } from '../types';
 
 export type LiveChatConfigValue = LiveChatConfig;
 
 const CHAT_DELAY_PRESETS = [0, 5, 10, 15, 30, 60] as const;
+const MAX_BLOCKED_TERMS = 50;
 
 type LiveChatConfigFieldsProps = {
   value: LiveChatConfigValue;
@@ -13,9 +15,25 @@ type LiveChatConfigFieldsProps = {
 export function LiveChatConfigFields({ value, onChange }: LiveChatConfigFieldsProps) {
   const { t } = useTranslation();
   const slowSeconds = value.slowModeSeconds ?? 0;
+  const blockedTerms = value.blockedTerms ?? [];
+  const [termInput, setTermInput] = useState('');
 
   const setDelay = (seconds: number) => {
     onChange({ slowModeSeconds: Math.max(0, Math.min(120, seconds)) });
+  };
+
+  const addBlockedTerm = () => {
+    const term = termInput.trim().toLowerCase();
+    if (!term || blockedTerms.length >= MAX_BLOCKED_TERMS || blockedTerms.includes(term)) {
+      setTermInput('');
+      return;
+    }
+    onChange({ blockedTerms: [...blockedTerms, term] });
+    setTermInput('');
+  };
+
+  const removeBlockedTerm = (term: string) => {
+    onChange({ blockedTerms: blockedTerms.filter((t2) => t2 !== term) });
   };
 
   return (
@@ -122,6 +140,63 @@ export function LiveChatConfigFields({ value, onChange }: LiveChatConfigFieldsPr
           />
         </button>
       </label>
+
+      <div className="rounded-xl border border-[#1e1e2f] bg-[#12121a] p-3 space-y-2.5">
+        <div>
+          <p className="text-sm font-semibold text-white">{t('live.chatBlockedTermsTitle')}</p>
+          <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">
+            {t('live.chatBlockedTermsHint')}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={termInput}
+            maxLength={64}
+            onChange={(e) => setTermInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addBlockedTerm();
+              }
+            }}
+            disabled={blockedTerms.length >= MAX_BLOCKED_TERMS}
+            className="flex-1 min-w-0 px-2.5 py-2 min-h-11 rounded-lg bg-[#0b0b0f] border border-[#2a2a3a] text-white text-sm focus:border-purple-500/50 outline-none touch-manipulation disabled:opacity-50"
+            placeholder={t('live.chatBlockedTermsPlaceholder')}
+          />
+          <button
+            type="button"
+            onClick={addBlockedTerm}
+            disabled={!termInput.trim() || blockedTerms.length >= MAX_BLOCKED_TERMS}
+            className="shrink-0 min-h-11 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white transition touch-manipulation"
+          >
+            {t('live.chatBlockedTermsAdd')}
+          </button>
+        </div>
+        {blockedTerms.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {blockedTerms.map((term) => (
+              <span
+                key={term}
+                className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-red-950/30 border border-red-500/25 text-red-300 text-[11px]"
+              >
+                {term}
+                <button
+                  type="button"
+                  onClick={() => removeBlockedTerm(term)}
+                  className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-red-500/20 transition touch-manipulation"
+                  aria-label={t('live.chatBlockedTermsRemove', { term })}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
+        <p className="text-[10px] text-gray-600">
+          {t('live.chatBlockedTermsCount', { count: blockedTerms.length, max: MAX_BLOCKED_TERMS })}
+        </p>
+      </div>
     </div>
   );
 }

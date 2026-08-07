@@ -33,9 +33,53 @@ export function getSightengineCredentials(): { apiUser: string; apiSecret: strin
   };
 }
 
+/**
+ * Détection de mineur (modèle `face-age`, cf. audit MOD-8) : combinée à un signal de
+ * nudité/suggestif, permet de flaguer/bloquer automatiquement un contenu à très haut
+ * risque légal (CSAM) au lieu de ne l'évaluer que sur la nudité générique.
+ * Activée par défaut — désactivation explicite possible via env si besoin (coût API).
+ */
+export function getSightengineMinorDetectionEnabled(): boolean {
+  return envFlag('SIGHTENGINE_MINOR_DETECTION_ENABLED', true);
+}
+
+/** Score `faces[].attributes.age.minor` (0-1) au-delà duquel un visage est considéré mineur. */
+export function getSightengineMinorThreshold(): number {
+  return envFloat('SIGHTENGINE_MINOR_THRESHOLD', 0.5);
+}
+
+/**
+ * Modèles gore/armes (cf. audit MOD-1) — non activés nativement par défaut historiquement
+ * (seulement nudity/offensive). Activés par défaut désormais, désactivables via env.
+ */
+export function getSightengineViolenceModelsEnabled(): boolean {
+  return envFlag('SIGHTENGINE_VIOLENCE_MODELS_ENABLED', true);
+}
+
+/** Scores ≥ seuil sur gore/armes → refus. */
+export function getSightengineViolenceThreshold(): number {
+  return envFloat('SIGHTENGINE_VIOLENCE_THRESHOLD', 0.85);
+}
+
 export function getSightengineModels(): string {
   const raw = process.env.SIGHTENGINE_MODELS?.trim();
-  return raw || 'nudity-2.1,offensive-2.0';
+  const base = raw || 'nudity-2.1,offensive-2.0';
+  const models = base
+    .split(',')
+    .map((m) => m.trim())
+    .filter(Boolean);
+  if (getSightengineMinorDetectionEnabled() && !models.includes('face-age')) {
+    models.push('face-age');
+  }
+  if (getSightengineViolenceModelsEnabled()) {
+    if (!models.includes('gore-2.0') && !models.some((m) => m.startsWith('gore'))) {
+      models.push('gore-2.0');
+    }
+    if (!models.includes('weapon') && !models.some((m) => m.startsWith('weapon'))) {
+      models.push('weapon');
+    }
+  }
+  return models.join(',');
 }
 
 export function getSightengineApiUrl(): string {
@@ -93,6 +137,10 @@ export function getSightengineStatusSummary(): {
   explicitThreshold: number;
   eroticaThreshold: number;
   offensiveThreshold: number;
+  minorDetectionEnabled: boolean;
+  minorThreshold: number;
+  violenceModelsEnabled: boolean;
+  violenceThreshold: number;
 } {
   return {
     enabled: envFlag('SIGHTENGINE_ENABLED', true),
@@ -103,5 +151,9 @@ export function getSightengineStatusSummary(): {
     explicitThreshold: getSightengineExplicitThreshold(),
     eroticaThreshold: getSightengineEroticaThreshold(),
     offensiveThreshold: getSightengineOffensiveThreshold(),
+    minorDetectionEnabled: getSightengineMinorDetectionEnabled(),
+    minorThreshold: getSightengineMinorThreshold(),
+    violenceModelsEnabled: getSightengineViolenceModelsEnabled(),
+    violenceThreshold: getSightengineViolenceThreshold(),
   };
 }

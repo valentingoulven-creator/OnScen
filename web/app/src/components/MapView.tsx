@@ -273,6 +273,8 @@ interface MapViewProps {
   onMapDetailStateChange?: (state: MapViewDetailState) => void;
   /** POV globe (centre visible + altitude) — rechargement nearby. */
   onGlobePovChange?: (lat: number, lng: number, altitude: number) => void;
+  /** Centre visible globe (POV caméra) — overlays rayon lives, sans debounce nearby. */
+  onGlobeViewCenterChange?: (lat: number, lng: number) => void;
   /** Pré-charge tuiles carte plate pendant zoom globe. */
   onPrepareFlatMap?: (lat: number, lng: number, zoom?: number, radiusKm?: number) => void;
   /** Centre viewport carte plate après pan/zoom utilisateur (sans recentrage). */
@@ -299,6 +301,8 @@ interface MapViewProps {
   livesListViewportBounds?: MapBounds | null;
   /** Filtre Lives : cercle viewport sidebar (POV globe, violet). */
   livesListViewportCircle?: { lat: number; lng: number; radiusKm: number } | null;
+  /** Filtre Lives : cercle pins live (POV globe, rouge). */
+  livesListPinCircle?: { lat: number; lng: number; radiusKm: number } | null;
 }
 
 function escapeHtml(value: string): string {
@@ -355,6 +359,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   onGlobeUnavailable,
   onMapDetailStateChange,
   onGlobePovChange,
+  onGlobeViewCenterChange,
   onPrepareFlatMap,
   onFlatMapViewportCenter,
   onMapExplored,
@@ -370,6 +375,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   livesListRadius = null,
   livesListViewportBounds = null,
   livesListViewportCircle = null,
+  livesListPinCircle = null,
 }: MapViewProps, ref) {
   const mapRef = useRef<HTMLDivElement>(null);
   const globeViewRef = useRef<GlobeViewHandle | null>(null);
@@ -1669,9 +1675,9 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
                   html: buildFlatLiveMarkerHtml(l.hostName, l.hostUsernameColor, {
                     from: l.hostUsernameWaveFrom,
                     to: l.hostUsernameWaveTo,
-                  }, { viewersCount: l.viewersCount }),
-                  iconSize: [56, 44],
-                  iconAnchor: [28, 12],
+                  }, { viewersCount: l.viewersCount, live: l, hostLabelMode: 'none' }),
+                  iconSize: [44, 22],
+                  iconAnchor: [22, 11],
                 }),
               }
             );
@@ -1983,6 +1989,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
               onZoomToFlat={onGlobeZoomToFlat}
               onGlobeAltitudeChange={handleGlobeAltitudeChange}
               onGlobePovChange={onGlobePovChange}
+              onGlobeViewCenterChange={onGlobeViewCenterChange}
               onPrepareFlatMap={onPrepareFlatMap}
               onMapExplored={onMapExplored}
               onGlobeAltitudeLive={handleGlobeAltitudeLive}
@@ -1993,6 +2000,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
               devMarkerDragEnabled={devMarkerDragEnabled}
               onDevMarkerDragEnd={onDevMarkerDragEnd}
               livesListViewportCircle={livesListViewportCircle}
+              livesListPinCircle={livesListPinCircle}
             />
           </GlobeErrorBoundary>
         </Suspense>
@@ -2013,16 +2021,25 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
         data-map-style={mapStyle}
       />
 
-      {livesListViewportCircle || livesListViewportBounds ? (
+      {livesListViewportCircle || livesListPinCircle || livesListViewportBounds ? (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[25] pointer-events-none max-w-[min(100%,22rem)] px-2">
-          <div className="rounded-xl border border-purple-500/35 bg-[#0b0b0f]/90 backdrop-blur-sm px-3 py-2 text-[10px] sm:text-[11px] text-gray-200 leading-snug text-center shadow-lg">
+          <div className="rounded-xl border border-purple-500/35 bg-[#0b0b0f]/90 backdrop-blur-sm px-3 py-2 text-[10px] sm:text-[11px] text-gray-200 leading-snug text-center shadow-lg space-y-1">
+            {livesListPinCircle ? (
+              <p className="text-red-300/90">
+                <span className="font-bold">●</span> Pins live{' '}
+                <span className="font-semibold text-white tabular-nums">
+                  {Math.round(livesListPinCircle.radiusKm)} km
+                </span>{' '}
+                — cercle rouge (POV)
+              </p>
+            ) : null}
             {livesListViewportCircle ? (
               <p className="text-purple-300/90">
-                <span className="font-bold">●</span> Viewport Lives{' '}
+                <span className="font-bold">●</span> Viewport sidebar{' '}
                 <span className="font-semibold text-white tabular-nums">
                   {livesListViewportCircle.radiusKm} km
                 </span>{' '}
-                — cercle violet sur le globe (POV)
+                — cercle violet
               </p>
             ) : livesListViewportBounds ? (
               <p className="text-purple-300/90">

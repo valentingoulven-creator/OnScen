@@ -9,15 +9,13 @@ import {
   type MapEventFilterEventType,
 } from '../lib/mapEventFilter';
 import { resolveEventCoords, resolveEventCityCoordsSync, resolveEventCoordsSync } from '../lib/mapEventCoords';
-import { getEventTypeIcon, type FeedEventType } from '../lib/eventType';
+import { getEventTypeIcon, getFeedEventTypeDisplayLabel, type FeedEventType } from '../lib/eventType';
 import { MapEventFilterDateRangeInput } from './MapEventFilterDateRangeInput';
 
 const FILTER_EVENT_TYPES: FeedEventType[] = ['dance', 'chant', 'autre'];
 
 function eventTypeFilterLabel(type: FeedEventType, t: (key: string) => string): string {
-  if (type === 'dance') return t('feed.eventTypeDance');
-  if (type === 'chant') return t('feed.eventTypeChant');
-  return t('feed.eventTypeAutre');
+  return getFeedEventTypeDisplayLabel(t, type);
 }
 
 function toggleEventTypeFilter(current: MapEventFilterEventType, type: FeedEventType): MapEventFilterEventType {

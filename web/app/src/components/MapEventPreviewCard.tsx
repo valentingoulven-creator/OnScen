@@ -8,7 +8,7 @@ import {
   getPrimaryEventDate,
   resolveEventHeroVisual,
 } from '../lib/feedEvents';
-import { getEventTypeIcon, type FeedEventType } from '../lib/eventType';
+import { getFeedEventTypeDisplayIcon, getFeedEventTypeDisplayLabel } from '../lib/eventType';
 import type { FeedPost } from '../types';
 import { EventUpvoteButton } from './EventUpvoteButton';
 import { OpenLocationMenu } from './OpenLocationMenu';
@@ -22,12 +22,6 @@ function MapPinIcon({ className }: { className?: string }) {
       <circle cx="12" cy="10" r="2.5" />
     </svg>
   );
-}
-
-function eventTypeLabel(t: ReturnType<typeof useTranslation>['t'], eventType?: FeedEventType | null): string {
-  if (eventType === 'dance') return t('feed.eventTypeDance');
-  if (eventType === 'chant') return t('feed.eventTypeChant');
-  return t('feed.eventTypeAutre');
 }
 
 export interface MapEventPreviewCardProps {
@@ -72,8 +66,8 @@ export function MapEventPreviewCard({
   const eventDates = getEventDates(post);
   const title = getFeedEventDisplayTitle(post.content) || t('feed.eventTypeAutre');
   const location = post.eventLocation?.trim() ?? '';
-  const eventTypeIcon = getEventTypeIcon(post.eventType);
-  const eventTypeName = eventTypeLabel(t, post.eventType);
+  const eventTypeIcon = getFeedEventTypeDisplayIcon(post.eventType);
+  const eventTypeName = getFeedEventTypeDisplayLabel(t, post.eventType);
 
   const metaParts = [eventTime, eventTypeName].filter(Boolean);
   if (eventDates.length > 1) {

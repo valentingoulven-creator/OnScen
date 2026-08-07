@@ -158,7 +158,9 @@ export const adminApi = {
       snapshot: {
         totalUsers: number;
         dau24h: number;
+        dau24hTracked: number;
         dau30d: number;
+        dau30dTracked: number;
         newUsersToday: number;
         activeSalons: number;
         activeLives: number;
@@ -213,6 +215,16 @@ export const adminApi = {
       { method: 'PUT', body: JSON.stringify({ values }) },
       token
     ),
+
+  getEnvironmentStatus: (token: string, env: import('../../types').DeployEnvironmentId) =>
+    request<import('../../types').EnvironmentStatusResponse>(
+      `/admin/environments/${env}/status`,
+      {},
+      token
+    ),
+
+  getStatsOverview: (token: string) =>
+    request<import('../../types').StatsOverviewResponse>('/admin/stats-overview', {}, token),
 
   getDonationsHistory: (
     token: string,

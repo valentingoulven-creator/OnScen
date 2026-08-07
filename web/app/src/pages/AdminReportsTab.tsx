@@ -22,6 +22,16 @@ const ROOM_TYPE_LABELS: Record<string, string> = {
   profile: 'Profil',
 };
 
+const CATEGORY_LABELS: Record<string, string> = {
+  harassment: 'Harcèlement / menaces',
+  illegal: 'Contenu illicite',
+  csam_risk: '⚠️ Contenu impliquant potentiellement un mineur',
+  spam: 'Spam / arnaque',
+  copyright: 'Droits d’auteur',
+  privacy: 'Atteinte à la vie privée',
+  other: 'Autre',
+};
+
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   pending: { label: 'En attente', color: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30' },
   reviewed: { label: 'Examiné', color: 'text-green-400 bg-green-500/10 border-green-500/30' },
@@ -174,14 +184,23 @@ export function AdminReportsTab() {
                 </p>
                 <p className="text-[10px] text-gray-500 mt-0.5">{formatDate(report.createdAt)}</p>
               </div>
-              <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${statusCfg.color}`}>
-                {statusCfg.label}
-              </span>
+              <div className="shrink-0 flex flex-col items-end gap-1">
+                {report.priority === 'urgent' && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border text-red-400 bg-red-500/10 border-red-500/40">
+                    🚩 Urgent
+                  </span>
+                )}
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${statusCfg.color}`}>
+                  {statusCfg.label}
+                </span>
+              </div>
             </div>
 
             {/* Category + Details */}
             <div className="space-y-1">
-              <p className="text-xs text-gray-300 font-medium">{report.category}</p>
+              <p className="text-xs text-gray-300 font-medium">
+                {CATEGORY_LABELS[report.category] ?? report.category}
+              </p>
               {report.details && (
                 <p className="text-xs text-gray-500 leading-relaxed">{report.details}</p>
               )}

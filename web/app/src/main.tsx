@@ -13,6 +13,7 @@ import { GlobalErrorPopup } from './components/GlobalErrorPopup.tsx';
 import { MsdevEnvIndicator } from './components/MsdevEnvBadge.tsx';
 import { AuthProvider } from './context/AuthContext.tsx';
 import { DmUnreadProvider } from './context/DmUnreadContext.tsx';
+import { MusicPlayerProvider } from './context/MusicPlayerContext.tsx';
 import { PhoneWebShell } from './components/PhoneWebShell.tsx';
 import {
   isPhoneWebViewport,
@@ -98,8 +99,10 @@ createRoot(rootEl).render(
         <GlobalErrorPopup />
         <AuthProvider>
           <DmUnreadProvider>
-            <MsdevEnvIndicator />
-            <App />
+            <MusicPlayerProvider>
+              <MsdevEnvIndicator />
+              <App />
+            </MusicPlayerProvider>
           </DmUnreadProvider>
         </AuthProvider>
       </AppErrorBoundary>

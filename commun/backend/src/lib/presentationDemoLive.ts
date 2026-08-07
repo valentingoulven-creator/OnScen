@@ -8,9 +8,16 @@ import type { LiveConnectedParticipant } from './liveParticipants';
 /** Live BeatCastel — Castelnau-le-Lez (seed France + démo présentation). */
 export const PRESENTATION_LIVE_ID = 'prod-seed-salon-beat-castel';
 
-/** Flux HLS public fiable pour simuler une diffusion vidéo en msdev. */
+/** Flux vidéo public fiable pour simuler une diffusion en msdev (Mixkit — chanteur·se). */
 export const PRESENTATION_DEMO_HLS =
-  'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+  'https://assets.mixkit.co/videos/42825/42825-720.mp4';
+
+/** Piste YouTube alignée sur le live démo (lecture salon + métadonnées spectateur). */
+export const PRESENTATION_DEMO_PLAYBACK = {
+  title: 'bad guy',
+  artist: 'Billie Eilish',
+  trackId: 'DyDfgMOUOjCI',
+} as const;
 
 export const PRESENTATION_DEMO_VIEWERS = 40;
 

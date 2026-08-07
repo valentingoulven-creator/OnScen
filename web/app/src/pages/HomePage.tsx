@@ -100,13 +100,16 @@ import {
 } from '../lib/mapSidebarContent';
 import {
   clipLivesForMapView,
+  clipLivesForGlobeView,
   clipPeopleForMapView,
   clipSalonsForMapView,
+  clipSalonsForGlobeView,
   filterEventClustersInViewport,
   filterEventClustersInGlobeRegion,
   filterMapEventMarkersInMapView,
   filterMarkersInViewport,
   getGlobeCapitalVisibleRadiusKm,
+  getLivesGlobePinDisplayRadiusKm,
   getLivesGlobeViewportRadiusKm,
   getDistanceKm,
   getFlatMapDetailTier,
@@ -858,6 +861,40 @@ export function HomePage({
   const mapDetailFlatZoom = mapDetailState.flatZoom;
   const mapDetailGlobeAltitude = mapDetailState.globeAltitude;
 
+  /** Centre caméra globe (POV) — cercles / clip lives sans debounce 400 ms du nearby. */
+  const [globePovCenter, setGlobePovCenter] = useState<[number, number] | null>(null);
+  const globePovCenterPendingRef = useRef<[number, number] | null>(null);
+  const globePovCenterRafRef = useRef<number | null>(null);
+
+  const handleGlobeViewCenterChange = useCallback((lat: number, lng: number) => {
+    if (!isValidLatLng(lat, lng)) return;
+    globePovCenterPendingRef.current = [lat, lng];
+    if (globePovCenterRafRef.current != null) return;
+    globePovCenterRafRef.current = requestAnimationFrame(() => {
+      globePovCenterRafRef.current = null;
+      const next = globePovCenterPendingRef.current;
+      if (!next) return;
+      setGlobePovCenter((prev) => {
+        if (prev && getDistanceKm(prev[0], prev[1], next[0], next[1]) < 0.001) return prev;
+        return next;
+      });
+    });
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (globePovCenterRafRef.current != null) {
+        cancelAnimationFrame(globePovCenterRafRef.current);
+      }
+    },
+    []
+  );
+
+  const globeLiveAnchor = useMemo((): [number, number] => {
+    if (mapDetailMapStyle === 'globe' && globePovCenter) return globePovCenter;
+    return center;
+  }, [mapDetailMapStyle, globePovCenter, center]);
+
   /**
    * Panneau latéral : même config que la carte sombre (filtres explicites uniquement).
    * Les modes « ambiant » globe (pins sans filtre) n’élargissent pas la sidebar ni le browse.
@@ -901,15 +938,27 @@ export function HomePage({
         );
       }
     } else if (livesFilterOn) {
-      addSalons(
-        mapDetailTier === 'overview'
-          ? mapSalons
-          : clipSalonsForMapView(
-              mapSalons,
-              { bounds: mapDetailBounds, mapStyle: mapDetailMapStyle },
-              nearbyFetchCenter
-            )
-      );
+      if (mapDetailMapStyle === 'globe') {
+        addSalons(
+          clipSalonsForGlobeView(
+            mapSalons,
+            globeLiveAnchor[0],
+            globeLiveAnchor[1],
+            mapDetailTier,
+            mapDetailGlobeAltitude
+          )
+        );
+      } else {
+        addSalons(
+          mapDetailTier === 'overview'
+            ? mapSalons
+            : clipSalonsForMapView(
+                mapSalons,
+                { bounds: mapDetailBounds, mapStyle: mapDetailMapStyle },
+                nearbyFetchCenter
+              )
+        );
+      }
     }
 
     return sortSalonsForNearby([...merged.values()], nearbyPanelPrefs.sortBy, nearbySortOptions);
@@ -926,46 +975,72 @@ export function HomePage({
     mapDetailBounds,
     mapDetailMapStyle,
     mapDetailTier,
+    mapDetailGlobeAltitude,
+    globeLiveAnchor,
     nearbyFetchCenter,
     nearbyPanelPrefs.sortBy,
     nearbySortOptions,
   ]);
 
-  const rawMapLivesForView = useMemo(() => {
-    if (anySidebarSectionMapFilterOn) {
-      if (sidebarMapFilterLivesFollowing) {
+  const resolveRawMapLivesForMap = useCallback(
+    (globeRadiusMode: 'pins' | 'viewport') => {
+      if (anySidebarSectionMapFilterOn) {
+        if (sidebarMapFilterLivesFollowing) {
+          return followedCatalogLivesOnMap;
+        }
+        if (!livesFilterOn) return [];
+      }
+
+      if (!anyMapFilterActive && !followingMapAmbientOn) return [];
+      if (followingMapAmbientOn && !livesFilterOn) {
         return followedCatalogLivesOnMap;
       }
       if (!livesFilterOn) return [];
-    }
-
-    if (!anyMapFilterActive && !followingMapAmbientOn) return [];
-    if (followingMapAmbientOn && !livesFilterOn) {
-      return followedCatalogLivesOnMap;
-    }
-    if (!livesFilterOn) return [];
-    if (mapDetailTier === 'overview') {
-      return mapLives;
-    }
-    return clipLivesForMapView(
+      if (mapDetailMapStyle === 'globe') {
+        return clipLivesForGlobeView(
+          mapLives,
+          globeLiveAnchor[0],
+          globeLiveAnchor[1],
+          mapDetailTier,
+          mapDetailGlobeAltitude,
+          globeRadiusMode
+        );
+      }
+      if (mapDetailTier === 'overview') {
+        return mapLives;
+      }
+      return clipLivesForMapView(
+        mapLives,
+        { bounds: mapDetailBounds, mapStyle: mapDetailMapStyle },
+        nearbyFetchCenter
+      );
+    },
+    [
+      anySidebarSectionMapFilterOn,
+      sidebarMapFilterLivesFollowing,
+      anyMapFilterActive,
+      followingMapAmbientOn,
+      livesFilterOn,
       mapLives,
-      { bounds: mapDetailBounds, mapStyle: mapDetailMapStyle },
-      nearbyFetchCenter
-    );
-  }, [
-    anySidebarSectionMapFilterOn,
-    sidebarMapFilterLivesFollowing,
-    anyMapFilterActive,
-    followingMapAmbientOn,
-    followingIds,
-    livesFilterOn,
-    mapLives,
-    mapDetailBounds,
-    mapDetailMapStyle,
-    mapDetailTier,
-    nearbyFetchCenter,
-    followedCatalogLivesOnMap,
-  ]);
+      mapDetailBounds,
+      mapDetailMapStyle,
+      mapDetailTier,
+      mapDetailGlobeAltitude,
+      globeLiveAnchor,
+      nearbyFetchCenter,
+      followedCatalogLivesOnMap,
+    ]
+  );
+
+  const rawMapLivesForView = useMemo(
+    () => resolveRawMapLivesForMap('pins'),
+    [resolveRawMapLivesForMap]
+  );
+
+  const rawMapLivesForSidebar = useMemo(
+    () => resolveRawMapLivesForMap('viewport'),
+    [resolveRawMapLivesForMap]
+  );
 
   const liveAudienceFilterActive =
     !livesFilterOn && !followingMapAmbientOn && rawMapLivesForView.length > 0;
@@ -978,6 +1053,11 @@ export function HomePage({
   const mapLivesForView = useMemo(
     () => (globeLiveAudienceFiltered ? globeLiveAudienceFiltered.lives : rawMapLivesForView),
     [globeLiveAudienceFiltered, rawMapLivesForView]
+  );
+
+  const mapLivesForSidebar = useMemo(
+    () => (globeLiveAudienceFiltered ? globeLiveAudienceFiltered.lives : rawMapLivesForSidebar),
+    [globeLiveAudienceFiltered, rawMapLivesForSidebar]
   );
 
   const mapSalonsForView = useMemo(
@@ -1108,7 +1188,7 @@ export function HomePage({
   /** Globe : cercle violet = viewport sidebar « Lives » (centre POV + rayon tier). */
   const livesListViewportCircleOverlay = useMemo(() => {
     if (!livesFilterOn || mapDetailMapStyle !== 'globe') return null;
-    const [lat, lng] = center;
+    const [lat, lng] = globeLiveAnchor;
     if (!isValidLatLng(lat, lng)) return null;
     const radiusKm = getLivesGlobeViewportRadiusKm(mapDetailTier, mapDetailGlobeAltitude);
     return { lat, lng, radiusKm };
@@ -1117,7 +1197,22 @@ export function HomePage({
     mapDetailMapStyle,
     mapDetailTier,
     mapDetailGlobeAltitude,
-    center,
+    globeLiveAnchor,
+  ]);
+
+  /** Globe : cercle rouge = rayon d’affichage des pins live (POV + zoom). */
+  const livesListPinCircleOverlay = useMemo(() => {
+    if (!livesFilterOn || mapDetailMapStyle !== 'globe') return null;
+    const [lat, lng] = globeLiveAnchor;
+    if (!isValidLatLng(lat, lng)) return null;
+    const radiusKm = getLivesGlobePinDisplayRadiusKm(mapDetailTier, mapDetailGlobeAltitude);
+    return { lat, lng, radiusKm };
+  }, [
+    livesFilterOn,
+    mapDetailMapStyle,
+    mapDetailTier,
+    mapDetailGlobeAltitude,
+    globeLiveAnchor,
   ]);
 
   const mapEventsForMapPinsDev = useMemo(
@@ -1145,7 +1240,7 @@ export function HomePage({
         const effectiveRadius =
           radiusKm > 0 ? radiusKm : mapEventDayPinFilter ? 4000 : 0;
         if (effectiveRadius <= 0) return clusters;
-        return filterEventClustersInGlobeRegion(clusters, center[0], center[1], effectiveRadius);
+        return filterEventClustersInGlobeRegion(clusters, globeLiveAnchor[0], globeLiveAnchor[1], effectiveRadius);
       }
 
       /** Filtre Événement : sidebar = pins visibles, y compris au zoom overview. */
@@ -1167,7 +1262,7 @@ export function HomePage({
       mapDetailBounds,
       mapDetailTier,
       mapDetailGlobeAltitude,
-      center,
+      globeLiveAnchor,
       mapEventDayPinFilter,
       effectiveEventsFilterOn,
     ]
@@ -1263,7 +1358,7 @@ export function HomePage({
         showAllSalonsAtCityZoom,
         mapEvents: mapEventsBaseForPins,
         eventClusters: mapEventClusters,
-        lives: mapLives,
+        lives: sidebarLivesFilterOn ? mapLivesForSidebar : mapLives,
         salons: salonFilterOn ? salons : mapSalonsForView,
         people: mapPeople,
         favoriteIds,
@@ -1286,6 +1381,8 @@ export function HomePage({
       mapEventsBaseForPins,
       mapEventClusters,
       mapLives,
+      mapLivesForView,
+      mapLivesForSidebar,
       mapSalonsForView,
       salons,
       mapPeople,
@@ -3889,6 +3986,7 @@ export function HomePage({
           onGlobeUnavailable={handleGlobeUnavailable}
           onMapDetailStateChange={handleMapDetailStateChange}
           onGlobePovChange={handleGlobePovChange}
+          onGlobeViewCenterChange={handleGlobeViewCenterChange}
           onFlatMapViewportCenter={(lat, lng) => setMapViewportCenter([lat, lng])}
           onMapExplored={noteMapExplored}
           onZoomControlChange={setMapZoomControl}
@@ -3902,6 +4000,7 @@ export function HomePage({
           onDevMarkerDragEnd={onDevMarkerDragEnd}
           livesListViewportBounds={livesListViewportBoundsOverlay}
           livesListViewportCircle={livesListViewportCircleOverlay}
+          livesListPinCircle={livesListPinCircleOverlay}
         />
         </div>
         {mapStyle === 'globe' && (

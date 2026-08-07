@@ -34,6 +34,11 @@ describe('Salon / Live — compat Safari mobile (CSS + structure)', () => {
 
     expect(indexCss).toMatch(/room-theater-layout--live-theater/);
 
+    /* Sous le header fixe — pas inset:0 (passerait derrière le bandeau app). */
+    expect(indexCss).toMatch(
+      /\.ms-salon-fullscreen-overlay\s*\{[^}]*top:\s*var\(--app-header-total-h\)/s,
+    );
+
   });
 
 

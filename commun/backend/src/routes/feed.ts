@@ -13,6 +13,7 @@ import {
   toggleFeedPostFavorite,
   listFavoritedFeedPosts,
 } from '../lib/feedPosts';
+import { likeLimiter } from '../lib/abuseRateLimits';
 import { notifyMentions } from '../lib/mentions';
 import { notifyContentHeartReceived, notifyEventCreated, notifyEventTagged } from '../lib/notifications';
 import { refreshUserPublicCoords } from '../lib/locationPrivacy';
@@ -73,7 +74,7 @@ feedRouter.post('/', authenticateJWT, asyncHandler(async (req: Request, res: Res
   const imageUrl = body.imageUrl != null ? String(body.imageUrl) : undefined;
   const imageUrls = Array.isArray(body.imageUrls) ? body.imageUrls : undefined;
   const videoUrl = body.videoUrl != null ? String(body.videoUrl) : undefined;
-  const moderation = await moderateFeedPostMedia({ imageUrl, imageUrls, videoUrl });
+  const moderation = await moderateFeedPostMedia({ imageUrl, imageUrls, videoUrl, uploaderId: me });
   if (!moderation.allowed) {
     res.status(422).json({ error: moderationRejectionMessage(moderation) });
     return;
@@ -156,7 +157,7 @@ feedRouter.get('/favorites', authenticateJWT, (req: Request, res: Response) => {
 
 // ── Per-post interactions ─────────────────────────────────────────────────────
 
-feedRouter.post('/posts/:id/like', authenticateJWT, (req: Request, res: Response) => {
+feedRouter.post('/posts/:id/like', authenticateJWT, likeLimiter, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const result = toggleFeedPostLike(me, req.params.id);
   if (!result.ok) { res.status(404).json({ error: result.error }); return; }

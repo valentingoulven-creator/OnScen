@@ -3,6 +3,7 @@ import { getAccountStatus, isDevUser } from './accessControl';
 import { getIo } from './ioInstance';
 import { clearSalonPlaybackData } from './salonPlaybackOps';
 import { endLiveSession, broadcastLiveEnded } from './liveArchive';
+import { stopLiveContentSampling } from './liveContentSampling';
 import { schedulePersist } from './persist';
 import { schedulePersistReelToPg } from './pgReels';
 import { invalidateReelsFeedCache } from './reelFeedCache';
@@ -293,6 +294,7 @@ export function adminBlockLive(liveId: string): Live | null {
   if (!live) return null;
   live.adminBlocked = true;
   live.adminBlockedAt = Date.now();
+  stopLiveContentSampling(liveId);
   if (live.isActive) {
     endLiveSession(live, Date.now(), { reason: 'admin_blocked' });
   } else {
@@ -337,6 +339,7 @@ export function adminUnblockLive(liveId: string): Live | null {
 export function adminDeleteLive(liveId: string): boolean {
   const live = db.lives.get(liveId);
   if (!live) return false;
+  stopLiveContentSampling(liveId);
   broadcastLiveEnded(live, 'admin_deleted');
   db.lives.delete(liveId);
   db.liveChats.delete(liveId);

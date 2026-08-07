@@ -4,6 +4,8 @@ Rapports produits par `@soundy-dev-agent` à chaque session de développement si
 
 | Date | Rapport | Mission | Statut |
 |------|---------|---------|--------|
+| 2026-08-07 | [audit-technique-implementation-p1](./rapports/2026-08-07-audit-technique-implementation-p1.md) | Implémentation audit technique complet — vague 1 : CSAM (détection + runbook), modération live temps réel, modèles gore/weapon, scan sponsors, filtre commentaires reels, notification admin signalements, rate limiting lives/search/follow/like | ⚠️ |
+| 2026-08-07 | [live-config-audit-p0-p3](./rapports/2026-08-07-live-config-audit-p0-p3.md) | Live Config : implémentation audit CTO P0→P3 (triggers persistés, titre/desc/18+/replay, mots bloqués, annonce épinglée, sondages, duo/co-hôte MVP) | ✅ |
 | 2026-07-22 | [seed-test-account-full-prod](./rapports/2026-07-22-seed-test-account-full-prod.md) | Compte de test complet en production (`demo_test_founder`, 221 comptes, salons/lives/events/albums/reels/stories/sponsors/follows) — exécuté et vérifié par comptage SQL | ✅ |
 | 2026-07-22 | [demo-showcase-seed-prod](./rapports/2026-07-22-demo-showcase-seed-prod.md) | Compte démo « showcase » complet en production (126 comptes, salons/lives/events/albums/reels/stories/sponsors) + scripts seed/cleanup | ✅ |
 | 2026-07-22 | [audit-mobile-corrections](./rapports/2026-07-22-audit-mobile-corrections.md) | Corrections audit mobile iOS/Android (Capacitor 8.4.2, cert pinning, reproductibilité Android, CI) | ⚠️ |

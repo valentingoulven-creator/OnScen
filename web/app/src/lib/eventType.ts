@@ -21,6 +21,31 @@ export function getEventTypeIcon(eventType?: FeedEventType | null): string {
   return EVENT_TYPE_ICONS[eventType] ?? EVENT_TYPE_ICONS.autre;
 }
 
+/** Libellé affiché sur cartes / modals (type legacy « dance » → Musique). */
+export function getFeedEventTypeDisplayLabel(
+  t: (key: string, opts?: { defaultValue?: string }) => string,
+  eventType?: FeedEventType | null,
+  opts?: { sponsored?: boolean }
+): string {
+  if (opts?.sponsored) {
+    return t('map.sidebarSponsoCategory', { defaultValue: 'Sponso' });
+  }
+  if (eventType === 'dance' || eventType === 'chant') {
+    return t('feed.eventTypeChant');
+  }
+  return t('feed.eventTypeAutre');
+}
+
+/** Icône affichée sur cartes (dance → même icône que Musique). */
+export function getFeedEventTypeDisplayIcon(
+  eventType?: FeedEventType | null,
+  opts?: { sponsored?: boolean }
+): string {
+  if (opts?.sponsored) return SPONSOR_EVENT_ICON;
+  if (eventType === 'dance' || eventType === 'chant') return EVENT_TYPE_ICONS.chant;
+  return getEventTypeIcon(eventType);
+}
+
 export function getMapEventDisplayIcon(
   eventType: FeedEventType | null | undefined,
   opts?: { sponsored?: boolean }

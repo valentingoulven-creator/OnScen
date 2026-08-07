@@ -7,6 +7,7 @@ import {
   resolveMapAds,
   type MapSponsorViewport,
 } from '../lib/sponsorAds';
+import { trackSponsorImpression } from '../lib/sponsorTrack';
 import {
   getMapBannerDisplayDurationMs,
   MAP_BANNER_CONTENT_CLASS,
@@ -313,14 +314,20 @@ export function MapAdBanner({ viewport, isActive = true, onCtaSalon, onCtaLive }
     };
   }, [adsRotationKey, ads.length]);
 
-  if (ads.length === 0) return null;
+  const visibleAd = ads.length > 0 ? ads[index % ads.length] : null;
 
-  const ad = ads[index % ads.length];
+  useEffect(() => {
+    if (visibleAd?.id) trackSponsorImpression(visibleAd.id, 'map_banner');
+  }, [visibleAd?.id]);
+
+  if (ads.length === 0 || !visibleAd) return null;
+
+  const ad = visibleAd;
   const bannerSrc = ad.bannerImageUrl?.trim() ? resolveSponsorBannerSrc(ad.bannerImageUrl) : '';
   const isImageOnly = ad.bannerDisplayMode === 'image_only' && Boolean(bannerSrc);
 
   const handleActivate = () => {
-    handleSponsorCta(ad, { onCtaSalon, onCtaLive });
+    handleSponsorCta(ad, { onCtaSalon, onCtaLive }, { placement: 'map_banner' });
   };
 
   return (

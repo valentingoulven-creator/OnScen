@@ -1,5 +1,5 @@
-import type { LiveGoal, LiveReward, RewardQueueItem } from './liveHostTypes';
-import { DEFAULT_LIVE_REWARDS } from './liveHostTypes';
+import type { LiveGoal, LiveReward, RewardQueueItem, TriggerRule } from './liveHostTypes';
+import { DEFAULT_LIVE_REWARDS, DEFAULT_LIVE_TRIGGERS } from './liveHostTypes';
 import { syncLiveDonationOptions } from './liveDonationOptions';
 import {
   DEFAULT_LIVE_GOAL_OVERLAY,
@@ -14,6 +14,8 @@ export interface LiveHostSession {
   rewards: LiveReward[];
   rewardQueue: RewardQueueItem[];
   goalOverlay: LiveDonationGoalOverlay;
+  /** Règles de déclenchement automatique sur dons (onglet Don → Auto). */
+  triggers: TriggerRule[];
 }
 
 const DEFAULT_SESSION: LiveHostSession = {
@@ -21,6 +23,7 @@ const DEFAULT_SESSION: LiveHostSession = {
   rewards: DEFAULT_LIVE_REWARDS,
   rewardQueue: [],
   goalOverlay: { ...DEFAULT_LIVE_GOAL_OVERLAY },
+  triggers: DEFAULT_LIVE_TRIGGERS,
 };
 
 function sessionKey(liveId: string): string {
@@ -35,7 +38,7 @@ function readRaw(liveId: string): LiveHostSession {
   if (typeof sessionStorage === 'undefined') return { ...DEFAULT_SESSION };
   try {
     const raw = sessionStorage.getItem(sessionKey(liveId));
-    if (!raw) return { ...DEFAULT_SESSION, rewards: [...DEFAULT_LIVE_REWARDS] };
+    if (!raw) return { ...DEFAULT_SESSION, rewards: [...DEFAULT_LIVE_REWARDS], triggers: [...DEFAULT_LIVE_TRIGGERS] };
     const parsed = JSON.parse(raw) as Partial<LiveHostSession>;
     return {
       goals: Array.isArray(parsed.goals) ? parsed.goals : [],
@@ -45,9 +48,13 @@ function readRaw(liveId: string): LiveHostSession {
           : [...DEFAULT_LIVE_REWARDS],
       rewardQueue: Array.isArray(parsed.rewardQueue) ? parsed.rewardQueue : [],
       goalOverlay: normalizeGoalOverlay(parsed.goalOverlay as LiveDonationGoalOverlay | undefined),
+      triggers:
+        Array.isArray(parsed.triggers) && parsed.triggers.length > 0
+          ? parsed.triggers
+          : [...DEFAULT_LIVE_TRIGGERS],
     };
   } catch {
-    return { ...DEFAULT_SESSION, rewards: [...DEFAULT_LIVE_REWARDS] };
+    return { ...DEFAULT_SESSION, rewards: [...DEFAULT_LIVE_REWARDS], triggers: [...DEFAULT_LIVE_TRIGGERS] };
   }
 }
 
@@ -78,6 +85,7 @@ export function patchLiveHostSession(
     rewards: delta.rewards ?? prev.rewards,
     rewardQueue: delta.rewardQueue ?? prev.rewardQueue,
     goalOverlay: delta.goalOverlay ?? prev.goalOverlay,
+    triggers: delta.triggers ?? prev.triggers,
   };
   setLiveHostSession(liveId, next);
   if (delta.rewards) {

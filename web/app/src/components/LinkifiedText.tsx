@@ -5,6 +5,8 @@ const LINK_CLASS = 'underline decoration-current/60 hover:decoration-current bre
 type LinkifiedTextProps = {
   text: string;
   className?: string;
+  /** Balise racine (éviter `<p>` dans un `<button>`). */
+  as?: 'p' | 'div' | 'span';
   onOpenFeedPost?: (postId: string) => void;
   onOpenProfile?: (userId: string) => void;
   onOpenSalon?: (salonId: string) => void;
@@ -54,6 +56,7 @@ function handleInternalLink(
 export function LinkifiedText({
   text,
   className,
+  as: Tag = 'p',
   onOpenFeedPost,
   onOpenProfile,
   onOpenSalon,
@@ -63,13 +66,13 @@ export function LinkifiedText({
   const hasLinks = segments.some((s) => s.type === 'link');
 
   if (!hasLinks) {
-    return <p className={className}>{text}</p>;
+    return <Tag className={className}>{text}</Tag>;
   }
 
   const handlers = { onOpenFeedPost, onOpenProfile, onOpenSalon };
 
   return (
-    <p className={className}>
+    <Tag className={className}>
       {segments.map((seg, i) => {
         if (seg.type === 'text') {
           return <span key={i}>{seg.value}</span>;
@@ -112,6 +115,6 @@ export function LinkifiedText({
           </a>
         );
       })}
-    </p>
+    </Tag>
   );
 }

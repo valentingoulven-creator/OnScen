@@ -38,7 +38,7 @@ import { trackEvent, trackUserActive } from '../lib/analytics';
 import { moderateDmAttachment, moderationRejectionMessage } from '../lib/contentModeration';
 import { isAllowedChatAttachmentUrl } from '../lib/chatAttachmentUrl';
 import { checkChatRateLimit } from '../lib/chatRateLimit';
-import { sanitizeChatText } from '../lib/sanitizeUserText';
+import { prepareChatText } from '../lib/sanitizeUserText';
 
 export const dmRouter = Router();
 
@@ -426,6 +426,7 @@ dmRouter.post('/thread/:userId', authenticateJWT, asyncHandler(async (req: Reque
     const moderation = await moderateDmAttachment(
       String(attachmentUrl),
       attachmentMimeType,
+      me,
     );
     if (!moderation.allowed) {
       res.status(422).json({ error: moderationRejectionMessage(moderation) });
@@ -474,11 +475,17 @@ dmRouter.post('/thread/:userId', authenticateJWT, asyncHandler(async (req: Reque
     return;
   }
 
+  const textPrep = content ? prepareChatText(String(content).slice(0, 2000)) : { ok: true as const, text: '' };
+  if (!textPrep.ok) {
+    res.status(422).json({ error: textPrep.message });
+    return;
+  }
+
   const msg = {
     id: `dm_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
     senderId: me,
     receiverId,
-    content: content ? sanitizeChatText(String(content).slice(0, 2000)) : '',
+    content: textPrep.text,
     timestamp: Date.now(),
     accepted: true,
     ...(attachmentUrl ? { attachmentUrl, attachmentName, attachmentSize, attachmentMimeType } : {}),

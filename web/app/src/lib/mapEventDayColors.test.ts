@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   getBrowseSectionDayColor,
   getDefaultMapEventBrowseDayKeys,
@@ -52,13 +52,21 @@ describe('mapEventDayColors', () => {
   });
 
   it('uses in-window occurrence for marker pin color, not primary date only', () => {
-    const keys = getDefaultMapEventBrowseDayKeys(new Date('2026-07-22T12:00:00'));
-    const tomorrow = keys[1]!;
-    const marker = {
-      eventDate: `${keys[2] ?? '2026-07-24'}T20:00:00`,
-      eventDates: [`${keys[2] ?? '2026-07-24'}T20:00:00`, `${tomorrow}T20:00:00`],
-    };
-    expect(resolveMapEventMarkerPinColor(marker, keys)).toBe(getBrowseSectionDayColor(1));
+    // `resolvePostBrowseDayKey` filtre sur `isUpcomingEvent` (Date.now() réel) : on fige
+    // l'horloge pour que les dates de test restent "à venir" quelle que soit la date du run.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-22T12:00:00'));
+    try {
+      const keys = getDefaultMapEventBrowseDayKeys(new Date('2026-07-22T12:00:00'));
+      const tomorrow = keys[1]!;
+      const marker = {
+        eventDate: `${keys[2] ?? '2026-07-24'}T20:00:00`,
+        eventDates: [`${keys[2] ?? '2026-07-24'}T20:00:00`, `${tomorrow}T20:00:00`],
+      };
+      expect(resolveMapEventMarkerPinColor(marker, keys)).toBe(getBrowseSectionDayColor(1));
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('derives day index from event iso', () => {

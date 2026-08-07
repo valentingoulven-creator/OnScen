@@ -10,6 +10,9 @@ import type { FeedPost, StoryTaggedUser, User } from '../types';
 import { EventCard } from './EventCard';
 import { EventDatePickerInput } from './EventDatePickerInput';
 import { EventLocationInput } from './EventLocationInput';
+import { inferDescriptionMentionRefs } from '../lib/syncEventDescriptionMentions';
+import type { StoryTextMentionRef } from '../lib/storyTextMention';
+import { MentionTextarea } from './MentionTextarea';
 import { StoryUserTagPicker } from './StoryUserTagPicker';
 import { formatEventDateRangeChip } from '../lib/eventDateInput';
 import { FEED_EVENT_TITLE_MAX_LEN } from '../lib/feedEvents';
@@ -204,6 +207,8 @@ export function CreateFeedEventModal({
   const [moreOpen, setMoreOpen] = useState(false);
   const [imageAttaching, setImageAttaching] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
+  const [descriptionMentionRefs, setDescriptionMentionRefs] = useState<StoryTextMentionRef[]>([]);
+  const [pickerPinnedUserIds, setPickerPinnedUserIds] = useState<string[]>([]);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const dateSectionRef = useRef<HTMLDivElement>(null);
@@ -228,6 +233,12 @@ export function CreateFeedEventModal({
       title: initialDraft?.title ?? '',
       description: initialDraft?.description ?? '',
     });
+    const desc = initialDraft?.description ?? '';
+    const tagged = initialDraft?.eventTaggedUsers ?? [];
+    const refs = inferDescriptionMentionRefs(desc, tagged);
+    setDescriptionMentionRefs(refs);
+    const mentionIds = new Set(refs.map((r) => r.id));
+    setPickerPinnedUserIds(tagged.filter((u) => !mentionIds.has(u.id)).map((u) => u.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -494,13 +505,12 @@ export function CreateFeedEventModal({
                 <div>
                   <p className="text-[11px] font-semibold text-gray-400 mb-2">{t('feed.eventType')}</p>
                   <div
-                    className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-[#0b0b0f] border border-[#2a2a3d]"
+                    className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-[#0b0b0f] border border-[#2a2a3d]"
                     role="radiogroup"
                     aria-label={t('feed.eventType')}
                   >
                     {(
                       [
-                        ['dance', t('feed.eventTypeDance')],
                         ['chant', t('feed.eventTypeChant')],
                         ['autre', t('feed.eventTypeAutre')],
                       ] as const
@@ -508,7 +518,7 @@ export function CreateFeedEventModal({
                       <label
                         key={value}
                         className={`cursor-pointer select-none rounded-lg min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition ${
-                          draft.eventType === value
+                          draft.eventType === value || (value === 'chant' && draft.eventType === 'dance')
                             ? 'bg-purple-600 text-white shadow-sm'
                             : 'text-gray-400 hover:text-gray-200'
                         }`}
@@ -517,7 +527,7 @@ export function CreateFeedEventModal({
                           type="radio"
                           name="feedEventType"
                           value={value}
-                          checked={draft.eventType === value}
+                          checked={draft.eventType === value || (value === 'chant' && draft.eventType === 'dance')}
                           onChange={() => setDraft((prev) => ({ ...prev, eventType: value }))}
                           className="sr-only"
                         />
@@ -534,14 +544,33 @@ export function CreateFeedEventModal({
                   icon={<AlignLeftIcon className="w-4 h-4" />}
                   title={t('feed.eventModalSectionDetail')}
                 >
-                  <textarea
-                    value={draft.description}
-                    onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
-                    placeholder={t('feed.eventModalDetailPlaceholder')}
-                    rows={4}
-                    maxLength={1800}
-                    className="w-full rounded-xl bg-[#12121a] border border-[#2a2a3d] px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/40 resize-y min-h-[88px]"
-                  />
+                  {token ? (
+                    <MentionTextarea
+                      token={token}
+                      value={draft.description}
+                      onChange={(description) => setDraft((prev) => ({ ...prev, description }))}
+                      mentionRefs={descriptionMentionRefs}
+                      onMentionRefsChange={setDescriptionMentionRefs}
+                      eventTaggedUsers={draft.eventTaggedUsers}
+                      onEventTaggedUsersChange={(eventTaggedUsers) =>
+                        setDraft((prev) => ({ ...prev, eventTaggedUsers }))
+                      }
+                      pickerPinnedUserIds={pickerPinnedUserIds}
+                      placeholder={t('feed.eventModalDetailPlaceholder')}
+                      rows={4}
+                      maxLength={1800}
+                      className="w-full rounded-xl bg-[#12121a] border border-[#2a2a3d] px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/40 resize-y min-h-[88px]"
+                    />
+                  ) : (
+                    <textarea
+                      value={draft.description}
+                      onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
+                      placeholder={t('feed.eventModalDetailPlaceholder')}
+                      rows={4}
+                      maxLength={1800}
+                      className="w-full rounded-xl bg-[#12121a] border border-[#2a2a3d] px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/40 resize-y min-h-[88px]"
+                    />
+                  )}
                   <p className="text-[11px] text-gray-500">{t('feed.eventModalDetailHint')}</p>
                 </SectionCard>
 
@@ -688,9 +717,23 @@ export function CreateFeedEventModal({
                           <StoryUserTagPicker
                             token={token}
                             tagged={draft.eventTaggedUsers}
-                            onChange={(eventTaggedUsers) =>
-                              setDraft((prev) => ({ ...prev, eventTaggedUsers }))
-                            }
+                            onChange={(eventTaggedUsers) => {
+                              setDraft((prev) => {
+                                const prevIds = new Set(prev.eventTaggedUsers.map((u) => u.id));
+                                const newIds = eventTaggedUsers.map((u) => u.id);
+                                setPickerPinnedUserIds((pinnedPrev) => {
+                                  const pinned = new Set(pinnedPrev);
+                                  for (const u of eventTaggedUsers) {
+                                    if (!prevIds.has(u.id)) pinned.add(u.id);
+                                  }
+                                  for (const id of prevIds) {
+                                    if (!newIds.includes(id)) pinned.delete(id);
+                                  }
+                                  return [...pinned];
+                                });
+                                return { ...prev, eventTaggedUsers };
+                              });
+                            }}
                             maxTags={5}
                           />
                           <p className="mt-1.5 text-[11px] text-gray-500">{t('feed.eventTaggedHint')}</p>

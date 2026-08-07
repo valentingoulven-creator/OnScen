@@ -9,6 +9,7 @@ import {
   VIDEO_PIP_HEADER_HEIGHT,
 } from './DraggableVideoPip';
 import { FollowUserButton } from './FollowUserButton';
+import { UsernameDisplay } from './UsernameDisplay';
 import { useAuth } from '../context/AuthContext';
 import { useCloudflareHlsPlayback } from '../hooks/useCloudflareHlsPlayback';
 import { api } from '../lib/api';
@@ -59,9 +60,14 @@ function LivePipPreviewFloatInner({
         onPointerDown={pip.onHeaderPointerDown}
       >
         <span className="text-[10px] text-red-400/80 leading-none shrink-0" aria-hidden>⠿</span>
-        <p className="flex-1 truncate min-w-0 text-[9px] font-bold text-red-400 uppercase tracking-widest">
-          {live.title}
-        </p>
+        <UsernameDisplay
+          as="p"
+          username={live.hostName}
+          usernameColor={live.hostUsernameColor}
+          usernameWaveFrom={live.hostUsernameWaveFrom}
+          usernameWaveTo={live.hostUsernameWaveTo}
+          className="flex-1 truncate min-w-0 text-[10px] font-semibold text-white"
+        />
         <div
           className="shrink-0 inline-flex items-center self-center"
           onPointerDown={(e) => e.stopPropagation()}

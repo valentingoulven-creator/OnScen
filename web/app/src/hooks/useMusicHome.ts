@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import type { MusicHomePayload } from '../lib/musicTypes';
+import { MUSIC_FAVORITES_CHANGED } from '../lib/musicFavoritesEvents';
 
 export function useMusicHome(enabled: boolean) {
   const { token } = useAuth();
@@ -27,6 +28,12 @@ export function useMusicHome(enabled: boolean) {
     if (!enabled || !token) return;
     void reload();
   }, [enabled, token, reload]);
+
+  useEffect(() => {
+    const onChange = () => void reload();
+    window.addEventListener(MUSIC_FAVORITES_CHANGED, onChange);
+    return () => window.removeEventListener(MUSIC_FAVORITES_CHANGED, onChange);
+  }, [reload]);
 
   return { data, loading, error, reload };
 }

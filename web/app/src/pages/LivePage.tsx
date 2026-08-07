@@ -36,6 +36,8 @@ import {
 } from '../lib/liveVideoDelay';
 import { releaseLiveCameraHandoff } from '../lib/liveCameraHandoff';
 import { ChatRoomProvider, ChatMessagesView, ChatInputBar, ChatModals } from '../components/ChatPanel';
+import { LivePinnedAnnouncementBanner } from '../components/LivePinnedAnnouncementBanner';
+import { LivePollWidget } from '../components/LivePollWidget';
 import { RoomTheaterLayout } from '../components/RoomTheaterLayout';
 import { LivePrivateSheet } from '../components/LivePrivateSheet';
 import { LiveHostPanel, type LiveHostPanelDonSubTab, type LiveHostPanelTab } from '../components/LiveHostPanel';
@@ -155,6 +157,7 @@ export function LivePage({
   const [chatBanUntil, setChatBanUntil] = useState<number | null>(null);
   const [liveViewBanned, setLiveViewBanned] = useState(false);
   const [liveViewBanMessage, setLiveViewBanMessage] = useState<string | null>(null);
+  const [duoInviteReceived, setDuoInviteReceived] = useState<{ hostName: string } | null>(null);
   const [liveEnded, setLiveEnded] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [shareToUserOpen, setShareToUserOpen] = useState(false);
@@ -534,7 +537,46 @@ export function LivePage({
     };
   }, [liveId]);
 
+  // Duo / co-hôte : invitation reçue par un spectateur (événement ciblé, hors broadcast live_updated).
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+    const onInviteReceived = (payload: { liveId: string; hostName: string }) => {
+      if (payload.liveId !== liveId) return;
+      setDuoInviteReceived({ hostName: payload.hostName });
+    };
+    const onInviteCancelled = (payload: { liveId: string }) => {
+      if (payload.liveId !== liveId) return;
+      setDuoInviteReceived(null);
+    };
+    socket.on('live_duo_invite_received', onInviteReceived);
+    socket.on('live_duo_invite_cancelled', onInviteCancelled);
+    return () => {
+      socket.off('live_duo_invite_received', onInviteReceived);
+      socket.off('live_duo_invite_cancelled', onInviteCancelled);
+    };
+  }, [liveId]);
+
   const isHost = live?.hostId === user?.id;
+  const isCoHost = !!(user?.id && live?.coHostId === user.id);
+
+  const inviteDuo = (targetUserId: string) => {
+    emitOnSocket('live_duo_invite', { liveId, targetUserId });
+  };
+  const cancelDuoInvite = () => {
+    emitOnSocket('live_duo_cancel', { liveId });
+  };
+  const acceptDuoInvite = () => {
+    setDuoInviteReceived(null);
+    emitOnSocket('live_duo_accept', { liveId });
+  };
+  const declineDuoInvite = () => {
+    setDuoInviteReceived(null);
+    emitOnSocket('live_duo_decline', { liveId });
+  };
+  const leaveDuo = () => {
+    emitOnSocket('live_duo_end', { liveId });
+  };
   isHostRef.current = isHost;
 
   /** Spectateurs : cadre vidéo = format hôte (live_updated), pas les prefs caméra locales. */
@@ -1842,6 +1884,11 @@ export function LivePage({
                 hostUsernameColor={live.hostUsernameColor}
                 vipModeratorIds={live.vipModeratorIds ?? []}
                 viewersCount={viewers}
+                canInviteDuo={isHost && isLiveKitStream}
+                coHostId={live.coHostId}
+                coHostInviteTargetId={live.coHostInviteTargetId}
+                onInviteDuo={isHost ? inviteDuo : undefined}
+                onCancelDuoInvite={isHost ? cancelDuoInvite : undefined}
               />
               <LiveVipModeratorsPopover
                 vipEntries={vipEntries}
@@ -1858,7 +1905,9 @@ export function LivePage({
               liveId={liveId}
               authToken={token}
               isHost={isHost}
-              publishActive={!!(isHost && live.cameraActive && live.cameraMode === 'camera')}
+              isCoHost={isCoHost}
+              coHostId={live.coHostId}
+              publishActive={!!(isHost && live.cameraActive && live.cameraMode === 'camera') || isCoHost}
               micEnabled={!micMuted}
               liveCameraActive={!!live.cameraActive}
               liveCameraMode={live.cameraMode}
@@ -1901,6 +1950,15 @@ export function LivePage({
                     {hostCanReceiveDonations && !livePipActive && (
                       <LiveGiftOverlay liveId={liveId} visible />
                     )}
+                    {isCoHost && !livePipActive ? (
+                      <button
+                        type="button"
+                        onClick={leaveDuo}
+                        className="absolute bottom-3 left-3 z-30 min-h-9 px-3 py-1.5 rounded-full bg-black/70 border border-white/20 text-white text-[11px] font-bold hover:bg-red-950/60 hover:border-red-500/40 transition touch-manipulation"
+                      >
+                        {t('live.duoLeave')}
+                      </button>
+                    ) : null}
                   </>
                 ) : (
                   hostVideoOverlay
@@ -1981,6 +2039,12 @@ export function LivePage({
         }
         chat={
           <div className="flex flex-col h-full min-h-0">
+            {live.pinnedAnnouncement ? (
+              <LivePinnedAnnouncementBanner announcement={live.pinnedAnnouncement} />
+            ) : null}
+            {live.activePoll ? (
+              <LivePollWidget liveId={liveId} poll={live.activePoll} isHost={isHost} />
+            ) : null}
             <ChatMessagesView />
           </div>
         }
@@ -1989,6 +2053,33 @@ export function LivePage({
         <ChatModals />
       </div>
       </ChatRoomProvider>
+
+      {duoInviteReceived && (
+        <div className="fixed inset-0 z-[95] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full sm:max-w-sm bg-[#0f0f1a] border border-purple-500/30 rounded-2xl p-4 shadow-2xl">
+            <p className="text-sm font-bold text-white mb-1">{t('live.duoInviteTitle')}</p>
+            <p className="text-xs text-gray-400 mb-4 leading-relaxed">
+              {t('live.duoInviteHint', { hostName: duoInviteReceived.hostName })}
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={acceptDuoInvite}
+                className="flex-1 min-h-11 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition touch-manipulation"
+              >
+                {t('live.duoAccept')}
+              </button>
+              <button
+                type="button"
+                onClick={declineDuoInvite}
+                className="flex-1 min-h-11 py-2 rounded-xl bg-[#1a1a26] border border-[#232330] text-gray-400 text-xs font-bold transition touch-manipulation"
+              >
+                {t('live.duoDecline')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isHost && showHostPanel && (
         <LiveHostPanel
@@ -2008,6 +2099,12 @@ export function LivePage({
           user={user}
           onUserUpdated={() => void refreshUser()}
           onClose={() => setShowHostPanel(false)}
+          liveTitle={live?.title}
+          liveDescription={live?.description}
+          isSensitive={live?.isSensitive}
+          replayEnabled={live?.replayEnabled}
+          pinnedAnnouncement={live?.pinnedAnnouncement}
+          activePoll={live?.activePoll}
         />
       )}
 

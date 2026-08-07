@@ -17,6 +17,18 @@ const KEYS = {
 export const SETTINGS_CHANGED_EVENT = 'melosong-settings-changed';
 export const APP_LANGUAGE_CHANGED_EVENT = 'melosong-language-changed';
 
+/**
+ * Accès défensif à `localStorage` : évite un crash quand ce module est importé
+ * dans un contexte sans DOM (tests unitaires en environnement `node`, SSR…).
+ */
+function safeStorage(): Storage | null {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export const NEARBY_RADIUS_MIN = 1;
 /** Slider max (0–500 km). Au-delà, saisir manuellement dans le champ texte. */
 export const NEARBY_RADIUS_MAX = 500;
@@ -42,14 +54,14 @@ export function formatRadiusKm(km: number): string {
 
 /** Filtre par rayon km (désactivé = carte mondiale, ~1000 bots msdev). Défaut msdev : désactivé. */
 export function getNearbyDistanceFilterEnabled(): boolean {
-  const raw = localStorage.getItem(KEYS.nearbyDistanceFilter);
+  const raw = safeStorage()?.getItem(KEYS.nearbyDistanceFilter) ?? null;
   if (raw === 'false') return false;
   if (raw === 'true') return true;
   return !isMsdevEnvironment();
 }
 
 export function setNearbyDistanceFilterEnabled(enabled: boolean): void {
-  localStorage.setItem(KEYS.nearbyDistanceFilter, enabled ? 'true' : 'false');
+  safeStorage()?.setItem(KEYS.nearbyDistanceFilter, enabled ? 'true' : 'false');
   notifySettingsChanged();
 }
 const DEFAULT_PRIVACY: PrivacyPreferences = {
@@ -58,11 +70,12 @@ const DEFAULT_PRIVACY: PrivacyPreferences = {
 };
 
 export function notifySettingsChanged(): void {
+  if (typeof window === 'undefined') return;
   window.dispatchEvent(new Event(SETTINGS_CHANGED_EVENT));
 }
 
 export function getNearbyRadiusKm(): number {
-  const raw = localStorage.getItem(KEYS.nearbyRadiusKm);
+  const raw = safeStorage()?.getItem(KEYS.nearbyRadiusKm) ?? null;
   if (raw == null || raw === '') return DEFAULT_RADIUS;
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) return DEFAULT_RADIUS;
@@ -71,24 +84,26 @@ export function getNearbyRadiusKm(): number {
 
 export function setNearbyRadiusKm(km: number): void {
   const v = clampNearbyRadiusKm(km);
-  localStorage.setItem(KEYS.nearbyRadiusKm, String(v));
+  safeStorage()?.setItem(KEYS.nearbyRadiusKm, String(v));
   notifySettingsChanged();
 }
 
 export function getAppLanguage(): AppLanguage {
-  const lang = localStorage.getItem(KEYS.language);
+  const lang = safeStorage()?.getItem(KEYS.language) ?? null;
   return lang === 'en' ? 'en' : 'fr';
 }
 
 export function setAppLanguage(lang: AppLanguage): void {
-  localStorage.setItem(KEYS.language, lang);
+  safeStorage()?.setItem(KEYS.language, lang);
   notifySettingsChanged();
-  window.dispatchEvent(new CustomEvent(APP_LANGUAGE_CHANGED_EVENT, { detail: lang }));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(APP_LANGUAGE_CHANGED_EVENT, { detail: lang }));
+  }
 }
 
 export function getPrivacyPreferences(): PrivacyPreferences {
   try {
-    const raw = localStorage.getItem(KEYS.privacy);
+    const raw = safeStorage()?.getItem(KEYS.privacy) ?? null;
     if (!raw) return { ...DEFAULT_PRIVACY };
     const parsed = JSON.parse(raw) as Partial<PrivacyPreferences>;
     return {
@@ -101,6 +116,6 @@ export function getPrivacyPreferences(): PrivacyPreferences {
 }
 
 export function setPrivacyPreferences(prefs: PrivacyPreferences): void {
-  localStorage.setItem(KEYS.privacy, JSON.stringify(prefs));
+  safeStorage()?.setItem(KEYS.privacy, JSON.stringify(prefs));
   notifySettingsChanged();
 }

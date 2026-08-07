@@ -23,6 +23,9 @@ function isVisibleNotification(n: AppNotification): boolean {
     n.type === 'event_created' ||
     n.type === 'event_tagged' ||
     n.type === 'story_tagged' ||
+    n.type === 'album_published' ||
+    n.type === 'track_published' ||
+    n.type === 'reel_published' ||
     n.type === 'mention' ||
     n.type === 'support_contact' ||
     n.type === 'support_reply' ||
@@ -44,6 +47,9 @@ function shouldShowToast(n: AppNotification): boolean {
     n.type === 'event_created' ||
     n.type === 'event_tagged' ||
     n.type === 'story_tagged' ||
+    n.type === 'album_published' ||
+    n.type === 'track_published' ||
+    n.type === 'reel_published' ||
     n.type === 'mention' ||
     n.type === 'support_contact' ||
     n.type === 'support_reply' ||
@@ -63,6 +69,9 @@ function opensProfileFromNotification(n: AppNotification): boolean {
     n.type === 'event_created' ||
     n.type === 'event_tagged' ||
     n.type === 'story_tagged' ||
+    n.type === 'album_published' ||
+    n.type === 'track_published' ||
+    n.type === 'reel_published' ||
     n.type === 'mention'
   );
 }
@@ -114,6 +123,12 @@ function notificationEmoji(n: AppNotification): string {
       return '📅';
     case 'story_tagged':
       return '📸';
+    case 'album_published':
+      return '💿';
+    case 'track_published':
+      return '🎵';
+    case 'reel_published':
+      return '🎬';
     case 'live_started':
       return '🔴';
     case 'live_don':

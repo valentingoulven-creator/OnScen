@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
+import { formatEventUpvoteCount } from '../lib/formatCount';
 
 interface EventUpvoteButtonProps {
   postId: string;
@@ -68,7 +69,7 @@ export function EventUpvoteButton({
         ▲
       </span>
       <span className={`font-bold leading-tight tabular-nums ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
-        {upvoteCount}
+        {formatEventUpvoteCount(upvoteCount)}
       </span>
     </button>
   );

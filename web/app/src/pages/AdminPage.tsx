@@ -10,19 +10,24 @@ import { AdminSupportTab, type SupportSubTab } from './AdminSupportTab';
 import { AdminSponsorsTab } from './AdminSponsorsTab';
 import { AdminAgentsTab } from './AdminAgentsTab';
 import { AdminIntegrationsTab } from './AdminIntegrationsTab';
-import { AnalyticsPage, type AnalyticsSubTab } from './AnalyticsPage';
+import { AnalyticsPage } from './AnalyticsPage';
+import { defaultAnalyticsSubTab, type AnalyticsSubTab } from '../lib/adminAnalyticsSubTabs';
 
 type AdminTab = AdminPrimaryTabId;
-/** Legacy aliases — reports → Support ; costs / donations → Analytics */
-type AdminInitialTab = AdminTab | 'reports' | 'costs' | 'donations';
+/** Legacy aliases — reports → Support ; stats / costs / donations → Analytics */
+type AdminInitialTab = AdminTab | 'reports' | 'stats' | 'costs' | 'donations';
 
 function resolveInitialTab(initialTab: AdminInitialTab): {
   tab: AdminTab;
   supportSubTab: SupportSubTab;
   analyticsSubTab: AnalyticsSubTab;
 } {
+  const defaultAnalytics = defaultAnalyticsSubTab(null);
   if (initialTab === 'reports') {
-    return { tab: 'support', supportSubTab: 'reports', analyticsSubTab: 'overview' };
+    return { tab: 'support', supportSubTab: 'reports', analyticsSubTab: defaultAnalytics };
+  }
+  if (initialTab === 'stats') {
+    return { tab: 'analytics', supportSubTab: 'messages', analyticsSubTab: 'platform' };
   }
   if (initialTab === 'costs') {
     return { tab: 'analytics', supportSubTab: 'messages', analyticsSubTab: 'costs' };
@@ -30,7 +35,10 @@ function resolveInitialTab(initialTab: AdminInitialTab): {
   if (initialTab === 'donations') {
     return { tab: 'analytics', supportSubTab: 'messages', analyticsSubTab: 'donations' };
   }
-  return { tab: initialTab, supportSubTab: 'messages', analyticsSubTab: 'overview' };
+  if (initialTab === 'analytics') {
+    return { tab: 'analytics', supportSubTab: 'messages', analyticsSubTab: defaultAnalytics };
+  }
+  return { tab: initialTab, supportSubTab: 'messages', analyticsSubTab: defaultAnalytics };
 }
 
 interface AdminPageProps {
@@ -83,7 +91,7 @@ export function AdminPage({
       },
       {
         id: 'analytics',
-        icon: '📊',
+        icon: '📈',
         label: t('admin.tabs.analytics'),
         shortLabel: t('admin.tabs.analyticsShort'),
         hint: t('admin.tabHints.analytics'),
@@ -168,7 +176,9 @@ export function AdminPage({
         {tab === 'accounts' && <AdminAccountsTab />}
         {tab === 'access' && <AdminAccessTab />}
         {tab === 'content' && <AdminContentTab onOpenSalon={onOpenSalon} />}
-        {tab === 'analytics' && <AnalyticsPage embedded initialSubTab={analyticsSubTab} />}
+        {tab === 'analytics' && (
+          <AnalyticsPage embedded initialSubTab={analyticsSubTab} staffRole={staffRole} />
+        )}
         {tab === 'support' && (
           <AdminSupportTab
             highlightMessageId={highlightSupportMessageId}

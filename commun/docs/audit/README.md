@@ -2,7 +2,9 @@
 
 ## Document de référence
 
-**Commencer par :** [AUDIT-CONSOLIDE.md](./AUDIT-CONSOLIDE.md) (2026-07-22) — fusion des audits thématiques v1/v2 et vérifications prod.
+**Le plus récent et le plus complet :** [2026-08-audit-technique-complet/00-synthese.md](./2026-08-audit-technique-complet/00-synthese.md) (2026-08-07) — audit senior 12 phases (stack, DB, PostGIS, observabilité, sécurité, DDoS, modération/CSAM, APIs externes, légal CGU/RGPD/YouTube/global, divers), spécialisé applications sociales à fort trafic (live streaming, reels, musique). Consolide et actualise `AUDIT-CONSOLIDE.md`.
+
+**Précédent document de référence :** [AUDIT-CONSOLIDE.md](./AUDIT-CONSOLIDE.md) (2026-07-22) — fusion des audits thématiques v1/v2 et vérifications prod.
 
 ## Re-audits (v2) — état post-corrections MODIF 960+
 

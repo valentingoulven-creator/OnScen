@@ -38,7 +38,7 @@ chatRouter.post('/attachment', authenticateJWT, chatAttachmentUploadLimiter, (re
       return;
     }
     if (saved.isImage) {
-      const moderation = await moderateImageSource(dataUrl, 'salon_chat');
+      const moderation = await moderateImageSource(dataUrl, 'salon_chat', me);
       if (!moderation.allowed) {
         deleteChatAttachmentIfLocal(saved.url);
         res.status(422).json({ error: moderationRejectionMessage(moderation) });

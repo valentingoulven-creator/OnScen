@@ -1,6 +1,7 @@
 import { db, Live, Salon, User, UserFavorite } from '../models/schema';
 import { pushNotification } from './notifications';
 import { trackEvent } from './analytics';
+import { isFollowing } from './follows';
 import { runInBatchesAsync } from './asyncFanOut';
 
 function fanMap(fanId: string): Map<string, UserFavorite> {
@@ -74,6 +75,7 @@ export function notifyFavoritesSalonStarted(host: User, salon: Salon): void {
   const message = `${host.username} a ouvert un salon !`;
   runInBatchesAsync(fanIds, (fanId) => {
     if (fanId === host.id) return;
+    if (isFollowing(fanId, host.id)) return;
     const entry = db.userFavorites.get(fanId)?.get(host.id);
     if (!entry?.notificationsEnabled) return;
     pushNotification({
@@ -97,6 +99,7 @@ export function notifyFavoritesLiveStarted(host: User, live: Live): void {
   const message = `${host.username} est en live !`;
   runInBatchesAsync(fanIds, (fanId) => {
     if (fanId === host.id) return;
+    if (isFollowing(fanId, host.id)) return;
     const entry = db.userFavorites.get(fanId)?.get(host.id);
     if (!entry?.notificationsEnabled) return;
     pushNotification({

@@ -600,7 +600,7 @@ authRouter.patch('/profile', authenticateJWT, profilePhotoUploadLimiter, async (
         return;
       }
     }
-    const moderation = await moderateImageSources(incoming, 'profile_photo');
+    const moderation = await moderateImageSources(incoming, 'profile_photo', user.id);
     if (!moderation.allowed) {
       res.status(422).json({ error: moderationRejectionMessage(moderation) });
       return;
@@ -648,7 +648,7 @@ authRouter.patch('/profile', authenticateJWT, profilePhotoUploadLimiter, async (
         return;
       }
     }
-    const moderation = await moderateImageSources([url], 'avatar');
+    const moderation = await moderateImageSources([url], 'avatar', user.id);
     if (!moderation.allowed) {
       res.status(422).json({ error: moderationRejectionMessage(moderation) });
       return;

@@ -42,6 +42,8 @@ import { adminSponsorsRouter } from './routes/adminSponsors';
 import { adminCloudflareRouter } from './routes/adminCloudflare';
 import { adminStripeConfigRouter } from './routes/adminStripeConfig';
 import { adminExternalSecretsRouter } from './routes/adminExternalSecrets';
+import { adminEnvironmentsRouter } from './routes/adminEnvironments';
+import { adminStatsOverviewRouter } from './routes/adminStatsOverview';
 import { newsRouter } from './routes/news';
 import { sponsorsRouter } from './routes/sponsors';
 import { musicRouter } from './routes/music';
@@ -550,6 +552,8 @@ app.use('/api/access/admin/sponsors', adminSponsorsRouter);
 app.use('/api/admin', adminCloudflareRouter);
 app.use('/api/admin', adminStripeConfigRouter);
 app.use('/api/admin', adminExternalSecretsRouter);
+app.use('/api/admin', adminEnvironmentsRouter);
+app.use('/api/admin', adminStatsOverviewRouter);
 app.use('/api/admin/monitor', adminMonitorRouter);
 app.use('/api/admin/vps', adminSyslogRouter);
 app.use('/api', diagnosticLogsRouter);
@@ -866,6 +870,10 @@ startServerMonitor();  // Disk + RAM + CPU + API latency p95, alerts to SMTP_ADM
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
     next();
+    return;
+  }
+  if (req.path.startsWith('/uploads/')) {
+    res.status(404).type('text/plain').send('Not found');
     return;
   }
   if (isStaticAssetPath(req.path)) {

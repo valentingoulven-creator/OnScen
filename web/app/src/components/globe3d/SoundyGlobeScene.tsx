@@ -30,6 +30,8 @@ export interface SoundyGlobeSceneProps {
   /** @deprecated Rayon réf. nearby retiré de l’UI — conservé pour compat API interne. */
   livesListRadius?: { lat: number; lng: number; radiusKm: number } | null;
   livesListViewportCircle?: { lat: number; lng: number; radiusKm: number } | null;
+  /** Filtre Lives : cercle rouge = pins visibles (POV). */
+  livesListPinCircle?: { lat: number; lng: number; radiusKm: number } | null;
   cameraRef: React.RefObject<GlobeCameraBridgeHandle | null>;
   recenterRequest: RecenterRequest | null;
   onPointClick: (point: SoundyGlobePoint) => void;
@@ -55,6 +57,7 @@ export function SoundyGlobeScene({
   ringPropagationSpeed,
   ringRepeatPeriod,
   livesListViewportCircle,
+  livesListPinCircle,
   cameraRef,
   recenterRequest,
   onPointClick,
@@ -81,7 +84,11 @@ export function SoundyGlobeScene({
         onPointClick={onPointClick}
       />
       <SoundyGlobeEventMarkers points={points} onPointClick={onPointClick} />
-      <SoundyGlobeLiveMarkers points={points} onPointClick={onPointClick} />
+      <SoundyGlobeLiveMarkers
+        points={points}
+        overviewDots={overviewDots}
+        onPointClick={onPointClick}
+      />
       <SoundyGlobeSalonMarkers points={points} onPointClick={onPointClick} />
       <SoundyGlobeUserMarker points={points} />
       <SoundyGlobeRings
@@ -96,6 +103,14 @@ export function SoundyGlobeScene({
           lng={livesListViewportCircle.lng}
           radiusKm={livesListViewportCircle.radiusKm}
           kind="viewport"
+        />
+      ) : null}
+      {livesListPinCircle && livesListPinCircle.radiusKm > 0 ? (
+        <SoundyGlobeQueryRadiusRing
+          lat={livesListPinCircle.lat}
+          lng={livesListPinCircle.lng}
+          radiusKm={livesListPinCircle.radiusKm}
+          kind="reference"
         />
       ) : null}
       <SoundyGlobeCapitalLabels labels={capitalLabels} />

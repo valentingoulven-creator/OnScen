@@ -319,6 +319,8 @@ export interface LiveChatConfig {
   slowModeSeconds?: number;
   /** Réserve le chat aux abonnés du créateur uniquement. */
   subscribersOnly?: boolean;
+  /** Mots ou phrases bloqués sur ce live (hôte), en plus de la liste plateforme. */
+  blockedTerms?: string[];
 }
 
 /** Option de pourboire configurée par l'hôte (catalogue récompenses). */
@@ -352,6 +354,8 @@ export interface Live {
   hostId: string;
   hostName: string;
   title: string;
+  /** Description libre affichée sur le profil / carte (modifiable en direct par l'hôte). */
+  description?: string;
   platform: MusicPlatform;
   playbackState: PlaybackState;
   latitude: number;
@@ -402,6 +406,28 @@ export interface Live {
   videoAspectRatio?: '16:9' | '9:16' | '4:3';
   /** msdev : flux HLS public simulé pour démos présentation (sans OBS réel). */
   presentationDemoStream?: boolean;
+  /** Contenu signalé sensible/18+ par l'hôte (badge + filtrage côté carte/flux). */
+  isSensitive?: boolean;
+  /** Rediffusion (VOD Cloudflare) activée après le live. Défaut true (rétrocompat). */
+  replayEnabled?: boolean;
+  /** Annonce épinglée par l'hôte, affichée en tête du chat (distinct des triggers d'animation). */
+  pinnedAnnouncement?: { text: string; postedAt: number };
+  /** Sondage en cours publié par l'hôte (Q&A / vote live). */
+  activePoll?: LivePoll;
+  /** Co-hôte / duo : utilisateur autorisé à publier sa caméra aux côtés de l'hôte (LiveKit uniquement). */
+  coHostId?: string;
+  /** Invitation en attente d'acceptation par le spectateur ciblé. */
+  coHostInvite?: { userId: string; username: string; invitedAt: number };
+}
+
+export interface LivePoll {
+  id: string;
+  question: string;
+  options: { id: string; label: string }[];
+  /** userId → optionId (un vote par utilisateur, changeable). */
+  votes: Record<string, string>;
+  createdAt: number;
+  closedAt?: number;
 }
 
 export type LiveBanScope = 'chat' | 'live';
@@ -701,6 +727,9 @@ export interface AppNotification {
     | 'event_created'
     | 'event_tagged'
     | 'story_tagged'
+    | 'album_published'
+    | 'track_published'
+    | 'reel_published'
     | 'mention'
     | 'support_contact'
     | 'support_reply'
@@ -720,8 +749,10 @@ export interface AppNotification {
   postId?: string;
   /** Story où l'utilisateur a été tagué. */
   storyId?: string;
-  /** Reel liké. */
+  /** Reel liké ou publié par un suivi. */
   reelId?: string;
+  albumId?: string;
+  compositionId?: string;
   /** Message support (admin ou utilisateur). */
   supportMessageId?: string;
 }
@@ -804,6 +835,8 @@ export interface UserComposition {
   artist?: string;
   fileUrl: string;
   durationSec?: number;
+  /** Référence du morceau d’origine (playlist Mes favoris). */
+  sourceCompositionId?: string;
   createdAt: number;
 }
 
@@ -835,6 +868,8 @@ export interface FeedPost {
   eventTaggedUserIds?: string[];
   /** Lien externe (billetterie, site…) — https uniquement. */
   eventLinkUrl?: string;
+  /** Baseline upvotes affichés (sponsor / démo), additionnée aux votes réels. */
+  eventUpvoteSeed?: number;
   /** Masqué par modération admin (fil et carte). */
   adminBlocked?: boolean;
   adminBlockedAt?: number;
@@ -1043,6 +1078,8 @@ export const db = {
   stories: [] as Story[],
   /** followerId → ensemble des userId suivis */
   userFollows: new Map<string, Set<string>>(),
+  /** followerId → followingId → notificationsEnabled (activité passive). */
+  userFollowNotificationPrefs: new Map<string, Map<string, boolean>>(),
   /** fanId → Map<hostId, UserFavorite> */
   userFavorites: new Map<string, Map<string, UserFavorite>>(),
   /**

@@ -303,7 +303,7 @@ export function StoryViewer({
                           kind: sponsorAd.kind,
                           logoUrl: sponsorAd.logoUrl,
                           displayDurationSec: sponsorAd.displayDurationSec,
-                        });
+                        }, undefined, { placement: 'stories_sponsored' });
                       }}
                       className="mt-3 px-4 py-2.5 min-h-[44px] rounded-xl bg-white/15 border border-white/25 text-sm font-bold text-white backdrop-blur-sm hover:bg-white/25 transition-colors"
                     >

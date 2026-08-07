@@ -136,8 +136,15 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
     supportContactRes,
     sponsorsRes,
   ] = await Promise.all([
-    pool.query<{ version: number; saved_at: string; analytics_buckets: Record<string, number> }>(
-      'SELECT version, saved_at, analytics_buckets FROM store_meta WHERE id = 1'
+    pool.query<{
+      version: number;
+      saved_at: string;
+      analytics_buckets: Record<string, number>;
+      sponsor_analytics_buckets: Record<string, number>;
+      user_login_days: Record<string, string[]>;
+      stripe_subscription_ledger: NonNullable<PersistedStore['stripeSubscriptionLedger']>;
+    }>(
+      'SELECT version, saved_at, analytics_buckets, sponsor_analytics_buckets, user_login_days, stripe_subscription_ledger FROM store_meta WHERE id = 1'
     ),
     pool.query<{ payload: PersistedStore['users'][number]; password_hash: string | null }>(
       'SELECT payload, password_hash FROM users'
@@ -180,8 +187,8 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
     pool.query<{ payload: NonNullable<PersistedStore['userMutes']>[number] }>(
       'SELECT payload FROM user_mutes'
     ),
-    pool.query<{ follower_id: string; followed_id: string }>(
-      'SELECT follower_id, followed_id FROM user_follows'
+    pool.query<{ follower_id: string; followed_id: string; notifications_enabled: boolean }>(
+      'SELECT follower_id, followed_id, notifications_enabled FROM user_follows'
     ),
     pool.query<{
       fan_id: string;
@@ -282,9 +289,16 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
   }
 
   const userFollows: PersistedStore['userFollows'] = {};
+  const userFollowNotificationPrefs: NonNullable<PersistedStore['userFollowNotificationPrefs']> = {};
   for (const row of followsRes.rows) {
     if (!userFollows[row.follower_id]) userFollows[row.follower_id] = [];
     userFollows[row.follower_id].push(row.followed_id);
+    if (row.notifications_enabled === false) {
+      if (!userFollowNotificationPrefs[row.follower_id]) {
+        userFollowNotificationPrefs[row.follower_id] = {};
+      }
+      userFollowNotificationPrefs[row.follower_id][row.followed_id] = false;
+    }
   }
 
   const feedPostLikes: NonNullable<PersistedStore['feedPostLikes']> = {};
@@ -333,6 +347,7 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
     userBlocks: blocksRes.rows.map((r) => r.payload),
     userMutes: mutesRes.rows.map((r) => r.payload),
     userFollows,
+    userFollowNotificationPrefs,
     userFavorites: favoritesRes.rows.map((r) => ({
       fanId: r.fan_id,
       hostId: r.host_id,
@@ -345,6 +360,9 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
     feedPostFavorites,
     stories: storiesRes.rows.map((r) => r.payload),
     analyticsBuckets: metaRes.rows[0]?.analytics_buckets ?? {},
+    sponsorAnalyticsBuckets: metaRes.rows[0]?.sponsor_analytics_buckets ?? {},
+    userLoginDays: metaRes.rows[0]?.user_login_days ?? {},
+    stripeSubscriptionLedger: metaRes.rows[0]?.stripe_subscription_ledger ?? {},
     supportContactMessages: supportContactRes.rows.map((r) => r.payload),
     sponsors: sponsorsRes.rows.map((r) => r.payload),
   };
@@ -437,13 +455,23 @@ async function writeStore(client: PoolClient, data: PersistedStore): Promise<voi
     await syncNotificationsToPg(client, db.notifications);
 
     await client.query(
-      `INSERT INTO store_meta (id, version, saved_at, analytics_buckets)
-       VALUES (1, $1, $2, $3::jsonb)
+      `INSERT INTO store_meta (id, version, saved_at, analytics_buckets, sponsor_analytics_buckets, user_login_days, stripe_subscription_ledger)
+       VALUES (1, $1, $2, $3::jsonb, $4::jsonb, $5::jsonb, $6::jsonb)
        ON CONFLICT (id) DO UPDATE SET
          version = EXCLUDED.version,
          saved_at = EXCLUDED.saved_at,
-         analytics_buckets = EXCLUDED.analytics_buckets`,
-      [data.version, data.savedAt, JSON.stringify(data.analyticsBuckets ?? {})]
+         analytics_buckets = EXCLUDED.analytics_buckets,
+         sponsor_analytics_buckets = EXCLUDED.sponsor_analytics_buckets,
+         user_login_days = EXCLUDED.user_login_days,
+         stripe_subscription_ledger = EXCLUDED.stripe_subscription_ledger`,
+      [
+        data.version,
+        data.savedAt,
+        JSON.stringify(data.analyticsBuckets ?? {}),
+        JSON.stringify(data.sponsorAnalyticsBuckets ?? {}),
+        JSON.stringify(data.userLoginDays ?? {}),
+        JSON.stringify(data.stripeSubscriptionLedger ?? {}),
+      ]
     );
 
     await client.query('COMMIT');

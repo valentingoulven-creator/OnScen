@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 const CATEGORIES = [
   { id: 'harassment', label: 'Harcèlement / menaces' },
   { id: 'illegal', label: 'Contenu illicite' },
+  { id: 'csam_risk', label: '⚠️ Contenu impliquant potentiellement un mineur' },
   { id: 'spam', label: 'Spam / arnaque' },
   { id: 'copyright', label: 'Droits d’auteur' },
   { id: 'privacy', label: 'Atteinte à la vie privée' },
@@ -15,7 +16,7 @@ const CATEGORIES = [
 export interface ReportContentContext {
   targetUserId?: string;
   targetUsername?: string;
-  roomType?: 'salon' | 'live' | 'dm' | 'reel' | 'profile';
+  roomType?: 'salon' | 'live' | 'dm' | 'reel' | 'profile' | 'track';
   roomId?: string;
   messageId?: string;
 }

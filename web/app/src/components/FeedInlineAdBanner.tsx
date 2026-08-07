@@ -66,7 +66,7 @@ export function FeedInlineAdBanner({ onCtaSalon, onCtaLive }: FeedInlineAdBanner
           </div>
           <button
             type="button"
-            onClick={() => handleSponsorCta(ad, { onCtaSalon, onCtaLive })}
+            onClick={() => handleSponsorCta(ad, { onCtaSalon, onCtaLive }, { placement: 'feed_inline' })}
             className="shrink-0 self-center px-3 py-1.5 rounded-lg text-xs font-bold text-purple-200 border border-purple-500/40 bg-purple-600/20 hover:bg-purple-600/35 transition"
           >
             {ad.cta}

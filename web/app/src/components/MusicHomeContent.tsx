@@ -1,9 +1,11 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FeedTrendingUsersSection } from './FeedTrendingUsersSection';
 import { useAuth } from '../context/AuthContext';
+import { useMusicPlayer, type PlayerTrack } from '../context/MusicPlayerContext';
 import { useEventsCountry } from '../hooks/useEventsCountry';
 import { useTrendingUsers } from '../hooks/useTrendingUsers';
+import { api } from '../lib/api';
 import { dicebearAdventurerAvatar } from '../lib/avatarUrl';
 import { formatCompactCount } from '../lib/formatCount';
 import { formatDurationSec } from '../lib/compositionUpload';
@@ -17,6 +19,9 @@ import type {
   MusicTrackItem,
   MusicWeeklyReelItem,
 } from '../lib/musicTypes';
+import { partitionLibraryAlbums } from '../lib/musicAlbumKind';
+
+export type MusicAlbumShelfMode = 'library' | 'discography';
 
 /* ─────────────────────────────────────────────────────────────────────
  * Icônes inline (pas de dépendance externe)
@@ -36,6 +41,122 @@ function HeartGlyph({ className }: { className?: string }) {
       <path d="M12 21s-6.716-4.297-9.428-8.03C.86 10.42 1.36 7.3 3.76 5.86c1.98-1.19 4.42-.6 5.74 1.02L12 9.6l2.5-2.72c1.32-1.62 3.76-2.21 5.74-1.02 2.4 1.44 2.9 4.56 1.19 7.11C18.716 16.703 12 21 12 21Z" />
     </svg>
   );
+}
+
+function PauseGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
+      <path d="M7 5a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1H7Zm8 0a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2Z" />
+    </svg>
+  );
+}
+
+/** Upvote discographie (▲) — même UX que le profil. */
+function MusicTrackUpvoteButton({
+  track,
+  upvoteStatBasis = 'lifetime',
+}: {
+  track: MusicTrackItem;
+  upvoteStatBasis?: 'lifetime' | 'weekly';
+}) {
+  const { t } = useTranslation();
+  const { token } = useAuth();
+  const [count, setCount] = useState(track.upvoteCount ?? 0);
+  const [hasUpvoted, setHasUpvoted] = useState(Boolean(track.userHasUpvoted));
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setCount(track.upvoteCount ?? 0);
+    setHasUpvoted(Boolean(track.userHasUpvoted));
+  }, [track.id, track.upvoteCount, track.userHasUpvoted]);
+
+  const label = hasUpvoted
+    ? t('music.upvoteRemove', { defaultValue: 'Retirer votre vote' })
+    : t('music.upvoteAdd', { defaultValue: 'Voter pour ce morceau' });
+
+  if (!token) {
+    return (
+      <span
+        className="shrink-0 flex flex-col items-center justify-center min-w-[2rem] px-1 py-0.5 text-gray-500 tabular-nums"
+        aria-label={t('music.upvoteCount', { defaultValue: '{{count}} votes', count })}
+      >
+        <span className="text-[10px] leading-none" aria-hidden>
+          ▲
+        </span>
+        <span className="text-[10px] font-bold leading-tight">{formatCompactCount(count)}</span>
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (busy) return;
+        setBusy(true);
+        void api
+          .toggleCompositionUpvote(token, track.id)
+          .then((result) => {
+            setHasUpvoted(result.userHasUpvoted);
+            if (upvoteStatBasis === 'weekly') {
+              setCount((c) => Math.max(0, c + (result.userHasUpvoted ? 1 : -1)));
+            } else {
+              setCount(result.upvoteCount);
+            }
+          })
+          .finally(() => setBusy(false));
+      }}
+      className={`shrink-0 flex flex-col items-center justify-center min-w-[2.75rem] min-h-[44px] px-1.5 py-1 rounded-lg border transition disabled:opacity-50 touch-manipulation ${
+        hasUpvoted
+          ? 'border-amber-400/50 bg-amber-500/15 text-amber-300'
+          : 'border-amber-500/20 text-gray-500 hover:border-amber-400/40 hover:text-amber-300 hover:bg-amber-500/10'
+      }`}
+      aria-pressed={hasUpvoted}
+      aria-label={label}
+      title={label}
+    >
+      <span className="text-[10px] leading-none" aria-hidden>
+        ▲
+      </span>
+      <span className="text-[10px] font-bold leading-tight tabular-nums">{formatCompactCount(count)}</span>
+    </button>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Lecture — conversion morceau Music Home → lecteur global
+ * ──────────────────────────────────────────────────────────────────── */
+
+function trackToPlayerTrack(track: MusicTrackItem): PlayerTrack {
+  return {
+    id: track.id,
+    title: track.title,
+    artist: track.artist,
+    ...(track.albumArtUrl ? { albumArtUrl: track.albumArtUrl } : {}),
+    fileUrl: track.fileUrl,
+    hostId: track.hostId,
+    ...(track.albumId ? { albumId: track.albumId } : {}),
+  };
+}
+
+/** Récupère les morceaux d'un album (API publique) pour alimenter la file de lecture. */
+async function fetchAlbumPlayerTracks(
+  token: string,
+  album: { id: string; userId: string; trackCount: number; coverUrl?: string; creatorName: string }
+): Promise<PlayerTrack[]> {
+  if (album.trackCount <= 0) return [];
+  const { tracks } = await api.getAlbumTracks(token, album.userId, album.id);
+  return tracks.map((tr) => ({
+    id: tr.id,
+    title: tr.title,
+    artist: tr.artist?.trim() || album.creatorName,
+    ...(album.coverUrl ? { albumArtUrl: album.coverUrl } : {}),
+    fileUrl: tr.fileUrl,
+    hostId: tr.userId,
+    ...(tr.albumId ? { albumId: tr.albumId } : {}),
+  }));
 }
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -66,7 +187,7 @@ function MusicCover({
   }
   return (
     <div
-      className={`${sizeClass} shrink-0 rounded-lg bg-gradient-to-br from-amber-900/40 to-[#1a1a26] flex items-center justify-center text-[10px] font-bold text-amber-200/80`}
+      className={`${sizeClass} shrink-0 rounded-lg bg-gradient-to-br from-purple-900/40 to-[#1a1a26] flex items-center justify-center text-[10px] font-bold text-purple-200/80`}
       aria-hidden
     >
       {title.slice(0, 1).toUpperCase()}
@@ -74,16 +195,16 @@ function MusicCover({
   );
 }
 
-/** Pastille « play » décorative (affordance streaming ; le tap ouvre le profil). */
-function PlayBadge({ size = 'md' }: { size?: 'sm' | 'md' }) {
+/** Pastille « play/pause » — lance la lecture du morceau/album au tap. */
+function PlayBadge({ size = 'md', playing = false }: { size?: 'sm' | 'md'; playing?: boolean }) {
   const box = size === 'sm' ? 'w-8 h-8' : 'w-10 h-10';
   const icon = size === 'sm' ? 'w-3.5 h-3.5' : 'w-4 h-4';
   return (
     <span
-      className={`${box} flex items-center justify-center rounded-full bg-amber-500 text-black shadow-lg shadow-black/40`}
+      className={`${box} flex items-center justify-center rounded-full bg-gradient-to-br from-pink-600 to-purple-600 text-white shadow-lg shadow-purple-950/50`}
       aria-hidden
     >
-      <PlayGlyph className={`${icon} translate-x-[1px]`} />
+      {playing ? <PauseGlyph className={icon} /> : <PlayGlyph className={`${icon} translate-x-[1px]`} />}
     </span>
   );
 }
@@ -94,16 +215,27 @@ function PlayBadge({ size = 'md' }: { size?: 'sm' | 'md' }) {
 
 export function MusicTrackRow({
   track,
+  queue,
   onOpenProfile,
   rank,
   statKind = 'likes',
+  upvoteStatBasis = 'lifetime',
 }: {
   track: MusicTrackItem;
+  /** Morceaux de la même rangée — lecture continue via suivant/précédent. */
+  queue?: MusicTrackItem[];
   onOpenProfile?: (userId: string) => void;
   rank?: number;
-  /** Affiche écoutes (Populaire) ou likes (Tendance). */
+  /** Affiche écoutes (Populaire) en plus des upvotes. */
   statKind?: 'likes' | 'plays';
+  /** Tendance hebdo : compteur = upvotes de la semaine ; sinon total. */
+  upvoteStatBasis?: 'lifetime' | 'weekly';
 }) {
+  const { t } = useTranslation();
+  const player = useMusicPlayer();
+  const isCurrent = player.currentTrack?.id === track.id;
+  const isPlayingThis = isCurrent && player.isPlaying;
+
   const subtitle = [
     track.creatorName,
     track.albumTitle,
@@ -112,46 +244,70 @@ export function MusicTrackRow({
     .filter(Boolean)
     .join(' · ');
 
+  const handleClick = () => {
+    if (!track.fileUrl) {
+      onOpenProfile?.(track.hostId);
+      return;
+    }
+    const list = queue && queue.length > 0 ? queue.map(trackToPlayerTrack) : undefined;
+    player.playTrack(trackToPlayerTrack(track), list);
+  };
+
   return (
-    <button
-      type="button"
-      onClick={() => onOpenProfile?.(track.hostId)}
-      className="group w-full flex items-center gap-3 min-h-[56px] py-2 pr-1 text-left rounded-lg hover:bg-white/[0.04] active:bg-white/[0.06] transition-colors"
+    <div
+      className={`group w-full flex items-center gap-1 min-h-[56px] py-2 pr-1 rounded-lg hover:bg-white/[0.04] active:bg-white/[0.06] transition-colors ${
+        isCurrent ? 'bg-purple-500/[0.06]' : ''
+      }`}
     >
-      {rank != null ? (
-        <span
-          className="w-6 shrink-0 text-center text-sm font-black tabular-nums text-gray-500 group-hover:text-amber-300"
-          aria-hidden
-        >
-          {rank}
-        </span>
-      ) : null}
-      <div className="relative shrink-0">
-        <MusicCover url={track.albumArtUrl} title={track.title} />
-        <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity">
-          <PlayGlyph className="w-5 h-5 text-white" />
-        </span>
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-gray-100 truncate">{track.title}</p>
-        <p className="text-xs text-gray-500 truncate">{subtitle}</p>
-      </div>
-      {(() => {
-        const count =
-          statKind === 'plays' ? track.weeklyPlayCount : track.upvoteCount;
-        if (count == null || count <= 0) return null;
-        return (
-          <span className="shrink-0 flex items-center gap-1 text-[11px] font-semibold text-gray-400 tabular-nums">
-            {statKind === 'plays' ? (
-              <PlayGlyph className="w-3 h-3 text-amber-400/90" />
-            ) : (
-              <HeartGlyph className="w-3 h-3 text-rose-400/80" />
-            )}
-            {formatCompactCount(count)}
+      <button
+        type="button"
+        onClick={handleClick}
+        aria-label={
+          isPlayingThis
+            ? t('music.playerPauseTrack', { defaultValue: 'Mettre en pause {{title}}', title: track.title })
+            : t('music.playerPlayTrack', { defaultValue: 'Lire {{title}}', title: track.title })
+        }
+        className="flex flex-1 min-w-0 items-center gap-3 text-left touch-manipulation"
+      >
+        {rank != null ? (
+          <span
+            className={`w-6 shrink-0 text-center text-sm font-black tabular-nums ${
+              isCurrent ? 'text-purple-300' : 'text-gray-500 group-hover:text-purple-300'
+            }`}
+            aria-hidden
+          >
+            {rank}
           </span>
-        );
-      })()}
-    </button>
+        ) : null}
+        <div className="relative shrink-0">
+          <MusicCover url={track.albumArtUrl} title={track.title} />
+          <span
+            className={`absolute inset-0 flex items-center justify-center rounded-lg bg-black/45 transition-opacity ${
+              isPlayingThis ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+            }`}
+          >
+            {isPlayingThis ? (
+              <PauseGlyph className="w-5 h-5 text-white" />
+            ) : (
+              <PlayGlyph className="w-5 h-5 text-white" />
+            )}
+          </span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className={`text-sm font-semibold truncate ${isCurrent ? 'text-purple-300' : 'text-gray-100'}`}>
+            {track.title}
+          </p>
+          <p className="text-xs text-gray-500 truncate">{subtitle}</p>
+        </div>
+        {statKind === 'plays' && track.weeklyPlayCount != null && track.weeklyPlayCount > 0 ? (
+          <span className="shrink-0 flex items-center gap-1 text-[11px] font-semibold text-gray-400 tabular-nums mr-0.5">
+            <PlayGlyph className="w-3 h-3 text-amber-400/90" />
+            {formatCompactCount(track.weeklyPlayCount)}
+          </span>
+        ) : null}
+      </button>
+      <MusicTrackUpvoteButton track={track} upvoteStatBasis={upvoteStatBasis} />
+    </div>
   );
 }
 
@@ -217,16 +373,52 @@ function MusicAlbumCard({
   onOpenProfile: (userId: string) => void;
 }) {
   const { t } = useTranslation();
+  const { token } = useAuth();
+  const player = useMusicPlayer();
+  const [loadingPlay, setLoadingPlay] = useState(false);
   const avatar =
     album.creatorAvatarUrl ?? dicebearAdventurerAvatar(album.creatorName);
+  const isCurrentAlbum = player.currentTrack?.albumId === album.id;
+  const isPlayingThisAlbum = isCurrentAlbum && player.isPlaying;
+
+  const handlePlay = async (e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    if (isCurrentAlbum) {
+      player.togglePlay();
+      return;
+    }
+    if (!token || album.trackCount <= 0) {
+      onOpenProfile(album.userId);
+      return;
+    }
+    setLoadingPlay(true);
+    try {
+      const playerTracks = await fetchAlbumPlayerTracks(token, album);
+      if (playerTracks.length === 0) {
+        onOpenProfile(album.userId);
+        return;
+      }
+      player.playTrack(playerTracks[0], playerTracks);
+    } catch {
+      onOpenProfile(album.userId);
+    } finally {
+      setLoadingPlay(false);
+    }
+  };
 
   return (
-    <button
-      type="button"
-      onClick={() => onOpenProfile(album.userId)}
-      className="group shrink-0 w-[9.5rem] sm:w-[10.5rem] flex flex-col text-left"
-    >
-      <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-[#1a1a26] ring-1 ring-[#2a2a3a] group-hover:ring-amber-500/40 transition">
+    <div className="group shrink-0 w-[9.5rem] sm:w-[10.5rem] flex flex-col text-left">
+      <button
+        type="button"
+        onClick={handlePlay}
+        disabled={loadingPlay}
+        aria-label={
+          isPlayingThisAlbum
+            ? t('music.playerPauseAlbum', { defaultValue: 'Mettre en pause {{title}}', title: album.title })
+            : t('music.playerPlayAlbum', { defaultValue: 'Lire {{title}}', title: album.title })
+        }
+        className="relative block w-full aspect-square rounded-xl overflow-hidden bg-[#1a1a26] ring-1 ring-[#2a2a3a] group-hover:ring-purple-500/40 transition disabled:opacity-80 touch-manipulation"
+      >
         {album.coverUrl ? (
           <img
             src={album.coverUrl}
@@ -236,16 +428,20 @@ function MusicAlbumCard({
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-900/35 via-[#1a1a26] to-[#0b0b0f] flex items-center justify-center">
-            <span className="text-2xl font-black text-amber-200/70" aria-hidden>
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-900/35 via-[#1a1a26] to-[#0b0b0f] flex items-center justify-center">
+            <span className="text-2xl font-black text-purple-200/70" aria-hidden>
               {album.title.slice(0, 1).toUpperCase()}
             </span>
           </div>
         )}
         <span
-          className="absolute bottom-1.5 right-1.5 translate-y-1 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-200"
+          className={`absolute bottom-1.5 right-1.5 transition-all duration-200 ${
+            isPlayingThisAlbum
+              ? 'translate-y-0 opacity-100'
+              : 'translate-y-1 opacity-0 group-hover:translate-y-0 group-hover:opacity-100'
+          }`}
         >
-          <PlayBadge />
+          <PlayBadge playing={isPlayingThisAlbum} />
         </span>
         <span className="absolute top-1.5 left-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-black/70 text-white tabular-nums">
           {t('music.trackCount', {
@@ -253,13 +449,17 @@ function MusicAlbumCard({
             count: album.trackCount,
           })}
         </span>
-      </div>
+      </button>
       <p className="mt-2 text-sm font-semibold text-gray-100 truncate">{album.title}</p>
-      <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+      <button
+        type="button"
+        onClick={() => onOpenProfile(album.userId)}
+        className="flex items-center gap-1.5 mt-0.5 min-w-0 text-left touch-manipulation"
+      >
         <img src={avatar} alt="" className="size-4 rounded-full shrink-0 object-cover bg-[#1a1a26]" />
-        <p className="text-[11px] text-gray-500 truncate">{album.creatorName}</p>
-      </div>
-    </button>
+        <p className="text-[11px] text-gray-500 truncate hover:text-gray-300">{album.creatorName}</p>
+      </button>
+    </div>
   );
 }
 
@@ -292,7 +492,7 @@ function MusicCreatorCard({
         alt=""
         loading="lazy"
         decoding="async"
-        className="size-[4.5rem] rounded-full object-cover bg-[#1a1a26] ring-1 ring-[#2a2a3a] group-hover:ring-amber-500/50 transition"
+        className="size-[4.5rem] rounded-full object-cover bg-[#1a1a26] ring-1 ring-[#2a2a3a] group-hover:ring-purple-500/50 transition"
       />
       <p className="mt-1.5 w-full text-[11px] font-medium text-gray-300 truncate">{creator.name}</p>
     </button>
@@ -347,17 +547,44 @@ function SectionHeader({
   return (
     <div className="flex items-end justify-between gap-2 mb-3">
       <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="h-4 w-1 rounded-full bg-gradient-to-b from-amber-400 to-amber-600" aria-hidden />
-          <h2 id={id} className="text-base font-bold text-gray-100 truncate">
-            {title}
-          </h2>
-        </div>
+        <h2 id={id} className="text-lg sm:text-xl font-bold text-white tracking-tight truncate">
+          {title}
+        </h2>
         {subtitle ? (
-          <p className="text-[11px] text-gray-500 mt-1 leading-snug ml-3">{subtitle}</p>
+          <p className="text-xs text-gray-400 mt-1 leading-snug">{subtitle}</p>
         ) : null}
       </div>
       {action}
+    </div>
+  );
+}
+
+/** En-tête de rangée façon Spotify (titre + « Tout afficher »). */
+function SpotifyShelfHeader({
+  id,
+  title,
+  onShowAll,
+  showAllLabel,
+}: {
+  id: string;
+  title: string;
+  onShowAll?: () => void;
+  showAllLabel: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 mb-3">
+      <h2 id={id} className="text-lg sm:text-xl font-bold text-white tracking-tight truncate min-w-0">
+        {title}
+      </h2>
+      {onShowAll ? (
+        <button
+          type="button"
+          onClick={onShowAll}
+          className="shrink-0 min-h-11 px-2 text-xs font-bold text-gray-400 hover:text-white transition-colors"
+        >
+          {showAllLabel}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -371,88 +598,83 @@ function ShelfLabel({ children }: { children: ReactNode }) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────
- * Spotlight — mise en avant de la tendance #1 de la semaine
- * ──────────────────────────────────────────────────────────────────── */
-
-function MusicSpotlight({
-  section,
-  onOpenProfile,
-}: {
-  section: MusicHomeWeeklySection;
-  onOpenProfile: (userId: string) => void;
-}) {
-  const { t } = useTranslation();
-  const album = section.albums[0];
-  const track = !album ? section.tracks[0] : undefined;
-  const reel = !album && !track ? section.reels[0] : undefined;
-
-  const cover = album?.coverUrl ?? track?.albumArtUrl ?? reel?.posterUrl;
-  const title = album?.title ?? track?.title ?? reel?.title;
-  const creator = album?.creatorName ?? track?.creatorName ?? reel?.creatorName;
-  const userId = album?.userId ?? track?.hostId ?? reel?.authorId;
-  const upvotes = track?.upvoteCount ?? reel?.weeklyUpvoteCount;
-
-  if (!title || !userId) return null;
-
-  return (
-    <button
-      type="button"
-      onClick={() => onOpenProfile(userId)}
-      className="group relative w-full overflow-hidden rounded-2xl ring-1 ring-[#2a2a3a] text-left"
-    >
-      {cover ? (
-        <img
-          src={cover}
-          alt=""
-          aria-hidden
-          className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40"
-        />
-      ) : null}
-      <span className="absolute inset-0 bg-gradient-to-tr from-[#0b0b0f] via-[#0b0b0f]/85 to-amber-900/25" aria-hidden />
-      <div className="relative flex items-center gap-4 p-4">
-        <div className="relative shrink-0 size-24 sm:size-28 rounded-xl overflow-hidden bg-[#1a1a26] ring-1 ring-white/10">
-          {cover ? (
-            <img src={cover} alt="" className="absolute inset-0 w-full h-full object-cover" />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-3xl font-black text-amber-200/70">
-              {title.slice(0, 1).toUpperCase()}
-            </div>
-          )}
-          <span className="absolute bottom-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            <PlayBadge />
-          </span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300">
-            {t('music.spotlightBadge', { defaultValue: 'Tendance #1' })}
-          </span>
-          <p className="mt-2 text-lg font-black text-white leading-tight line-clamp-2">{title}</p>
-          <p className="text-xs text-gray-300 truncate mt-0.5">{creator}</p>
-          {upvotes != null && upvotes > 0 ? (
-            <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-gray-300 tabular-nums">
-              <HeartGlyph className="w-3 h-3 text-rose-400" />
-              {formatCompactCount(upvotes)}
-            </span>
-          ) : null}
-        </div>
-      </div>
-    </button>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────────────
  * Contenu d'une section (reels / albums / morceaux)
  * ──────────────────────────────────────────────────────────────────── */
 
-type LibraryTab = 'following' | 'library';
+const NEWS_SECTIONS = ['weeklyTrend', 'discover', 'popular'] as const;
+type NewsSection = (typeof NEWS_SECTIONS)[number];
 
-const DEFAULT_SECTIONS = ['weeklyTrend', 'discover', 'popular'] as const;
-type DefaultSection = (typeof DEFAULT_SECTIONS)[number];
-type HomeSectionKey = DefaultSection | LibraryTab;
+const FOR_YOU_SECTIONS = ['following', 'library'] as const;
+type ForYouSection = (typeof FOR_YOU_SECTIONS)[number];
+
+type HomeSectionKey = NewsSection | ForYouSection;
+type MusicHomeTab = 'news' | 'forYou';
+
+const SHELF_PREVIEW_LIMITS = { albums: 10, tracks: 5, reels: 8 } as const;
+
+function sliceSectionForPreview(
+  section: MusicHomeSection | MusicHomeWeeklySection,
+  limits = SHELF_PREVIEW_LIMITS
+): {
+  preview: MusicHomeSection | MusicHomeWeeklySection;
+  hasMore: boolean;
+} {
+  const reels = 'reels' in section ? section.reels : [];
+  const previewAlbums = section.albums.slice(0, limits.albums);
+  const previewTracks = section.tracks.slice(0, limits.tracks);
+  const previewReels = reels.slice(0, limits.reels);
+  const hasMore =
+    section.albums.length > limits.albums ||
+    section.tracks.length > limits.tracks ||
+    reels.length > limits.reels;
+
+  if ('reels' in section) {
+    return {
+      preview: {
+        ...section,
+        albums: previewAlbums,
+        tracks: previewTracks,
+        reels: previewReels,
+      },
+      hasMore,
+    };
+  }
+  return {
+    preview: { ...section, albums: previewAlbums, tracks: previewTracks },
+    hasMore,
+  };
+}
 
 function sectionHasContent(section: MusicHomeSection | MusicHomeWeeklySection): boolean {
   const reelCount = 'reels' in section ? section.reels.length : 0;
   return section.albums.length + section.tracks.length + reelCount > 0;
+}
+
+function AlbumCarousel({
+  albums,
+  label,
+  onOpenProfile,
+}: {
+  albums: MusicAlbumItem[];
+  label: string;
+  onOpenProfile: (userId: string) => void;
+}) {
+  const { t } = useTranslation();
+  if (albums.length === 0) return null;
+  return (
+    <div>
+      <ShelfLabel>{label}</ShelfLabel>
+      <HorizontalScrollCarousel
+        itemCount={albums.length}
+        ariaPrevLabel={t('music.scrollPrev', { defaultValue: 'Précédent' })}
+        ariaNextLabel={t('music.scrollNext', { defaultValue: 'Suivant' })}
+      >
+        {albums.map((album) => (
+          <MusicAlbumCard key={album.id} album={album} onOpenProfile={onOpenProfile} />
+        ))}
+      </HorizontalScrollCarousel>
+    </div>
+  );
 }
 
 function MusicSectionContent({
@@ -461,15 +683,29 @@ function MusicSectionContent({
   onOpenProfile,
   rankedTracks = false,
   trackStatKind = 'likes',
+  upvoteStatBasis = 'lifetime',
+  albumShelfMode = 'discography',
+  viewerUserId,
 }: {
   section: MusicHomeSection | MusicHomeWeeklySection;
   emptyMessage: string;
   onOpenProfile: (userId: string) => void;
   rankedTracks?: boolean;
   trackStatKind?: 'likes' | 'plays';
+  upvoteStatBasis?: 'lifetime' | 'weekly';
+  /** library = playlists + mes albums ; discography = albums créateurs (pas de libellé « playlists »). */
+  albumShelfMode?: MusicAlbumShelfMode;
+  viewerUserId?: string | null;
 }) {
   const { t } = useTranslation();
   const reels = 'reels' in section ? section.reels : [];
+
+  const { playlists, discographyAlbums } = useMemo(() => {
+    if (albumShelfMode === 'library') {
+      return partitionLibraryAlbums(section.albums, viewerUserId);
+    }
+    return { playlists: [] as MusicAlbumItem[], discographyAlbums: section.albums };
+  }, [albumShelfMode, section.albums, viewerUserId]);
 
   if (!sectionHasContent(section)) {
     return <SectionEmpty message={emptyMessage} />;
@@ -492,19 +728,25 @@ function MusicSectionContent({
         </div>
       ) : null}
 
-      {section.albums.length > 0 ? (
-        <div>
-          <ShelfLabel>{t('music.playlistsLabel', { defaultValue: 'Playlists & albums' })}</ShelfLabel>
-          <HorizontalScrollCarousel
-            itemCount={section.albums.length}
-            ariaPrevLabel={t('music.scrollPrev', { defaultValue: 'Précédent' })}
-            ariaNextLabel={t('music.scrollNext', { defaultValue: 'Suivant' })}
-          >
-            {section.albums.map((album) => (
-              <MusicAlbumCard key={album.id} album={album} onOpenProfile={onOpenProfile} />
-            ))}
-          </HorizontalScrollCarousel>
-        </div>
+      {albumShelfMode === 'library' ? (
+        <>
+          <AlbumCarousel
+            albums={playlists}
+            label={t('music.playlistsOnlyLabel', { defaultValue: 'Playlists' })}
+            onOpenProfile={onOpenProfile}
+          />
+          <AlbumCarousel
+            albums={discographyAlbums}
+            label={t('music.albumsLabel', { defaultValue: 'Albums' })}
+            onOpenProfile={onOpenProfile}
+          />
+        </>
+      ) : section.albums.length > 0 ? (
+        <AlbumCarousel
+          albums={section.albums}
+          label={t('music.albumsLabel', { defaultValue: 'Albums' })}
+          onOpenProfile={onOpenProfile}
+        />
       ) : null}
 
       {section.tracks.length > 0 ? (
@@ -515,9 +757,11 @@ function MusicSectionContent({
               <MusicTrackRow
                 key={track.id}
                 track={track}
+                queue={section.tracks}
                 onOpenProfile={onOpenProfile}
                 rank={rankedTracks ? i + 1 : undefined}
                 statKind={trackStatKind}
+                upvoteStatBasis={upvoteStatBasis}
               />
             ))}
           </div>
@@ -544,7 +788,8 @@ export function MusicHomeSections({
 }) {
   const { t } = useTranslation();
   const { token, user } = useAuth();
-  const [libraryTab, setLibraryTab] = useState<LibraryTab | null>(null);
+  const [activeTab, setActiveTab] = useState<MusicHomeTab>('news');
+  const [expandedCategory, setExpandedCategory] = useState<HomeSectionKey | null>(null);
   const { countryCode, countryName } = useEventsCountry({
     enabled: isActive,
     profileCity: user?.city,
@@ -555,12 +800,11 @@ export function MusicHomeSections({
     countryCode,
   });
 
-  const segments = useMemo(
+  const tabs = useMemo(
     () =>
       [
-        [null, t('music.tabForYou', { defaultValue: 'Pour toi' })],
-        ['following', t('music.tabFollowing', { defaultValue: 'Abonnements' })],
-        ['library', t('music.tabLibrary', { defaultValue: 'Ma bibliothèque' })],
+        ['news', t('music.tabNews', { defaultValue: 'Actualité' })],
+        ['forYou', t('music.tabForYou', { defaultValue: 'Pour toi' })],
       ] as const,
     [t],
   );
@@ -577,8 +821,10 @@ export function MusicHomeSections({
     weeklyTrend: t('music.tabWeeklyTrend', { defaultValue: 'Tendance de la semaine' }),
     discover: t('music.tabDiscover', { defaultValue: 'Découvrir' }),
     popular: t('music.tabPopular', { defaultValue: 'Populaire' }),
-    following: t('music.tabFollowing', { defaultValue: 'Abonnements' }),
-    library: t('music.tabLibrary', { defaultValue: 'Ma bibliothèque' }),
+    following: t('music.followingSoundTitle', {
+      defaultValue: 'Nouveaux sons',
+    }),
+    library: t('music.myPlaylistsTitle', { defaultValue: 'Mes playlists' }),
   };
 
   const emptyBySection: Record<HomeSectionKey, string> = {
@@ -620,67 +866,127 @@ export function MusicHomeSections({
 
   if (!data) return null;
 
-  return (
-    <div className="space-y-6">
-      {!libraryTab ? (
-        <FeedTrendingUsersSection
-          users={trendingUsers}
-          loading={trendingLoading}
-          countryCode={countryCode}
-          countryName={countryName}
-          onOpenProfile={onOpenProfile}
-        />
-      ) : null}
+  const showAllLabel = t('music.showAll', { defaultValue: 'Tout afficher' });
 
+  const categorySubtitles: Partial<Record<HomeSectionKey, string>> = {
+    weeklyTrend: t('music.weeklyTrendSubtitle', {
+      defaultValue:
+        'Albums, morceaux et reels les plus upvotés cette semaine · reset lundi',
+    }),
+    popular: t('music.popularSubtitle', {
+      defaultValue: 'Les morceaux les plus écoutés cette semaine · reset lundi',
+    }),
+  };
+
+  const resolveSection = (sectionId: HomeSectionKey): MusicHomeSection | MusicHomeWeeklySection => {
+    if (sectionId === 'weeklyTrend') return data.weeklyTrend;
+    return data[sectionId];
+  };
+
+  const renderCategoryShelf = (sectionId: HomeSectionKey) => {
+    const section = resolveSection(sectionId);
+    if (!sectionHasContent(section)) {
+      return (
+        <section key={sectionId} aria-labelledby={`music-shelf-${sectionId}`} className="mb-8">
+          <SpotifyShelfHeader id={`music-shelf-${sectionId}`} title={sectionLabels[sectionId]} showAllLabel={showAllLabel} />
+          <SectionEmpty message={emptyBySection[sectionId]} />
+        </section>
+      );
+    }
+    const { preview } = sliceSectionForPreview(section);
+    return (
+      <section key={sectionId} aria-labelledby={`music-shelf-${sectionId}`} className="mb-8">
+        <SpotifyShelfHeader
+          id={`music-shelf-${sectionId}`}
+          title={sectionLabels[sectionId]}
+          showAllLabel={showAllLabel}
+          onShowAll={() => setExpandedCategory(sectionId)}
+        />
+        {categorySubtitles[sectionId] ? (
+          <p className="text-xs text-gray-500 -mt-2 mb-3">{categorySubtitles[sectionId]}</p>
+        ) : null}
+        <MusicSectionContent
+          section={preview}
+          emptyMessage={emptyBySection[sectionId]}
+          onOpenProfile={onOpenProfile}
+          rankedTracks={sectionId === 'popular' || sectionId === 'weeklyTrend'}
+          trackStatKind={sectionId === 'popular' ? 'plays' : 'likes'}
+          upvoteStatBasis={sectionId === 'weeklyTrend' ? 'weekly' : 'lifetime'}
+          albumShelfMode={sectionId === 'library' ? 'library' : 'discography'}
+          viewerUserId={user?.id}
+        />
+      </section>
+    );
+  };
+
+  return (
+    <div className="space-y-5">
       <div
-        className="flex gap-1 p-1 rounded-full bg-[#12121a] border border-[#1e1e2f]"
+        className="flex gap-1 border-b border-white/10 pb-0"
         role="tablist"
         aria-label={t('music.feedTabs', { defaultValue: 'Sections musique' })}
       >
-        {segments.map(([id, label]) => {
-          const selected = libraryTab === id;
+        {tabs.map(([id, label]) => {
+          const selected = activeTab === id;
           return (
             <button
-              key={id ?? 'foryou'}
+              key={id}
               type="button"
               role="tab"
               aria-selected={selected}
-              onClick={() => setLibraryTab(id)}
-              className={`flex-1 min-h-11 px-3 py-2 rounded-full text-xs font-semibold transition touch-manipulation ${
-                selected
-                  ? 'bg-amber-500 text-black shadow-sm'
-                  : 'text-gray-400 hover:text-gray-200'
+              onClick={() => {
+                setActiveTab(id);
+                setExpandedCategory(null);
+              }}
+              className={`relative flex-1 min-h-11 px-2 py-2.5 text-sm font-bold transition touch-manipulation ${
+                selected ? 'text-white' : 'text-gray-500 hover:text-gray-300'
               }`}
             >
               {label}
+              {selected ? (
+                <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-500" aria-hidden />
+              ) : null}
             </button>
           );
         })}
       </div>
 
-      {libraryTab ? (
-        <section aria-labelledby={`music-tab-${libraryTab}`}>
+      {expandedCategory ? (
+        <section aria-labelledby={`music-expanded-${expandedCategory}`}>
+          <button
+            type="button"
+            onClick={() => setExpandedCategory(null)}
+            className="mb-4 min-h-11 inline-flex items-center gap-2 text-sm font-semibold text-gray-300 hover:text-white"
+          >
+            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6" />
+            </svg>
+            {t('music.backToHome', { defaultValue: 'Accueil musique' })}
+          </button>
           <SectionHeader
-            id={`music-tab-${libraryTab}`}
-            title={sectionLabels[libraryTab]}
+            id={`music-expanded-${expandedCategory}`}
+            title={sectionLabels[expandedCategory]}
+            subtitle={categorySubtitles[expandedCategory]}
           />
           <MusicSectionContent
-            section={data[libraryTab]}
-            emptyMessage={emptyBySection[libraryTab]}
+            section={resolveSection(expandedCategory)}
+            emptyMessage={emptyBySection[expandedCategory]}
             onOpenProfile={onOpenProfile}
+            rankedTracks={expandedCategory === 'popular' || expandedCategory === 'weeklyTrend'}
+            trackStatKind={expandedCategory === 'popular' ? 'plays' : 'likes'}
+            upvoteStatBasis={expandedCategory === 'weeklyTrend' ? 'weekly' : 'lifetime'}
+            albumShelfMode={expandedCategory === 'library' ? 'library' : 'discography'}
+            viewerUserId={user?.id}
           />
         </section>
-      ) : (
-        <div className="space-y-7">
-          {sectionHasContent(data.weeklyTrend) ? (
-            <MusicSpotlight section={data.weeklyTrend} onOpenProfile={onOpenProfile} />
-          ) : null}
-
+      ) : activeTab === 'news' ? (
+        <div className="space-y-6 pb-2">
           {creators.length > 0 ? (
-            <section aria-labelledby="music-creators">
-              <SectionHeader
+            <section aria-labelledby="music-creators" className="mb-4">
+              <SpotifyShelfHeader
                 id="music-creators"
-                title={t('music.creatorsTitle', { defaultValue: 'Créateurs à suivre' })}
+                title={t('music.creatorsTitle', { defaultValue: 'Créateurs à découvrir' })}
+                showAllLabel={showAllLabel}
               />
               <HorizontalScrollCarousel
                 itemCount={creators.length}
@@ -698,34 +1004,29 @@ export function MusicHomeSections({
             </section>
           ) : null}
 
-          {DEFAULT_SECTIONS.map((sectionId) => (
-            <section key={sectionId} aria-labelledby={`music-tab-${sectionId}`}>
-              <SectionHeader
-                id={`music-tab-${sectionId}`}
-                title={sectionLabels[sectionId]}
-                subtitle={
-                  sectionId === 'weeklyTrend'
-                    ? t('music.weeklyTrendSubtitle', {
-                        defaultValue:
-                          'Albums, morceaux et reels les plus upvotés cette semaine · reset lundi',
-                      })
-                    : sectionId === 'popular'
-                      ? t('music.popularSubtitle', {
-                          defaultValue:
-                            'Les morceaux les plus écoutés cette semaine · reset lundi',
-                        })
-                      : undefined
-                }
-              />
-              <MusicSectionContent
-                section={sectionId === 'weeklyTrend' ? data.weeklyTrend : data[sectionId]}
-                emptyMessage={emptyBySection[sectionId]}
-                onOpenProfile={onOpenProfile}
-                rankedTracks={sectionId === 'popular' || sectionId === 'weeklyTrend'}
-                trackStatKind={sectionId === 'popular' ? 'plays' : 'likes'}
-              />
-            </section>
-          ))}
+          <section aria-labelledby="music-trending-artists">
+            <SpotifyShelfHeader
+              id="music-trending-artists"
+              title={t('music.trendingArtistsTitle', {
+                defaultValue: 'Artistes tendance',
+              })}
+              showAllLabel={showAllLabel}
+            />
+            <FeedTrendingUsersSection
+              users={trendingUsers}
+              loading={trendingLoading}
+              countryCode={countryCode}
+              countryName={countryName}
+              onOpenProfile={onOpenProfile}
+              hideHeader
+            />
+          </section>
+
+          {NEWS_SECTIONS.map((sectionId) => renderCategoryShelf(sectionId))}
+        </div>
+      ) : (
+        <div className="space-y-6 pb-2">
+          {FOR_YOU_SECTIONS.map((sectionId) => renderCategoryShelf(sectionId))}
         </div>
       )}
     </div>
@@ -785,25 +1086,24 @@ export function MusicSearchResults({
         })}
       />
       {albums.length > 0 ? (
-        <div>
-          <ShelfLabel>{t('music.playlistsLabel', { defaultValue: 'Playlists & albums' })}</ShelfLabel>
-          <HorizontalScrollCarousel
-            itemCount={albums.length}
-            ariaPrevLabel={t('music.scrollPrev', { defaultValue: 'Précédent' })}
-            ariaNextLabel={t('music.scrollNext', { defaultValue: 'Suivant' })}
-          >
-            {albums.map((album) => (
-              <MusicAlbumCard key={album.id} album={album} onOpenProfile={onOpenProfile} />
-            ))}
-          </HorizontalScrollCarousel>
-        </div>
+        <AlbumCarousel
+          albums={albums}
+          label={t('music.albumsLabel', { defaultValue: 'Albums' })}
+          onOpenProfile={onOpenProfile}
+        />
       ) : null}
       {tracks.length > 0 ? (
         <div>
           <ShelfLabel>{t('music.tracksLabel', { defaultValue: 'Morceaux' })}</ShelfLabel>
           <div className="rounded-xl border border-[#1e1e2f] bg-[#12121a]/80 px-2 divide-y divide-[#1e1e2f]/70">
             {tracks.map((track) => (
-              <MusicTrackRow key={track.id} track={track} onOpenProfile={onOpenProfile} />
+              <MusicTrackRow
+                key={track.id}
+                track={track}
+                queue={tracks}
+                onOpenProfile={onOpenProfile}
+                upvoteStatBasis="lifetime"
+              />
             ))}
           </div>
         </div>

@@ -103,7 +103,7 @@ Légende : ✅ Couvert · ⚠️ Partiel · ❌ Absent · N/A Non applicable à 
 | Sujet | Commentaire |
 |-------|-------------|
 | **Dossier B2B sponsor** | Devis, contrat, reporting, justification tarifs — **plus explicite** que self-serve TikTok Ads. |
-| **Pourboires vs dons** | Document dédié commission 30 % — **rarement aussi clair**. |
+| **Pourboires vs dons** | Document dédié commission 50 % — **rarement aussi clair**. |
 | **YouTube / API tierces** | `conditions-api-plateformes.pdf` — **aligné** bonnes pratiques Google API. |
 | **DPIA + DPA dans le pack avocat** | Niveau **entreprise / RGPD** souvent **interne only** chez les géants. |
 | **Verticalisation musicale dans CGU** | Règle de contenu **plus précise** que des Community Standards généralistes. |

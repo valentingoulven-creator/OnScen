@@ -6,14 +6,14 @@ export type StaffRole = 'admin' | 'dev';
 export const ADMIN_OPERATIONAL_TAB_IDS: AdminPrimaryTabId[] = [
   'accounts',
   'content',
+  'analytics',
   'support',
   'sponsors',
 ];
 
-/** Onglets réservés aux comptes Dev (infra, accès, analytics, agents). */
+/** Onglets réservés aux comptes Dev (infra, accès, agents). */
 export const ADMIN_DEV_ONLY_TAB_IDS: AdminPrimaryTabId[] = [
   'access',
-  'analytics',
   'agents',
   'integrations',
 ];

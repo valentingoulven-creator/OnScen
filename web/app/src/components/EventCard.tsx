@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -10,7 +10,7 @@ import {
   resolveEventHeroVisual,
   splitFeedEventContent,
 } from '../lib/feedEvents';
-import { getMapEventDisplayIcon, type FeedEventType } from '../lib/eventType';
+import { getFeedEventTypeDisplayIcon, getFeedEventTypeDisplayLabel } from '../lib/eventType';
 import { storyLinkDisplayLabel } from '../lib/storyLink';
 import { resolveEventCoordsSync } from '../lib/mapEventCoords';
 import type { FeedPost } from '../types';
@@ -21,6 +21,16 @@ import { EventTaggedUsersRow } from './EventTaggedUsersRow';
 import { EventUpvoteButton } from './EventUpvoteButton';
 import { EventCardMapSidebar } from './EventCardMapSidebar';
 import { EventDevSponsoButton } from './EventDevSponsoButton';
+import { LinkifiedText } from './LinkifiedText';
+import { MentionLinkifiedText } from './MentionLinkifiedText';
+import { splitTextWithLinks } from '../lib/linkifyText';
+
+function textHasUrlLinks(text: string): boolean {
+  return splitTextWithLinks(text).some((s) => s.type === 'link');
+}
+
+const eventTextLinkClass =
+  '[&_a]:text-sky-300 [&_a]:hover:text-sky-200 [&_a]:underline [&_a]:decoration-sky-400/40 [&_a]:underline-offset-2 [&_a]:break-all';
 
 function CalendarIcon({ className }: { className?: string }) {
   return (
@@ -42,11 +52,6 @@ function ShareIcon({ className }: { className?: string }) {
   );
 }
 
-function eventTypeLabel(t: ReturnType<typeof useTranslation>['t'], eventType?: FeedEventType | null): string {
-  if (eventType === 'dance') return t('feed.eventTypeDance');
-  if (eventType === 'chant') return t('feed.eventTypeChant');
-  return t('feed.eventTypeAutre');
-}
 
 function eventTypeEmojiClass(isSidebar: boolean, isCompact: boolean): string {
   if (isSidebar) return 'text-[1.75rem] leading-none';
@@ -137,6 +142,9 @@ export function EventCard({
   const eventDates = getEventDates(post);
   const primaryEventDate = getPrimaryEventDate(post);
   const { title: eventTitle, description: eventDescription } = splitFeedEventContent(post.content);
+  const inlineTextLinks =
+    textHasUrlLinks(eventTitle) || textHasUrlLinks(eventDescription);
+  const useDivCardShell = embedded || (inlineTextLinks && !onOpenAuthor);
   const isCarousel = layout === 'carousel';
   const isCompact = compact ?? !isCarousel;
   const isSidebar = density === 'sidebar';
@@ -279,10 +287,8 @@ export function EventCard({
     </div>
   ) : null;
 
-  const eventTypeIcon = getMapEventDisplayIcon(post.eventType, { sponsored: sponsoredVisual });
-  const eventTypeName = sponsoredVisual
-    ? t('map.sidebarSponsoCategory', { defaultValue: 'Sponso' })
-    : eventTypeLabel(t, post.eventType);
+  const eventTypeIcon = getFeedEventTypeDisplayIcon(post.eventType, { sponsored: sponsoredVisual });
+  const eventTypeName = getFeedEventTypeDisplayLabel(t, post.eventType, { sponsored: sponsoredVisual });
 
   const heroVisual = (
     <div className={`relative w-full overflow-hidden bg-[#1a1028] ${heroClass}`}>
@@ -424,30 +430,54 @@ export function EventCard({
       ) : null}
 
       {eventTitle ? (
-        <p
-          className={`font-semibold text-white leading-snug ${
+        <LinkifiedText
+          as="div"
+          text={eventTitle}
+          className={`font-semibold text-white leading-snug ${eventTextLinkClass} ${
             isCompact ? 'text-[11px] line-clamp-2' : 'text-sm'
           }`}
-        >
-          {eventTitle}
-        </p>
+        />
       ) : null}
 
       {eventDescription ? (
         isCompact ? (
-          <p className="text-[11px] text-gray-400 leading-snug line-clamp-2">{eventDescription}</p>
+          <MentionLinkifiedText
+            as="div"
+            text={eventDescription}
+            mentionUsers={post.eventTaggedUsers}
+            onOpenProfile={onOpenTaggedUser}
+            className={`text-[11px] text-gray-400 leading-snug line-clamp-2 ${eventTextLinkClass}`}
+          />
         ) : (
           <div className="rounded-xl border border-purple-500/20 bg-purple-950/25 p-2.5 space-y-1.5">
             <p className="text-[10px] font-bold uppercase tracking-wide text-purple-300/90">
               {t('feed.eventModalSectionDetail')}
             </p>
-            <p className="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap">{eventDescription}</p>
+            <MentionLinkifiedText
+              as="div"
+              text={eventDescription}
+              mentionUsers={post.eventTaggedUsers}
+              onOpenProfile={onOpenTaggedUser}
+              className={`text-xs text-gray-300 leading-relaxed whitespace-pre-wrap ${eventTextLinkClass}`}
+            />
           </div>
         )
       ) : null}
 
       {profileRowInsideCard}
     </div>
+  );
+
+  const handleCardShellClick = (e: MouseEvent) => {
+    if ((e.target as HTMLElement).closest('a, button')) return;
+    onOpen(post);
+  };
+
+  const cardShellInner = (
+    <>
+      {heroVisual}
+      {cardBody}
+    </>
   );
 
   return (
@@ -481,14 +511,32 @@ export function EventCard({
           {cardBody}
           {profileRowOutsideCard}
         </>
+      ) : useDivCardShell ? (
+        <div
+          className={`w-full text-left ${embedded ? '' : 'active:scale-[0.99] transition-transform cursor-pointer'}`}
+          onClick={embedded ? undefined : handleCardShellClick}
+          onKeyDown={
+            embedded
+              ? undefined
+              : (e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onOpen(post);
+                  }
+                }
+          }
+          role={embedded ? undefined : 'button'}
+          tabIndex={embedded ? undefined : 0}
+        >
+          {cardShellInner}
+        </div>
       ) : (
         <button
           type="button"
           onClick={() => onOpen(post)}
           className="w-full text-left active:scale-[0.99] transition-transform"
         >
-          {heroVisual}
-          {cardBody}
+          {cardShellInner}
         </button>
       )}
 

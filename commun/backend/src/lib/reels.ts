@@ -5,6 +5,8 @@ import {
   type ReelFeedAlgorithmPreferences,
 } from './reelFeedRanking';
 import { REEL_CATALOG_ENTRIES } from './reelsDemoCatalog';
+import { getReelDemoAuthorProfile } from './reelsDemoAuthorProfiles';
+import { getReelDemoAlbumLink } from './reelsDemoStreamingLinks';
 import { getFollowingIds, isMutualFollow } from './follows';
 import { isDevUser } from './accessControl';
 import {
@@ -28,6 +30,7 @@ import {
   schedulePersistReelView,
 } from './pgReels';
 import { schedulePersist } from './persist';
+import { notifyFollowersCreatorActivity } from './followActivityNotifications';
 import {
   getCachedReelsFeed,
   invalidateReelsFeedCache,
@@ -72,24 +75,31 @@ function mixkitMusic(id: number): { audioUrl: string; hasAudio: true } {
   };
 }
 
-/** Liens album démo (vinyle cliquable sur le reel). */
+/** Liens album démo (legacy). */
 const REEL_DEMO_ALBUM_LINKS: Partial<Record<string, string>> = {
-  'reel-vinyl': 'https://open.spotify.com/album/4LH4d3eAUQHVnovOeE5odr',
   'reel-singer':
     'http://localhost:5173/profile/user_listener?tab=compositions&album=msdev_showcase_album_01',
 };
 
 /** Démos publiques — alignées sur app/src/content/reels.ts (MUSIC_REELS) */
-export const DEMO_REELS = REEL_CATALOG_ENTRIES.map((entry) => ({
-  id: entry.id,
-  title: entry.title,
-  artist: entry.artist,
-  genre: entry.genre,
-  mediaType: 'video' as const,
-  ...mixkit(entry.videoId),
-  ...mixkitMusic(entry.musicId),
-  ...(REEL_DEMO_ALBUM_LINKS[entry.id] ? { link: REEL_DEMO_ALBUM_LINKS[entry.id] } : {}),
-}));
+export const DEMO_REELS = REEL_CATALOG_ENTRIES.map((entry) => {
+  const demoAlbumLink = getReelDemoAlbumLink(entry.id);
+  const { authorId, authorUsername } = getReelDemoAuthorProfile(entry.artist);
+  const legacyLink = REEL_DEMO_ALBUM_LINKS[entry.id];
+  const link = demoAlbumLink ?? legacyLink;
+  return {
+    id: entry.id,
+    title: entry.title,
+    artist: entry.artist,
+    genre: entry.genre,
+    mediaType: 'video' as const,
+    ...mixkit(entry.videoId),
+    ...mixkitMusic(entry.musicId),
+    authorId,
+    authorUsername,
+    ...(link ? { link } : {}),
+  };
+});
 
 export type PublicReel =
   | ReturnType<typeof publicUserReel>
@@ -190,7 +200,10 @@ function canonicalPublicReel(reel: ReturnType<typeof publicUserReel>): ReturnTyp
         : 'link' in demo && demo.link?.trim()
           ? { link: demo.link.trim() }
           : {}),
-      authorId: reel.authorId,
+      authorId: reel.authorId?.trim() || ('authorId' in demo ? String(demo.authorId) : ''),
+      ...('authorUsername' in demo && demo.authorUsername
+        ? { authorUsername: demo.authorUsername }
+        : {}),
       createdAt: reel.createdAt,
       visibility: 'public' as const,
       isPrivate: false,
@@ -365,7 +378,8 @@ export function getAccessibleUserReel(
     ...('hasAudio' in demo && demo.hasAudio ? { hasAudio: true as const } : {}),
     ...('durationSec' in demo && demo.durationSec != null ? { durationSec: demo.durationSec } : {}),
     ...('link' in demo && demo.link?.trim() ? { link: demo.link.trim() } : {}),
-    authorId: '',
+    authorId: 'authorId' in demo ? String(demo.authorId) : '',
+    ...('authorUsername' in demo && demo.authorUsername ? { authorUsername: demo.authorUsername } : {}),
     createdAt: 0,
     visibility: 'public' as ReelVisibility,
     viewCount: getReelViews(demo.id).size,
@@ -705,7 +719,20 @@ export async function createUserReel(
   schedulePersistReelToPg(reel);
   schedulePersist();
   invalidateReelsFeedCache();
+  notifyReelPublishedToFollowers(reel);
   return reel;
+}
+
+function notifyReelPublishedToFollowers(reel: UserReel): void {
+  if (isPrivateReel(reel)) return;
+  const author = db.users.get(reel.authorId);
+  if (!author) return;
+  notifyFollowersCreatorActivity({
+    creator: author,
+    type: 'reel_published',
+    message: `${author.username} a publié un reel « ${reel.title} » 🎬`,
+    reelId: reel.id,
+  });
 }
 
 export function publishUserReel(reelId: string, userId: string): UserReel | { error: string } {
@@ -739,6 +766,7 @@ export function publishUserReel(reelId: string, userId: string): UserReel | { er
   schedulePersistReelToPg(reel);
   schedulePersist();
   invalidateReelsFeedCache();
+  notifyReelPublishedToFollowers(reel);
   return reel;
 }
 

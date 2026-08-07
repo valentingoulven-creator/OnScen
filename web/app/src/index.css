@@ -482,13 +482,28 @@ body {
   --app-header-tabs-h: 3.25rem;
 }
 
-/* Grand salon plein écran — remplit la zone main (padding-top header déjà sur main) */
+/*
+ * Grand salon / live plein écran — sous le header Soundy fixe.
+ * `header.ms-app-header` est position:fixed (hors flux) : main commence à y=0
+ * viewport et ne réserve le header que via padding-top pour le contenu en flux.
+ * Un enfant `position:absolute; inset:0` ignore ce padding et se peignait SOUS
+ * le header (z-100) — LiveHostTopBar + haut du théâtre passaient derrière le
+ * bandeau app. Même correctif que `.ms-app-admin-overlay` (top = header-h).
+ */
 .ms-salon-fullscreen-overlay {
   position: absolute;
-  inset: 0;
+  inset: auto;
+  top: var(--app-header-total-h);
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 60;
   isolation: isolate;
   --salon-host-drawer-viewport-bottom: 0px;
+}
+
+.ms-app-shell--active-session-banner .ms-salon-fullscreen-overlay {
+  top: calc(var(--app-header-total-h) + var(--ms-active-session-banner-h));
 }
 
 /* Shell classique : réserve la barre d'onglets flottante (Reels, DM…) sous le salon */
@@ -522,6 +537,8 @@ body {
  */
 .ms-salon-fullscreen-overlay:has(.live-video-container--landscape-theater) {
   z-index: 110;
+  /* Plein écran fallback : remonte au-dessus du header (edge-to-edge). */
+  top: 0;
 }
 
 /* Salon YouTube plein écran — search / playlist / file scrollables au-dessus des onglets */
@@ -637,6 +654,12 @@ main.ms-app-main {
   padding-bottom: var(--tab-nav-total-h);
 }
 
+:root:not([data-design-quick-wins="1"])
+  .ms-app-shell--bottom-tabs:has(.ms-music-player-bar)
+  main.ms-app-main:not(:has(.dm-thread-root)):not(:has(.ms-map-page)) {
+  padding-bottom: calc(var(--tab-nav-total-h) + var(--ms-music-player-bar-h));
+}
+
 :root:not([data-design-quick-wins="1"]) .ms-app-shell--bottom-tabs main.ms-app-main:has(.dm-thread-root) {
   padding-bottom: 0;
 }
@@ -654,13 +677,93 @@ main.ms-app-main.ms-app-main--no-header {
   padding-top: 0;
 }
 
-/* Onglets bas — conteneur invisible ; seules les icônes flottent (fixed, centrées) */
+/* Lecteur musique — au-dessus du dock d'onglets (Spotify-like), pas sous les icônes flottantes. */
+.ms-app-shell--bottom-tabs {
+  --ms-music-player-bar-h: 0px;
+}
+
+.ms-app-shell--bottom-tabs:has(.ms-music-player-bar) {
+  --ms-music-player-bar-h: calc(
+    0.25rem + 3.25rem + var(--ms-music-player-taller, 0.5cm) + 1rem + 0.3cm +
+      var(--ms-music-player-lift, 0.25cm)
+  );
+}
+
+.ms-music-player-bar {
+  --ms-music-player-taller: 0.5cm;
+  --ms-music-player-lift: 0.25cm;
+  --ms-music-player-panel-radius: 1rem;
+  bottom: 0;
+  z-index: 78;
+  padding-bottom: calc(var(--tab-nav-total-h) + var(--ms-music-player-lift));
+  box-sizing: border-box;
+  background: linear-gradient(
+    180deg,
+    rgba(11, 11, 15, 0.55) 0%,
+    rgba(11, 11, 15, 0.92) 45%,
+    rgba(11, 11, 15, 0.98) 100%
+  );
+  pointer-events: none;
+}
+
+.ms-music-player-bar__panel {
+  pointer-events: auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 1px;
+  padding-bottom: 0;
+  border-radius: var(--ms-music-player-panel-radius);
+  background: linear-gradient(
+    135deg,
+    rgba(244, 114, 182, 0.55) 0%,
+    rgba(168, 85, 247, 0.45) 45%,
+    rgba(255, 255, 255, 0.14) 100%
+  );
+  box-shadow:
+    0 -10px 40px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.ms-music-player-bar__panel-inner {
+  overflow: hidden;
+  border-radius: calc(var(--ms-music-player-panel-radius) - 1px);
+  background: rgba(20, 20, 28, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.ms-music-player-bar__progress {
+  height: 0.2rem;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ms-music-player-bar__progress-fill {
+  height: 100%;
+  border-radius: 0 999px 999px 0;
+  background: linear-gradient(90deg, #ec4899 0%, #a855f7 55%, #c084fc 100%);
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.45);
+}
+
+.ms-music-player-bar__body {
+  min-height: calc(3.25rem + var(--ms-music-player-taller));
+  padding-top: calc(0.5rem + 0.15cm);
+  padding-bottom: calc(0.5rem + 0.15cm);
+}
+
+.ms-music-player-bar__cover {
+  width: calc(2.75rem + 0.15cm);
+  height: calc(2.75rem + 0.15cm);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
 nav.ms-tab-bar-bottom {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 70;
+  z-index: 80;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1061,6 +1164,36 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   }
 }
 
+.map-marker.live.map-marker-live--compact {
+  position: relative;
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+}
+
+.map-marker-host-hover-label {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 2px);
+  transform: translateX(-50%);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease, visibility 0.12s ease;
+  white-space: nowrap;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.map-marker-host-hover-label span.map-marker-username {
+  font-size: 10px;
+}
+
+.globe-live-marker-hit:hover .map-marker-host-hover-label,
+.globe-live-marker-hit:focus-visible .map-marker-host-hover-label {
+  opacity: 1;
+  visibility: visible;
+}
+
 .map-marker-dot-row {
   display: flex;
   flex-direction: row;
@@ -1401,6 +1534,23 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   box-shadow: 0 0 8px rgba(124, 58, 237, 0.55);
   pointer-events: none;
 }
+
+.map-marker-overview-pin--labeled {
+  flex-direction: column;
+  height: auto;
+  width: auto;
+  min-width: 28px;
+  padding-bottom: 2px;
+}
+
+.map-marker-overview-pin--labeled .map-marker-username {
+  position: relative;
+  z-index: 2;
+  margin-top: 2px;
+  font-size: 9px;
+  max-width: 72px;
+}
+
 .map-marker-live-cluster-badge {
   position: absolute;
   top: -6px;
@@ -2520,6 +2670,29 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   touch-action: manipulation;
   transform: translate3d(0, 0, 0);
   transition: transform 0.12s ease;
+}
+
+.globe-live-marker-hit--labeled {
+  width: auto;
+  height: auto;
+  min-width: calc(16px * var(--globe-icon-scale, 1));
+  min-height: calc(16px * var(--globe-icon-scale, 1));
+}
+
+.globe-live-marker-html {
+  display: block;
+  pointer-events: none;
+  transform: scale(calc(0.92 * var(--globe-icon-scale, 1)));
+  transform-origin: center center;
+}
+
+.globe-live-marker-html .map-marker {
+  pointer-events: none;
+}
+
+.globe-live-marker-hit .map-marker-overview-pin,
+.globe-live-marker-hit .map-marker.live {
+  pointer-events: none;
 }
 
 .globe-live-marker-hit:hover,
@@ -4207,6 +4380,36 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   color: rgba(156, 163, 175, 0.95);
 }
 
+/* Bouton Don live — dégradé wave Soundy (légère animation) */
+button.live-theater-chrome-btn.live-theater-chrome-btn--soundy-wave {
+  background-color: transparent;
+  background-image: linear-gradient(
+    90deg,
+    #7c3aed,
+    #db2777,
+    #c084fc,
+    #f472b6,
+    #7c3aed
+  );
+  background-size: 220% 100%;
+  animation: live-soundy-donate-wave 5s ease-in-out infinite;
+}
+
+button.live-theater-chrome-btn.live-theater-chrome-btn--soundy-wave:hover {
+  background-color: transparent;
+  filter: brightness(1.08);
+}
+
+@keyframes live-soundy-donate-wave {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
 /*
  * Bandeau statut live — au-dessus du dock d'onglets (PhoneWebShell / quick wins).
  * MODIF 941 — cette règle doit rester scopée à la scène THÉÂTRE NON PLEIN ÉCRAN
@@ -4455,7 +4658,8 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+  /* Safe-area top déjà consommée par le header + LiveHostTopBar (live-viewer-chrome). */
+  padding-top: 0.5rem;
   padding-inline: max(0.75rem, env(safe-area-inset-left, 0px))
     max(0.75rem, env(safe-area-inset-right, 0px));
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
@@ -4470,6 +4674,7 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 .ms-salon-fullscreen-overlay .room-theater-layout--live-theater-fill {
   align-items: stretch;
   justify-content: flex-start;
+  padding-top: 0;
 }
 
 /* Live chat épinglé à gauche — flex row (pas la grille salon 30 %). */
@@ -4606,7 +4811,8 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   position: relative;
   z-index: 35;
   isolation: isolate;
-  padding-top: env(safe-area-inset-top, 0px);
+  /* Overlay commence sous le header (safe-area déjà dans --app-header-total-h). */
+  padding-top: 0;
 }
 
 .ms-salon-fullscreen-overlay .room-theater-stack-column--live-theater {
@@ -5845,6 +6051,17 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 [data-design-quick-wins="1"] .ms-app-shell--bottom-tabs main.ms-app-main .h-full.overflow-y-auto:not(.reels-track),
 [data-design-quick-wins="1"] .ms-app-profile-overlay .overflow-y-auto {
   padding-bottom: calc(var(--tab-nav-total-h) + 0.5rem);
+}
+
+[data-design-quick-wins="1"]
+  .ms-app-shell--bottom-tabs:has(.ms-music-player-bar)
+  main.ms-app-main
+  .flex-1.min-h-0.overflow-y-auto:not(.reels-track),
+[data-design-quick-wins="1"]
+  .ms-app-shell--bottom-tabs:has(.ms-music-player-bar)
+  main.ms-app-main
+  .h-full.overflow-y-auto:not(.reels-track) {
+  padding-bottom: calc(var(--tab-nav-total-h) + var(--ms-music-player-bar-h) + 0.5rem);
 }
 
 /* Sound Rail — une rangée flex, 5 icônes centrées horizontalement et verticalement */

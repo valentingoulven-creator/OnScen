@@ -94,11 +94,10 @@ const DEFAULT_SPONSORS: Omit<Sponsor, 'createdAt' | 'updatedAt'>[] = [
     active: true,
     priority: 1,
     title: 'Solar Festival au Crès',
-    subtitle: '5e édition — électro en bord de lac, 4 juillet 2026 · Petit Biscuit, KAS:ST & plus',
+    subtitle: '6e édition — électro en bord de lac, 4 juillet 2027 · Petit Biscuit, KAS:ST & plus',
     cta: 'Billetterie',
     linkUrl: 'https://solarfestival.fr/billetterie',
-    logoUrl:
-      'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=80&h=80&fit=crop',
+    logoUrl: '/sponsors/solar-festival-avatar.jpg',
     accent: 'amber',
     kind: 'promo',
     displayDurationSec: 10,

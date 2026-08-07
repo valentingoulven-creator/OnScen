@@ -90,6 +90,7 @@ export function FeedTrendingUsersSection({
   countryName,
   onOpenProfile,
   className = '',
+  hideHeader = false,
 }: {
   users: TrendingUser[];
   loading: boolean;
@@ -97,18 +98,25 @@ export function FeedTrendingUsersSection({
   countryName: string;
   onOpenProfile: (userId: string) => void;
   className?: string;
+  /** Masque le titre interne (ex. home Musique avec en-tête Spotify). */
+  hideHeader?: boolean;
 }) {
   const { t } = useTranslation();
   const subtitle = formatTrendsCountrySubtitle(countryCode, countryName);
 
   return (
-    <section className={`space-y-2.5 ${className}`} aria-labelledby="feed-trends-week">
-      <FeedSectionHeader
-        id="feed-trends-week"
-        label={t('feed.trendsWeek', { defaultValue: 'TENDANCES DE LA SEMAINE' })}
-        emoji="🔥"
-        subtitle={subtitle}
-      />
+    <section
+      className={`space-y-2.5 ${className}`}
+      aria-labelledby={hideHeader ? undefined : 'feed-trends-week'}
+    >
+      {hideHeader ? null : (
+        <FeedSectionHeader
+          id="feed-trends-week"
+          label={t('feed.trendsWeek', { defaultValue: 'TENDANCES DE LA SEMAINE' })}
+          emoji="🔥"
+          subtitle={subtitle}
+        />
+      )}
       {loading && users.length === 0 ? (
         <div className="overflow-x-auto -mx-3 px-3">
           <div className="flex gap-4 w-max pb-1">

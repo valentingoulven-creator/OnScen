@@ -1,8 +1,21 @@
 import { db, type FeedPost, type User } from './models/schema';
 import { schedulePersist } from './lib/persist';
+import { refreshUserPublicCoords } from './lib/locationPrivacy';
 
 /** Publications événement sponsorisées (carte + fil) — idempotent en production. */
 export const PROD_SPONSOR_EVENT_ID_PREFIX = 'prod-sponso-evt-';
+
+export const SOLAR_FESTIVAL_SPONSOR_EVENT_ID = `${PROD_SPONSOR_EVENT_ID_PREFIX}solar-festival-2026`;
+export const SOLAR_FESTIVAL_ORGANIZER_USER_ID = 'user_solar_festival';
+/** Photo profil Instagram officielle (copie locale + URL source solarfestival.fr). */
+export const SOLAR_FESTIVAL_ORGANIZER_AVATAR = '/sponsors/solar-festival-avatar.jpg';
+export const SOLAR_FESTIVAL_ORGANIZER_USERNAME = 'Solarfestival';
+/** Affichage upvotes événement Solar (baseline + votes réels). */
+export const SOLAR_FESTIVAL_SPONSOR_UPVOTE_SEED = 6300;
+/** Date officielle affichée (non repoussée en msdev). */
+export const SOLAR_FESTIVAL_SPONSOR_EVENT_DATE = '2027-07-04T14:00:00.000Z';
+export const SOLAR_FESTIVAL_SPONSOR_EVENT_CONTENT =
+  'Solar Festival — 6e édition au Crès, 4 juillet 2027. Petit Biscuit, KAS:ST, The Avener… Billetterie : https://solarfestival.fr/billetterie';
 
 export interface ProductionSponsorEventSeed {
   id: string;
@@ -17,9 +30,8 @@ export interface ProductionSponsorEventSeed {
 export const PRODUCTION_SPONSOR_EVENT_SEEDS: ProductionSponsorEventSeed[] = [
   {
     id: `${PROD_SPONSOR_EVENT_ID_PREFIX}solar-festival-2026`,
-    content:
-      'Solar Festival — 5e édition au Crès, 4 juillet 2026. Petit Biscuit, KAS:ST, The Avener… Billetterie : https://solarfestival.fr/billetterie',
-    eventDate: '2026-07-04T14:00:00.000Z',
+    content: SOLAR_FESTIVAL_SPONSOR_EVENT_CONTENT,
+    eventDate: SOLAR_FESTIVAL_SPONSOR_EVENT_DATE,
     eventLocation: 'Solar Festival, Le Crès, France',
     eventType: 'dance',
     imageUrl: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&fit=crop',
@@ -100,6 +112,66 @@ function resolveSponsorContentAuthor(): User | undefined {
   return [...db.users.values()].find((u) => u.username.toLowerCase() === 'soundy');
 }
 
+function ensureSolarFestivalOrganizerUser(): User {
+  const now = Date.now();
+  const existing = db.users.get(SOLAR_FESTIVAL_ORGANIZER_USER_ID);
+  const user: User = {
+    id: SOLAR_FESTIVAL_ORGANIZER_USER_ID,
+    username: SOLAR_FESTIVAL_ORGANIZER_USERNAME,
+    email: 'solarfestival@organizer.soundy.local',
+    passwordHash: existing?.passwordHash ?? 'bot',
+    avatarUrl: SOLAR_FESTIVAL_ORGANIZER_AVATAR,
+    meloCoins: existing?.meloCoins ?? 0,
+    isGhostMode: false,
+    bio: existing?.bio ?? 'Solar Festival — More Music, Más Amor · @thesolarfestival',
+    city: 'Le Crès, France',
+    latitude: 43.6489,
+    longitude: 3.9394,
+    listeningRole: 'host',
+    connectedPlatforms: existing?.connectedPlatforms ?? [],
+    lastSeenAt: now,
+    memberSince: existing?.memberSince ?? now - 180 * 86_400_000,
+    accountStatus: 'active',
+    ...(existing?.usernameColor ? { usernameColor: existing.usernameColor } : {}),
+  };
+  refreshUserPublicCoords(user);
+  db.users.set(user.id, user);
+  return user;
+}
+
+function resolveAuthorForSponsorSeed(seed: ProductionSponsorEventSeed, fallback: User): User {
+  if (seed.id === SOLAR_FESTIVAL_SPONSOR_EVENT_ID) {
+    return ensureSolarFestivalOrganizerUser();
+  }
+  return fallback;
+}
+
+function syncSolarFestivalSponsorPostAuthor(): boolean {
+  const post = db.feedPosts.find((p) => p.id === SOLAR_FESTIVAL_SPONSOR_EVENT_ID);
+  if (!post) return false;
+  ensureSolarFestivalOrganizerUser();
+  let changed = false;
+  if (post.userId !== SOLAR_FESTIVAL_ORGANIZER_USER_ID) {
+    post.userId = SOLAR_FESTIVAL_ORGANIZER_USER_ID;
+    changed = true;
+  }
+  if (post.eventUpvoteSeed !== SOLAR_FESTIVAL_SPONSOR_UPVOTE_SEED) {
+    post.eventUpvoteSeed = SOLAR_FESTIVAL_SPONSOR_UPVOTE_SEED;
+    changed = true;
+  }
+  if (post.eventDate !== SOLAR_FESTIVAL_SPONSOR_EVENT_DATE) {
+    post.eventDate = SOLAR_FESTIVAL_SPONSOR_EVENT_DATE;
+    delete post.eventDates;
+    delete post.eventEndTimes;
+    changed = true;
+  }
+  if (post.content !== SOLAR_FESTIVAL_SPONSOR_EVENT_CONTENT) {
+    post.content = SOLAR_FESTIVAL_SPONSOR_EVENT_CONTENT;
+    changed = true;
+  }
+  return changed;
+}
+
 function upsertSponsorEvent(post: FeedPost): boolean {
   if (db.feedPosts.some((p) => p.id === post.id)) return false;
   db.feedPosts.push(post);
@@ -123,26 +195,33 @@ export function seedProductionSponsorEvents(): SeedProductionSponsorEventsResult
     return { created: 0, total: countProductionSponsorEvents(), skippedNoAuthor: true };
   }
 
+  ensureSolarFestivalOrganizerUser();
+  let migrated = syncSolarFestivalSponsorPostAuthor();
+
   const now = Date.now();
   let created = 0;
 
   for (let i = 0; i < PRODUCTION_SPONSOR_EVENT_SEEDS.length; i++) {
     const seed = PRODUCTION_SPONSOR_EVENT_SEEDS[i]!;
+    const postAuthor = resolveAuthorForSponsorSeed(seed, author);
     const post: FeedPost = {
       id: seed.id,
-      userId: author.id,
+      userId: postAuthor.id,
       content: seed.content,
       ...(seed.imageUrl ? { imageUrl: seed.imageUrl } : {}),
       isEvent: true,
       eventDate: seed.eventDate,
       eventLocation: seed.eventLocation,
       eventType: seed.eventType,
+      ...(seed.id === SOLAR_FESTIVAL_SPONSOR_EVENT_ID
+        ? { eventUpvoteSeed: SOLAR_FESTIVAL_SPONSOR_UPVOTE_SEED }
+        : {}),
       createdAt: now - i * 3_600_000,
     };
     if (upsertSponsorEvent(post)) created += 1;
   }
 
-  if (created > 0) schedulePersist();
+  if (created > 0 || migrated) schedulePersist();
 
   return { created, total: countProductionSponsorEvents() };
 }
@@ -151,12 +230,15 @@ export function seedProductionSponsorEvents(): SeedProductionSponsorEventsResult
 export function refreshMsdevSponsorEventDatesIfStale(): number {
   if (process.env.APP_ENV !== 'msdev') return 0;
   const ts = Date.now();
+  let updated = 0;
+  if (syncSolarFestivalSponsorPostAuthor()) updated += 1;
+  ensureSolarFestivalOrganizerUser();
   const posts = db.feedPosts.filter(
     (p) => p.id.startsWith(PROD_SPONSOR_EVENT_ID_PREFIX) && p.isEvent
   );
-  let updated = 0;
   let dayOffset = 0;
   for (const post of posts) {
+    if (post.id === SOLAR_FESTIVAL_SPONSOR_EVENT_ID) continue;
     const iso = post.eventDate ?? post.eventDates?.[0];
     const eventTs = iso ? Date.parse(iso) : Number.NaN;
     if (Number.isFinite(eventTs) && eventTs > ts) continue;

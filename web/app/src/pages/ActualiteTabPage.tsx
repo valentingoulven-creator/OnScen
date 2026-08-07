@@ -1,10 +1,15 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { getSocket, isSocketConnected } from '../lib/socket';
 import { applyFeedPreferences, boostPostsByGenreAffinity, sortFeedPostsByPublicationDate } from '../lib/feedFilter';
 import { HOME_FEED_DISPLAY_PREFS } from '../lib/feedUserPrefs';
+import {
+  filterNonFollowingFeedPosts,
+  getHomeFeedFollowingCutoffMs,
+  partitionFollowingFeedByRecency,
+} from '../lib/homeFeedFollowingWindow';
 import { UsernameDisplay } from '../components/UsernameDisplay';
 import { invalidateStoriesCache } from '../lib/storiesApiCache';
 import {
@@ -23,16 +28,17 @@ import {
   EVENTS_COUNTRY_FALLBACK,
 } from '../lib/countryDisplay';
 import { FeedTrendingUsersSection } from '../components/FeedTrendingUsersSection';
+import { FeedPostImagesPreview } from '../components/FeedPostImagesPreview';
 import { resolveEventCoords } from '../lib/mapEventCoords';
 import { dispatchMapEventsRefresh, dispatchMapOpenCreateSalon } from '../lib/mapUiEvents';
 import type { CommentAlign, FeedPost, FeedPostComment, MapStory, MusicNewsItem, StoryTaggedUser, TrendingUser } from '../types';
 import { StoryAvatarRing } from '../components/MapStoryRings';
 import { StoriesInlineBar, type StorySheetState } from '../components/StoriesInlineBar';
 import { FeedInlineAdBanner } from '../components/FeedInlineAdBanner';
-import { VirtualList } from '../components/VirtualList';
 import { StoryViewer } from '../components/StoryViewer';
 import { useStoryViewerWithSponsors } from '../hooks/useStoryViewerWithSponsors';
 import { useActualiteFeedLoader } from '../hooks/useActualiteFeedLoader';
+import { useMapSidebarSponsoredEvents } from '../hooks/useMapSidebarSponsoredEvents';
 import {
   findStackForStory,
   latestStory,
@@ -45,6 +51,7 @@ import { ShareToUserSheet } from '../components/ShareToUserSheet';
 import { buildFeedPostSharePayload, getFeedPostShareUrl } from '../lib/feedPostShare';
 import { markFeedPostLinkShared, readFeedPostLinkSharedIds } from '../lib/feedPostShareState';
 import { EventsCarousel } from '../components/EventsCarousel';
+import { MapEventBrowseDetailOverlay } from '../components/MapEventBrowseDetailOverlay';
 import { EventUpvoteButton } from '../components/EventUpvoteButton';
 import { HorizontalScrollCarousel } from '../components/HorizontalScrollCarousel';
 import { NewsArticleCard } from '../components/NewsArticleCard';
@@ -264,11 +271,14 @@ function PullToRefreshContainer({
   refreshing,
   className,
   children,
+  scrollContainerRef,
 }: {
   onRefresh: () => void;
   refreshing: boolean;
   className?: string;
   children: ReactNode;
+  /** Conteneur scroll `.feed-scroll` — pour VirtualList / IntersectionObserver. */
+  scrollContainerRef?: RefObject<HTMLDivElement | null>;
 }) {
   const [pullY, setPullY] = useState(0);
   const isPulling = useRef(false);
@@ -279,6 +289,11 @@ function PullToRefreshContainer({
   const THRESHOLD = 64;
 
   onRefreshRef.current = onRefresh;
+
+  useEffect(() => {
+    if (!scrollContainerRef) return;
+    scrollContainerRef.current = containerRef.current;
+  }, [scrollContainerRef]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -371,6 +386,7 @@ function ActualitesContent({
   trendingLoading = false,
   onOpenProfile,
   onOpenAuthor,
+  onOpenEventDetail,
   onShareEvent,
   onPatchEventPost,
   countryCode = null,
@@ -394,6 +410,7 @@ function ActualitesContent({
   trendingLoading?: boolean;
   onOpenProfile: (userId: string) => void;
   onOpenAuthor: (post: FeedPost) => void;
+  onOpenEventDetail?: (post: FeedPost) => void;
   onShareEvent?: (post: FeedPost) => void;
   onPatchEventPost?: (postId: string, patch: Partial<FeedPost>) => void;
   countryCode?: string | null;
@@ -615,7 +632,7 @@ function ActualitesContent({
         ) : (
           <EventsCarousel
             posts={userCreatedEvents}
-            onOpen={onOpenAuthor}
+            onOpen={onOpenEventDetail ?? onOpenAuthor}
             onShare={onShareEvent}
             onPostChange={onPatchEventPost}
           />
@@ -635,7 +652,7 @@ function ActualitesContent({
         ) : (
           <EventsCarousel
             posts={countryUpcoming}
-            onOpen={onOpenAuthor}
+            onOpen={onOpenEventDetail ?? onOpenAuthor}
             onShare={onShareEvent}
             onPostChange={onPatchEventPost}
             getExtraBadges={() => (
@@ -734,9 +751,7 @@ const PostCard = memo(function PostCard({
         type="button"
         onClick={() => onOpenAuthor(post)}
         className="flex items-center gap-2 text-left w-full"
-        aria-label={
-          authorHasStory ? `Story de ${post.author.username}` : `Profil de ${post.author.username}`
-        }
+        aria-label={`Profil de ${post.author.username}`}
       >
         <StoryAvatarRing
           hasActiveStory={authorHasStory}
@@ -753,11 +768,6 @@ const PostCard = memo(function PostCard({
               usernameWaveTo={post.author.usernameWaveTo}
               className="text-sm font-semibold truncate block"
             />
-            {authorHasStory ? (
-              <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-purple-300 bg-purple-500/15 px-1.5 py-0.5 rounded">
-                Story
-              </span>
-            ) : null}
           </div>
           <p className="text-[11px] text-gray-500">
             {post.resharedFromId && <span className="text-green-500/80 mr-1">🔁 {t('feed.reshared')}</span>}
@@ -808,15 +818,7 @@ const PostCard = memo(function PostCard({
       {post.content.trim() ? (
         <p className="text-sm text-gray-200 whitespace-pre-wrap break-words">{post.content}</p>
       ) : null}
-      {post.imageUrl && (
-        <img
-          src={post.imageUrl}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          className="w-full rounded-lg max-h-64 object-cover bg-[#1e1e2f]"
-        />
-      )}
+      <FeedPostImagesPreview post={post} />
       {post.videoUrl && (
         <video
           src={post.videoUrl}
@@ -855,15 +857,7 @@ const PostCard = memo(function PostCard({
               {post.resharedFrom.content}
             </p>
           )}
-          {post.resharedFrom.imageUrl && (
-            <img
-              src={post.resharedFrom.imageUrl}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              className="w-full rounded-md max-h-40 object-cover bg-[#1e1e2f]"
-            />
-          )}
+          <FeedPostImagesPreview post={post.resharedFrom} label="Republication" />
           {post.resharedFrom.videoUrl && (
             <video
               src={post.resharedFrom.videoUrl}
@@ -1033,10 +1027,12 @@ export function ActualiteTabPage({
     error,
     setError,
     loadFeed,
+    loadMoreFollowing,
     loadFeedStories,
     feedStoriesByUser,
     setFeedStoriesByUser,
   } = useActualiteFeedLoader(token, isActive, showNews);
+  const homeSponsoredEvents = useMapSidebarSponsoredEvents(isActive && !showNews ? token : null);
 
   const [publishing, setPublishing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -1058,8 +1054,18 @@ export function ActualiteTabPage({
   const [eventDescription, setEventDescription] = useState('');
   const [eventLinkUrl, setEventLinkUrl] = useState('');
   const [eventTaggedUsers, setEventTaggedUsers] = useState<StoryTaggedUser[]>([]);
+  const [feedEventDetailPost, setFeedEventDetailPost] = useState<FeedPost | null>(null);
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
+  const [followingIds, setFollowingIds] = useState<Set<string>>(() => new Set());
+  const [suggestionPosts, setSuggestionPosts] = useState<FeedPost[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [seenAllRecentFollowing, setSeenAllRecentFollowing] = useState(false);
+  const [showOlderFollowing, setShowOlderFollowing] = useState(false);
+  const [loadingMoreFollowing, setLoadingMoreFollowing] = useState(false);
+  const [followingOlderExhausted, setFollowingOlderExhausted] = useState(false);
+  const recentFollowingEndRef = useRef<HTMLDivElement>(null);
+  const feedScrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   const [newsItems, setNewsItems] = useState<MusicNewsItem[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
@@ -1144,16 +1150,53 @@ export function ActualiteTabPage({
     [user?.interests, user?.favoriteGenres, user?.favoriteArtists]
   );
 
-  const visiblePosts = useMemo(() => {
-    if (!user?.id) return sortFeedPostsByPublicationDate(posts);
-    const filtered = applyFeedPreferences(posts, HOME_FEED_DISPLAY_PREFS, {
-      viewerId: user.id,
-      favoriteIds,
-      viewerTastes,
-    });
-    // Boost posts from genre-matched authors when the user has favorite genres set
-    return boostPostsByGenreAffinity(filtered, viewerTastes.favoriteGenres);
-  }, [posts, user?.id, favoriteIds, viewerTastes]);
+  const applyHomeFeedDisplay = useCallback(
+    (list: FeedPost[]) => {
+      if (!user?.id) return sortFeedPostsByPublicationDate(list);
+      const filtered = applyFeedPreferences(list, HOME_FEED_DISPLAY_PREFS, {
+        viewerId: user.id,
+        favoriteIds,
+        viewerTastes,
+      });
+      return boostPostsByGenreAffinity(filtered, viewerTastes.favoriteGenres);
+    },
+    [user?.id, favoriteIds, viewerTastes]
+  );
+
+  const followingFeedCutoffMs = getHomeFeedFollowingCutoffMs();
+
+  const { recentFollowingRaw, olderFollowingRaw } = useMemo(() => {
+    const { recent, older } = partitionFollowingFeedByRecency(posts, followingFeedCutoffMs);
+    return { recentFollowingRaw: recent, olderFollowingRaw: older };
+  }, [posts, followingFeedCutoffMs]);
+
+  const recentFollowingPosts = useMemo(
+    () => applyHomeFeedDisplay(recentFollowingRaw),
+    [applyHomeFeedDisplay, recentFollowingRaw]
+  );
+
+  const olderFollowingPosts = useMemo(
+    () => applyHomeFeedDisplay(olderFollowingRaw),
+    [applyHomeFeedDisplay, olderFollowingRaw]
+  );
+
+  const suggestionPostsDisplayed = useMemo(() => {
+    const hiddenIds = new Set(posts.map((p) => p.id));
+    const filtered = suggestionPosts.filter((p) => !hiddenIds.has(p.id));
+    return applyHomeFeedDisplay(filtered);
+  }, [applyHomeFeedDisplay, suggestionPosts, posts]);
+
+  const canOfferMoreFollowing =
+    !followingOlderExhausted &&
+    (olderFollowingRaw.length > 0 || posts.length >= 50);
+
+  const showMoreFollowingButton =
+    seenAllRecentFollowing && !showOlderFollowing && canOfferMoreFollowing;
+
+  /** Sponso + suggestions : dès la fin du bloc 48 h, sous « Afficher plus » si présent. */
+  const showHomeFeedDiscover = seenAllRecentFollowing;
+
+  const visiblePosts = recentFollowingPosts;
 
   const communityEvents = useMemo(
     () => getUpcomingUserEvents(communityEventPosts, { favoriteAuthorIds: favoriteIds }),
@@ -1180,6 +1223,92 @@ export function ActualiteTabPage({
     }, 350);
     return () => window.clearTimeout(timer);
   }, [focusPostId, isActive, loading, visiblePosts.length, onFocusPostConsumed]);
+
+  useEffect(() => {
+    if (!isActive || !token) return;
+    void api
+      .getMyFollowing(token)
+      .then((r) => setFollowingIds(new Set(r.followingIds)))
+      .catch(() => setFollowingIds(new Set()));
+  }, [isActive, token]);
+
+  const resetHomeFeedSections = useCallback(() => {
+    setSeenAllRecentFollowing(false);
+    setShowOlderFollowing(false);
+    setFollowingOlderExhausted(false);
+    setSuggestionPosts([]);
+    setSuggestionsLoading(false);
+  }, []);
+
+  const handleRefreshHomeFeed = useCallback(() => {
+    resetHomeFeedSections();
+    void loadFeed(true);
+  }, [loadFeed, resetHomeFeedSections]);
+
+  useEffect(() => {
+    if (loading || showNews || !isActive) return;
+    if (recentFollowingPosts.length === 0) {
+      setSeenAllRecentFollowing(true);
+    }
+  }, [loading, showNews, isActive, recentFollowingPosts.length]);
+
+  useEffect(() => {
+    const el = recentFollowingEndRef.current;
+    const root = feedScrollContainerRef.current;
+    if (!el || !root || showNews || !isActive || seenAllRecentFollowing) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setSeenAllRecentFollowing(true);
+        }
+      },
+      { root, rootMargin: '0px', threshold: 0.25 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [showNews, isActive, seenAllRecentFollowing, recentFollowingPosts.length]);
+
+  useEffect(() => {
+    if (!token || !user?.id || showNews || !isActive) return;
+    let cancelled = false;
+    setSuggestionsLoading(true);
+    void api
+      .getFeedPosts(token, { limit: 40, algo: true })
+      .then((res) => {
+        if (cancelled) return;
+        setSuggestionPosts(filterNonFollowingFeedPosts(res.posts, user.id, followingIds));
+      })
+      .catch(() => {
+        if (!cancelled) setSuggestionPosts([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSuggestionsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, user?.id, isActive, showNews]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    setSuggestionPosts((prev) => {
+      if (prev.length === 0) return prev;
+      return filterNonFollowingFeedPosts(prev, user.id, followingIds);
+    });
+  }, [followingIds, user?.id]);
+
+  const handleShowMoreFollowing = useCallback(async () => {
+    setLoadingMoreFollowing(true);
+    setShowOlderFollowing(true);
+    try {
+      if (olderFollowingRaw.length === 0 && posts.length >= 50) {
+        const added = await loadMoreFollowing();
+        if (added === 0) setFollowingOlderExhausted(true);
+      }
+    } finally {
+      setLoadingMoreFollowing(false);
+    }
+  }, [olderFollowingRaw.length, posts.length, loadMoreFollowing]);
 
   useEffect(() => {
     if (!isActive || !token) return;
@@ -1258,6 +1387,10 @@ export function ActualiteTabPage({
     },
     [feedStoriesByUser, onOpenProfile, user?.id]
   );
+
+  const handleOpenFeedEventDetail = useCallback((post: FeedPost) => {
+    setFeedEventDetailPost(post);
+  }, []);
 
   // ── Load news ──
   const loadNews = useCallback(async (silent = false) => {
@@ -1704,6 +1837,7 @@ export function ActualiteTabPage({
     setPosts(apply);
     setCommunityEventPosts(apply);
     setCountryEventPosts(apply);
+    setFeedEventDetailPost((prev) => (prev?.id === postId ? { ...prev, ...patch } : prev));
   }, [setPosts]);
 
   const handleLike = useCallback(async (post: FeedPost) => {
@@ -1809,6 +1943,96 @@ export function ActualiteTabPage({
     }
   }, [token, commentDrafts, commentPosting, updatePostInList, showToast]);
 
+  const renderHomeFeedPost = useCallback(
+    (post: FeedPost, postIndex: number | null) => (
+      <div key={post.id} className="flex flex-col gap-3 pb-3">
+        <PostCard
+          post={{
+            ...post,
+            resharedByMe: !!post.resharedByMe || linkSharedPostIds.has(post.id),
+          }}
+          onOpenAuthor={handlePostAuthorClick}
+          onOpenUser={onOpenProfile}
+          storiesByUser={feedStoriesByUser}
+          commentOpenPostId={commentOpenPostId}
+          commentDraft={commentDrafts[post.id] ?? ''}
+          onCommentDraftChange={(v: string) => setCommentDrafts((p) => ({ ...p, [post.id]: v }))}
+          fullComments={fullComments[post.id]}
+          commentsLoading={commentsLoading[post.id] ?? false}
+          commentPosting={commentPosting[post.id] ?? false}
+          onToggleLike={() => void handleLike(post)}
+          onToggleComments={() => void handleToggleComments(post)}
+          onPostComment={() => void handlePostComment(post.id)}
+          onReshare={() => void handleReshare(post)}
+          onShare={() => setSharePost(post)}
+          onToggleFavorite={() => void handleToggleFavorite(post)}
+          onPostPatch={(patch) => patchEventPost(post.id, patch)}
+        />
+        {postIndex === 0 ? (
+          <FeedInlineAdBanner
+            onCtaSalon={() => dispatchMapOpenCreateSalon()}
+            onCtaLive={onOpenLive ? () => onOpenLive('') : undefined}
+          />
+        ) : null}
+      </div>
+    ),
+    [
+      linkSharedPostIds,
+      handlePostAuthorClick,
+      onOpenProfile,
+      feedStoriesByUser,
+      commentOpenPostId,
+      commentDrafts,
+      fullComments,
+      commentsLoading,
+      commentPosting,
+      handleLike,
+      handleToggleComments,
+      handlePostComment,
+      handleReshare,
+      handleToggleFavorite,
+      patchEventPost,
+      onOpenLive,
+    ]
+  );
+
+  const homeFeedDiscoverSection = (
+    <div className="space-y-4 pt-2 min-w-0">
+      <FeedInlineAdBanner
+        onCtaSalon={() => dispatchMapOpenCreateSalon()}
+        onCtaLive={onOpenLive ? () => onOpenLive('') : undefined}
+      />
+      {homeSponsoredEvents.posts.length > 0 ? (
+        <div className="space-y-2 min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400/90 px-0.5">
+            {t('map.sidebarSponsoCategory', { defaultValue: 'Sponso' })}
+          </p>
+          <EventsCarousel
+            posts={homeSponsoredEvents.posts}
+            sponsoredVisual
+            onOpen={handleOpenFeedEventDetail}
+            onShare={(post) => setSharePost(post)}
+            onPostChange={patchEventPost}
+          />
+        </div>
+      ) : null}
+      <div className="space-y-3">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 px-0.5">
+          {t('feed.suggestionsSection', { defaultValue: 'Suggestions' })}
+        </p>
+        {suggestionsLoading && suggestionPostsDisplayed.length === 0 ? (
+          <p className="text-xs text-gray-500 px-0.5">{t('feed.loadingNews')}</p>
+        ) : null}
+        {suggestionPostsDisplayed.map((post) => renderHomeFeedPost(post, null))}
+        {!suggestionsLoading && suggestionPostsDisplayed.length === 0 ? (
+          <p className="text-xs text-gray-500 px-0.5">
+            {t('feed.suggestionsEmpty', { defaultValue: 'Aucune suggestion pour le moment.' })}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+
   const storiesSection = useMemo(
     () => (
       <StoriesInlineBar
@@ -1831,8 +2055,9 @@ export function ActualiteTabPage({
         {!showNews && (
           <>
             <PullToRefreshContainer
-              onRefresh={() => void loadFeed(true)}
+              onRefresh={handleRefreshHomeFeed}
               refreshing={refreshing}
+              scrollContainerRef={feedScrollContainerRef}
               className="flex-1 min-h-0 min-w-0 h-full p-3 space-y-3"
             >
               <div className="mt-4">{storiesSection}</div>
@@ -2050,61 +2275,78 @@ export function ActualiteTabPage({
                   ))}
                 </div>
               )}
-              {!loading && visiblePosts.length === 0 && (
+              {!loading &&
+                recentFollowingPosts.length === 0 &&
+                !(showOlderFollowing && olderFollowingPosts.length > 0) && (
                 <div className="flex flex-col items-center gap-2 py-8 px-4 text-center">
                   <p className="text-sm text-gray-300">
                     {posts.length === 0
-                      ? 'Aucune publication de vos abonnements pour le moment.'
-                      : 'Aucune publication ne correspond à vos filtres.'}
+                      ? t('feed.followingEmpty', {
+                          defaultValue: 'Aucune publication de vos abonnements pour le moment.',
+                        })
+                      : t('feed.followingRecentEmpty', {
+                          defaultValue:
+                            'Aucune publication de vos abonnements sur les 2 derniers jours.',
+                        })}
                   </p>
                   {posts.length === 0 ? (
                     <p className="text-xs text-[var(--ms-text-muted)] max-w-xs">
-                      Suivez des artistes depuis la carte ou leurs profils pour remplir votre fil d&apos;accueil.
+                      {t('feed.followingEmptyHint', {
+                        defaultValue:
+                          'Suivez des artistes depuis la carte ou leurs profils pour remplir votre fil d’accueil.',
+                      })}
                     </p>
                   ) : null}
                 </div>
               )}
-              {visiblePosts.length > 0 ? (
-                <VirtualList
-                  items={visiblePosts}
-                  useWindowScroll
-                  renderItem={(post, postIndex) => (
-                    <div key={post.id} className="flex flex-col gap-3 pb-3">
-                      <PostCard
-                        post={{
-                          ...post,
-                          resharedByMe: !!post.resharedByMe || linkSharedPostIds.has(post.id),
-                        }}
-                        onOpenAuthor={handlePostAuthorClick}
-                        onOpenUser={onOpenProfile}
-                        storiesByUser={feedStoriesByUser}
-                        commentOpenPostId={commentOpenPostId}
-                        commentDraft={commentDrafts[post.id] ?? ''}
-                        onCommentDraftChange={(v: string) =>
-                          setCommentDrafts((p) => ({ ...p, [post.id]: v }))
-                        }
-                        fullComments={fullComments[post.id]}
-                        commentsLoading={commentsLoading[post.id] ?? false}
-                        commentPosting={commentPosting[post.id] ?? false}
-                        onToggleLike={() => void handleLike(post)}
-                        onToggleComments={() => void handleToggleComments(post)}
-                        onPostComment={() => void handlePostComment(post.id)}
-                        onReshare={() => void handleReshare(post)}
-                        onShare={() => setSharePost(post)}
-                        onToggleFavorite={() => void handleToggleFavorite(post)}
-                        onPostPatch={(patch) => patchEventPost(post.id, patch)}
-                      />
-                      {postIndex === 0 ? (
-                        <FeedInlineAdBanner
-                          onCtaSalon={() => dispatchMapOpenCreateSalon()}
-                          onCtaLive={onOpenLive ? () => onOpenLive('') : undefined}
-                        />
-                      ) : null}
-                    </div>
+              {recentFollowingPosts.length > 0 ? (
+                <div className="space-y-0 min-w-0">
+                  {recentFollowingPosts.map((post, postIndex) =>
+                    renderHomeFeedPost(post, postIndex)
                   )}
-                />
+                </div>
               ) : null}
-              {!loading && visiblePosts.length === 0 ? (
+              <div ref={recentFollowingEndRef} className="h-px w-full shrink-0" aria-hidden />
+
+              {!seenAllRecentFollowing && canOfferMoreFollowing ? (
+                <div className="space-y-3 pt-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 px-0.5">
+                    {t('feed.suggestionsSection', { defaultValue: 'Suggestions' })}
+                  </p>
+                  {suggestionsLoading && suggestionPostsDisplayed.length === 0 ? (
+                    <p className="text-xs text-gray-500 px-0.5">{t('feed.loadingNews')}</p>
+                  ) : null}
+                  {suggestionPostsDisplayed.map((post) => renderHomeFeedPost(post, null))}
+                  {!suggestionsLoading && suggestionPostsDisplayed.length === 0 ? (
+                    <p className="text-xs text-gray-500 px-0.5">
+                      {t('feed.suggestionsEmpty', { defaultValue: 'Aucune suggestion pour le moment.' })}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {showMoreFollowingButton ? (
+                <button
+                  type="button"
+                  disabled={loadingMoreFollowing}
+                  onClick={() => void handleShowMoreFollowing()}
+                  className="w-full min-h-11 px-3 py-2.5 rounded-xl text-sm font-semibold text-purple-200 bg-purple-500/15 ring-1 ring-inset ring-purple-500/35 hover:bg-purple-500/25 transition disabled:opacity-50"
+                >
+                  {loadingMoreFollowing
+                    ? t('feed.showMoreFollowingLoading', { defaultValue: 'Chargement…' })
+                    : t('feed.showMoreFollowing', { defaultValue: 'Afficher plus' })}
+                </button>
+              ) : null}
+
+              {showHomeFeedDiscover ? homeFeedDiscoverSection : null}
+
+              {showOlderFollowing && olderFollowingPosts.length > 0 ? (
+                <div className="space-y-0 pt-1">
+                  {olderFollowingPosts.map((post) => renderHomeFeedPost(post, null))}
+                </div>
+              ) : null}
+
+              {!loading && recentFollowingPosts.length === 0 && !showOlderFollowing ? (
                 <FeedInlineAdBanner
                   onCtaSalon={() => dispatchMapOpenCreateSalon()}
                   onCtaLive={onOpenLive ? () => onOpenLive('') : undefined}
@@ -2133,6 +2375,7 @@ export function ActualiteTabPage({
             onBack={() => setShowNews(false)}
             onOpenProfile={onOpenProfile}
             onOpenAuthor={handlePostAuthorClick}
+            onOpenEventDetail={handleOpenFeedEventDetail}
             onShareEvent={setSharePost}
             onPatchEventPost={patchEventPost}
             communityEvents={communityEvents}
@@ -2217,6 +2460,14 @@ export function ActualiteTabPage({
           isOwn={feedStorySheet.kind === 'view' ? feedStorySheet.isOwn : false}
           token={token ?? undefined}
           onDeleted={feedStorySheet.kind === 'view' ? handleFeedStoryDeleted : undefined}
+        />
+      ) : null}
+
+      {feedEventDetailPost ? (
+        <MapEventBrowseDetailOverlay
+          post={feedEventDetailPost}
+          onClose={() => setFeedEventDetailPost(null)}
+          onPostChange={patchEventPost}
         />
       ) : null}
 

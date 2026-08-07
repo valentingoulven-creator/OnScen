@@ -19,6 +19,14 @@ interface LiveParticipantsPopoverProps {
   viewersCount?: number;
   /** @deprecated Prefer auto flip via portal; kept for callers passing panelAbove. */
   panelAbove?: boolean;
+  /** Hôte + live LiveKit sans duo actif : affiche « Inviter en duo » par participant. */
+  canInviteDuo?: boolean;
+  /** userId du co-hôte actif (masque l'invite pour lui, affiche « Duo actif »). */
+  coHostId?: string;
+  /** userId ciblé par une invitation en attente (affiche « Invité… » + annuler). */
+  coHostInviteTargetId?: string;
+  onInviteDuo?: (userId: string) => void;
+  onCancelDuoInvite?: () => void;
 }
 
 export function LiveParticipantsPopover({
@@ -30,6 +38,11 @@ export function LiveParticipantsPopover({
   vipModeratorIds,
   viewersCount: viewersCountProp,
   panelAbove = false,
+  canInviteDuo = false,
+  coHostId,
+  coHostInviteTargetId,
+  onInviteDuo,
+  onCancelDuoInvite,
 }: LiveParticipantsPopoverProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -208,6 +221,31 @@ export function LiveParticipantsPopover({
                       usernameColor={p.usernameColor}
                       className="text-xs text-gray-200 truncate flex-1 min-w-0"
                     />
+                    {coHostId === p.id ? (
+                      <button
+                        type="button"
+                        onClick={onCancelDuoInvite}
+                        className="shrink-0 min-h-9 px-2 py-1 rounded-md text-[9px] font-bold bg-emerald-950/40 border border-emerald-500/30 text-emerald-300"
+                      >
+                        Duo actif
+                      </button>
+                    ) : coHostInviteTargetId === p.id ? (
+                      <button
+                        type="button"
+                        onClick={onCancelDuoInvite}
+                        className="shrink-0 min-h-9 px-2 py-1 rounded-md text-[9px] font-bold bg-amber-950/40 border border-amber-500/30 text-amber-300 touch-manipulation"
+                      >
+                        Invité… ×
+                      </button>
+                    ) : canInviteDuo && !coHostId && onInviteDuo ? (
+                      <button
+                        type="button"
+                        onClick={() => onInviteDuo(p.id)}
+                        className="shrink-0 min-h-9 px-2 py-1 rounded-md text-[9px] font-bold bg-purple-950/40 border border-purple-500/30 text-purple-300 hover:bg-purple-900/50 transition touch-manipulation"
+                      >
+                        + Duo
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               ))

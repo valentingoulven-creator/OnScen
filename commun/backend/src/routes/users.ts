@@ -1,8 +1,16 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
-import { followUser, unfollowUser, getFollowingIds, isFollowing } from '../lib/follows';
+import {
+  followUser,
+  unfollowUser,
+  getFollowingIds,
+  isFollowing,
+  isFollowActivityNotificationsEnabled,
+  setFollowActivityNotifications,
+} from '../lib/follows';
 import { notifyFollowReceived } from '../lib/notifications';
+import { searchLimiter, followLimiter } from '../lib/abuseRateLimits';
 import {
   addFavorite,
   removeFavorite,
@@ -59,7 +67,7 @@ function searchRank(username: string, q: string): number {
   return 99;
 }
 
-usersRouter.get('/search', authenticateJWT, (req: Request, res: Response) => {
+usersRouter.get('/search', authenticateJWT, searchLimiter, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const q = normalizeSearchQuery(String(req.query.q ?? ''));
   if (q.length < 2) {
@@ -291,7 +299,7 @@ usersRouter.post('/me/obs-stream-repair', authenticateJWT, async (req: Request, 
   }
 });
 
-usersRouter.post('/:id/follow', authenticateJWT, (req: Request, res: Response) => {
+usersRouter.post('/:id/follow', authenticateJWT, followLimiter, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const targetId = req.params.id;
 
@@ -365,7 +373,35 @@ usersRouter.get('/:id/tagged-stories', authenticateJWT, (req: Request, res: Resp
 usersRouter.get('/:id/following-status', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const targetId = req.params.id;
-  res.json({ isFollowing: isFollowing(me, targetId) });
+  const following = isFollowing(me, targetId);
+  res.json({
+    isFollowing: following,
+    followNotificationsEnabled: following
+      ? isFollowActivityNotificationsEnabled(me, targetId)
+      : undefined,
+  });
+});
+
+usersRouter.patch('/:id/follow-notifications', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const targetId = req.params.id;
+  const { notificationsEnabled } = req.body as { notificationsEnabled?: unknown };
+  if (typeof notificationsEnabled !== 'boolean') {
+    res.status(400).json({ error: 'notificationsEnabled (boolean) requis' });
+    return;
+  }
+  if (!isFollowing(me, targetId)) {
+    res.status(400).json({ error: 'Vous ne suivez pas cet utilisateur' });
+    return;
+  }
+  try {
+    setFollowActivityNotifications(me, targetId, notificationsEnabled);
+  } catch {
+    res.status(400).json({ error: 'Vous ne suivez pas cet utilisateur' });
+    return;
+  }
+  schedulePersist();
+  res.json({ ok: true, followingId: targetId, followNotificationsEnabled: notificationsEnabled });
 });
 
 /* ── Favoris ───────────────────────────────────────────────────── */

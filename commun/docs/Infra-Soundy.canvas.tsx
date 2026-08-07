@@ -175,7 +175,7 @@ const PRICING_FIXED = [
   { label: "Coturn (VPS)", value: 0, detail: "Inclus · port 3478" },
   { label: "LiveKit Build", value: 0, detail: "Ship ~46 €/mo si dépassement" },
   { label: "Cloudflare Stream", value: 0, detail: "1 $ / 1 000 min visionnées" },
-  { label: "Stripe", value: 0, detail: "2,9 % + 0,25 €/tx · commission 30 %" },
+  { label: "Stripe", value: 0, detail: "2,9 % + 0,25 €/tx · commission 50 %" },
   { label: "Scaleway Object Storage", value: 0, detail: "Non utilisé actuellement" },
 ];
 
@@ -210,7 +210,7 @@ const EXTERNAL_ROWS: [string, string, string][] = [
   [
     "Stripe Connect",
     "Pourboires live + abos Soundy+/Ultra",
-    "Commission plateforme 30 % · webhooks /api/donations",
+    "Commission plateforme 50 % · webhooks /api/donations",
   ],
   [
     "geo.api.gouv.fr",

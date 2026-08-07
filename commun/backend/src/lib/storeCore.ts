@@ -35,12 +35,25 @@ import {
   type AccessPolicy,
 } from './accessControl';
 import { restoreAnalyticsBuckets, snapshotAnalyticsBuckets } from './analytics';
+import {
+  restoreSponsorAnalyticsBuckets,
+  snapshotSponsorAnalyticsBuckets,
+} from './sponsorAnalytics';
+import { restoreUserLoginDays, snapshotUserLoginDays } from './userLoginRetention';
 import { purgeUnboundedChatHistory } from './chatHistory';
 import {
   restoreDevMapMarkerPositions,
   snapshotDevMapMarkerPositions,
   type DevMapMarkerPositionEntry,
 } from './devMapMarkerPositions';
+import {
+  restoreFollowNotificationPrefs,
+  snapshotFollowNotificationPrefs,
+} from './follows';
+import {
+  restoreStripeSubscriptionLedger,
+  snapshotStripeSubscriptionLedger,
+} from './stripeSubscriptionLedger';
 
 type MapOfSets = Record<string, string[]>;
 
@@ -65,6 +78,7 @@ export interface PersistedStore {
   userBlocks: UserBlock[];
   userMutes?: UserMute[];
   userFollows: MapOfSets;
+  userFollowNotificationPrefs?: Record<string, Record<string, boolean>>;
   userFavorites?: { fanId: string; hostId: string; entry: UserFavorite }[];
   feedPosts?: FeedPost[];
   feedPostLikes?: MapOfSets;
@@ -74,6 +88,10 @@ export interface PersistedStore {
   stories?: Story[];
   hostRatings?: HostRating[];
   analyticsBuckets?: Record<string, number>;
+  sponsorAnalyticsBuckets?: Record<string, number>;
+  userLoginDays?: Record<string, string[]>;
+  /** Dernières factures Stripe payées (MRR reconstruit + agrégats mensuels). */
+  stripeSubscriptionLedger?: ReturnType<typeof snapshotStripeSubscriptionLedger>;
   /** Lives terminés (archivés sur le profil). */
   archivedLives?: Live[];
   supportContactMessages?: SupportContactMessage[];
@@ -143,6 +161,7 @@ export function snapshotStore(): PersistedStore {
     userBlocks: [...db.userBlocks],
     userMutes: [...db.userMutes],
     userFollows: setsToRecord(db.userFollows),
+    userFollowNotificationPrefs: snapshotFollowNotificationPrefs(),
     userFavorites: (() => {
       const out: PersistedStore['userFavorites'] = [];
       for (const [fanId, hosts] of db.userFavorites.entries()) {
@@ -164,6 +183,9 @@ export function snapshotStore(): PersistedStore {
     stories: [...db.stories],
     hostRatings: [...db.hostRatings],
     analyticsBuckets: snapshotAnalyticsBuckets(),
+    sponsorAnalyticsBuckets: snapshotSponsorAnalyticsBuckets(),
+    userLoginDays: snapshotUserLoginDays(),
+    stripeSubscriptionLedger: snapshotStripeSubscriptionLedger(),
     archivedLives: [...db.lives.values()].filter((l) => !l.isActive),
     supportContactMessages: [...db.supportContactMessages],
     sponsors: [...db.sponsors],
@@ -235,6 +257,7 @@ export function restoreStore(data: PersistedStore): void {
   for (const [k, arr] of Object.entries(data.userFollows ?? {})) {
     db.userFollows.set(k, new Set(arr));
   }
+  restoreFollowNotificationPrefs(data.userFollowNotificationPrefs);
 
   db.userFavorites.clear();
   for (const { fanId, hostId, entry } of data.userFavorites ?? []) {
@@ -272,6 +295,9 @@ export function restoreStore(data: PersistedStore): void {
   db.hostRatings.push(...(data.hostRatings ?? []));
 
   restoreAnalyticsBuckets(data.analyticsBuckets);
+  restoreSponsorAnalyticsBuckets(data.sponsorAnalyticsBuckets);
+  restoreUserLoginDays(data.userLoginDays);
+  restoreStripeSubscriptionLedger(data.stripeSubscriptionLedger);
 
   for (const live of data.archivedLives ?? []) {
     if (!db.lives.has(live.id)) {

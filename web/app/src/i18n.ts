@@ -17,19 +17,25 @@ void i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
 });
 
-document.documentElement.lang = initialLang;
+if (typeof document !== 'undefined') {
+  document.documentElement.lang = initialLang;
+}
 applyDocumentMeta(initialLang);
 
 i18n.on('languageChanged', (lng) => {
-  document.documentElement.lang = lng.startsWith('en') ? 'en' : 'fr';
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = lng.startsWith('en') ? 'en' : 'fr';
+  }
   applyDocumentMeta(lng);
 });
 
-window.addEventListener(APP_LANGUAGE_CHANGED_EVENT, (event) => {
-  const lang = (event as CustomEvent<AppLanguage>).detail;
-  if (lang === 'en' || lang === 'fr') {
-    void i18n.changeLanguage(lang);
-  }
-});
+if (typeof window !== 'undefined') {
+  window.addEventListener(APP_LANGUAGE_CHANGED_EVENT, (event) => {
+    const lang = (event as CustomEvent<AppLanguage>).detail;
+    if (lang === 'en' || lang === 'fr') {
+      void i18n.changeLanguage(lang);
+    }
+  });
+}
 
 export default i18n;

@@ -1939,19 +1939,22 @@ export function UserCompositionsSection({
 
             {looseTrackCount > 0 && (
 
+              // Bordure pleine (comme une vraie carte d'album) — un style en pointillés se
+              // confond visuellement avec le bouton « Créer un album » (ajout vide) et fait
+              // passer ces morceaux bien réels pour un simple placeholder.
               <button
 
                 type="button"
 
                 onClick={openLooseTracks}
 
-                className="text-left rounded-xl border border-dashed border-[#2d2d3d] bg-[#12121a] overflow-hidden hover:border-purple-500/40 transition"
+                className="text-left rounded-xl border border-[#2d2d3d] bg-[#12121a] overflow-hidden hover:border-purple-500/50 transition group"
 
               >
 
                 <div className="aspect-square bg-[#1a1a26] flex items-center justify-center">
 
-                  <span className="text-4xl text-gray-500" aria-hidden>
+                  <span className="text-4xl text-purple-400/60 group-hover:text-purple-300 transition" aria-hidden>
 
                     🎵
 

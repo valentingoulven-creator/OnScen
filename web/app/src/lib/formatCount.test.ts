@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { formatCompactCount, formatFavoritesCountLabel } from './formatCount';
+import { formatCompactCount, formatEventUpvoteCount, formatFavoritesCountLabel } from './formatCount';
+
+describe('formatEventUpvoteCount', () => {
+  it('formats thousands in French compact style', () => {
+    expect(formatEventUpvoteCount(6300)).toBe('6,3k');
+    expect(formatEventUpvoteCount(999)).toBe('999');
+  });
+});
 
 describe('formatCompactCount', () => {
   it('affiche les petits nombres tels quels', () => {

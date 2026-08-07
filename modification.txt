@@ -36826,3 +36826,438 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 1339 — 2026-08-03
 ================================================================================
+
+================================================================================
+MODIF 1340 — Commission Soundy sur les pourboires live : 30 % → 50 % — Soundy Dev
+Date : 2026-08-07
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande explicite : la commission plateforme Soundy sur les pourboires (dons)
+ live doit être de 50 %, et non plus 30 %. Cette valeur était dupliquée en dur
+ dans le code (config backend + textes légaux front + i18n) et dans une douzaine
+ de documents business/juridiques — nécessité d'un passage cohérent partout,
+ « sur les documents et sur l'application ».
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/config/donationLegal.ts
+ ─────────────────
+ • DEFAULT_DONATION_PLATFORM_FEE_PERCENT : 30 → 50 (source de vérité,
+   surchargeable par DONATION_PLATFORM_FEE_PERCENT en env).
+
+ commun/backend/.env.production / .env.preproduction (secrets locaux, non Git)
+ ─────────────────
+ • DONATION_PLATFORM_FEE_PERCENT=30 → 50 (la valeur env a priorité sur le défaut
+   code ; sans ce changement, la prod aurait continué à facturer 30 % réel malgré
+   le nouveau défaut). ⚠️ Nécessite un déploiement (ou mise à jour du .env sur le
+   VPS + reload pm2) pour s'appliquer réellement en production/preprod.
+
+ web/app/src/content/legal/creatorMonetization.ts
+ ─────────────────
+ • Section « 5 bis. Commission sur les pourboires live » : 30 % → 50 %, exemple
+   recalculé (10 € → commission Soundy 5 €, part créateur estimée 5 €).
+
+ web/app/src/components/LiveLegalAcceptanceModal.tsx
+ ─────────────────
+ • Texte codé en dur affiché avant le 1er live : « Commission Soundy 30 % / vous
+   recevez 70 % » → « 50 % / 50 % ».
+
+ web/app/src/components/LiveDonationSheet.tsx, AdminCostsTab.tsx,
+ AdminDonationsTab.tsx, AdminStripePlatformCard.tsx
+ ─────────────────
+ • Fallbacks `?? 30` / `useState(30)` (valeur affichée avant chargement de la
+   config API) alignés sur 50.
+
+ web/app/src/locales/fr.json, en.json
+ ─────────────────
+ • legalMonetRule2, setupDonationsEnabled, stripeGate.hint : 30 %/70 % → 50 %/50 %.
+
+ commun/backend/src/lib/legalDocumentsApp.json
+ ─────────────────
+ • Miroir statique du texte creatorMonetization (2 occurrences) synchronisé.
+
+ commun/backend/src/lib/aiAgents/systemPrompts.ts
+ ─────────────────
+ • Rappels de périmètre produit utilisés par les agents IA CTO/Dev : 30 % → 50 %.
+
+ commun/scripts/test-stripe-donation-split.cjs
+ ─────────────────
+ • Script de test manuel Stripe Connect : FEE_PERCENT 30 → 50, libellés « split
+   30/70 » → « split 50/50 ».
+
+ Fichiers .env.example (backend, deploy, msdev)
+ ─────────────────
+ • Commentaires de valeur par défaut mis à jour (30 → 50).
+
+ Documents business/juridiques (mentions factuelles du taux Soundy, hors rapports
+ d'audit archivés datés qui restent des snapshots historiques non réécrits) :
+ ─────────────────
+ • commun/docs/juridique/MENTIONS-LEGALES-DONS.md (titre §2, tableau, résumé EN)
+ • commun/docs/juridique/RENDEZ-VOUS-AVOCAT.md
+ • commun/docs/juridique/CHECKLIST-VALIDATION-AVOCAT.md
+ • commun/docs/juridique/COMPARATIF-JURIDIQUE-TIKTOK-INSTAGRAM.md
+ • commun/docs/presentations/Soundy-Pitch-Deck.md
+ • commun/docs/PLAN-SPONSORING-PAYANT.md (tableau répartition + split créateur/Soundy)
+ • commun/docs/depot-e-soleau/DOSSIER-E-SOLEAU-SOUNDY.md
+ • commun/docs/Infra-Soundy.canvas.tsx
+ • commun/docs/strategie/ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.md
+ • commun/docs/strategie/BUSINESS-PLAN-PREMIUM.md
+ • commun/docs/SOUNDY-CEO-IA-PROMPT.md
+ • commun/deploy/RUNBOOK-PROD.md (tableau variables d'env)
+
+ Tests corrigés (valeurs numériques dépendant de l'ancien défaut 30 %)
+ ─────────────────
+ • commun/backend/src/lib/donationsSummary.test.ts
+ • commun/backend/src/lib/donationsHistory.test.ts
+ (donations.test.ts inchangé : ses assertions passent déjà feePercent=30 en
+ paramètre explicite, indépendant du défaut global.)
+
+FICHIERS MODIFIÉS
+-----
+ ~30 fichiers (config, composants front, i18n, tests, docs juridiques/business,
+ fichiers .env/.env.example) — voir liste détaillée ci-dessus.
+
+BUILD (si vérifié)
+-----
+ commun/backend → npx tsc -b → ✅ (0 erreur)
+ commun/backend → npx vitest run → ✅ (103 fichiers, 489 tests)
+ web/app → npx eslint (fichiers modifiés) → ✅ (0 erreur)
+ web/app → npx vitest run src/lib/adminReportAnalysis.test.ts → ✅
+
+================================================================================
+Fin MODIF 1340 — 2026-08-07
+================================================================================
+
+================================================================================
+MODIF 1341 — Fix 4 erreurs tsc -b résiduelles (pré-existantes) — Soundy Dev
+Date : 2026-08-07
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ `npx tsc -b --force` sur web/app remontait 4 erreurs pré-existantes (sans
+ rapport avec les sessions PDF/commission dons), signalées à l'utilisateur puis
+ corrigées sur demande (« vas y fais le »).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MusicHomeContent.tsx
+ ─────────────────
+ • `MouseEvent<HTMLButtonElement>` utilisait le type DOM global `MouseEvent`
+   (non générique) faute d'import — ajout de `type MouseEvent` depuis `react`.
+
+ web/app/src/lib/syncEventDescriptionMentions.ts
+ ─────────────────
+ • `appendEventMentionFromHit(description, mentionRefs, ...)` : ces 2 paramètres
+   ne sont jamais lus dans le corps (la fonction utilise `insert.text`/`insert.refs`
+   à la place) — préfixés `_description`/`_mentionRefs` (convention no-unused-vars
+   du projet, argsIgnorePattern `^_`), sans changement de comportement.
+
+ web/app/src/lib/adminStatsCsvExport.ts
+ ─────────────────
+ • `row(section, key, value: string | number)` élargi à
+   `string | number | boolean` : `data.monetization.donationsSimulationMode`
+   (boolean) et `append()` (déjà typé `string | number | boolean`) provoquaient
+   une erreur d'assignation ; `row()` fait déjà `String(value)` en interne, donc
+   aucun changement de runtime, uniquement le typage corrigé.
+
+ web/app/src/lib/adminStatsOverviewFixture.ts
+ ─────────────────
+ • Bug latent trouvé en corrigeant le typage : la fonction fusionnait bien
+   chaque section avec ses valeurs par défaut (`users: { ...defaults,
+   ...(overrides?.users ?? {}) }`, etc.) MAIS un `...overrides` final en fin
+   d'objet écrasait entièrement ces fusions dès qu'une section était fournie en
+   override (perte silencieuse des defaults pour cette section en test).
+ • Suppression du `...overrides` final ; `generatedAt` rendu overridable
+   explicitement (`overrides?.generatedAt ?? new Date().toISOString()`).
+ • Nouveau type exporté `StatsOverviewFixtureOverrides` (sections en
+   `Partial<...>`, tableaux top* en remplacement complet) remplaçant
+   `Partial<StatsOverviewResponse>` qui exigeait des objets de section complets
+   et ne reflétait pas le comportement réel (fusion par section) de la fixture.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MusicHomeContent.tsx → import type MouseEvent
+ web/app/src/lib/syncEventDescriptionMentions.ts → params préfixés _
+ web/app/src/lib/adminStatsCsvExport.ts → row() accepte boolean
+ web/app/src/lib/adminStatsOverviewFixture.ts → type overrides + fix merge bug
+
+BUILD (si vérifié)
+-----
+ web/app → npx tsc -b --force → ✅ (0 erreur)
+ web/app → npx eslint src → ✅ (0 erreur, 13 warnings pré-existants
+   react-hooks/exhaustive-deps hors périmètre)
+ web/app → npx vitest run → ✅ (94 fichiers, 576 tests)
+
+================================================================================
+Fin MODIF 1341 — 2026-08-07
+================================================================================
+
+================================================================================
+MODIF 1341 — Live Config : P0-P3 audit CTO (triggers, méta, duo, sondages) — Soundy Dev
+Date : 2026-08-07
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suite à l'audit @soundy-cto de l'onglet Config du LiveHostPanel (comparaison
+ TikTok/Instagram/Twitch/Kick), implémentation des 4 lots priorisés (P0 à P3) :
+ bug de persistance, parité fonctionnelle standard marché, différenciation
+ modération/engagement, et paris produit (sondages + duo/co-hôte).
+
+CHANGEMENTS / FIX
+-----
+ P0 — Bug persistance auto-triggers (onglet Don → Auto)
+ ─────────────────
+ • web/app/src/lib/liveHostTypes.ts, liveHostSession.ts : `triggers: TriggerRule[]`
+   ajouté à `LiveHostSession` (sessionStorage, même mécanisme que goals/rewards).
+ • LiveHostPanel.tsx : `TriggersTab` utilise désormais `useLiveHostSession(liveId)`
+   au lieu d'un `useState` local — les règles de déclenchement ne disparaissent
+   plus au reload.
+
+ P1 — Parité marché (titre/description live, contenu sensible, replay)
+ ─────────────────
+ • commun/backend/src/models/schema.ts : `Live.description`, `Live.isSensitive`,
+   `Live.replayEnabled`, `Live.pinnedAnnouncement`, `Live.activePoll` (JSONB,
+   persistance Postgres automatique — pas de migration nécessaire).
+ • socket.ts : `live_update_meta` (titre/description/sensible/replay, hôte only).
+ • routes/lives.ts, lib/liveArchive.ts : `replayEnabled=false` → aucune URL VOD
+   conservée (archive + rediffusion profil).
+ • web/app/src/components/LiveHostMetaSettings.tsx (nouveau) : UI titre/desc +
+   2 toggles (contenu sensible, replay) dans Config.
+ • LivesBrowseGrid.tsx : badge « 18+ » + flou léger sur vignette si `isSensitive`.
+
+ P2 — Modération & engagement
+ ─────────────────
+ • LiveChatConfigFields.tsx : UI mots bloqués (`blockedTerms`, déjà géré côté
+   serveur via `chatModerationPolicy.ts` — seule l'UI hôte manquait, cf. backlog
+   `commun/docs/CHAT-MODERATION-POLICY.md`).
+ • socket.ts `live_pin_announcement` + LiveHostAnnouncementSettings.tsx (config)
+   + LivePinnedAnnouncementBanner.tsx (bannière chat) : annonce hôte épinglée,
+   distincte des triggers d'animation sur don.
+
+ P3 — Sondages/Q&A + Duo (co-hôte, MVP scopé)
+ ─────────────────
+ • Sondages : `LivePoll` (schema + livePublic.ts, tally + `myVote` par viewer),
+   socket `live_poll_create/vote/close`, LiveHostPollSettings.tsx (config) +
+   LivePollWidget.tsx (viewers, voté en direct dans le chat).
+ • Duo/co-hôte (LiveKit uniquement — le token LiveKit supportait déjà
+   `canPublish` par participant) : `Live.coHostId` / `coHostInvite`, socket
+   `live_duo_invite/cancel/accept/decline/end`, invite depuis
+   LiveParticipantsPopover (bouton « + Duo »), modale accept/decline (LivePage),
+   LiveKitVideoStage.tsx : nouveau rôle `isCoHost` (réutilise le publisher
+   générique existant) + tuile vidéo coin (`LiveKitPeerTile`) pour afficher les
+   2 flux simultanément (hôte + duo) côté spectateurs, hôte et co-hôte.
+   ⚠️ Limite connue : fin de duo sur déconnexion brutale (pas juste `leave_live`)
+   non couverte ; caméra du co-hôte publiée par défaut sans réglages device/
+   résolution dédiés (MVP). Un vrai chantier multi-guest (>1 co-hôte, contrôle
+   fin dispositifs) reste à cadrer séparément si le produit le confirme.
+
+ Fix isolation tests (découvert en vérifiant la suite complète)
+ ─────────────────
+ • commun/backend/src/lib/donations.test.ts : le test
+   « utilise DONATION_PLATFORM_FEE_PERCENT depuis l'environnement » mutait
+   `process.env` sans le restaurer → fuite intermittente vers
+   donationsSummary.test.ts / donationsHistory.test.ts (échecs aléatoires selon
+   l'ordonnancement des workers vitest). Restauration de la valeur précédente
+   dans un `finally`.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/models/schema.ts → +Live.description/isSensitive/
+   replayEnabled/pinnedAnnouncement/activePoll/coHostId/coHostInvite
+ commun/backend/src/socket.ts → 8 nouveaux handlers (meta, annonce, sondage×3,
+   duo×5)
+ commun/backend/src/lib/livePublic.ts → sérialisation des nouveaux champs
+ commun/backend/src/lib/liveArchive.ts, routes/lives.ts → replay conditionnel,
+   canPublish co-hôte (token LiveKit)
+ commun/backend/src/lib/donations.test.ts → fix fuite process.env
+ web/app/src/lib/liveHostTypes.ts, liveHostSession.ts → triggers persistés
+ web/app/src/types.ts → types Live étendus (front)
+ web/app/src/components/LiveHostPanel.tsx → TriggersTab persisté + 3 nouvelles
+   sections Config (méta, annonce, sondage)
+ web/app/src/components/LiveHostMetaSettings.tsx (nouveau)
+ web/app/src/components/LiveHostAnnouncementSettings.tsx (nouveau)
+ web/app/src/components/LiveHostPollSettings.tsx (nouveau)
+ web/app/src/components/LivePinnedAnnouncementBanner.tsx (nouveau)
+ web/app/src/components/LivePollWidget.tsx (nouveau)
+ web/app/src/components/LiveChatConfigFields.tsx → UI mots bloqués
+ web/app/src/components/LiveParticipantsPopover.tsx → invite duo par viewer
+ web/app/src/components/LiveKitVideoStage.tsx → rôle co-hôte + tuile peer
+ web/app/src/components/LivesBrowseGrid.tsx → badge 18+
+ web/app/src/pages/LivePage.tsx → wiring duo/sondage/annonce + modale invite
+ web/app/src/locales/fr.json, en.json → ~40 clés (meta/annonce/sondage/duo)
+
+BUILD (si vérifié)
+-----
+ commun/backend → npx tsc --noEmit → ✅
+ commun/backend → npx vitest run → ✅ (103 fichiers, 489 tests, x2 stable)
+ web/app → npx tsc --noEmit -p tsconfig.json → ✅
+ web/app → npm run build (tsc -b) → ❌ PRÉ-EXISTANT, sans rapport avec cette
+   session (fichiers non commités AdminStatsTab.tsx/adminStatsPdfExport.ts/
+   adminReportAnalysis.ts/sponsorTrack.ts — chantier stats admin non fini,
+   confirmé cassé aussi avant mes changements via `git stash`). Non corrigé
+   (hors périmètre, feature non liée aux lives).
+
+================================================================================
+Fin MODIF 1341 — 2026-08-07
+================================================================================
+
+================================================================================
+MODIF 1342 — Audit technique : implémentation priorités critiques/élevées Phase 7 & DDOS-2 — Soundy Dev
+Date : 2026-08-07
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suite à l'audit technique complet (`commun/docs/audit/2026-08-audit-technique-
+ complet/`), implémentation d'un sous-ensemble priorisé de recommandations
+ purement techniques (code, pas de décision business/légale/infra-prod) :
+ CSAM (MOD-8, critique), modération live (MOD-3, critique), et plusieurs
+ findings élevés/moyens de la Phase 7 (modération) + Phase 6 (DDoS/abus).
+ Hors périmètre volontaire de cette session (décision fondateur/avocat requise
+ ou action infra-prod manuelle) : clé Stripe test-en-prod, purge historique
+ Git, révocation rôle DB prod, activation Cloudflare WAF/DNS, captcha
+ Turnstile (nécessite compte externe), hash-matching PhotoDNA/NCMEC.
+
+CHANGEMENTS / FIX
+-----
+ CSAM — détection technique + escalade (MOD-8, risque critique)
+ ─────────────────
+ • commun/backend/src/lib/sightengineConfig.ts : modèle Sightengine `face-age`
+   (détection mineur) + `gore-2.0`/`weapon` ajoutés par défaut aux modèles
+   scannés (activables/désactivables via env : SIGHTENGINE_MINOR_DETECTION_
+   ENABLED, SIGHTENGINE_MINOR_THRESHOLD, SIGHTENGINE_VIOLENCE_MODELS_ENABLED,
+   SIGHTENGINE_VIOLENCE_THRESHOLD).
+ • commun/backend/src/lib/sightengineModeration.ts : nouvelle raison de refus
+   `minor_risk` (combinaison visage mineur détecté + signal nudité/suggestif,
+   même sous le seuil adulte classique) et `violent` (gore/arme). Nouveaux
+   tests (sightengineModeration.test.ts +5, sightengineConfig.test.ts nouveau).
+ • commun/backend/src/lib/contentModeration.ts : `escalateMinorRiskDetection()`
+   — sur détection `minor_risk`, journalise un signalement système dédié
+   (catégorie `csam_risk`, preuve interne non supprimée) ET envoie une alerte
+   email admin immédiate (criticité maximale, sans cooldown). Toutes les
+   fonctions de modération (`moderateImageSource`, `moderateVideoSource`,
+   `moderateReelUpload`, `moderateChatAttachment`, `moderateDmAttachment`,
+   `moderateFeedPostMedia`) acceptent désormais un `uploaderId` optionnel,
+   propagé depuis tous les points d'appel (stories/feed/reels/dm/chat/socket/
+   auth) pour permettre cette escalade.
+ • commun/backend/src/lib/alertNotifier.ts : nouveaux types d'alerte
+   `csam_risk_detected`, `live_content_flagged`, `urgent_content_report`.
+ • commun/docs/juridique/RUNBOOK-CSAM.md (nouveau) : procédure opérationnelle
+   interne (préservation preuve, PHAROS/NCMEC, délais) — ⚠️ brouillon à faire
+   valider par l'avocat, ne remplace pas une décision juridique.
+
+ Modération live temps réel (MOD-3, risque critique)
+ ─────────────────
+ • commun/backend/src/lib/cloudflareStream.ts : `getInProgressLiveThumbnailUrl()`
+   — récupère la miniature de la vidéo `live-inprogress` via l'API Cloudflare
+   Stream existante.
+ • commun/backend/src/lib/liveContentSampling.ts (nouveau) : échantillonnage
+   périodique (45s par défaut, `LIVE_MODERATION_SAMPLE_INTERVAL_MS`) d'une
+   frame pendant un live Cloudflare Stream actif, scan Sightengine (mêmes
+   seuils que les uploads, y compris `minor_risk`). Sur détection : signalement
+   système + alerte admin + coupure automatique de la diffusion (mesure
+   conservatoire, `endLiveSession` + désactivation ingest Cloudflare).
+ • commun/backend/src/routes/lives.ts : démarrage/arrêt de l'échantillonnage
+   sur POST /start et /stop (streamMode === 'cloudflare' uniquement).
+ • commun/backend/src/lib/adminContentModeration.ts : arrêt de l'échantillonnage
+   sur blocage/suppression admin d'un live.
+ • ⚠️ Limite documentée : ne couvre que les lives Cloudflare Stream (RTMP/OBS),
+   pas les lives WebRTC/LiveKit purs (nécessiterait une piste d'egress dédiée,
+   hors scope de cette itération).
+
+ Autres findings Phase 7 — modération (MOD-1, MOD-2, MOD-4, MOD-5, MOD-6)
+ ─────────────────
+ • commun/backend/src/routes/adminSponsors.ts : scan Sightengine ajouté sur
+   upload-logo/upload-banner sponsors (MOD-2, angle mort confirmé par l'audit).
+ • commun/backend/src/routes/reels.ts : commentaires reels routés via
+   `prepareChatText` (sanitization HTML + filtre lexical) — auparavant stockés
+   bruts sans aucun filtre (MOD-4).
+ • commun/backend/src/lib/contentReports.ts : champ `priority` calculé
+   (`computeReportPriority`, `URGENT_REPORT_CATEGORIES`) — `illegal`/`csam_risk`
+   = urgent (MOD-6). Nouveau test contentReports.test.ts.
+ • commun/backend/src/routes/legal.ts : nouvelle catégorie de signalement
+   `csam_risk` dédiée (distincte de `illegal` générique) ; alerte email admin
+   immédiate (sans cooldown) pour toute création de signalement `illegal`/
+   `csam_risk` (MOD-5/MOD-6, auparavant dépendant d'une consultation manuelle
+   périodique du panneau admin).
+ • web/app/src/components/ReportContentModal.tsx, pages/AdminReportsTab.tsx,
+   types.ts : catégorie « ⚠️ Contenu impliquant potentiellement un mineur »
+   ajoutée au formulaire de signalement ; badge 🚩 Urgent + libellés de
+   catégorie lisibles côté admin.
+
+ DDoS / abus — endpoints coûteux non limités (DDOS-2/DDOS-4)
+ ─────────────────
+ • commun/backend/src/lib/abuseRateLimits.ts (nouveau) : `liveStartLimiter`
+   (8/10min/utilisateur), `searchLimiter` (60/min), `followLimiter` (40/min),
+   `likeLimiter` (120/min) — désactivés en msdev comme les limiteurs existants.
+ • Wiring : routes/lives.ts (POST /start), routes/search.ts (GET /), routes/
+   music.ts (GET /search), routes/users.ts (GET /search, POST /:id/follow),
+   routes/feed.ts (POST /posts/:id/like), routes/reels.ts (POST /:reelId/heart).
+
+FICHIERS MODIFIÉS
+-----
+ Nouveaux : lib/abuseRateLimits.ts, lib/liveContentSampling.ts,
+   lib/sightengineConfig.test.ts, lib/contentReports.test.ts,
+   commun/docs/juridique/RUNBOOK-CSAM.md
+ Modifiés : lib/sightengineConfig.ts, lib/sightengineModeration.ts(+.test.ts),
+   lib/contentModeration.ts, lib/alertNotifier.ts, lib/contentReports.ts,
+   lib/cloudflareStream.ts, lib/adminContentModeration.ts,
+   routes/{lives,reels,feed,stories,dm,chat,auth,users,music,search,legal,
+   adminSponsors}.ts, socket.ts, commun/backend/.env.production.example,
+   web/app/src/{components/ReportContentModal.tsx,pages/AdminReportsTab.tsx,
+   types.ts}
+
+BUILD (si vérifié)
+-----
+ commun/backend → npx tsc -b → ✅ (0 erreur)
+ commun/backend → npx vitest run → ✅ (105 fichiers, 502 tests)
+ commun/backend → npx eslint (fichiers modifiés) → ✅ (0 erreur)
+ web/app → npx tsc -b → ✅ (0 erreur)
+ web/app → npx eslint (fichiers modifiés) → ✅ (0 erreur)
+
+================================================================================
+Fin MODIF 1342 — 2026-08-07
+================================================================================
+
+================================================================================
+MODIF 1343 — Application reco CTO post-audit (légal 50 %, Stripe prod, ops modération) — Soundy Dev
+Date : 2026-08-07
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suite aux conseils CTO (2026-08-07) : aligner textes légaux commission pourboires,
+ éviter les dons « réussis » fictifs en prod avec clé Stripe test (STR-11),
+ documenter gouvernance alertes CSAM / staging / rate limits, réduire légèrement
+ le coût Sightengine live (intervalle 60 s).
+
+CHANGEMENTS / FIX
+-----
+ • web/app/src/content/legal/creatorMonetization.ts + legalDocumentsApp.json :
+   commission pourboires 30 % → 50 % (écart audit GLOB-17 / Phase 9).
+ • commun/backend/src/lib/donations.ts : isDonationsEnabled() exige sk_live_ si
+   APP_ENV=production ; préprod conserve sk_test_ pour tests staging.
+ • commun/backend/src/lib/donations.test.ts : tests prod test/live + preprod test.
+ • commun/backend/src/lib/liveContentSampling.ts : défaut LIVE_MODERATION_SAMPLE_
+   INTERVAL_MS 45 s → 60 s.
+ • commun/docs/juridique/RUNBOOK-CSAM.md : §0 alertes (ALERT_EXTRA_EMAILS, SLA),
+   signalement user vs auto, périmètre Cloudflare vs LiveKit.
+ • commun/docs/juridique/MODERATION-OPS.md (nouveau) : checklist staging, coûts
+   Sightengine, rate limits, Stripe prod.
+ • commun/backend/.env.production.example : commentaire sk_live + commission 50 %.
+
+FICHIERS MODIFIÉS
+-----
+ voir liste ci-dessus
+
+BUILD (si vérifié)
+-----
+ commun/backend → npx vitest run src/lib/donations.test.ts → ✅ (14 tests)
+
+================================================================================
+Fin MODIF 1343 — 2026-08-07
+================================================================================

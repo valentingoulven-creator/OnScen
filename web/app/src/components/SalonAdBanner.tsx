@@ -72,7 +72,7 @@ export function SalonAdBanner({ onCtaSalon, onCtaLive }: SalonAdBannerProps) {
 
         <button
           type="button"
-          onClick={() => handleSponsorCta(ad, { onCtaSalon, onCtaLive })}
+          onClick={() => handleSponsorCta(ad, { onCtaSalon, onCtaLive }, { placement: 'salon_theater' })}
           className="shrink-0 min-h-[2.75rem] px-3 py-1.5 rounded-lg border border-[#2a2a3d] bg-[#1a1a2a] hover:bg-[#22223a] text-[11px] font-semibold text-gray-300 hover:text-white transition whitespace-nowrap"
         >
           {ad.cta}

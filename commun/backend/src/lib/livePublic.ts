@@ -44,16 +44,55 @@ export function serializePublicLive(l: Live, distanceKm?: number, viewerId?: str
         yPct: l.donationGoalOverlay.yPct,
       }
     : undefined;
+  const coHost = l.coHostId ? db.users.get(l.coHostId) : undefined;
+  const isRequesterHost = viewerId != null && viewerId === l.hostId;
+  const activePoll = l.activePoll
+    ? (() => {
+        const counts = new Map<string, number>();
+        for (const optionId of Object.values(l.activePoll!.votes)) {
+          counts.set(optionId, (counts.get(optionId) ?? 0) + 1);
+        }
+        const totalVotes = Object.keys(l.activePoll!.votes).length;
+        return {
+          id: l.activePoll!.id,
+          question: l.activePoll!.question,
+          options: l.activePoll!.options.map((o) => ({
+            id: o.id,
+            label: o.label,
+            count: counts.get(o.id) ?? 0,
+          })),
+          totalVotes,
+          closedAt: l.activePoll!.closedAt,
+          myVote: viewerId ? l.activePoll!.votes[viewerId] : undefined,
+        };
+      })()
+    : undefined;
+  const hostDisplayName = (() => {
+    const stored = l.hostName?.trim() ?? '';
+    if (stored && !/^live$/i.test(stored)) return stored;
+    const fromUser = host?.username?.trim();
+    if (fromUser) return fromUser;
+    return stored || 'Hôte';
+  })();
   const base = {
     id: l.id,
     salonId: l.salonId,
     hostId: l.hostId,
-    hostName: l.hostName,
+    hostName: hostDisplayName,
     hostAvatarUrl: host?.avatarUrl,
     hostUsernameColor: host?.usernameColor,
     hostUsernameWaveFrom: host?.usernameWaveFrom,
     hostUsernameWaveTo: host?.usernameWaveTo,
     title: l.title,
+    description: l.description,
+    isSensitive: l.isSensitive === true,
+    replayEnabled: l.replayEnabled !== false,
+    pinnedAnnouncement: l.pinnedAnnouncement,
+    coHostId: l.coHostId,
+    coHostName: coHost?.username,
+    coHostAvatarUrl: coHost?.avatarUrl,
+    coHostInvitePending: !!l.coHostInvite,
+    ...(isRequesterHost && l.coHostInvite ? { coHostInviteTargetId: l.coHostInvite.userId } : {}),
     platform: l.platform,
     playbackState: {
       ...l.playbackState,
@@ -87,6 +126,7 @@ export function serializePublicLive(l: Live, distanceKm?: number, viewerId?: str
     ...(donationOptions?.length ? { donationOptions } : {}),
     ...(donationGoals?.length ? { donationGoals } : {}),
     ...(donationGoalOverlay ? { donationGoalOverlay } : {}),
+    ...(activePoll ? { activePoll } : {}),
   };
   if (distanceKm !== undefined) {
     return { ...base, distanceKm: Math.round(distanceKm * 10) / 10 };

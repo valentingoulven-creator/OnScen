@@ -24,7 +24,7 @@ import {
 import type { LiveBanScope } from './models/schema';
 import { isPlatformConnected, ensurePlatformAccountsFromLegacy } from './lib/platformConnect';
 import { schedulePersist } from './lib/persist';
-import { sanitizeChatText } from './lib/sanitizeUserText';
+import { chatContentFromRaw } from './lib/chatContentFromRaw';
 import {
   PlatformPlanError,
 } from './lib/platformPlans';
@@ -357,6 +357,11 @@ export function setupSockets(io: Server): void {
       if (live && userId && userId !== live.hostId) {
         io.to(`user_${live.hostId}`).emit('live_webrtc_viewer_left', { liveId, viewerId: userId });
       }
+      if (live && userId && live.coHostId === userId && isLastLiveSocketForUser(liveId, userId)) {
+        live.coHostId = undefined;
+        db.lives.set(liveId, live);
+        io.to(roomName).emit('live_updated', serializePublicLive(live));
+      }
     });
 
     socket.on('live_webrtc_viewer_ready', ({ liveId }: { liveId: string }) => {
@@ -468,23 +473,220 @@ export function setupSockets(io: Server): void {
 
     socket.on(
       'live_update_config',
-      ({ liveId, config }: { liveId: string; config: { noLinksForParticipants?: boolean; slowModeSeconds?: number; subscribersOnly?: boolean } }) => {
+      ({ liveId, config }: { liveId: string; config: { noLinksForParticipants?: boolean; slowModeSeconds?: number; subscribersOnly?: boolean; blockedTerms?: string[] } }) => {
         const actorId = (socket.data as { userId?: string }).userId;
         if (!actorId || !liveId) return;
         const live = db.lives.get(liveId);
         if (!live || !live.isActive) return;
         const actor = db.users.get(actorId);
         if (live.hostId !== actorId && !isDevUser(actor)) return;
+        const blockedTerms =
+          config.blockedTerms !== undefined
+            ? config.blockedTerms
+                .slice(0, 50)
+                .map((t) => String(t).trim().slice(0, 64))
+                .filter(Boolean)
+            : undefined;
         live.chatConfig = {
           ...live.chatConfig,
           ...(config.noLinksForParticipants !== undefined && { noLinksForParticipants: config.noLinksForParticipants }),
           ...(config.slowModeSeconds !== undefined && { slowModeSeconds: Math.max(0, Math.min(120, config.slowModeSeconds)) }),
           ...(config.subscribersOnly !== undefined && { subscribersOnly: config.subscribersOnly }),
+          ...(blockedTerms !== undefined && { blockedTerms }),
         };
         db.lives.set(liveId, live);
         io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
       }
     );
+
+    socket.on(
+      'live_update_meta',
+      ({
+        liveId,
+        title,
+        description,
+        isSensitive,
+        replayEnabled,
+      }: {
+        liveId: string;
+        title?: string;
+        description?: string;
+        isSensitive?: boolean;
+        replayEnabled?: boolean;
+      }) => {
+        const actorId = (socket.data as { userId?: string }).userId;
+        if (!actorId || !liveId) return;
+        const live = db.lives.get(liveId);
+        if (!live || !live.isActive) return;
+        const actor = db.users.get(actorId);
+        if (live.hostId !== actorId && !isDevUser(actor)) return;
+        if (typeof title === 'string') {
+          const trimmed = title.trim().slice(0, 80);
+          if (trimmed) live.title = trimmed;
+        }
+        if (description !== undefined) {
+          const trimmed = String(description).trim().slice(0, 500);
+          live.description = trimmed || undefined;
+        }
+        if (typeof isSensitive === 'boolean') live.isSensitive = isSensitive;
+        if (typeof replayEnabled === 'boolean') live.replayEnabled = replayEnabled;
+        db.lives.set(liveId, live);
+        io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
+      }
+    );
+
+    socket.on(
+      'live_pin_announcement',
+      ({ liveId, text }: { liveId: string; text: string | null }) => {
+        const actorId = (socket.data as { userId?: string }).userId;
+        if (!actorId || !liveId) return;
+        const live = db.lives.get(liveId);
+        if (!live || !live.isActive) return;
+        const actor = db.users.get(actorId);
+        if (live.hostId !== actorId && !isDevUser(actor)) return;
+        const trimmed = text?.trim().slice(0, 200);
+        live.pinnedAnnouncement = trimmed ? { text: trimmed, postedAt: Date.now() } : undefined;
+        db.lives.set(liveId, live);
+        io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
+      }
+    );
+
+    socket.on(
+      'live_poll_create',
+      ({
+        liveId,
+        question,
+        options,
+      }: {
+        liveId: string;
+        question: string;
+        options: string[];
+      }) => {
+        const actorId = (socket.data as { userId?: string }).userId;
+        if (!actorId || !liveId) return;
+        const live = db.lives.get(liveId);
+        if (!live || !live.isActive) return;
+        const actor = db.users.get(actorId);
+        if (live.hostId !== actorId && !isDevUser(actor)) return;
+        const cleanQuestion = String(question ?? '').trim().slice(0, 140);
+        const cleanOptions = (Array.isArray(options) ? options : [])
+          .map((o) => String(o).trim().slice(0, 60))
+          .filter(Boolean)
+          .slice(0, 5);
+        if (!cleanQuestion || cleanOptions.length < 2) return;
+        live.activePoll = {
+          id: `poll_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          question: cleanQuestion,
+          options: cleanOptions.map((label, i) => ({ id: `o${i}`, label })),
+          votes: {},
+          createdAt: Date.now(),
+        };
+        db.lives.set(liveId, live);
+        io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
+      }
+    );
+
+    socket.on(
+      'live_poll_vote',
+      ({ liveId, optionId }: { liveId: string; optionId: string }) => {
+        const actorId = (socket.data as { userId?: string }).userId;
+        if (!actorId || !liveId || !optionId) return;
+        const live = db.lives.get(liveId);
+        if (!live || !live.isActive || !live.activePoll || live.activePoll.closedAt) return;
+        if (!live.activePoll.options.some((o) => o.id === optionId)) return;
+        live.activePoll.votes[actorId] = optionId;
+        db.lives.set(liveId, live);
+        io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
+      }
+    );
+
+    socket.on('live_poll_close', ({ liveId }: { liveId: string }) => {
+      const actorId = (socket.data as { userId?: string }).userId;
+      if (!actorId || !liveId) return;
+      const live = db.lives.get(liveId);
+      if (!live || !live.isActive || !live.activePoll) return;
+      const actor = db.users.get(actorId);
+      if (live.hostId !== actorId && !isDevUser(actor)) return;
+      live.activePoll = undefined;
+      db.lives.set(liveId, live);
+      io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
+    });
+
+    socket.on(
+      'live_duo_invite',
+      ({ liveId, targetUserId }: { liveId: string; targetUserId: string }) => {
+        const actorId = (socket.data as { userId?: string }).userId;
+        if (!actorId || !liveId || !targetUserId) return;
+        const live = db.lives.get(liveId);
+        if (!live || !live.isActive || live.streamMode !== 'livekit') return;
+        if (live.hostId !== actorId) return;
+        if (targetUserId === live.hostId) return;
+        if (live.coHostId) return;
+        if (!isUserViewingLive(liveId, live.hostId, targetUserId)) return;
+        const target = db.users.get(targetUserId);
+        live.coHostInvite = {
+          userId: targetUserId,
+          username: target?.username ?? 'Utilisateur',
+          invitedAt: Date.now(),
+        };
+        db.lives.set(liveId, live);
+        io.to(`user_${targetUserId}`).emit('live_duo_invite_received', {
+          liveId,
+          hostId: live.hostId,
+          hostName: live.hostName,
+        });
+        io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live, undefined, actorId));
+      }
+    );
+
+    socket.on('live_duo_cancel', ({ liveId }: { liveId: string }) => {
+      const actorId = (socket.data as { userId?: string }).userId;
+      if (!actorId || !liveId) return;
+      const live = db.lives.get(liveId);
+      if (!live || live.hostId !== actorId || !live.coHostInvite) return;
+      const targetUserId = live.coHostInvite.userId;
+      live.coHostInvite = undefined;
+      db.lives.set(liveId, live);
+      io.to(`user_${targetUserId}`).emit('live_duo_invite_cancelled', { liveId });
+      io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live, undefined, actorId));
+    });
+
+    socket.on('live_duo_accept', ({ liveId }: { liveId: string }) => {
+      const actorId = (socket.data as { userId?: string }).userId;
+      if (!actorId || !liveId) return;
+      const live = db.lives.get(liveId);
+      if (!live || !live.isActive || live.coHostInvite?.userId !== actorId) return;
+      live.coHostId = actorId;
+      live.coHostInvite = undefined;
+      db.lives.set(liveId, live);
+      io.to(`user_${live.hostId}`).emit('live_duo_accepted', { liveId, userId: actorId });
+      io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
+    });
+
+    socket.on('live_duo_decline', ({ liveId }: { liveId: string }) => {
+      const actorId = (socket.data as { userId?: string }).userId;
+      if (!actorId || !liveId) return;
+      const live = db.lives.get(liveId);
+      if (!live || live.coHostInvite?.userId !== actorId) return;
+      live.coHostInvite = undefined;
+      db.lives.set(liveId, live);
+      io.to(`user_${live.hostId}`).emit('live_duo_declined', { liveId, userId: actorId });
+      io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
+    });
+
+    socket.on('live_duo_end', ({ liveId }: { liveId: string }) => {
+      const actorId = (socket.data as { userId?: string }).userId;
+      if (!actorId || !liveId) return;
+      const live = db.lives.get(liveId);
+      if (!live || !live.coHostId) return;
+      const actor = db.users.get(actorId);
+      if (live.hostId !== actorId && live.coHostId !== actorId && !isDevUser(actor)) return;
+      const endedUserId = live.coHostId;
+      live.coHostId = undefined;
+      db.lives.set(liveId, live);
+      io.to(`user_${endedUserId}`).emit('live_duo_ended', { liveId });
+      io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
+    });
 
     socket.on(
       'live_update_media_config',
@@ -742,7 +944,17 @@ export function setupSockets(io: Server): void {
           if (!authUserId || authUserId !== payload.senderId) return;
           if (!(await checkChatRateLimit(authUserId))) return;
           if (!socket.rooms.has(`salon_${payload.salonId}`)) return;
-          const content = typeof payload.content === 'string' ? sanitizeChatText(payload.content.slice(0, 2000)) : '';
+          const parsed = chatContentFromRaw(payload.content);
+          if (!parsed.ok) {
+            socket.emit('chat_message_denied', {
+              roomType: 'salon',
+              roomId: payload.salonId,
+              reason: 'content_policy',
+              message: parsed.message,
+            });
+            return;
+          }
+          const content = parsed.content;
           if (!content.trim() && !payload.attachmentUrl) return;
           if (payload.attachmentUrl && !isAllowedChatAttachmentUrl(payload.attachmentUrl)) {
             socket.emit('chat_attachment_denied', {
@@ -757,7 +969,8 @@ export function setupSockets(io: Server): void {
             const moderation = await moderateChatAttachment(
               payload.attachmentUrl,
               payload.attachmentMimeType,
-              'salon_chat'
+              'salon_chat',
+              authUserId
             );
             if (!moderation.allowed) {
               socket.emit('chat_attachment_denied', {
@@ -837,8 +1050,22 @@ export function setupSockets(io: Server): void {
             });
             return;
           }
-          const liveContent = typeof payload.content === 'string' ? sanitizeChatText(payload.content.slice(0, 2000)) : '';
-          if (!liveContent.trim() && !payload.attachmentUrl) return;
+          const live = await hydrateLiveFromPostgres(payload.liveId);
+          if (!live) return;
+
+          const liveParsed = chatContentFromRaw(payload.content, {
+            extraBlockedTerms: live.chatConfig?.blockedTerms,
+          });
+          if (!liveParsed.ok) {
+            socket.emit('chat_message_denied', {
+              roomType: 'live',
+              roomId: payload.liveId,
+              reason: 'content_policy',
+              message: liveParsed.message,
+            });
+            return;
+          }
+          if (!liveParsed.content.trim() && !payload.attachmentUrl) return;
           if (payload.attachmentUrl && !isAllowedChatAttachmentUrl(payload.attachmentUrl)) {
             socket.emit('chat_attachment_denied', {
               roomType: 'live',
@@ -852,7 +1079,8 @@ export function setupSockets(io: Server): void {
             const moderation = await moderateChatAttachment(
               payload.attachmentUrl,
               payload.attachmentMimeType,
-              'live_chat'
+              'live_chat',
+              authUserId
             );
             if (!moderation.allowed) {
               socket.emit('chat_attachment_denied', {
@@ -864,11 +1092,9 @@ export function setupSockets(io: Server): void {
               return;
             }
           }
-          const live = await hydrateLiveFromPostgres(payload.liveId);
-          if (!live) return;
           const isVipMod = (live.vipModeratorIds ?? []).includes(authUserId);
           const isHost = live.hostId === authUserId;
-          let filteredContent = liveContent;
+          let filteredContent = liveParsed.content;
           if (live.chatConfig?.noLinksForParticipants && !isHost && !isVipMod) {
             filteredContent = filteredContent
               .replace(/https?:\/\/[^\s]+/gi, '')
@@ -938,7 +1164,17 @@ export function setupSockets(io: Server): void {
         // Block if sender has blocked recipient or recipient has blocked sender.
         if (hasBlocked(msg.senderId, msg.receiverId)) return;
         if (hasBlocked(msg.receiverId, msg.senderId)) return;
-        const content = typeof msg.content === 'string' ? sanitizeChatText(msg.content.slice(0, 2000)) : '';
+        const dmParsed = chatContentFromRaw(msg.content);
+        if (!dmParsed.ok) {
+          socket.emit('chat_message_denied', {
+            roomType: 'dm',
+            roomId: msg.receiverId,
+            reason: 'content_policy',
+            message: dmParsed.message,
+          });
+          return;
+        }
+        const content = dmParsed.content;
         if (!content.trim()) return;
         // Use server-generated ID to prevent ID spoofing by clients.
         const full = {

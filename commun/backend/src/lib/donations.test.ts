@@ -69,7 +69,23 @@ describe('donations validation', () => {
     expect(isDonationsEnabled()).toBe(false);
   });
 
-  it('active les dons prod avec Stripe et flag', () => {
+  it('désactive les dons en APP_ENV=production avec clé Stripe test (STR-11)', () => {
+    process.env.APP_ENV = 'production';
+    process.env.DONATIONS_ENABLED = '1';
+    process.env.STRIPE_SECRET_KEY = 'sk_test_example';
+    expect(isDonationsEnabled()).toBe(false);
+  });
+
+  it('active les dons en production uniquement avec clé Stripe live', () => {
+    process.env.APP_ENV = 'production';
+    process.env.DONATIONS_ENABLED = '1';
+    process.env.STRIPE_SECRET_KEY = 'sk_live_example';
+    expect(isDonationsEnabled()).toBe(true);
+    expect(isDonationSimulationMode()).toBe(false);
+  });
+
+  it('active les dons en préprod avec clé Stripe test (tests staging)', () => {
+    process.env.APP_ENV = 'preproduction';
     process.env.DONATIONS_ENABLED = '1';
     process.env.STRIPE_SECRET_KEY = 'sk_test_example';
     expect(isDonationsEnabled()).toBe(true);
@@ -135,8 +151,16 @@ describe('donations validation', () => {
   });
 
   it('utilise DONATION_PLATFORM_FEE_PERCENT depuis l’environnement', () => {
+    const prev = process.env.DONATION_PLATFORM_FEE_PERCENT;
     process.env.DONATION_PLATFORM_FEE_PERCENT = '25';
-    expect(getDonationPlatformFeePercent()).toBe(25);
+    try {
+      expect(getDonationPlatformFeePercent()).toBe(25);
+    } finally {
+      // Évite une fuite de process.env vers d'autres fichiers de test exécutés
+      // dans le même worker (ex. donationsSummary.test.ts attend le défaut 50 %).
+      if (prev === undefined) delete process.env.DONATION_PLATFORM_FEE_PERCENT;
+      else process.env.DONATION_PLATFORM_FEE_PERCENT = prev;
+    }
   });
 
   it('calcule le total journalier simulation', () => {

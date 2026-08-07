@@ -7,6 +7,8 @@ import { refreshUserPublicCoords } from './lib/locationPrivacy';
 import { getYoutubeDemoPool } from './lib/musicCatalog';
 import { buildPlatformTrackUrl } from './lib/musicLinks';
 import { schedulePersist } from './lib/persist';
+import { schedulePersistAlbumToPg } from './lib/pgAlbums';
+import { schedulePersistCompositionToPg } from './lib/pgCompositions';
 import { invalidateReelsFeedCache } from './lib/reelFeedCache';
 import { DEMO_REELS } from './lib/reels';
 import { SALON_LIVE_BOT_SEEDS, SALON_LIVE_ID_PREFIX } from './seed-salons-lives';
@@ -330,6 +332,46 @@ function ensureBeatCastelAlbums(): number {
   return albumsCreated;
 }
 
+const SINGLES_ALBUM_ID = `${CONTENT_PREFIX}album_singles`;
+
+/**
+ * Rattache à un album « Titres seuls » toute composition BeatCastel restée sans album
+ * (ex. fichier audio réel ajouté via `add-msdev-composition-from-file.ts` pour tester le
+ * lecteur audio global — sans --album, une composition est invisible dans la grille
+ * d'albums du profil, seulement listée sous un onglet secondaire « Sans album »).
+ * Idempotent : ne crée l'album qu'une fois, ne déplace que les morceaux encore orphelins.
+ */
+function ensureBeatCastelLooseTracksAttached(): number {
+  const user = db.users.get(BEATCASTEL_USER_ID);
+  if (!user) return 0;
+
+  const loose = db.compositions.filter((c) => c.userId === BEATCASTEL_USER_ID && !c.albumId);
+  if (loose.length === 0) return 0;
+
+  const now = Date.now();
+  let album = db.albums.find((a) => a.id === SINGLES_ALBUM_ID && a.userId === BEATCASTEL_USER_ID);
+  if (!album) {
+    album = {
+      id: SINGLES_ALBUM_ID,
+      userId: BEATCASTEL_USER_ID,
+      title: 'Titres seuls',
+      description: 'Freestyles et reprises live enregistrés en solo.',
+      createdAt: now,
+      updatedAt: now,
+    };
+    db.albums.push(album);
+  }
+
+  for (const c of loose) {
+    c.albumId = album.id;
+    schedulePersistCompositionToPg(c);
+  }
+  album.updatedAt = now;
+  schedulePersistAlbumToPg(album);
+
+  return loose.length;
+}
+
 export interface EnsureBeatCastelProfileResult {
   userUpdated: boolean;
   fansAdded: number;
@@ -337,6 +379,7 @@ export interface EnsureBeatCastelProfileResult {
   postsCreated: number;
   reelsCreated: number;
   albumsCreated: number;
+  looseTracksAttached: number;
 }
 
 /** Idempotent — enrichit le bot BeatCastel pour la démo produit. */
@@ -350,6 +393,7 @@ export function ensureBeatCastelShowcaseProfile(): EnsureBeatCastelProfileResult
       postsCreated: 0,
       reelsCreated: 0,
       albumsCreated: 0,
+      looseTracksAttached: 0,
     };
   }
 
@@ -358,8 +402,17 @@ export function ensureBeatCastelShowcaseProfile(): EnsureBeatCastelProfileResult
   const postsCreated = ensureBeatCastelFeedPosts();
   const reelsCreated = ensureBeatCastelReels();
   const albumsCreated = ensureBeatCastelAlbums();
+  const looseTracksAttached = ensureBeatCastelLooseTracksAttached();
 
-  if (userUpdated || fansAdded || favoritesAdded || postsCreated || reelsCreated || albumsCreated) {
+  if (
+    userUpdated ||
+    fansAdded ||
+    favoritesAdded ||
+    postsCreated ||
+    reelsCreated ||
+    albumsCreated ||
+    looseTracksAttached
+  ) {
     schedulePersist();
   }
 
@@ -370,5 +423,6 @@ export function ensureBeatCastelShowcaseProfile(): EnsureBeatCastelProfileResult
     postsCreated,
     reelsCreated,
     albumsCreated,
+    looseTracksAttached,
   };
 }
