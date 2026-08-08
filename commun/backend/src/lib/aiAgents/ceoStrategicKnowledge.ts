@@ -1,4 +1,4 @@
-/** Connaissance stratégique statique Soundy (docs canoniques — juin 2026). */
+/** Connaissance stratégique statique OnScen (docs canoniques — juin 2026). */
 export function getCeoStrategicKnowledge() {
   return {
     vision:
@@ -8,8 +8,8 @@ export function getCeoStrategicKnowledge() {
     businessModelPriority: [
       'Sponsors natifs (45–55 % revenu cible M24)',
       'Commissions créateurs tips/abos (25–35 %)',
-      'Soundy+ abonnement plateforme (10–15 %)',
-      'B2B lieux Soundy Pro (5–15 %)',
+      'OnScen+ abonnement plateforme (10–15 %)',
+      'B2B lieux OnScen Pro (5–15 %)',
     ],
     sponsorPackagesEurMonth: {
       map_banner: '800–2 000',
@@ -20,7 +20,7 @@ export function getCeoStrategicKnowledge() {
     creatorMonetization: {
       liveTipsPlatformFeePercent: 30,
       supporterSubscriptionEur: '4,99–9,99/mois',
-      soundyPlusTargetEur: '2,99–4,99/mois',
+      onscenPlusTargetEur: '2,99–4,99/mois',
     },
     infraFixedEurMonth: '41–45 (VPS + PG + domaine + Gmail Pro)',
     infraVariable: 'Cloudflare Stream (minutes livrées + stockage), LiveKit Ship ~50$/mois si dépassement',
@@ -33,7 +33,7 @@ export function getCeoStrategicKnowledge() {
     gtmPhases: {
       m0_m3: '30–50 créateurs pilotes, 2 sponsors fondateurs, 1 ville dense',
       m4_m12: 'Paris + Lyon/Marseille, 5 lieux/ville, 5–8 contrats sponsors récurrents',
-      m13_m24: 'Soundy Pro Lieu, sales marques, diaspora FR',
+      m13_m24: 'OnScen Pro Lieu, sales marques, diaspora FR',
     },
     m12TargetsHypothesis: {
       mau: 15000,
@@ -64,11 +64,11 @@ export function getCeoStrategicKnowledge() {
       'Créateurs avec Stripe Connect actif',
     ],
     docsIndex: [
-      'commun/docs/Soundy-Pitch-Deck.md',
+      'commun/docs/OnScen-Pitch-Deck.md',
       'commun/docs/PLAN-SPONSORING-PAYANT.md',
       'commun/docs/COUT-APPLICATION.md',
       'commun/docs/STACK-CIBLE.md',
-      'commun/docs/INFRA-SOUNDY.md',
+      'commun/docs/INFRA-ONSCEN.md',
       'commun/docs/audit/AUDIT-PRE-PROD-2026-06-30.md',
       'TODO-MANUAL.md',
     ],

@@ -11,7 +11,7 @@ describe('appleOAuth', () => {
   });
 
   it('isAppleOAuthConfigured returns true when all env vars set', () => {
-    vi.stubEnv('APPLE_CLIENT_ID', 'com.soundy.app.service');
+    vi.stubEnv('APPLE_CLIENT_ID', 'com.onscen.app.service');
     vi.stubEnv('APPLE_TEAM_ID', 'TEAM123');
     vi.stubEnv('APPLE_KEY_ID', 'KEY123');
     vi.stubEnv('APPLE_CALLBACK_URL', 'https://getsoundy.com/api/auth/apple/callback');

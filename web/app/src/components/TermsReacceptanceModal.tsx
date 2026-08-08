@@ -33,7 +33,7 @@ export function TermsReacceptanceModal({ token, onAccepted, onLogout }: TermsRea
         <p className="text-sm text-gray-400 leading-relaxed">
           {t(
             'legal.termsUpdatedBody',
-            'Nos conditions d’utilisation ont évolué. Acceptez-les pour continuer à utiliser Soundy.'
+            'Nos conditions d’utilisation ont évolué. Acceptez-les pour continuer à utiliser OnScen.'
           )}{' '}
           <span className="text-gray-500">(v.{CURRENT_TERMS_VERSION})</span>
         </p>

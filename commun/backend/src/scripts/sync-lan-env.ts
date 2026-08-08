@@ -10,7 +10,7 @@ async function main(): Promise<void> {
   dotenv.config({ path: getMsdevEnvPath() });
   const result = await syncMsdevLanConfig();
   console.log('');
-  console.log('  MeloSong — configuration réseau local');
+  console.log('  OnScen — configuration réseau local');
   console.log(`  IP LAN utilisée : ${result.ip}`);
   if (result.detectedIps.length > 1) {
     console.log(`  Autres IP sur ce PC : ${result.detectedIps.filter((i) => i !== result.ip).join(', ')}`);

@@ -1,6 +1,6 @@
 /**
- * Catalogue SaaS / infra Soundy — montants indicatifs et liens dashboards.
- * Réf. docs/COUT-APPLICATION.md · docs/INFRA-SOUNDY.md
+ * Catalogue SaaS / infra OnScen — montants indicatifs et liens dashboards.
+ * Réf. docs/COUT-APPLICATION.md · docs/INFRA-ONSCEN.md
  */
 
 export type ProdSaasCategory = 'infra' | 'streaming' | 'moderation' | 'payments' | 'auth' | 'comms' | 'optional';
@@ -225,10 +225,10 @@ export const PROD_SAAS_CATALOG: ProdSaasCatalogEntry[] = [
 
 export const PROD_SAAS_LINK_GROUPS: ProdSaasLinkGroup[] = [
   {
-    id: 'soundy',
+    id: 'onscen',
     links: [
-      { label: 'Soundy prod', url: 'https://getsoundy.com' },
-      { label: 'Soundy staging', url: 'https://staging.getsoundy.com' },
+      { label: 'OnScen prod', url: 'https://getsoundy.com' },
+      { label: 'OnScen staging', url: 'https://staging.getsoundy.com' },
       { label: 'Health prod', url: 'https://getsoundy.com/health' },
       { label: 'Health staging', url: 'http://51.159.170.181/health', note: 'IP directe' },
     ],

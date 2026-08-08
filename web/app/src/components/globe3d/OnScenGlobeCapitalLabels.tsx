@@ -3,11 +3,11 @@ import { EARTH_RADIUS } from '../../lib/globe3d/constants';
 import { lonLatToVector3 } from '../../lib/globe3d/geoMath';
 import type { GlobeCapitalLabel } from '../../lib/worldCapitals';
 
-interface SoundyGlobeCapitalLabelsProps {
+interface OnScenGlobeCapitalLabelsProps {
   labels: GlobeCapitalLabel[];
 }
 
-export function SoundyGlobeCapitalLabels({ labels }: SoundyGlobeCapitalLabelsProps) {
+export function OnScenGlobeCapitalLabels({ labels }: OnScenGlobeCapitalLabelsProps) {
   if (labels.length === 0) return null;
 
   return (

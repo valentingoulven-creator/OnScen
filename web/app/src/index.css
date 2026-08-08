@@ -182,9 +182,9 @@ html {
   --ms-text: #f3f4f6;
   --ms-text-muted: #9ca3af;
   /** Logo wave — cyan (énergie) → violet (marque) → rose (social), lisible sur fond #0b0b0f */
-  --soundy-logo-wave-from: #22d3ee;
-  --soundy-logo-wave-mid: #a855f7;
-  --soundy-logo-wave-to: #f472b6;
+  --onscen-logo-wave-from: #22d3ee;
+  --onscen-logo-wave-mid: #a855f7;
+  --onscen-logo-wave-to: #f472b6;
   /* Tokens mobile Instagram (fallback desktop — apptel les surcharge) */
   --phone-max-w: 430px;
   --tab-nav-btn-size: 50px;
@@ -194,7 +194,7 @@ html {
   --tab-nav-total-h: calc(
     var(--tab-nav-float-gap) + var(--tab-nav-btn-size) + env(safe-area-inset-bottom, 0px)
   );
-  /* Hauteur totale du header fixe Soundy (safe-area + ligne + padding bas + onglets optionnels) */
+  /* Hauteur totale du header fixe OnScen (safe-area + ligne + padding bas + onglets optionnels) */
   --app-header-row-h: 2.25rem;
   --app-header-pad-b: 0.5rem;
   --app-header-tabs-h: 0px;
@@ -213,9 +213,9 @@ html {
   --ms-accent: #7c3aed;
   --ms-text: #111827;
   --ms-text-muted: #6b7280;
-  --soundy-logo-wave-from: #0891b2;
-  --soundy-logo-wave-mid: #7c3aed;
-  --soundy-logo-wave-to: #db2777;
+  --onscen-logo-wave-from: #0891b2;
+  --onscen-logo-wave-mid: #7c3aed;
+  --onscen-logo-wave-to: #db2777;
 }
 
 /* Carrousel horizontal — dégradés latéraux quand le contenu défile */
@@ -362,7 +362,7 @@ body {
   }
 }
 
-/** Dégradé pseudo « wave » (identique au logo Soundy dans le header). */
+/** Dégradé pseudo « wave » (identique au logo OnScen dans le header). */
 .ms-username-wave {
   background-image: linear-gradient(to right, #c084fc, #f472b6);
   -webkit-background-clip: text;
@@ -371,14 +371,14 @@ body {
 }
 
 /** Logo header — silhouette PNG + wave internationale (cyan → violet → rose). */
-.ms-soundy-logo {
+.ms-onscen-logo {
   position: relative;
   display: inline-block;
   line-height: 0;
   vertical-align: middle;
 }
 
-.ms-soundy-logo__sizer {
+.ms-onscen-logo__sizer {
   display: block;
   height: 100%;
   width: auto;
@@ -387,17 +387,17 @@ body {
   pointer-events: none;
 }
 
-.ms-soundy-logo__wave {
+.ms-onscen-logo__wave {
   position: absolute;
   inset: 0;
   background-image: linear-gradient(
     105deg,
-    var(--soundy-logo-wave-from) 0%,
-    var(--soundy-logo-wave-mid) 52%,
-    var(--soundy-logo-wave-to) 100%
+    var(--onscen-logo-wave-from) 0%,
+    var(--onscen-logo-wave-mid) 52%,
+    var(--onscen-logo-wave-to) 100%
   );
-  -webkit-mask-image: url(/soundy-logo.png);
-  mask-image: url(/soundy-logo.png);
+  -webkit-mask-image: url(/onscen-logo.png);
+  mask-image: url(/onscen-logo.png);
   -webkit-mask-size: contain;
   mask-size: contain;
   -webkit-mask-repeat: no-repeat;
@@ -406,7 +406,7 @@ body {
   mask-position: center;
 }
 
-/** Bouton CTA — fond dégradé wave Soundy */
+/** Bouton CTA — fond dégradé wave OnScen */
 .ms-wave-gradient-bg {
   background-image: linear-gradient(to right, #c084fc, #f472b6);
   color: #fff;
@@ -483,7 +483,7 @@ body {
 }
 
 /*
- * Grand salon / live plein écran — sous le header Soundy fixe.
+ * Grand salon / live plein écran — sous le header OnScen fixe.
  * `header.ms-app-header` est position:fixed (hors flux) : main commence à y=0
  * viewport et ne réserve le header que via padding-top pour le contenu en flux.
  * Un enfant `position:absolute; inset:0` ignore ce padding et se peignait SOUS
@@ -589,7 +589,7 @@ html[data-phone-viewport='1'] #root {
   max-width: var(--phone-max-w);
 }
 
-/* ── Header Soundy fixe (toujours visible au scroll) ─────────────── */
+/* ── Header OnScen fixe (toujours visible au scroll) ─────────────── */
 header.ms-app-header {
   position: fixed;
   top: 0;
@@ -632,7 +632,7 @@ main.ms-app-main {
   z-index: 30;
 }
 
-/* Admin plein écran — sous le header Soundy fixe (MODIF 457), au-dessus salon + onglets bas */
+/* Admin plein écran — sous le header OnScen fixe (MODIF 457), au-dessus salon + onglets bas */
 .ms-app-admin-overlay {
   inset: auto;
   top: var(--app-header-total-h);
@@ -3289,7 +3289,7 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 }
 
 /* Messages (DmPage) — cases à cocher plus visibles */
-.melosong-checkbox {
+.onscen-checkbox {
   appearance: none;
   -webkit-appearance: none;
   width: 1.25rem;
@@ -3302,11 +3302,11 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   transition: background-color 0.15s, border-color 0.15s;
 }
 
-.melosong-checkbox:hover {
+.onscen-checkbox:hover {
   border-color: #ec4899;
 }
 
-.melosong-checkbox:checked {
+.onscen-checkbox:checked {
   background-color: #ec4899;
   border-color: #ec4899;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='white'%3E%3Cpath d='M12.207 4.793a1 1 0 0 1 0 1.414l-5 5a1 1 0 0 1-1.414 0l-2.5-2.5a1 1 0 0 1 1.414-1.414L6.5 9.086l4.293-4.293a1 1 0 0 1 1.414 0z'/%3E%3C/svg%3E");
@@ -3315,7 +3315,7 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   background-repeat: no-repeat;
 }
 
-.melosong-checkbox:focus-visible {
+.onscen-checkbox:focus-visible {
   outline: 2px solid #ec4899;
   outline-offset: 2px;
 }
@@ -4380,8 +4380,8 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   color: rgba(156, 163, 175, 0.95);
 }
 
-/* Bouton Don live — dégradé wave Soundy (légère animation) */
-button.live-theater-chrome-btn.live-theater-chrome-btn--soundy-wave {
+/* Bouton Don live — dégradé wave OnScen (légère animation) */
+button.live-theater-chrome-btn.live-theater-chrome-btn--onscen-wave {
   background-color: transparent;
   background-image: linear-gradient(
     90deg,
@@ -4392,15 +4392,15 @@ button.live-theater-chrome-btn.live-theater-chrome-btn--soundy-wave {
     #7c3aed
   );
   background-size: 220% 100%;
-  animation: live-soundy-donate-wave 5s ease-in-out infinite;
+  animation: live-onscen-donate-wave 5s ease-in-out infinite;
 }
 
-button.live-theater-chrome-btn.live-theater-chrome-btn--soundy-wave:hover {
+button.live-theater-chrome-btn.live-theater-chrome-btn--onscen-wave:hover {
   background-color: transparent;
   filter: brightness(1.08);
 }
 
-@keyframes live-soundy-donate-wave {
+@keyframes live-onscen-donate-wave {
   0%,
   100% {
     background-position: 0% 50%;

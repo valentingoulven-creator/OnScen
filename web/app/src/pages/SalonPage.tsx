@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const SOUNDY_BASE_URL = 'https://getsoundy.com';
+const ONSCEN_BASE_URL = 'https://getsoundy.com';
 
 import { useAuth } from '../context/AuthContext';
 import { canJoinSalonAsParticipant, isMusicPlatformLinkedForSalon } from '../lib/platformConnect';
@@ -903,9 +903,9 @@ export function SalonPage({
       <ShareLinkMenu
         open={showShareMenu && !shareToUserOpen}
         onClose={() => setShowShareMenu(false)}
-        url={shareMenuUrl || `${SOUNDY_BASE_URL}/salon/${salonId}`}
-        title={salon?.title ?? 'Salon Soundy'}
-        text={`Rejoins le salon "${salon?.title ?? 'Soundy'}" sur Soundy`}
+        url={shareMenuUrl || `${ONSCEN_BASE_URL}/salon/${salonId}`}
+        title={salon?.title ?? 'Salon OnScen'}
+        text={`Rejoins le salon "${salon?.title ?? 'OnScen'}" sur OnScen`}
         onToast={setToastMsg}
         onSendToUser={token ? () => setShareToUserOpen(true) : undefined}
       />
@@ -918,8 +918,8 @@ export function SalonPage({
             setShowShareMenu(false);
           }}
           token={token}
-          shareUrl={shareMenuUrl || `${SOUNDY_BASE_URL}/salon/${salonId}`}
-          shareText={`Rejoins le salon "${salon?.title ?? 'Soundy'}" sur Soundy`}
+          shareUrl={shareMenuUrl || `${ONSCEN_BASE_URL}/salon/${salonId}`}
+          shareText={`Rejoins le salon "${salon?.title ?? 'OnScen'}" sur OnScen`}
           onToast={setToastMsg}
         />
       )}

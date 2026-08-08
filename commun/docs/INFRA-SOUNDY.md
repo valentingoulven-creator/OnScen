@@ -1,4 +1,4 @@
-# Infra Soundy — MeloSongv2
+# Infra OnScen — OnScenv2
 
 > Document d'infrastructure : architecture, RPO/RTO, ressources, coûts et risques.  
 > **Dernière mise à jour :** juillet 2026 · **Priorités ops :** [`commun/deploy/OPS-PRIORITIES.md`](../commun/deploy/OPS-PRIORITIES.md) · **Cloudflare CDN/WAF :** [`commun/deploy/CLOUDFLARE-CDN-WAF.md`](../commun/deploy/CLOUDFLARE-CDN-WAF.md)
@@ -112,7 +112,7 @@ flowchart TB
 |-------------|----------|---------|
 | VPS DEV1-S | ~20 Go SSD | App, logs, backups locaux |
 | PostgreSQL Managed | 10 Go SSD | Données durables (users, DMs, fil…) |
-| Backups VPS | ~176 Ko (6 fichiers) | Dumps `soundy-*.sql.gz` |
+| Backups VPS | ~176 Ko (6 fichiers) | Dumps `onscen-*.sql.gz` |
 | Backups Scaleway | Inclus plan | Snapshots automatiques console |
 | Uploads utilisateur | Variable VPS | `/opt/soundly/public/uploads/` — **backup hebdo** (`backup-uploads.sh`) |
 
@@ -126,7 +126,7 @@ flowchart TB
 |-----------|--------|
 | Fréquence | Quotidien **03:15** (cron) |
 | Rétention | **14 jours** (`RETENTION_DAYS=14`) |
-| Sortie | `/opt/soundly/backups/soundy-YYYYMMDD-HHMMSS.sql.gz` |
+| Sortie | `/opt/soundly/backups/onscen-YYYYMMDD-HHMMSS.sql.gz` |
 | **RPO** | **≤ 24 h** (pire cas juste après backup) |
 | **RTO** | **30 min – 2 h** (restore sur base test) |
 
@@ -151,7 +151,7 @@ flowchart TB
 
 Le sync S3 de `backup-offsite.sh` nécessite un bucket et des clés IAM. Sur la machine de dev, le CLI `scw` n’est pas toujours installé ; la procédure console reste la référence.
 
-1. [Console Object Storage](https://console.scaleway.com/object-storage) → bucket **soundy-backups** en **fr-par** (privé).
+1. [Console Object Storage](https://console.scaleway.com/object-storage) → bucket **onscen-backups** en **fr-par** (privé).
 2. [IAM → API keys](https://console.scaleway.com/iam/api-keys) → droits Object Storage sur le bucket.
 3. VPS `/opt/soundly/.env` : `SCW_BUCKET`, `SCW_REGION=fr-par`, `SCW_ACCESS_KEY`, `SCW_SECRET_KEY` (voir `commun/deploy/.env.production.example`).
 4. VPS : `bash /opt/soundly/commun/deploy/setup-scaleway-object-storage.sh --vps-only` (installe `awscli`, teste `backup-offsite.sh`).
@@ -178,7 +178,7 @@ Helper : `commun/deploy/setup-scaleway-object-storage.sh` (création bucket via 
 bash /opt/soundly/commun/deploy/verify-backup.sh
 
 # Restore test (NE PAS sur prod sans maintenance)
-gunzip -c /opt/soundly/backups/soundy-XXXX.sql.gz | psql "$DATABASE_URL"
+gunzip -c /opt/soundly/backups/onscen-XXXX.sql.gz | psql "$DATABASE_URL"
 ```
 
 ---

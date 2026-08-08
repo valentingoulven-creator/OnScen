@@ -133,7 +133,7 @@ describe('applyProviderConfig', () => {
   const tmpFiles: string[] = [];
 
   function tmpEnvPath(content: string): string {
-    const file = path.join(os.tmpdir(), `soundy-ext-secrets-test-${Date.now()}-${Math.random()}.env`);
+    const file = path.join(os.tmpdir(), `onscen-ext-secrets-test-${Date.now()}-${Math.random()}.env`);
     fs.writeFileSync(file, content);
     tmpFiles.push(file);
     return file;
@@ -167,7 +167,7 @@ describe('applyProviderConfig', () => {
   });
 
   it('rejects apply when the resolved .env file does not exist', () => {
-    const missingPath = path.join(os.tmpdir(), `soundy-ext-secrets-missing-${Date.now()}.env`);
+    const missingPath = path.join(os.tmpdir(), `onscen-ext-secrets-missing-${Date.now()}.env`);
     expect(() =>
       applyProviderConfig(
         'sightengine',

@@ -1,7 +1,7 @@
 /**
  * Seed données de test production (PostgreSQL).
  * Usage sur le VPS :
- *   cd /opt/soundy && APP_ENV=production node dist/commun/scripts/seed-production-testdata.js
+ *   cd /opt/onscen && APP_ENV=production node dist/commun/scripts/seed-production-testdata.js
  *
  * Variables optionnelles :
  *   SEED_TARGET_EMAIL — email du compte cible (défaut : admin@getsoundy.com)
@@ -30,11 +30,11 @@ const ID_PREFIX = 'prod-seed-';
 const LE_CRES = { lat: 43.6489, lon: 3.9394, label: 'Le Crès, France' };
 
 const FOLLOWER_USERNAMES = [
-  'soundy_user1',
-  'soundy_user2',
-  'soundy_user3',
-  'soundy_user4',
-  'soundy_user5',
+  'onscen_user1',
+  'onscen_user2',
+  'onscen_user3',
+  'onscen_user4',
+  'onscen_user5',
 ] as const;
 
 interface EventSeed {
@@ -50,7 +50,7 @@ interface EventSeed {
 const EVENT_SEEDS: EventSeed[] = [
   {
     id: `${ID_PREFIX}evt-cres-open-mic`,
-    authorUsername: 'soundy_user1',
+    authorUsername: 'onscen_user1',
     content: 'Open mic acoustique ce vendredi — bring your instrument ! 🎤',
     eventDate: '2026-06-12T19:00:00.000Z',
     eventLocation: 'Salle des fêtes, Le Crès, France',
@@ -59,7 +59,7 @@ const EVENT_SEEDS: EventSeed[] = [
   },
   {
     id: `${ID_PREFIX}evt-cres-dj-terrasse`,
-    authorUsername: 'soundy_user2',
+    authorUsername: 'onscen_user2',
     content: 'Soirée DJ terrasse — house & french touch autour du Crès 🎧',
     eventDate: '2026-06-14T20:30:00.000Z',
     eventLocation: 'Bar Le Patio, Le Crès, France',
@@ -68,7 +68,7 @@ const EVENT_SEEDS: EventSeed[] = [
   },
   {
     id: `${ID_PREFIX}evt-montpellier-rockstore`,
-    authorUsername: 'soundy_user3',
+    authorUsername: 'onscen_user3',
     content: 'Concert indie au Rockstore — entrée libre avant 21h 🎸',
     eventDate: '2026-06-15T18:00:00.000Z',
     eventLocation: 'Le Rockstore, Montpellier, France',
@@ -77,7 +77,7 @@ const EVENT_SEEDS: EventSeed[] = [
   },
   {
     id: `${ID_PREFIX}evt-paris-olympia`,
-    authorUsername: 'soundy_user4',
+    authorUsername: 'onscen_user4',
     content: 'Session live soul à l\'Olympia — places limitées 🎷',
     eventDate: '2026-06-18T20:00:00.000Z',
     eventLocation: "L'Olympia, Paris, France",
@@ -86,7 +86,7 @@ const EVENT_SEEDS: EventSeed[] = [
   },
   {
     id: `${ID_PREFIX}evt-lyon-nuits-sonores`,
-    authorUsername: 'soundy_user5',
+    authorUsername: 'onscen_user5',
     content: 'Nuits sonores pop-up — techno & ambient au traboule 🌙',
     eventDate: '2026-06-20T21:00:00.000Z',
     eventLocation: 'Traboule Café, Lyon, France',
@@ -121,12 +121,12 @@ const POST_SEEDS: Array<{
 }> = [
   {
     id: `${ID_PREFIX}post-1`,
-    authorUsername: 'soundy_user1',
+    authorUsername: 'onscen_user1',
     content: 'Qui écoute du jazz ce soir ? 🎷',
   },
   {
     id: `${ID_PREFIX}post-2`,
-    authorUsername: 'soundy_user2',
+    authorUsername: 'onscen_user2',
     content: 'Mon salon YouTube est ouvert — venez !',
     imageUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600',
   },
@@ -137,19 +137,19 @@ const POST_SEEDS: Array<{
   },
   {
     id: `${ID_PREFIX}post-4`,
-    authorUsername: 'soundy_user3',
+    authorUsername: 'onscen_user3',
     content: 'Ambiance lo-fi parfaite pour travailler ce matin ☕🎧',
     imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600',
   },
   {
     id: `${ID_PREFIX}post-5`,
-    authorUsername: 'soundy_user4',
+    authorUsername: 'onscen_user4',
     content: 'La carte est animée, plein de lives autour de moi 🗺️',
   },
   {
     id: `${ID_PREFIX}post-6`,
-    authorUsername: 'soundy_user5',
-    content: 'Soundy + weekend + bonne humeur = combo parfait ☀️🎵',
+    authorUsername: 'onscen_user5',
+    content: 'OnScen + weekend + bonne humeur = combo parfait ☀️🎵',
     imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600',
   },
   {
@@ -291,7 +291,7 @@ async function main(): Promise<void> {
 
   // ── 2 cœurs ──
   const valPost = db.feedPosts.find((p) => p.id === `${ID_PREFIX}post-val-1`);
-  const heartSender1 = findUserByUsername('soundy_user1');
+  const heartSender1 = findUserByUsername('onscen_user1');
   const heartSender2 = findUserByUsername('keval');
 
   if (heartSender1 && !db.heartEvents.some((h) => h.fromId === heartSender1.id && h.toId === target.id)) {

@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { TabIcon, SOUNDY_TAB_WAVE_GRADIENT_ID, type TabId } from './TabNavIcons';
+import { TabIcon, ONSCEN_TAB_WAVE_GRADIENT_ID, type TabId } from './TabNavIcons';
 import {
   DEFAULT_USERNAME_WAVE_FROM,
   DEFAULT_USERNAME_WAVE_TO,
@@ -237,7 +237,7 @@ export const MainTabNav = memo(function MainTabNav({
       {placement === 'bottom' ? (
         <svg width="0" height="0" className="absolute" aria-hidden="true" focusable="false">
           <defs>
-            <linearGradient id={SOUNDY_TAB_WAVE_GRADIENT_ID} x1="0%" y1="0%" x2="100%" y2="0%">
+            <linearGradient id={ONSCEN_TAB_WAVE_GRADIENT_ID} x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stopColor={DEFAULT_USERNAME_WAVE_FROM} />
               <stop offset="100%" stopColor={DEFAULT_USERNAME_WAVE_TO} />
             </linearGradient>

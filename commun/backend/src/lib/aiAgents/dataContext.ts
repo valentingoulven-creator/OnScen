@@ -24,7 +24,7 @@ export function buildAiDataContext(): string {
   ];
 
   const payload = {
-    product: 'Soundy — réseau social musique live (getsoundy.com)',
+    product: 'OnScen — réseau social musique live (getsoundy.com)',
     analytics: analytics.snapshot,
     analyticsPeriod: analytics.period,
     donations: {

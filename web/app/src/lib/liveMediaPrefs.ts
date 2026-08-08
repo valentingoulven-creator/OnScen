@@ -42,9 +42,9 @@ export interface LiveMediaPrefs {
   videoDelaySeconds?: number;
 }
 
-const STORAGE_KEY = 'melosong_live_media_prefs';
-const DRAFT_STORAGE_KEY = 'melosong_live_media_draft';
-const PENDING_CAMERA_START_KEY = 'melosong_live_pending_camera_start';
+const STORAGE_KEY = 'onscen_live_media_prefs';
+const DRAFT_STORAGE_KEY = 'onscen_live_media_draft';
+const PENDING_CAMERA_START_KEY = 'onscen_live_pending_camera_start';
 
 export function getLiveMediaPrefs(): LiveMediaPrefs | null {
   if (typeof sessionStorage === 'undefined') return null;

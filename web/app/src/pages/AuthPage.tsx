@@ -8,7 +8,7 @@ import { peekPendingSalonJoin } from '../lib/salonDeepLink';
 import { forgotPasswordHref } from '../lib/forgotPasswordRoute';
 import { api } from '../lib/api';
 import { isNativeIos } from '../lib/nativePlatform';
-import { SoundyLogo } from '../components/SoundyLogo';
+import { OnScenLogo } from '../components/OnScenLogo';
 import { PasswordStrengthBar } from '../components/PasswordStrengthBar';
 import { getPasswordStrengthAsync, preloadPasswordStrength } from '../lib/passwordStrength';
 import type { PublicAccessConfig, User } from '../types';
@@ -540,7 +540,7 @@ export function AuthPage() {
         token={pendingSignup.token}
         username={pendingSignup.user.username}
         title="Créez votre profil"
-        subtitle="Étape 2 sur 2 — personnalisez votre expérience Soundy"
+        subtitle="Étape 2 sur 2 — personnalisez votre expérience OnScen"
         onDone={finishSignupProfile}
       />
     );
@@ -559,7 +559,7 @@ export function AuthPage() {
               type="checkbox"
               checked={oauthConfirmAge}
               onChange={(e) => setOauthConfirmAge(e.target.checked)}
-              className="melosong-checkbox mt-0.5 shrink-0"
+              className="onscen-checkbox mt-0.5 shrink-0"
             />
             <span>{t('auth.ageConfirmCheckbox')}</span>
           </label>
@@ -568,7 +568,7 @@ export function AuthPage() {
               type="checkbox"
               checked={oauthAcceptTerms}
               onChange={(e) => setOauthAcceptTerms(e.target.checked)}
-              className="melosong-checkbox mt-0.5 shrink-0"
+              className="onscen-checkbox mt-0.5 shrink-0"
             />
             <span>
               {t('auth.acceptTermsPrefix')}{' '}
@@ -600,7 +600,7 @@ export function AuthPage() {
     <div className="min-h-dvh flex flex-col items-center justify-center p-6 bg-[#0b0b0f]">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <SoundyLogo className="h-12 sm:h-14 w-auto mx-auto mb-4" />
+          <OnScenLogo className="h-12 sm:h-14 w-auto mx-auto mb-4" />
           <p className="text-gray-400 text-sm mt-2">{t('app.tagline')}</p>
         </div>
 
@@ -736,7 +736,7 @@ export function AuthPage() {
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="melosong-checkbox mt-0.5 shrink-0"
+                className="onscen-checkbox mt-0.5 shrink-0"
               />
               <span className="text-xs text-gray-400 leading-snug">
                 {t('auth.rememberMe')}
@@ -753,7 +753,7 @@ export function AuthPage() {
                 type="checkbox"
                 checked={confirmAge}
                 onChange={(e) => setConfirmAge(e.target.checked)}
-                className="melosong-checkbox mt-0.5 shrink-0"
+                className="onscen-checkbox mt-0.5 shrink-0"
                 required
               />
               <span>{t('auth.ageConfirmCheckbox')}</span>
@@ -766,7 +766,7 @@ export function AuthPage() {
                 type="checkbox"
                 checked={acceptTerms}
                 onChange={(e) => setAcceptTerms(e.target.checked)}
-                className="melosong-checkbox mt-0.5 shrink-0"
+                className="onscen-checkbox mt-0.5 shrink-0"
                 required
               />
               <span>

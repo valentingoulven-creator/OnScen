@@ -11,7 +11,7 @@ const STROKE: Record<GlobeLivesRadiusKind, string> = {
   viewport: '#c084fc',
 };
 
-interface SoundyGlobeQueryRadiusRingProps {
+interface OnScenGlobeQueryRadiusRingProps {
   lat: number;
   lng: number;
   radiusKm: number;
@@ -19,12 +19,12 @@ interface SoundyGlobeQueryRadiusRingProps {
 }
 
 /** Contour géodésique uniquement (pas de remplissage — évite de masquer la Terre sur grands rayons). */
-export function SoundyGlobeQueryRadiusRing({
+export function OnScenGlobeQueryRadiusRing({
   lat,
   lng,
   radiusKm,
   kind = 'viewport',
-}: SoundyGlobeQueryRadiusRingProps) {
+}: OnScenGlobeQueryRadiusRingProps) {
   const surfaceRadius = MARKER_SURFACE_RADIUS * 1.003;
 
   const lineGeometry = useMemo(() => {

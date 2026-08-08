@@ -8,6 +8,6 @@ describe('maskProfanity', () => {
   });
 
   it('leaves clean text unchanged', () => {
-    expect(maskProfanity('Hello Soundy')).toBe('Hello Soundy');
+    expect(maskProfanity('Hello OnScen')).toBe('Hello OnScen');
   });
 });

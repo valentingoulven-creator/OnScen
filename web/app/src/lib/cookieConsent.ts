@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'soundy_cookie_consent_v1';
+const STORAGE_KEY = 'onscen_cookie_consent_v1';
 
 export type CookieConsentChoice = 'all' | 'essential';
 
@@ -18,7 +18,7 @@ export function setCookieConsent(choice: CookieConsentChoice): void {
   } catch {
     /* ignore */
   }
-  window.dispatchEvent(new CustomEvent('soundy:cookie-consent', { detail: choice }));
+  window.dispatchEvent(new CustomEvent('onscen:cookie-consent', { detail: choice }));
 }
 
 /** Stripe, YouTube IFrame et autres services tiers nécessitent le consentement « tout accepter ». */
@@ -37,16 +37,16 @@ export function resetCookieConsent(): void {
   } catch {
     /* ignore */
   }
-  window.dispatchEvent(new CustomEvent('soundy:cookie-consent-open'));
+  window.dispatchEvent(new CustomEvent('onscen:cookie-consent-open'));
 }
 
-export const COOKIE_CONSENT_OPEN_EVENT = 'soundy:cookie-consent-open';
+export const COOKIE_CONSENT_OPEN_EVENT = 'onscen:cookie-consent-open';
 
 export function subscribeCookieConsent(listener: (choice: CookieConsentChoice) => void): () => void {
   const handler = (event: Event) => {
     const detail = (event as CustomEvent<CookieConsentChoice>).detail;
     if (detail === 'all' || detail === 'essential') listener(detail);
   };
-  window.addEventListener('soundy:cookie-consent', handler);
-  return () => window.removeEventListener('soundy:cookie-consent', handler);
+  window.addEventListener('onscen:cookie-consent', handler);
+  return () => window.removeEventListener('onscen:cookie-consent', handler);
 }

@@ -34,7 +34,7 @@ export function ShareProfileLink({
   const [toUserOpen, setToUserOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [toast, setToast] = useState<string | null>(null);
-  const shareText = `Découvre le profil de ${username} sur Soundy`;
+  const shareText = `Découvre le profil de ${username} sur OnScen`;
 
   useEffect(() => {
     let cancelled = false;
@@ -77,7 +77,7 @@ export function ShareProfileLink({
           open
           onClose={() => setMenuOpen(false)}
           url={shareUrl}
-          title={`${username} — Soundy`}
+          title={`${username} — OnScen`}
           text={shareText}
           onToast={setToast}
           onSendToUser={token ? () => setToUserOpen(true) : undefined}

@@ -1,14 +1,14 @@
-import type { SoundyGlobePoint } from './SoundyGlobeMarkers';
+import type { OnScenGlobePoint } from './OnScenGlobeMarkers';
 import { GlobeFacingHtml } from './GlobeFacingHtml';
 
-interface SoundyGlobeSalonMarkersProps {
-  points: SoundyGlobePoint[];
-  onPointClick: (point: SoundyGlobePoint) => void;
+interface OnScenGlobeSalonMarkersProps {
+  points: OnScenGlobePoint[];
+  onPointClick: (point: OnScenGlobePoint) => void;
 }
 
 const MAX_HTML_SALON_MARKERS = 120;
 
-export function SoundyGlobeSalonMarkers({ points, onPointClick }: SoundyGlobeSalonMarkersProps) {
+export function OnScenGlobeSalonMarkers({ points, onPointClick }: OnScenGlobeSalonMarkersProps) {
   const salonPoints = points.filter((p) => p.type === 'salon').slice(0, MAX_HTML_SALON_MARKERS);
   if (salonPoints.length === 0) return null;
 

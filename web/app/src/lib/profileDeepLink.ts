@@ -1,4 +1,4 @@
-const PENDING_KEY = 'melosong_pending_profile_view';
+const PENDING_KEY = 'onscen_pending_profile_view';
 
 export function getProfilePath(userId: string): string {
   return `/profile/${encodeURIComponent(userId)}`;

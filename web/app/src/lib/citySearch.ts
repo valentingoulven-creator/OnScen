@@ -34,7 +34,7 @@ interface NominatimResult {
 const GOUV_API = 'https://geo.api.gouv.fr/communes';
 const NOMINATIM_API = 'https://nominatim.openstreetmap.org/search';
 const MAX_SUGGESTIONS = 8;
-const USER_AGENT = 'MeloSong/1.0 (city search; https://github.com/melosong)';
+const USER_AGENT = 'OnScen/1.0 (city search; https://github.com/onscen)';
 
 function primaryPostcode(codes?: string[]): string | undefined {
   return codes?.find(Boolean)?.trim();

@@ -1,8 +1,8 @@
 export type AppLayoutId = 'default' | 'appa2';
 
-const STORAGE_KEY = 'melosong_app_layout';
+const STORAGE_KEY = 'onscen_app_layout';
 
-export const APP_LAYOUT_CHANGED_EVENT = 'melosong-app-layout-changed';
+export const APP_LAYOUT_CHANGED_EVENT = 'onscen-app-layout-changed';
 
 export function getAppLayout(): AppLayoutId {
   const raw = localStorage.getItem(STORAGE_KEY);

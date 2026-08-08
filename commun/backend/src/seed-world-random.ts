@@ -10,19 +10,19 @@ import { POPULATED_CITIES, NON_FRANCE_POPULATED_CITIES, type PopulatedCity } fro
 import { schedulePersist } from './lib/persist';
 
 /** Préfixe IDs salons monde (persistés PostgreSQL via pgSalonsLives). */
-export const WORLD_SALON_ID_PREFIX = 'salon_soundy_world_';
+export const WORLD_SALON_ID_PREFIX = 'salon_onscen_world_';
 
 /** Préfixe IDs lives monde. */
-export const WORLD_LIVE_ID_PREFIX = 'live_soundy_world_';
+export const WORLD_LIVE_ID_PREFIX = 'live_onscen_world_';
 
 /** Préfixe IDs utilisateurs bots salons. */
-export const WORLD_USER_SALON_PREFIX = 'soundy_world_salon_';
+export const WORLD_USER_SALON_PREFIX = 'onscen_world_salon_';
 
 /** Préfixe IDs utilisateurs bots lives autonomes. */
-export const WORLD_USER_LIVE_PREFIX = 'soundy_world_live_';
+export const WORLD_USER_LIVE_PREFIX = 'onscen_world_live_';
 
 /** Préfixe IDs utilisateurs bots événements feed. */
-export const WORLD_USER_EVENT_PREFIX = 'soundy_world_event_';
+export const WORLD_USER_EVENT_PREFIX = 'onscen_world_event_';
 
 /** Préfixe publications événement feed monde. */
 export const WORLD_EVENT_POST_ID_PREFIX = 'feed-world-event-';
@@ -173,7 +173,7 @@ function makeHostUser(
   const user: User = {
     id: userId,
     username,
-    email: `${userId}@bot.melosong.local`,
+    email: `${userId}@bot.onscen.local`,
     passwordHash: 'bot',
     avatarUrl: dicebearAdventurerAvatar(userId),
     meloCoins: 0,
@@ -550,7 +550,7 @@ export function seedWorldRandomAtStartup(): void {
     result.eventsCreated > 0
   ) {
     console.log(
-      `[melosong] World seed : ${result.usersCreated} utilisateur(s), ${result.salonsCreated} salon(s), ${result.livesCreated} live(s), ${result.eventsCreated} événement(s) (${result.uniqueCities} villes)`
+      `[onscen] World seed : ${result.usersCreated} utilisateur(s), ${result.salonsCreated} salon(s), ${result.livesCreated} live(s), ${result.eventsCreated} événement(s) (${result.uniqueCities} villes)`
     );
   }
 }

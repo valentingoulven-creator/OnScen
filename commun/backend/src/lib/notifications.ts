@@ -316,14 +316,14 @@ export function notifySupportReply(params: {
     senderName: params.admin.username,
     senderAvatarUrl: params.admin.avatarUrl,
     type: 'support_reply',
-    message: `Réponse Soundy : ${preview}`,
+    message: `Réponse OnScen : ${preview}`,
     supportMessageId: params.message.id,
   });
 }
 
 export function notifySubscriptionPaymentFailed(params: {
   subscriberId: string;
-  /** userId du créateur, ou 'platform' pour Soundy+/SoundyUltra. */
+  /** userId du créateur, ou 'platform' pour OnScen+/OnScenUltra. */
   creatorId: string;
   tierLabel: string;
 }): void {
@@ -331,7 +331,7 @@ export function notifySubscriptionPaymentFailed(params: {
   pushNotification({
     recipientId: params.subscriberId,
     senderId: creator?.id ?? params.subscriberId,
-    senderName: creator?.username ?? 'Soundy',
+    senderName: creator?.username ?? 'OnScen',
     senderAvatarUrl: creator?.avatarUrl,
     type: 'subscription_payment_failed',
     message: `Le paiement de votre abonnement « ${params.tierLabel} » a échoué. Mettez à jour votre moyen de paiement pour éviter une interruption.`,

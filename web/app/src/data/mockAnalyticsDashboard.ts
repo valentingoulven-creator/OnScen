@@ -2,7 +2,7 @@
  * Jeu de données MOCKÉ — Vue analytique avancée (onglet Admin ▸ Analytics ▸ Aperçu avancé).
  *
  * ⚠️ Toutes les valeurs ci-dessous sont générées (déterministes, seed fixe) et NE
- * PROVIENNENT PAS de la base Soundy. Elles couvrent des catégories non encore
+ * PROVIENNENT PAS de la base OnScen. Elles couvrent des catégories non encore
  * instrumentées en prod (sessions, watch-time, CAC, crash rate, store rating…).
  *
  * Remplacement par une vraie API : exposer un endpoint backend retournant la même
@@ -10,7 +10,7 @@
  * pour le pattern d'agrégation déjà en place côté plateforme réelle) puis remplacer
  * `getMockAnalyticsDailyPoints()` par un appel `api.getAnalyticsDashboard(...)`.
  *
- * Les métriques déjà réelles dans Soundy (audience, contenu, monétisation Stripe,
+ * Les métriques déjà réelles dans OnScen (audience, contenu, monétisation Stripe,
  * sponsors) restent visibles telles quelles dans les sous-onglets « Plateforme » et
  * « Activité » — ce module ne les duplique pas.
  */

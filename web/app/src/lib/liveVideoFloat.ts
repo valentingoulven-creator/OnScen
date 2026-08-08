@@ -32,7 +32,7 @@ export function consumeLiveMinimizePipPending(): boolean {
 }
 
 /** Déclenché avant réduction du live plein écran (LivePage → auto float). */
-export const LIVE_BEFORE_MINIMIZE_EVENT = 'soundy:live-before-minimize';
+export const LIVE_BEFORE_MINIMIZE_EVENT = 'onscen:live-before-minimize';
 
 export function dispatchLiveBeforeMinimize(): void {
   setLiveMinimizePipPending(true);

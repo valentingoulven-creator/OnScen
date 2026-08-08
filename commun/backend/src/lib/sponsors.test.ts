@@ -42,9 +42,9 @@ describe('sponsors', () => {
 
   it('ajoute les sponsors par défaut manquants sans écraser la liste existante', () => {
     createSponsor({
-      name: 'Soundy',
+      name: 'OnScen',
       placement: 'map_banner',
-      title: 'Soundy Premium',
+      title: 'OnScen Premium',
       subtitle: 'Sans pub',
       cta: 'Découvrir',
       priority: 0,

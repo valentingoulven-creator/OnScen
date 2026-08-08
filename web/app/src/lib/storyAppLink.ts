@@ -9,7 +9,7 @@ export interface StoryAppLinkTarget {
   compositionId?: string;
 }
 
-export const STORY_APP_LINK_EVENT = 'soundy:story-app-link';
+export const STORY_APP_LINK_EVENT = 'onscen:story-app-link';
 
 export function parseStoryAppLink(url: string): StoryAppLinkTarget | null {
   try {

@@ -59,7 +59,7 @@ function resolveNotificationUrl(n: AppNotification): string {
 
 function pushPayloadForNotification(n: AppNotification): string {
   return JSON.stringify({
-    title: 'Soundy',
+    title: 'OnScen',
     body: n.message,
     url: resolveNotificationUrl(n),
     tag: n.id,

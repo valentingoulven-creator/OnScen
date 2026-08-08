@@ -391,7 +391,7 @@ export async function composePhotoImageWithEdits(
         glitch: useGlitch,
         duotoneGenre: useDuotone ? options?.duotoneGenre ?? 'default' : null,
         waveformSeed: useWaveform
-          ? options?.waveformSeed ?? waveformSeedFromText('soundy')
+          ? options?.waveformSeed ?? waveformSeedFromText('onscen')
           : null,
       });
     } else {

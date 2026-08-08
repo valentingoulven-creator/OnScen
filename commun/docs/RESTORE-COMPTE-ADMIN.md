@@ -1,7 +1,7 @@
 # Restauration d'un compte depuis l'admin — spec
 
 **Statut :** v1 implémentée (scope réduit, voir §Limites) · Date : 2026-07-16
-**Auteur :** @soundy-cto (analyse) → @soundy-dev-agent (implémentation)
+**Auteur :** @onscen-cto (analyse) → @onscen-dev-agent (implémentation)
 **Déploiement :** aucun — dev/local uniquement tant que non validé (pas de migration DB requise pour v1)
 
 ---

@@ -113,7 +113,7 @@ function logProductionStartup(port: number): void {
   console.log(
     JSON.stringify({
       event: 'startup',
-      service: 'soundy',
+      service: 'onscen',
       env: 'production',
       version,
       ...(commit ? { commit } : {}),
@@ -203,7 +203,7 @@ function registerCriticalEventHandlers(): void {
   });
 }
 
-export async function startMeloSong(options: StartOptions = {}): Promise<void> {
+export async function startOnScen(options: StartOptions = {}): Promise<void> {
   const forceMsdev =
     options.forceMsdev ??
     (process.env.MSENV === 'msdev' ||
@@ -290,21 +290,21 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
     ensureMsdevListenerFollowersCount();
     const admins = ensureAccessAdmins();
     if (admins > 0) {
-      console.log(`[melosong] ${admins} compte(s) administrateur synchronisé(s)`);
+      console.log(`[onscen] ${admins} compte(s) administrateur synchronisé(s)`);
     }
     if (isAccessControlEnabled()) {
       console.log(
-        '[melosong] Contrôle d’accès tunnel public actif — inscriptions soumises à validation admin par défaut'
+        '[onscen] Contrôle d’accès tunnel public actif — inscriptions soumises à validation admin par défaut'
       );
     }
     await loadMsdevOptionalPgMusic();
     startPersistLoop();
   } else if (APP_ENV === 'production' || APP_ENV === 'preproduction') {
     if (usesPostgresPersistence()) {
-      console.log('[soundy] Persistance PostgreSQL (DATABASE_URL)');
+      console.log('[onscen] Persistance PostgreSQL (DATABASE_URL)');
     } else {
       console.warn(
-        '[soundy] DATABASE_URL absent — repli sur store.json local (non recommandé en production). ' +
+        '[onscen] DATABASE_URL absent — repli sur store.json local (non recommandé en production). ' +
           'Configurer PostgreSQL : commun/deploy/RUNBOOK-PROD.md § Checklist .env'
       );
     }
@@ -315,8 +315,8 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
     if (restored) {
       console.log(
         usesPostgresPersistence()
-          ? '[soundy] Données restaurées depuis PostgreSQL'
-          : '[soundy] Données restaurées depuis le stockage local'
+          ? '[onscen] Données restaurées depuis PostgreSQL'
+          : '[onscen] Données restaurées depuis le stockage local'
       );
     } else {
       await seedProductionAdmin();
@@ -325,14 +325,14 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
       try {
         const { salons, lives } = await loadSalonsLivesFromPostgres();
         if (salons > 0 || lives > 0) {
-          console.log(`[soundy] Salons/lives restaurés depuis PostgreSQL (${salons} salon(s), ${lives} live(s))`);
+          console.log(`[onscen] Salons/lives restaurés depuis PostgreSQL (${salons} salon(s), ${lives} live(s))`);
         }
         const queueRows = await loadSalonQueuesFromPg();
         if (queueRows > 0) {
-          console.log(`[soundy] Files d'attente salon restaurées depuis PostgreSQL (${queueRows} morceau(x))`);
+          console.log(`[onscen] Files d'attente salon restaurées depuis PostgreSQL (${queueRows} morceau(x))`);
         }
       } catch (e) {
-        console.warn('[soundy] Échec chargement salons/lives PostgreSQL:', e);
+        console.warn('[onscen] Échec chargement salons/lives PostgreSQL:', e);
       }
       try {
         const presLive = db.lives.get(PRESENTATION_LIVE_ID);
@@ -340,86 +340,86 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
           const pres = seedMsdevPresentationLive();
           startPresentationDemoChatTicker();
           console.log(
-            `[soundy] Live présentation démo : ${pres.viewersCount} spectateurs, ${pres.chatMessages} message(s)`
+            `[onscen] Live présentation démo : ${pres.viewersCount} spectateurs, ${pres.chatMessages} message(s)`
           );
         }
       } catch (e) {
-        console.warn('[soundy] Live présentation démo ignoré:', e);
+        console.warn('[onscen] Live présentation démo ignoré:', e);
       }
       try {
         const reelStats = await loadReelsFromPg();
         if (reelStats.reels > 0) {
           console.log(
-            `[soundy] Reels restaurés depuis PostgreSQL (${reelStats.reels} reel(s), ` +
+            `[onscen] Reels restaurés depuis PostgreSQL (${reelStats.reels} reel(s), ` +
               `${reelStats.likes} like(s), ${reelStats.comments} commentaire(s))`
           );
         }
       } catch (e) {
-        console.warn('[soundy] Échec chargement reels PostgreSQL:', e);
+        console.warn('[onscen] Échec chargement reels PostgreSQL:', e);
       }
       try {
         const compositionStats = await loadCompositionsFromPg();
         if (compositionStats.compositions > 0) {
           console.log(
-            `[soundy] Compositions restaurées depuis PostgreSQL (${compositionStats.compositions})`
+            `[onscen] Compositions restaurées depuis PostgreSQL (${compositionStats.compositions})`
           );
         }
       } catch (e) {
-        console.warn('[soundy] Échec chargement compositions PostgreSQL:', e);
+        console.warn('[onscen] Échec chargement compositions PostgreSQL:', e);
       }
       try {
         const { loadAlbumsFromPg } = await import('./lib/pgAlbums');
         const albumStats = await loadAlbumsFromPg();
         if (albumStats.albums > 0) {
-          console.log(`[soundy] Albums restaurés depuis PostgreSQL (${albumStats.albums})`);
+          console.log(`[onscen] Albums restaurés depuis PostgreSQL (${albumStats.albums})`);
         }
       } catch (e) {
-        console.warn('[soundy] Échec chargement albums PostgreSQL:', e);
+        console.warn('[onscen] Échec chargement albums PostgreSQL:', e);
       }
       try {
         const donationStats = await loadDonationsFromPg();
         if (donationStats.gifts > 0 || donationStats.payments > 0) {
           console.log(
-            `[soundy] Dons restaurés depuis PostgreSQL (${donationStats.gifts} pourboire(s), ` +
+            `[onscen] Dons restaurés depuis PostgreSQL (${donationStats.gifts} pourboire(s), ` +
               `${donationStats.payments} paiement(s))`
           );
         }
       } catch (e) {
-        console.warn('[soundy] Échec chargement dons PostgreSQL:', e);
+        console.warn('[onscen] Échec chargement dons PostgreSQL:', e);
       }
       // Fix #2: restaurer les abonnements créateurs depuis PostgreSQL
       try {
         const subscriptionCount = await loadCreatorSubscriptionsFromPg();
         if (subscriptionCount > 0) {
           console.log(
-            `[soundy] Abonnements créateurs restaurés depuis PostgreSQL (${subscriptionCount})`
+            `[onscen] Abonnements créateurs restaurés depuis PostgreSQL (${subscriptionCount})`
           );
         }
       } catch (e) {
-        console.warn('[soundy] Échec chargement abonnements PostgreSQL:', e);
+        console.warn('[onscen] Échec chargement abonnements PostgreSQL:', e);
       }
       try {
         const checkoutCount = await loadSubscriptionCheckoutsFromPg();
         if (checkoutCount > 0) {
           console.log(
-            `[soundy] Checkouts abonnements restaurés depuis PostgreSQL (${checkoutCount})`
+            `[onscen] Checkouts abonnements restaurés depuis PostgreSQL (${checkoutCount})`
           );
         }
       } catch (e) {
-        console.warn('[soundy] Échec chargement checkouts PostgreSQL:', e);
+        console.warn('[onscen] Échec chargement checkouts PostgreSQL:', e);
       }
     }
     const admins = ensureAccessAdmins();
     if (admins > 0) {
-      console.log(`[soundy] ${admins} compte(s) administrateur synchronisé(s)`);
+      console.log(`[onscen] ${admins} compte(s) administrateur synchronisé(s)`);
     }
     if (isAccessControlEnabled()) {
       if (APP_ENV === 'production') {
         console.log(
-          '[soundy] Contrôle d’accès production actif — inscriptions fermées (comptes existants uniquement)'
+          '[onscen] Contrôle d’accès production actif — inscriptions fermées (comptes existants uniquement)'
         );
       } else {
-        console.log('[soundy] Contrôle d’accès actif — validation admin pour les nouveaux comptes');
+        console.log('[onscen] Contrôle d’accès actif — validation admin pour les nouveaux comptes');
       }
     }
     startPersistLoop();
@@ -427,23 +427,23 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
 
   const sponsorsAdded = ensureDefaultSponsors();
   if (sponsorsAdded > 0) {
-    console.log(`[melosong] Sponsors par défaut ajoutés : ${sponsorsAdded} entrée(s)`);
+    console.log(`[onscen] Sponsors par défaut ajoutés : ${sponsorsAdded} entrée(s)`);
     schedulePersist();
   }
   const sponsorsSynced = syncDefaultSponsorFields();
   if (sponsorsSynced > 0) {
-    console.log(`[melosong] Champs sponsors par défaut complétés : ${sponsorsSynced} entrée(s)`);
+    console.log(`[onscen] Champs sponsors par défaut complétés : ${sponsorsSynced} entrée(s)`);
     schedulePersist();
   }
   ensureDefaultSponsorPlatformConfig();
   const sponsorGeoMigrated = migrateSponsorMapVisibility();
   if (sponsorGeoMigrated > 0) {
-    console.log(`[melosong] Ciblage géo sponsors migré : ${sponsorGeoMigrated} entrée(s)`);
+    console.log(`[onscen] Ciblage géo sponsors migré : ${sponsorGeoMigrated} entrée(s)`);
     schedulePersist();
   }
   const sponsorScopesSynced = syncDefaultSponsorScopes();
   if (sponsorScopesSynced > 0) {
-    console.log(`[melosong] Portée carte sponsors synchronisée : ${sponsorScopesSynced} entrée(s)`);
+    console.log(`[onscen] Portée carte sponsors synchronisée : ${sponsorScopesSynced} entrée(s)`);
     schedulePersist();
   }
 
@@ -460,7 +460,7 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
   const sidebarSponsorsAdded = ensureDefaultMapSidebarEventSponsors();
   if (sidebarSponsorsAdded > 0) {
     console.log(
-      `[melosong] Sponsors sidebar carte ajoutés : ${sidebarSponsorsAdded} entrée(s)`
+      `[onscen] Sponsors sidebar carte ajoutés : ${sidebarSponsorsAdded} entrée(s)`
     );
     schedulePersist();
   }
@@ -498,18 +498,18 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
   }
   const relationshipMigrated = migrateAllUsersRelationshipStatus();
   if (relationshipMigrated > 0) {
-    console.log(`[melosong] Statut relationnel migré : ${relationshipMigrated} utilisateur(s)`);
+    console.log(`[onscen] Statut relationnel migré : ${relationshipMigrated} utilisateur(s)`);
   }
   const geoRepaired = repairInvalidGeoInDb();
   if (geoRepaired > 0) {
-    console.log(`[melosong] Coordonnées carte réparées : ${geoRepaired} entité(s)`);
+    console.log(`[onscen] Coordonnées carte réparées : ${geoRepaired} entité(s)`);
   }
   await new Promise<void>((resolve, reject) => {
     server.once('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'EADDRINUSE') {
         console.error('');
         console.error(`  ✖ Le port ${PORT} est déjà utilisé.`);
-        console.error('    Fermez les autres terminaux Soundy (npm run msdev) puis relancez.');
+        console.error('    Fermez les autres terminaux OnScen (npm run msdev) puis relancez.');
         console.error(`    Diagnostic: netstat -ano | findstr :${PORT}`);
         console.error('');
       }
@@ -523,7 +523,7 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
       }
       console.log('');
       console.log('  ╔══════════════════════════════════════╗');
-      console.log(`  ║  Soundy   [${APP_ENV.padEnd(14)}]  server          ║`);
+      console.log(`  ║  OnScen   [${APP_ENV.padEnd(14)}]  server          ║`);
       console.log('  ╚══════════════════════════════════════╝');
       console.log(`  → ${scheme}://localhost:${PORT}`);
       console.log(`  → API  ${scheme}://localhost:${PORT}/api`);

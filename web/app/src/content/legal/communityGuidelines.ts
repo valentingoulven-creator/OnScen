@@ -1,14 +1,14 @@
 import type { LegalDocument } from './types';
 import { LEGAL_CONTACT_EMAIL, LEGAL_COPYRIGHT_EMAIL } from './types';
 
-/** Règles de la communauté Soundy (Community Guidelines) */
+/** Règles de la communauté OnScen (Community Guidelines) */
 export const reglesCommunaute: LegalDocument = {
   title: 'Règles de la communauté',
   updated: '3 août 2026',
   sections: [
     {
       heading: '1. Objectif',
-      body: `Soundy est un réseau social autour de la **musique et des arts du spectacle**. Ces règles complètent les Conditions générales d'utilisation (CGU). Elles s'appliquent à tous les contenus et comportements : profils, messages, reels, stories, lives, salons et carte.\n\nEn cas de contradiction, les CGU et la loi prévalent.`,
+      body: `OnScen est un réseau social autour de la **musique et des arts du spectacle**. Ces règles complètent les Conditions générales d'utilisation (CGU). Elles s'appliquent à tous les contenus et comportements : profils, messages, reels, stories, lives, salons et carte.\n\nEn cas de contradiction, les CGU et la loi prévalent.`,
     },
     {
       heading: '2. Contenus attendus',

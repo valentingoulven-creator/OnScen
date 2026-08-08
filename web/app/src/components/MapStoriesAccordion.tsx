@@ -476,7 +476,7 @@ export function MapStoriesAccordion({
                   type="checkbox"
                   checked={prefs.favoritesFirst}
                   onChange={(e) => updatePrefs({ favoritesFirst: e.target.checked })}
-                  className="melosong-checkbox scale-90"
+                  className="onscen-checkbox scale-90"
                   aria-label="Afficher les favoris en premier dans les stories"
                 />
               </label>
@@ -487,7 +487,7 @@ export function MapStoriesAccordion({
                   type="checkbox"
                   checked={prefs.filterByDistance}
                   onChange={(e) => updatePrefs({ filterByDistance: e.target.checked })}
-                  className="melosong-checkbox scale-90"
+                  className="onscen-checkbox scale-90"
                   aria-label="Filtrer les stories par distance"
                 />
               </label>

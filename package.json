@@ -1,13 +1,13 @@
 {
-  "name": "melosong",
+  "name": "onscen",
   "version": "2.0.0",
   "private": true,
   "license": "UNLICENSED",
-  "description": "Soundy — salons musicaux géolocalisés (YouTube, Lives)",
+  "description": "OnScen — salons musicaux géolocalisés (YouTube, Lives)",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/valentingoulven-creator/Melo.git",
-    "directory": "MeloSongv2"
+    "directory": "OnScenv2"
   },
   "scripts": {
     "dev": "powershell -ExecutionPolicy Bypass -File commun/scripts/dev-start.ps1",

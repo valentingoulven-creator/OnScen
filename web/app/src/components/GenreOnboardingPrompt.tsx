@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 
-const GENRE_PROMPT_DONE_KEY = 'soundy_genre_prompt_done';
+const GENRE_PROMPT_DONE_KEY = 'onscen_genre_prompt_done';
 
 const ALL_GENRES = [
   'Électro', 'House', 'Techno', 'French touch', 'Ambient',

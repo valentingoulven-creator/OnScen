@@ -1,6 +1,6 @@
 import type { SignOptions, VerifyOptions } from 'jsonwebtoken';
 
-const DEV_FALLBACK = 'melosong_secret_dev_fallback';
+const DEV_FALLBACK = 'onscen_secret_dev_fallback';
 
 /** Explicit algorithm whitelist — prevents JWT algorithm confusion attacks. */
 export const JWT_VERIFY_OPTIONS: VerifyOptions = { algorithms: ['HS256'] };

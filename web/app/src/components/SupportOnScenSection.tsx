@@ -6,14 +6,14 @@ import { SUPPORT } from '../content/support';
 import { getAppShareUrl } from '../lib/shareLink';
 import { getSupportClickCount, incrementSupportClick } from '../lib/support';
 
-const APP_SHARE_TITLE = 'Soundy';
-const APP_SHARE_TEXT = 'Découvre Soundy — salons musicaux, lives et carte autour de toi.';
+const APP_SHARE_TITLE = 'OnScen';
+const APP_SHARE_TEXT = 'Découvre OnScen — salons musicaux, lives et carte autour de toi.';
 
-interface SupportMeloSongSectionProps {
+interface SupportOnScenSectionProps {
   onToast?: (msg: string) => void;
 }
 
-export function SupportMeloSongSection({ onToast }: SupportMeloSongSectionProps) {
+export function SupportOnScenSection({ onToast }: SupportOnScenSectionProps) {
   const { token } = useAuth();
   const [clickCount, setClickCount] = useState(getSupportClickCount);
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
@@ -122,7 +122,7 @@ export function SupportMeloSongSection({ onToast }: SupportMeloSongSectionProps)
   );
 }
 
-export function SupportMeloSongTeaser({ onOpen }: { onOpen: () => void }) {
+export function SupportOnScenTeaser({ onOpen }: { onOpen: () => void }) {
   return (
     <button
       type="button"

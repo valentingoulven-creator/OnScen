@@ -1,7 +1,7 @@
 import type { jsPDF, jsPDFOptions } from 'jspdf';
 
 /**
- * Direction artistique rapport — alignée sur la charte Soundy (app dark violet→rose).
+ * Direction artistique rapport — alignée sur la charte OnScen (app dark violet→rose).
  * Fond quasi-noir (#0B0B0F, identique à l'écran de boot), accent violet #7C3AED
  * (couleur `theme-color` de l'app) avec dégradé vers rose #EC4899 (logo / CTA app).
  */
@@ -18,7 +18,7 @@ export const PDF_THEME = {
 };
 
 /** @deprecated Utiliser PDF_THEME.accent — conservé pour imports existants. */
-export const SOUNDY_PDF_HEAD: [number, number, number] = PDF_THEME.accent;
+export const ONSCEN_PDF_HEAD: [number, number, number] = PDF_THEME.accent;
 
 export const PDF_LAYOUT = {
   margin: 16,
@@ -59,7 +59,7 @@ export function pdfSafeText<T>(value: T): T {
  */
 export function createPdfDoc(JsPdfCtor: new (opts?: jsPDFOptions) => jsPDF, opts?: jsPDFOptions): jsPDF {
   const doc = new JsPdfCtor(opts);
-  // Repeint le fond sombre Soundy sur CHAQUE nouvelle page, y compris celles
+  // Repeint le fond sombre OnScen sur CHAQUE nouvelle page, y compris celles
   // ajoutées automatiquement par jspdf-autotable lors de sauts de page internes
   // (tableau trop long) — sans ce hook, ces pages restent blanches par défaut
   // et le texte clair de notre thème devient illisible dessus.
@@ -101,7 +101,7 @@ export function pdfNumericColumnStyles(indices: number[]): Record<number, { hali
   return out;
 }
 
-/** Dégradé violet → rose (charte Soundy) peint par bandes fines — jsPDF n'a pas de gradient natif. */
+/** Dégradé violet → rose (charte OnScen) peint par bandes fines — jsPDF n'a pas de gradient natif. */
 export function drawGradientBar(
   doc: jsPDF,
   x: number,
@@ -136,7 +136,7 @@ export function drawGradientBar(
   }
 }
 
-/** Cercle en aplat semi-transparent — écho des halos du logo Soundy. Best-effort (ignore si non supporté). */
+/** Cercle en aplat semi-transparent — écho des halos du logo OnScen. Best-effort (ignore si non supporté). */
 function drawSoftBlob(doc: jsPDF, cx: number, cy: number, r: number, color: [number, number, number], opacity: number): void {
   const docWithGState = doc as jsPDF & { GState?: (o: Record<string, number>) => unknown; setGState?: (g: unknown) => void };
   try {
@@ -166,7 +166,7 @@ export function paintPdfPageBackground(doc: jsPDF): void {
   drawGradientBar(doc, 0, 0, PDF_LAYOUT.stripeWidth, pageH, { vertical: true });
 }
 
-/** Couverture pleine page — wordmark Soundy, dégradé signature, carte métadonnées. */
+/** Couverture pleine page — wordmark OnScen, dégradé signature, carte métadonnées. */
 export function drawReportCover(
   doc: jsPDF,
   opts: {
@@ -190,7 +190,7 @@ export function drawReportCover(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...PDF_THEME.accentLight);
-  doc.text('SOUNDY · RAPPORT', x, 32);
+  doc.text('ONSCEN · RAPPORT', x, 32);
 
   doc.setTextColor(...PDF_THEME.ink);
   doc.setFontSize(21);
@@ -226,8 +226,8 @@ export function drawReportCover(
   doc.setTextColor(...PDF_THEME.ink);
 }
 
-/** @deprecated Alias — couverture charte Soundy. */
-export function drawSoundyCover(
+/** @deprecated Alias — couverture charte OnScen. */
+export function drawOnScenCover(
   doc: jsPDF,
   _margin: number,
   opts: Parameters<typeof drawReportCover>[1]
@@ -237,7 +237,7 @@ export function drawSoundyCover(
 }
 
 /**
- * Bandeau d'en-tête discret pour les pages de contenu : nom Soundy à gauche,
+ * Bandeau d'en-tête discret pour les pages de contenu : nom OnScen à gauche,
  * titre de la section en cours à droite. Absent de la page de garde (design dédié).
  */
 export function pdfPageHeader(doc: jsPDF, sectionLabel: string): number {
@@ -247,7 +247,7 @@ export function pdfPageHeader(doc: jsPDF, sectionLabel: string): number {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...PDF_THEME.accentLight);
-  doc.text('SOUNDY', x, 13.5);
+  doc.text('ONSCEN', x, 13.5);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(...PDF_THEME.inkMuted);

@@ -1,4 +1,4 @@
-# Soundy — Environnements Dev / Pré-prod / Prod
+# OnScen — Environnements Dev / Pré-prod / Prod
 
 ## Vue d'ensemble
 
@@ -113,4 +113,4 @@ Réponse attendue : `"env":"preproduction"`, `"db":"ok"`.
 - `commun/deploy/Caddyfile.staging` — HTTPS staging, preprod ouverte (`noindex`, pas d'allowlist IP)
 - `commun/deploy/ecosystem.staging.config.cjs` — PM2 `melosong-backend-staging`
 
-Voir aussi : `docs/INFRA-SOUNDY.md`, `commun/deploy/RUNBOOK-PROD.md`.
+Voir aussi : `docs/INFRA-ONSCEN.md`, `commun/deploy/RUNBOOK-PROD.md`.

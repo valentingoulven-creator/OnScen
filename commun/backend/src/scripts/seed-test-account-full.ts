@@ -55,7 +55,7 @@ dotenv.config({ path: path.join(process.cwd(), '.env') });
 
 const TEST_ACCOUNT_ID = 'demo-test-founder';
 const TEST_ACCOUNT_USERNAME = 'demo_test_founder';
-const TEST_ACCOUNT_EMAIL = 'demo.test.founder@getsoundy-demo.local';
+const TEST_ACCOUNT_EMAIL = 'demo.test.founder@getonscen-demo.local';
 const SPONSOR_AUTHOR_EMAIL = 'admin@getsoundy.com';
 
 const NOW = Date.now();
@@ -146,7 +146,7 @@ const POST_CONTENT_TEMPLATES = [
   (n: string) => `${n} vient de découvrir un son incroyable ce matin ☕🎧`,
   (n: string) => `${n} : soirée écoute partagée, qui se joint ? 🎶`,
   (n: string) => `${n} a mis à jour sa playlist du moment, dites-moi ce que vous en pensez !`,
-  (n: string) => `${n} : premier son posté sur Soundy, hâte de vos retours 🔥`,
+  (n: string) => `${n} : premier son posté sur OnScen, hâte de vos retours 🔥`,
   (n: string) => `${n} cherche des recos d'artistes locaux, des idées ?`,
   (n: string) => `${n} : ambiance parfaite pour un dimanche pluvieux 🌧️🎵`,
   (n: string) => `${n} a repéré un super salon d'écoute hier soir, on remet ça bientôt`,
@@ -167,7 +167,7 @@ const EVENT_CONTENT_TEMPLATES_FR = [
   (city: string, venue: string) => `Soirée live à ${venue} — découvertes locales et sets invités à ${city}.`,
   (city: string, venue: string) => `Session acoustique intimiste au ${venue} — chanson et reprises à ${city}.`,
   (city: string, venue: string) => `Nuit électro au ${venue} (${city}) : house, techno et visuels.`,
-  (city: string, venue: string) => `Jam communautaire Soundy — ${venue}, ${city}. Venez avec votre instrument !`,
+  (city: string, venue: string) => `Jam communautaire OnScen — ${venue}, ${city}. Venez avec votre instrument !`,
 ];
 
 const EVENT_CONTENT_TEMPLATES_WORLD = [
@@ -243,7 +243,7 @@ function makeBotUser(opts: {
   const user: User = {
     id: opts.id,
     username: opts.username,
-    email: `${opts.id}@demo.getsoundy-seed.local`,
+    email: `${opts.id}@demo.getonscen-seed.local`,
     passwordHash: 'demo-seed-account',
     avatarUrl: dicebearAdventurerAvatar(opts.id),
     meloCoins: 0,
@@ -431,7 +431,7 @@ async function main(): Promise<void> {
   }
 
   // ── Compte de test ──────────────────────────────────────────────────────
-  const plainPassword = `Soundy-${crypto.randomBytes(9).toString('base64url')}!`;
+  const plainPassword = `OnScen-${crypto.randomBytes(9).toString('base64url')}!`;
   const passwordHash = await bcrypt.hash(plainPassword, 10);
   const parisCity = cityByName('Paris');
   const testAccount: User = {
@@ -442,7 +442,7 @@ async function main(): Promise<void> {
     avatarUrl: dicebearAdventurerAvatar(TEST_ACCOUNT_ID),
     meloCoins: 500,
     isGhostMode: false,
-    bio: 'Compte de démonstration Soundy — contenu de test pour valider les parcours produit.',
+    bio: 'Compte de démonstration OnScen — contenu de test pour valider les parcours produit.',
     favoriteGenres: ['Électro', 'Pop', 'Hip-Hop'],
     city: 'Paris, France',
     listeningRole: 'les_deux',
@@ -821,7 +821,7 @@ async function main(): Promise<void> {
       id: albumId,
       userId: testAccount.id,
       title: a === 1 ? 'Sessions Studio' : 'Compositions Live',
-      description: a === 1 ? 'Mes premières compositions Soundy.' : 'Extraits enregistrés en live.',
+      description: a === 1 ? 'Mes premières compositions OnScen.' : 'Extraits enregistrés en live.',
       createdAt: albumCreatedAt,
       updatedAt: albumCreatedAt,
     });
@@ -992,7 +992,7 @@ async function main(): Promise<void> {
     'Reels : mix documenté = 3 publiés par le compte test, 4 par des utilisateurs suivis, 3 par des utilisateurs non suivis (10 au total).'
   );
   notes.push(
-    "Interprétation « le compte test suit 5 salons / 5 lives / 4 events » : le modèle de données Soundy ne propose pas de suivi direct d'un salon/live/event (uniquement user→user). Le compte test suit donc l'hôte/auteur de chacun de ces 5+5+4 contenus, qui apparaissent ainsi dans son flux « Suivi »."
+    "Interprétation « le compte test suit 5 salons / 5 lives / 4 events » : le modèle de données OnScen ne propose pas de suivi direct d'un salon/live/event (uniquement user→user). Le compte test suit donc l'hôte/auteur de chacun de ces 5+5+4 contenus, qui apparaissent ainsi dans son flux « Suivi »."
   );
   notes.push(
     'Stories : timestamps de création concentrés sur les dernières 20h (et non étalés sur 2 mois) car le TTL story est de 24h — un étalement sur 2 mois aurait rendu toutes les stories déjà expirées et invisibles.'

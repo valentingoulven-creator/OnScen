@@ -368,7 +368,7 @@ accessRouter.post('/admin/users/:userId/demote', authenticateJWT, (req: Request,
   res.json({ user: mapAdminManagedUser(result) });
 });
 
-/** Attribution manuelle du forfait plateforme (Gratuit / Soundy+ / SoundyUltra). */
+/** Attribution manuelle du forfait plateforme (Gratuit / OnScen+ / OnScenUltra). */
 accessRouter.post('/admin/users/:userId/platform-plan', authenticateJWT, (req: Request, res: Response) => {
   if (requireAdmin(req, res) == null) return;
   const userId = req.params.userId;
@@ -379,8 +379,8 @@ accessRouter.post('/admin/users/:userId/platform-plan', authenticateJWT, (req: R
   }
 
   const planId = String(req.body?.planId ?? req.body?.tierId ?? '').trim();
-  if (!['free', 'soundy_plus', 'soundy_ultra'].includes(planId)) {
-    res.status(400).json({ error: 'Forfait invalide (free, soundy_plus, soundy_ultra)' });
+  if (!['free', 'onscen_plus', 'onscen_ultra'].includes(planId)) {
+    res.status(400).json({ error: 'Forfait invalide (free, onscen_plus, onscen_ultra)' });
     return;
   }
 

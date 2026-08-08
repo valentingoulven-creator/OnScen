@@ -2,7 +2,7 @@
  * Seed 20 salons + 20 lives + 50 événements feed — villes aléatoires mondiales (PostgreSQL production).
  *
  * Usage sur le VPS :
- *   cd /opt/soundy && APP_ENV=production node dist/commun/scripts/seed-production-world-random.js
+ *   cd /opt/onscen && APP_ENV=production node dist/commun/scripts/seed-production-world-random.js
  *
  * Usage local (dev avec DATABASE_URL) :
  *   cd backend && npm run seed:world

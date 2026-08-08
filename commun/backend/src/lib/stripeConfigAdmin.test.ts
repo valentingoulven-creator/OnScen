@@ -82,7 +82,7 @@ describe('getStripeConfigStatus / applyStripeConfig', () => {
   const tmpFiles: string[] = [];
 
   function tmpEnvPath(content: string): string {
-    const file = path.join(os.tmpdir(), `soundy-stripe-config-test-${Date.now()}-${Math.random()}.env`);
+    const file = path.join(os.tmpdir(), `onscen-stripe-config-test-${Date.now()}-${Math.random()}.env`);
     fs.writeFileSync(file, content);
     tmpFiles.push(file);
     return file;
@@ -120,7 +120,7 @@ describe('getStripeConfigStatus / applyStripeConfig', () => {
   });
 
   it('rejects apply when the resolved .env file does not exist', () => {
-    const missingPath = path.join(os.tmpdir(), `soundy-missing-${Date.now()}.env`);
+    const missingPath = path.join(os.tmpdir(), `onscen-missing-${Date.now()}.env`);
     expect(() =>
       applyStripeConfig(
         { secretKey: 'sk_live_abc1234567890123', publishableKey: 'pk_live_abc1234567890123' },

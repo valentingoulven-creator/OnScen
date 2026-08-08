@@ -17,7 +17,7 @@ export interface ReelFeedAlgorithmWeights {
 }
 
 export interface ReelFeedAlgorithmPreferences {
-  /** true = algorithme MeloSong intégré ; false = pondération personnalisée */
+  /** true = algorithme OnScen intégré ; false = pondération personnalisée */
   useBuiltInAlgorithm: boolean;
   weights: ReelFeedAlgorithmWeights;
 }

@@ -1,7 +1,7 @@
 import { db, ChatMessage } from '../models/schema';
 import { isDevUser } from './accessControl';
 
-/** Valeur spéciale : dégradé Soundy (header). */
+/** Valeur spéciale : dégradé OnScen (header). */
 export const USERNAME_COLOR_WAVE = 'wave';
 
 const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;

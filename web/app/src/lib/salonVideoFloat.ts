@@ -1,6 +1,6 @@
 /** PiP vidéo salon flottant — état global pour persister hors overlay plein écran. */
 
-const SALON_OPEN_INTENT_KEY = 'soundy.salon_open_intent';
+const SALON_OPEN_INTENT_KEY = 'onscen.salon_open_intent';
 
 let floatActive = false;
 const listeners = new Set<() => void>();
@@ -65,7 +65,7 @@ export function consumeSalonMinimizePipPending(): boolean {
 }
 
 /** Déclenché avant réduction du salon plein écran (SalonPage → auto float). */
-export const SALON_BEFORE_MINIMIZE_EVENT = 'soundy:salon-before-minimize';
+export const SALON_BEFORE_MINIMIZE_EVENT = 'onscen:salon-before-minimize';
 
 export function dispatchSalonBeforeMinimize(): void {
   setSalonMinimizePipPending(true);
@@ -87,7 +87,7 @@ export function clearOpenSalonPipIntent(): void {
   openSalonPipIntentSalonId = null;
 }
 
-export const SALON_OPEN_PIP_EVENT = 'soundy:open-salon-pip';
+export const SALON_OPEN_PIP_EVENT = 'onscen:open-salon-pip';
 
 export function dispatchOpenSalonPip(): void {
   window.dispatchEvent(new CustomEvent(SALON_OPEN_PIP_EVENT));

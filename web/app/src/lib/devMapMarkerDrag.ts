@@ -30,7 +30,7 @@ export interface DevMapMarkerPosition extends DevMapMarkerRef {
 
 export type DevMapMarkerOverrides = ReadonlyMap<string, DevMapMarkerPosition>;
 
-const STORAGE_KEY = 'soundy_dev_map_marker_overrides';
+const STORAGE_KEY = 'onscen_dev_map_marker_overrides';
 
 export function devMapMarkerKey(kind: DevMapMarkerKind, id: string): string {
   return `${kind}:${id}`;

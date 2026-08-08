@@ -2,7 +2,7 @@
  * Seed sponsors + événements sponsorisés en production (PostgreSQL).
  *
  * Usage sur le VPS :
- *   cd /opt/soundy && APP_ENV=production node dist/commun/scripts/seed-production-sponsors.js
+ *   cd /opt/onscen && APP_ENV=production node dist/commun/scripts/seed-production-sponsors.js
  */
 import dotenv from 'dotenv';
 import path from 'path';

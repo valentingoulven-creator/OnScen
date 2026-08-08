@@ -1,4 +1,4 @@
-# Soundy Dev Agent — Guide d'utilisation
+# OnScen Dev Agent — Guide d'utilisation
 
 Agent Cursor dédié à **l'implémentation** : bugs, features, refactors ciblés, tests, build.
 
@@ -7,10 +7,10 @@ Agent Cursor dédié à **l'implémentation** : bugs, features, refactors ciblé
 ## Activer l'agent
 
 1. Nouvelle conversation **Agent** dans Cursor.
-2. Mentionner `@soundy-dev-agent` ou coller une mission du type :
+2. Mentionner `@onscen-dev-agent` ou coller une mission du type :
 
 ```markdown
-@soundy-dev-agent
+@onscen-dev-agent
 
 Mission : implémenter CRIT-01 — migration JWT vers cookies httpOnly.
 Scope : backend cookie-login + middleware + retrait authStorage frontend.
@@ -28,7 +28,7 @@ Ne pas commit. Rapport en fin de session.
 | Lit et modifie le code | Décisions business / légal |
 | Lance tests et build locaux | Deploy prod sans ordre |
 | Écrit `modification.txt` si significatif | Commit/push sans demande |
-| **Produit un rapport de session** | Stratégie long terme → `@soundy-ceo-ia` |
+| **Produit un rapport de session** | Stratégie long terme → `@onscen-ceo-ia` |
 
 ---
 
@@ -51,10 +51,10 @@ Index : [`docs/dev-agent/INDEX.md`](./dev-agent/INDEX.md)
 ## Missions types (exemples)
 
 ```markdown
-@soundy-dev-agent — C3 Sign in with Apple (backend + bouton login)
-@soundy-dev-agent — F1 remplacer alert() dans DmPage.tsx par ConfirmModal
-@soundy-dev-agent — Fix bug [description] — repro : …
-@soundy-dev-agent — Audit rapide sécurité authStorage.ts + plan minimal
+@onscen-dev-agent — C3 Sign in with Apple (backend + bouton login)
+@onscen-dev-agent — F1 remplacer alert() dans DmPage.tsx par ConfirmModal
+@onscen-dev-agent — Fix bug [description] — repro : …
+@onscen-dev-agent — Audit rapide sécurité authStorage.ts + plan minimal
 ```
 
 ---
@@ -78,11 +78,11 @@ npm run dev
 
 | Besoin | Agent |
 |--------|-------|
-| Quoi prioriser cette semaine ? | `@soundy-ceo-ia` |
-| Coder la priorité #1 | `@soundy-dev-agent` |
-| Brief finances / sponsors | `@soundy-ceo-ia` |
-| Implémenter endpoint + admin tab | `@soundy-dev-agent` |
+| Quoi prioriser cette semaine ? | `@onscen-ceo-ia` |
+| Coder la priorité #1 | `@onscen-dev-agent` |
+| Brief finances / sponsors | `@onscen-ceo-ia` |
+| Implémenter endpoint + admin tab | `@onscen-dev-agent` |
 
 ---
 
-*Soundy Dev — `docs/SOUNDY-DEV-AGENT.md`*
+*OnScen Dev — `docs/ONSCEN-DEV-AGENT.md`*

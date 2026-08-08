@@ -182,7 +182,7 @@ export class ModeratorAgent extends BaseAgent {
   // ── Monitoring ────────────────────────────────────────────────────────────────
 
   private async viewNewsAndAnnouncements(): Promise<void> {
-    await this.get('/api/news', 'Actualités Soundy');
+    await this.get('/api/news', 'Actualités OnScen');
   }
 
   private async checkAccessibilityEndpoints(): Promise<void> {

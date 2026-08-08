@@ -96,7 +96,7 @@ interface ProfilePageProps {
   /** À l’ouverture : Mes reels + enregistreur (ex. depuis profil carte). */
   openRecorderOnMount?: boolean;
   onRecorderMountHandled?: () => void;
-  /** À l’ouverture : page Contacter Soundy (ex. notification support_reply). */
+  /** À l’ouverture : page Contacter OnScen (ex. notification support_reply). */
   openContactOnMount?: boolean;
   onContactMountHandled?: () => void;
   /** Message support à mettre en évidence (depuis notification support_reply). */

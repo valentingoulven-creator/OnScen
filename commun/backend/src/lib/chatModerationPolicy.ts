@@ -26,7 +26,7 @@ export interface ChatModerationResult {
 }
 
 export const CHAT_MODERATION_REJECT_MESSAGE =
-  'Ce message ne respecte pas les règles de la communauté Soundy.';
+  'Ce message ne respecte pas les règles de la communauté OnScen.';
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -97,7 +97,7 @@ function maskProfanityDisplay(input: string): string {
 }
 
 /**
- * Applique la politique chat Soundy sur du texte déjà assaini (sans HTML).
+ * Applique la politique chat OnScen sur du texte déjà assaini (sans HTML).
  * 1) Blocage slurs / spam / termes hôte ou env
  * 2) Masquage grossièretés sur le texte publié
  */

@@ -1,5 +1,5 @@
 /**
- * agent.ts — Classe de base pour tous les agents de test Soundy
+ * agent.ts — Classe de base pour tous les agents de test OnScen
  *
  * Chaque agent simule un utilisateur réel :
  * - Inscription / connexion via JWT (X-Auth-Token)
@@ -517,7 +517,7 @@ export function buildPersona(
     name,
     role,
     email: `${CONFIG.AGENT_EMAIL_PREFIX}${paddedId}${CONFIG.AGENT_EMAIL_DOMAIN}`,
-    username: `soundy_agent_${paddedId}`,
+    username: `onscen_agent_${paddedId}`,
     password: CONFIG.AGENT_PASSWORD,
     description,
   };

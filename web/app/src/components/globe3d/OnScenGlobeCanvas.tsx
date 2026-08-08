@@ -3,9 +3,9 @@ import { Canvas } from '@react-three/fiber';
 import { ACESFilmicToneMapping, SRGBColorSpace } from 'three';
 import { CAMERA_DEFAULT_DISTANCE } from '../../lib/globe3d/constants';
 import { GlobeDevDragProvider } from './DevDraggableGlobeMarker';
-import { SoundyGlobeScene, type SoundyGlobeSceneProps } from './SoundyGlobeScene';
+import { OnScenGlobeScene, type OnScenGlobeSceneProps } from './OnScenGlobeScene';
 
-interface SoundyGlobeCanvasProps extends Omit<SoundyGlobeSceneProps, 'cameraRef'> {
+interface OnScenGlobeCanvasProps extends Omit<OnScenGlobeSceneProps, 'cameraRef'> {
   width: number;
   height: number;
   maxPixelRatio: number;
@@ -18,7 +18,7 @@ interface SoundyGlobeCanvasProps extends Omit<SoundyGlobeSceneProps, 'cameraRef'
   cameraRef: React.RefObject<import('./GlobeCameraBridge').GlobeCameraBridgeHandle | null>;
 }
 
-export function SoundyGlobeCanvas({
+export function OnScenGlobeCanvas({
   width,
   height,
   maxPixelRatio,
@@ -30,7 +30,7 @@ export function SoundyGlobeCanvas({
   onGlobeUnavailable,
   cameraRef,
   ...sceneProps
-}: SoundyGlobeCanvasProps) {
+}: OnScenGlobeCanvasProps) {
   const readyRef = useRef(false);
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
   const [controlsEnabled, setControlsEnabled] = useState(true);
@@ -92,7 +92,7 @@ export function SoundyGlobeCanvas({
         <directionalLight position={[-5, -2, -4]} intensity={0.75} color="#dce8ff" />
 
         <Suspense fallback={null}>
-          <SoundyGlobeScene {...sceneProps} cameraRef={cameraRef} controlsEnabled={controlsEnabled} />
+          <OnScenGlobeScene {...sceneProps} cameraRef={cameraRef} controlsEnabled={controlsEnabled} />
         </Suspense>
       </Canvas>
     </GlobeDevDragProvider>

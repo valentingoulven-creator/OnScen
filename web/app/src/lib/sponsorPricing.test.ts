@@ -8,14 +8,14 @@ import {
 } from './sponsorPricing';
 
 describe('sponsorPricing', () => {
-  it('calcule le prix Soundy et la fourchette benchmark', () => {
+  it('calcule le prix OnScen et la fourchette benchmark', () => {
     const quote = computeSponsorCampaignPriceEur({
       placement: 'reels_sponsored',
       audienceUsers: 10_000,
       displayDays: 7,
     });
     expect(quote.impressions).toBe(70_000);
-    expect(quote.soundyPriceEur).toBeCloseTo(315, 0);
+    expect(quote.onscenPriceEur).toBeCloseTo(315, 0);
     expect(quote.benchmarkPriceMinEur).toBeCloseTo(210, 0);
     expect(quote.benchmarkPriceMaxEur).toBeCloseTo(630, 0);
   });

@@ -1,5 +1,5 @@
 /**
- * Termes plateforme Soundy — usage serveur uniquement, jamais exposés via API.
+ * Termes plateforme OnScen — usage serveur uniquement, jamais exposés via API.
  * Catégories alignées sur les politiques chat (discrimination, harcèlement,
  * grossièretés, spam). Compléter via env CHAT_BLOCKED_TERMS (virgules).
  */

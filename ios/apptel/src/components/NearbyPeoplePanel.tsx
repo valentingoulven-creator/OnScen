@@ -287,7 +287,7 @@ export function NearbyPeoplePanel({
                 type="checkbox"
                 checked={prefs.favoritesFirst}
                 onChange={(e) => updatePrefs({ favoritesFirst: e.target.checked })}
-                className="melosong-checkbox scale-90"
+                className="onscen-checkbox scale-90"
               />
             </label>
 
@@ -302,7 +302,7 @@ export function NearbyPeoplePanel({
                 type="checkbox"
                 checked={prefs.musicalAffinitiesOnly}
                 onChange={(e) => updatePrefs({ musicalAffinitiesOnly: e.target.checked })}
-                className="melosong-checkbox scale-90 shrink-0"
+                className="onscen-checkbox scale-90 shrink-0"
               />
             </label>
 
@@ -315,7 +315,7 @@ export function NearbyPeoplePanel({
                   const checked = e.target.checked;
                   updatePrefs({ filterByDistance: checked, ...(!checked && { livesOnly: false }) });
                 }}
-                className="melosong-checkbox scale-90"
+                className="onscen-checkbox scale-90"
               />
             </label>
 
@@ -374,7 +374,7 @@ export function NearbyPeoplePanel({
                     type="checkbox"
                     checked={prefs.livesOnly}
                     onChange={(e) => updatePrefs({ livesOnly: e.target.checked })}
-                    className="melosong-checkbox scale-90 shrink-0"
+                    className="onscen-checkbox scale-90 shrink-0"
                   />
                 </label>
               </div>

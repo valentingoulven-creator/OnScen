@@ -44,7 +44,7 @@ describe('tokenVersion', () => {
   it('accepts legacy tokens without tv when user version is 0', () => {
     const user = makeUser();
     db.users.set(user.id, user);
-    const secret = process.env.JWT_SECRET || 'melosong_secret_dev_fallback';
+    const secret = process.env.JWT_SECRET || 'onscen_secret_dev_fallback';
     const legacy = jwt.sign({ id: user.id, username: user.username }, secret, { expiresIn: '1h' });
     expect(verifyAuthToken(legacy)?.id).toBe(user.id);
   });

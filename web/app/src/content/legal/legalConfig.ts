@@ -1,5 +1,5 @@
 /**
- * legalConfig.ts — Configuration légale centralisée de Soundy
+ * legalConfig.ts — Configuration légale centralisée de OnScen
  *
  * Ce fichier est la référence documentaire pour la conformité LCEN et RGPD.
  * Les valeurs réelles sont lues depuis commun/msdev/legal-publisher.json (côté backend)
@@ -40,7 +40,7 @@ export const LEGAL_FIELD_DEFINITIONS: readonly LegalFieldMeta[] = [
       'Identité complète de l\'éditeur (personne physique ou morale). ' +
       'Obligatoire pour tout site/app accessible au public en France (LCEN art. 6 I).',
     // TODO: Remplacer par votre nom ou raison sociale exacte (tel qu'au Kbis ou INSEE)
-    example: 'Valentin Goulven  —  ou —  Soundy SAS',
+    example: 'Valentin Goulven  —  ou —  OnScen SAS',
   },
   {
     key: 'legalForm',

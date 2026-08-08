@@ -175,7 +175,7 @@ export function AdminSupportLogsPanel() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `soundy-app-logs-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
+    a.download = `onscen-app-logs-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   }

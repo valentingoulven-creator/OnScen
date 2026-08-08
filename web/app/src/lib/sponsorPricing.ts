@@ -5,8 +5,8 @@ export type SponsorPricingBenchmark = {
   benchmarkPlatform: 'instagram' | 'tiktok' | 'meta';
   benchmarkCpmMinEur: number;
   benchmarkCpmMaxEur: number;
-  /** CPM Soundy suggéré (~45–55 % sous le milieu de marché, inventaire early-stage). */
-  soundyCpmEur: number;
+  /** CPM OnScen suggéré (~45–55 % sous le milieu de marché, inventaire early-stage). */
+  onscenCpmEur: number;
   pricingCompKey: string;
 };
 
@@ -15,49 +15,49 @@ export const SPONSOR_PLACEMENT_PRICING: Record<SponsorPlacement, SponsorPricingB
     benchmarkPlatform: 'meta',
     benchmarkCpmMinEur: 8,
     benchmarkCpmMaxEur: 14,
-    soundyCpmEur: 6.5,
+    onscenCpmEur: 6.5,
     pricingCompKey: 'admin.sponsors.pricingCompMapBanner',
   },
   map_sidebar_events: {
     benchmarkPlatform: 'instagram',
     benchmarkCpmMinEur: 6,
     benchmarkCpmMaxEur: 12,
-    soundyCpmEur: 5.5,
+    onscenCpmEur: 5.5,
     pricingCompKey: 'admin.sponsors.pricingCompMapSidebar',
   },
   feed_inline: {
     benchmarkPlatform: 'instagram',
     benchmarkCpmMinEur: 10,
     benchmarkCpmMaxEur: 18,
-    soundyCpmEur: 8,
+    onscenCpmEur: 8,
     pricingCompKey: 'admin.sponsors.pricingCompFeed',
   },
   stories_banner: {
     benchmarkPlatform: 'instagram',
     benchmarkCpmMinEur: 6,
     benchmarkCpmMaxEur: 12,
-    soundyCpmEur: 5,
+    onscenCpmEur: 5,
     pricingCompKey: 'admin.sponsors.pricingCompStoriesBanner',
   },
   stories_sponsored: {
     benchmarkPlatform: 'instagram',
     benchmarkCpmMinEur: 9,
     benchmarkCpmMaxEur: 16,
-    soundyCpmEur: 7.5,
+    onscenCpmEur: 7.5,
     pricingCompKey: 'admin.sponsors.pricingCompStoriesSponsored',
   },
   reels_sponsored: {
     benchmarkPlatform: 'tiktok',
     benchmarkCpmMinEur: 3,
     benchmarkCpmMaxEur: 9,
-    soundyCpmEur: 4.5,
+    onscenCpmEur: 4.5,
     pricingCompKey: 'admin.sponsors.pricingCompReels',
   },
   salon_theater: {
     benchmarkPlatform: 'meta',
     benchmarkCpmMinEur: 12,
     benchmarkCpmMaxEur: 20,
-    soundyCpmEur: 9,
+    onscenCpmEur: 9,
     pricingCompKey: 'admin.sponsors.pricingCompSalon',
   },
 };
@@ -74,7 +74,7 @@ export const SPONSOR_PRICING_PLACEMENTS: SponsorPlacement[] = [
 
 export type SponsorCampaignPriceQuote = SponsorPricingBenchmark & {
   impressions: number;
-  soundyPriceEur: number;
+  onscenPriceEur: number;
   benchmarkPriceMinEur: number;
   benchmarkPriceMaxEur: number;
 };
@@ -92,7 +92,7 @@ export function computeSponsorCampaignPriceEur(opts: {
   return {
     ...config,
     impressions,
-    soundyPriceEur: (impressions / 1000) * config.soundyCpmEur,
+    onscenPriceEur: (impressions / 1000) * config.onscenCpmEur,
     benchmarkPriceMinEur: (impressions / 1000) * config.benchmarkCpmMinEur,
     benchmarkPriceMaxEur: (impressions / 1000) * config.benchmarkCpmMaxEur,
   };
@@ -161,7 +161,7 @@ export const SPONSOR_PLACEMENT_PENETRATION: Record<SponsorPlacement, number> = {
   salon_theater: 0.1,
 };
 
-/** CPM Soundy par palier (€) — lancement bas, remontée progressive vers la grille mature. */
+/** CPM OnScen par palier (€) — lancement bas, remontée progressive vers la grille mature. */
 export const SPONSOR_TIER_CPM: Record<SponsorScaleTierId, Record<SponsorPlacement, number>> = {
   '50k': {
     map_banner: 4.0,
@@ -209,7 +209,7 @@ export type SponsorTierPlacementQuote = {
   exposedUsers: number;
   active30dUsers: number;
   penetrationRate: number;
-  soundyCpmEur: number;
+  onscenCpmEur: number;
   pricesByDays: Record<(typeof SPONSOR_TIER_DURATION_PRESETS)[number], number>;
 };
 
@@ -250,11 +250,11 @@ export function computeTierPlacementQuotes(tierId: SponsorScaleTierId): SponsorT
   return SPONSOR_PRICING_PLACEMENTS.map((placement) => {
     const penetrationRate = SPONSOR_PLACEMENT_PENETRATION[placement];
     const exposedUsers = Math.round(active30dUsers * penetrationRate);
-    const soundyCpmEur = SPONSOR_TIER_CPM[tierId][placement];
+    const onscenCpmEur = SPONSOR_TIER_CPM[tierId][placement];
     const pricesByDays = Object.fromEntries(
       SPONSOR_TIER_DURATION_PRESETS.map((days) => [
         days,
-        (exposedUsers * days * soundyCpmEur) / 1000,
+        (exposedUsers * days * onscenCpmEur) / 1000,
       ])
     ) as SponsorTierPlacementQuote['pricesByDays'];
     return {
@@ -263,7 +263,7 @@ export function computeTierPlacementQuotes(tierId: SponsorScaleTierId): SponsorT
       exposedUsers,
       active30dUsers,
       penetrationRate,
-      soundyCpmEur,
+      onscenCpmEur,
       pricesByDays,
     };
   });

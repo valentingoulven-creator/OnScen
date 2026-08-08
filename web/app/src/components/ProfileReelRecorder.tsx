@@ -793,7 +793,7 @@ export function ProfileReelRecorder({
           maxLength={500}
           type="url"
           inputMode="url"
-          placeholder={t('reels.createLinkPlaceholder', { defaultValue: 'Spotify, YouTube, Deezer, Soundy…' })}
+          placeholder={t('reels.createLinkPlaceholder', { defaultValue: 'Spotify, YouTube, Deezer, OnScen…' })}
           className={
             embedded
               ? `w-full rounded-2xl bg-white/[0.06] border px-3.5 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none transition-colors ${

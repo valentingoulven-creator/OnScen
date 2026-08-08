@@ -1,21 +1,21 @@
-# Plan sponsoring payant — Soundy
+# Plan sponsoring payant — OnScen
 
 *Document commercial & produit · getsoundy.com · Juin 2026*
 
-> Ce plan s’appuie sur l’**infrastructure sponsors déjà en production** (admin, API, 4 emplacements natifs) et sur le modèle économique Soundy (abonnements, pourboires, B2B lieux). Les tarifs sont calibrés pour le **marché France — musique, nightlife, indie** — avec une montée en charge progressive par ville.
+> Ce plan s’appuie sur l’**infrastructure sponsors déjà en production** (admin, API, 4 emplacements natifs) et sur le modèle économique OnScen (abonnements, pourboires, B2B lieux). Les tarifs sont calibrés pour le **marché France — musique, nightlife, indie** — avec une montée en charge progressive par ville.
 
 ---
 
 ## 1. Résumé exécutif
 
-Soundy dispose aujourd’hui d’un **réseau publicitaire natif intégré** à l’expérience musicale : carte géolocalisée, fil d’actualité, stories et reels. La monétisation sponsor est la **priorité court terme** du modèle économique (45–55 % du revenu cible à M24, selon le pitch deck).
+OnScen dispose aujourd’hui d’un **réseau publicitaire natif intégré** à l’expérience musicale : carte géolocalisée, fil d’actualité, stories et reels. La monétisation sponsor est la **priorité court terme** du modèle économique (45–55 % du revenu cible à M24, selon le pitch deck).
 
 **Proposition de valeur annonceur :**
 
 - Audience **qualifiée musique & sorties** (fans, DJs, bars, labels), pas un feed généraliste.
 - **Contexte géolocalisé** : salons, lives et événements autour de l’utilisateur (rayon carte ~10 km, événements « autour de 30 km »).
 - Formats **non intrusifs** : bandeaux natifs, carrousel, reels sponsorisés plein écran — pas de pop-up interstitiel agressif.
-- **Transparence** : badge « Sponsorisé » vs « Promo » (Soundy interne), durée d’affichage configurable, créneaux horaires via dates de campagne.
+- **Transparence** : badge « Sponsorisé » vs « Promo » (OnScen interne), durée d’affichage configurable, créneaux horaires via dates de campagne.
 
 **Objectif M12 :** 40 k€ ARR sponsors · 5–8 contrats récurrents · 2 sponsors fondateurs en phase pilote.
 
@@ -41,7 +41,7 @@ Soundy dispose aujourd’hui d’un **réseau publicitaire natif intégré** à 
 | `reelsSponsorEnabled` | on/off | Activation globale des reels sponsorisés |
 | `priority` + réordonnancement | entier | Ordre de rotation dans un emplacement |
 | `startsAt` / `endsAt` | timestamps | Planification campagne |
-| `kind` | `promo` \| `sponsored` | Promo Soundy vs annonce payante (badge UI) |
+| `kind` | `promo` \| `sponsored` | Promo OnScen vs annonce payante (badge UI) |
 | `actionId` | `salon` \| `live` | CTA interne (pas de lien externe) — réservé promos plateforme |
 
 **API publique :** `GET /api/sponsors/map|feed|stories|reels` · **Admin :** CRUD complet via `AdminSponsorsTab`.
@@ -74,7 +74,7 @@ Soundy dispose aujourd’hui d’un **réseau publicitaire natif intégré** à 
 
 | Persona | Rôle | Budget typique | Mode d’achat |
 |---------|------|----------------|--------------|
-| **Sophie** — gérante de bar | Propriétaire / marketing local | 300–1 500 €/mois | Managed (account Soundy) |
+| **Sophie** — gérante de bar | Propriétaire / marketing local | 300–1 500 €/mois | Managed (account OnScen) |
 | **Marc** — label indie | Responsable promo | 800–3 000 €/campagne | Managed ou self-serve Pro |
 | **Agence media** | Planificateur digital | 2 000–15 000 €/mois | Managed + reporting |
 | **Startup B2C** | Growth manager | 500–2 000 €/mois | Self-serve Starter |
@@ -114,7 +114,7 @@ Soundy dispose aujourd’hui d’un **réseau publicitaire natif intégré** à 
 | Part max d’une marque dans la rotation | 40 % des slots |
 | Reels : fréquence max | 1 sponsor / 4 reels (Ne pas descendre sous N=4 en prod grand public) |
 | Durée min affichage bandeau | 6 s (lisibilité mobile) |
-| Soundy+ / SoundyUltra | Réduction sponsors (carte sans pub pour Soundy+ — voir §7) |
+| OnScen+ / OnScenUltra | Réduction sponsors (carte sans pub pour OnScen+ — voir §7) |
 
 ---
 
@@ -159,14 +159,14 @@ Soundy dispose aujourd’hui d’un **réseau publicitaire natif intégré** à 
 
 **Référence CPM marché FR (2025–2026) :**
 
-| Plateforme | CPM indicatif | Commentaire vs Soundy |
+| Plateforme | CPM indicatif | Commentaire vs OnScen |
 |------------|---------------|------------------------|
-| Instagram / Meta | 6 – 14 € | Audience large ; Soundy = niche musique + geo |
-| TikTok Ads | 5 – 12 € | Volume ; Soundy = intention sortie / écoute |
-| Spotify Audio Ads | 15 – 25 € | Audio uniquement ; Soundy = visuel + social + geo |
+| Instagram / Meta | 6 – 14 € | Audience large ; OnScen = niche musique + geo |
+| TikTok Ads | 5 – 12 € | Volume ; OnScen = intention sortie / écoute |
+| Spotify Audio Ads | 15 – 25 € | Audio uniquement ; OnScen = visuel + social + geo |
 | Google Display | 3 – 8 € | Peu contextualisé musique live |
 
-Soundy se positionne **légèrement au-dessus du display généraliste**, **sous le premium audio Spotify**, avec un **CPM reels comparable à TikTok** grâce au plein écran vertical.
+OnScen se positionne **légèrement au-dessus du display généraliste**, **sous le premium audio Spotify**, avec un **CPM reels comparable à TikTok** grâce au plein écran vertical.
 
 ### 5.5 Tarifs géo-ciblés
 
@@ -187,7 +187,7 @@ Soundy se positionne **légèrement au-dessus du display généraliste**, **sous
 | Engagement 12 mois | −15 % |
 | 2e emplacement même client | −15 % sur le moins cher |
 | Sponsor fondateur (M0–M6, témoignage + logo site) | −25 % 6 mois |
-| Pack « Lieu + Soundy Pro Lieu » (B2B roadmap) | −20 % cross-sell |
+| Pack « Lieu + OnScen Pro Lieu » (B2B roadmap) | −20 % cross-sell |
 
 ---
 
@@ -198,8 +198,8 @@ Soundy se positionne **légèrement au-dessus du display généraliste**, **sous
 | | **Managed (MVP)** | **Self-serve (M12+)** |
 |--|-------------------|------------------------|
 | **Cible** | Lieux, labels, agences | PME, artistes autoproduits |
-| **Vente** | Account executive Soundy | Portail annonceur + Stripe |
-| **Création** | Soundy ou assets client | Upload + preview `SponsorAdPreview` |
+| **Vente** | Account executive OnScen | Portail annonceur + Stripe |
+| **Création** | OnScen ou assets client | Upload + preview `SponsorAdPreview` |
 | **Validation** | Modération admin manuelle | Modération auto + file admin |
 | **Paiement** | Virement / facture | CB mensuelle ou prepay |
 | **Reporting** | PDF mensuel | Dashboard temps réel |
@@ -225,11 +225,11 @@ flowchart LR
 - Musique, sorties, lifestyle cohérent — **pas** gambling, crypto non régulée, contenu adulte.
 - Mentions légales offres commerciales (prix, dates).
 - Label « Sponsorisé » obligatoire (`kind: sponsored`).
-- Lien HTTPS valide ou CTA interne Soundy (salon/live réservé promos plateforme).
+- Lien HTTPS valide ou CTA interne OnScen (salon/live réservé promos plateforme).
 
 ---
 
-## 7. Intégration modèle économique Soundy
+## 7. Intégration modèle économique OnScen
 
 ### 7.1 Mix revenus cible (M24)
 
@@ -237,28 +237,28 @@ flowchart LR
 |--------|------------|----------------------|
 | **Sponsors natifs** | 45 – 55 % | Ce document |
 | **Commissions créateurs** | 25 – 35 % | Pourboires live **50 %** plateforme · abos créateur |
-| **Soundy+ / SoundyUltra** | 10 – 15 % | Réduction pub = incitation upgrade |
-| **B2B lieux (Soundy Pro)** | 5 – 15 % | Cross-sell packages lieu + visibilité |
+| **OnScen+ / OnScenUltra** | 10 – 15 % | Réduction pub = incitation upgrade |
+| **B2B lieux (OnScen Pro)** | 5 – 15 % | Cross-sell packages lieu + visibilité |
 
 ### 7.2 Abonnements utilisateurs & sponsors
 
 | Forfait | Prix | Impact sponsors |
 |---------|------|-----------------|
 | **Gratuit** | 0 € | Tous emplacements actifs |
-| **Soundy+** | **9,99 €/mois** | Moins de sponsors · pas de bandeau carte* · badge exclusif |
-| **SoundyUltra** | **19,99 €/mois** | Expérience premium · sponsors réduits au minimum (promos Soundy uniquement) |
+| **OnScen+** | **9,99 €/mois** | Moins de sponsors · pas de bandeau carte* · badge exclusif |
+| **OnScenUltra** | **19,99 €/mois** | Expérience premium · sponsors réduits au minimum (promos OnScen uniquement) |
 
-\* Aligné pitch deck « sans pub sur la carte » — à activer côté client (filtre `kind: sponsored` pour abonnés Soundy+).
+\* Aligné pitch deck « sans pub sur la carte » — à activer côté client (filtre `kind: sponsored` pour abonnés OnScen+).
 
-**Équilibre économique :** chaque tranche de 100 abonnés Soundy+ (~1 000 €/mois) compense environ **1–1,2 contrat Starter** — d’où l’importance du upsell Pro/Premium côté annonceurs.
+**Équilibre économique :** chaque tranche de 100 abonnés OnScen+ (~1 000 €/mois) compense environ **1–1,2 contrat Starter** — d’où l’importance du upsell Pro/Premium côté annonceurs.
 
 ### 7.3 Répartition revenus (pas de split créateur sur sponsors)
 
 | Flux | Répartition |
 |------|-------------|
-| Sponsor payant → Soundy | **100 % plateforme** (MVP) |
-| Pourboire live → créateur | **50 % créateur / 50 % Soundy** |
-| Abonnement créateur | **~90 % créateur / ~10 % Soundy** (configurable) |
+| Sponsor payant → OnScen | **100 % plateforme** (MVP) |
+| Pourboire live → créateur | **50 % créateur / 50 % OnScen** |
+| Abonnement créateur | **~90 % créateur / ~10 % OnScen** (configurable) |
 
 **Option M18+ :** partage 5–10 % du revenu sponsor avec **hôtes live** affichant un overlay (incitation qualité diffusion) — non implémenté MVP.
 
@@ -276,7 +276,7 @@ flowchart LR
 | **Fréquence** | Imp./utilisateur | ≤ 5/jour (anti-fatigue) |
 | **Geo delivery** | % imp. dans zone ciblée | ≥90 % |
 
-### 8.2 KPIs business Soundy (internes)
+### 8.2 KPIs business OnScen (internes)
 
 | KPI | Cible M12 |
 |-----|-----------|
@@ -299,7 +299,7 @@ flowchart LR
 **Self-serve — dashboard (roadmap) :**
 
 - Temps réel + export CSV
-- UTM automatiques : `utm_source=soundy&utm_medium={placement}&utm_campaign={id}`
+- UTM automatiques : `utm_source=onscen&utm_medium={placement}&utm_campaign={id}`
 
 ### 8.4 Tracking technique (à implémenter)
 
@@ -357,7 +357,7 @@ flowchart LR
 
 ## 10. Comparatif concurrence (synthèse)
 
-| Critère | **Soundy** | Instagram / TikTok | Spotify Ads | Shotgun |
+| Critère | **OnScen** | Instagram / TikTok | Spotify Ads | Shotgun |
 |---------|------------|--------------------|-------------|---------|
 | Contexte | Musique live + geo + salons | Social généraliste | Écoute solo | Billetterie |
 | Format | Natif in-app, reels 9:16 | Feed, stories, reels | Audio + display limité | Email / notif |
@@ -367,7 +367,7 @@ flowchart LR
 | Audience FR musique | Qualifiée (early) | Massive | Massive streaming | Sorties |
 | Différenciation | Écoute sync + live + carte | Reach | Audio intent | Conversion event |
 
-**Message commercial :** Soundy n’est pas le moins cher en reach — c’est le **meilleur coût par fan musique engagé près d’une sortie**.
+**Message commercial :** OnScen n’est pas le moins cher en reach — c’est le **meilleur coût par fan musique engagé près d’une sortie**.
 
 ---
 
@@ -420,7 +420,7 @@ flowchart LR
 
 | Rôle | Responsabilité |
 |------|----------------|
-| Admin Soundy | Création, modération, priorité |
+| Admin OnScen | Création, modération, priorité |
 | Account executive | Vente, renouvellement, reporting |
 | Produit | Analytics, self-serve, ciblage geo |
 | Légal | Contrats, mentions sponsoring (ARPP / influencer rules) |
@@ -441,4 +441,4 @@ flowchart LR
 
 ---
 
-*Document interne MeloSongv2 / Soundy — aligné sur l’infra sponsors (`backend/src/lib/sponsors.ts`, `sponsorPlatformConfig.ts`, `AdminSponsorsTab`) et le pitch investisseur (`docs/Soundy-Pitch-Deck.md`). Mettre à jour lors de l’activation analytics, self-serve et nouveaux emplacements.*
+*Document interne OnScenv2 / OnScen — aligné sur l’infra sponsors (`backend/src/lib/sponsors.ts`, `sponsorPlatformConfig.ts`, `AdminSponsorsTab`) et le pitch investisseur (`docs/OnScen-Pitch-Deck.md`). Mettre à jour lors de l’activation analytics, self-serve et nouveaux emplacements.*

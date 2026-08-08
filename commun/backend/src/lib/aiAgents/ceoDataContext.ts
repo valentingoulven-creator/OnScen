@@ -144,9 +144,9 @@ export async function buildCeoDataContext(): Promise<string> {
 
   const payload = {
     generatedAt: new Date().toISOString(),
-    role: 'CEO IA Soundy — exécutif virtuel type Tang Yu (NetDragon)',
+    role: 'CEO IA OnScen — exécutif virtuel type Tang Yu (NetDragon)',
     mission:
-      'Faire évoluer Soundy : stratégie, finances, GTM, priorités produit, path to scale — avec données + questions au fondateur.',
+      'Faire évoluer OnScen : stratégie, finances, GTM, priorités produit, path to scale — avec données + questions au fondateur.',
     liveMetrics: {
       analyticsSnapshot: analyticsWeek.snapshot,
       analyticsWeekSeries: analyticsWeek.series,

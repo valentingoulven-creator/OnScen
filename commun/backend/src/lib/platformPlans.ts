@@ -6,11 +6,11 @@ import { getActiveSubscription, PLATFORM_CREATOR_ID } from './subscriptions';
 
 /**
  * Phase test produit : OBS / Cloudflare Stream ouverts à tous les comptes.
- * Repasser à `false` pour réactiver la restriction SoundyUltra.
+ * Repasser à `false` pour réactiver la restriction OnScenUltra.
  */
 export const OBS_OPEN_TO_ALL = true;
 
-export type PlatformPlanId = 'free' | 'soundy_plus' | 'soundy_ultra';
+export type PlatformPlanId = 'free' | 'onscen_plus' | 'onscen_ultra';
 
 export interface PlatformPlanLimits {
   /** null = illimité */
@@ -63,12 +63,12 @@ const PLATFORM_PLANS: Record<PlatformPlanId, PlatformPlanDefinition> = {
       'Diffusion LiveKit (sans OBS)',
     ],
   },
-  soundy_plus: {
-    id: 'soundy_plus',
-    label: 'Soundy+',
+  onscen_plus: {
+    id: 'onscen_plus',
+    label: 'OnScen+',
     priceCents: 999,
     priceDisplay: '9,99 €/mois',
-    subscriptionTierId: 'soundy_plus',
+    subscriptionTierId: 'onscen_plus',
     limits: {
       maxViewers: 400,
       maxLiveMinutesPerDay: 240,
@@ -82,12 +82,12 @@ const PLATFORM_PLANS: Record<PlatformPlanId, PlatformPlanDefinition> = {
       'Sans diffusion OBS / Cloudflare',
     ],
   },
-  soundy_ultra: {
-    id: 'soundy_ultra',
-    label: 'SoundyUltra',
+  onscen_ultra: {
+    id: 'onscen_ultra',
+    label: 'OnScenUltra',
     priceCents: 1999,
     priceDisplay: '19,99 €/mois',
-    subscriptionTierId: 'soundy_ultra',
+    subscriptionTierId: 'onscen_ultra',
     limits: {
       maxViewers: null,
       maxLiveMinutesPerDay: null,
@@ -108,12 +108,12 @@ export function getPlatformPlan(planId: PlatformPlanId): PlatformPlanDefinition 
 }
 
 export function listPlatformPlans(): PlatformPlanDefinition[] {
-  return [PLATFORM_PLANS.free, PLATFORM_PLANS.soundy_plus, PLATFORM_PLANS.soundy_ultra];
+  return [PLATFORM_PLANS.free, PLATFORM_PLANS.onscen_plus, PLATFORM_PLANS.onscen_ultra];
 }
 
 export function resolvePlatformPlanIdFromTier(tierId: string | undefined): PlatformPlanId {
-  if (tierId === 'soundy_ultra') return 'soundy_ultra';
-  if (tierId === 'soundy_plus') return 'soundy_plus';
+  if (tierId === 'onscen_ultra') return 'onscen_ultra';
+  if (tierId === 'onscen_plus') return 'onscen_plus';
   return 'free';
 }
 
@@ -123,10 +123,10 @@ export function getUserPlatformPlan(userId: string, now = Date.now()): PlatformP
   return getPlatformPlan(resolvePlatformPlanIdFromTier(sub.tierId));
 }
 
-/** Rediffusions de lives archivés sur le profil personnel (Soundy+ / SoundyUltra). */
+/** Rediffusions de lives archivés sur le profil personnel (OnScen+ / OnScenUltra). */
 export function canAccessArchivedLives(userId: string, now = Date.now()): boolean {
   const plan = getUserPlatformPlan(userId, now);
-  return plan.id === 'soundy_plus' || plan.id === 'soundy_ultra';
+  return plan.id === 'onscen_plus' || plan.id === 'onscen_ultra';
 }
 
 function startOfUtcDay(ts = Date.now()): number {
@@ -174,7 +174,7 @@ export function assertCanStartLive(hostId: string, now = Date.now()): void {
     const limitLabel = formatDailyLimitHours(limit);
     throw new PlatformPlanError(
       'LIVE_DAILY_LIMIT',
-      `Vous avez atteint votre limite de diffusion live pour aujourd’hui (${limitLabel}). Passez à Soundy+ ou SoundyUltra pour plus de temps.`
+      `Vous avez atteint votre limite de diffusion live pour aujourd’hui (${limitLabel}). Passez à OnScen+ ou OnScenUltra pour plus de temps.`
     );
   }
 }
@@ -207,7 +207,7 @@ export function assertCanUseCloudflareObs(hostId: string): void {
   if (!plan.limits.allowCloudflare || !plan.limits.allowObs) {
     throw new PlatformPlanError(
       'OBS_NOT_ALLOWED',
-      'La diffusion OBS (Cloudflare Stream) est réservée à l’abonnement SoundyUltra.'
+      'La diffusion OBS (Cloudflare Stream) est réservée à l’abonnement OnScenUltra.'
     );
   }
 }

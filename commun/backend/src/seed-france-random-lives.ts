@@ -97,7 +97,7 @@ function makeBotUser(seed: FranceRandomLiveSeed, userId: string): User {
   const user: User = {
     id: userId,
     username: seed.username,
-    email: `${userId}@bot.melosong.local`,
+    email: `${userId}@bot.onscen.local`,
     passwordHash: 'bot',
     avatarUrl: dicebearAdventurerAvatar(userId),
     meloCoins: 0,

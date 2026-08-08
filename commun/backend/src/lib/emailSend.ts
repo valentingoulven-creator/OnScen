@@ -54,7 +54,7 @@ export function isEmailConfigured(): boolean {
   return isSmtpEnabled();
 }
 
-export function getEmailFrom(fallbackName = 'Soundy'): string {
+export function getEmailFrom(fallbackName = 'OnScen'): string {
   if (process.env.RESEND_FROM) return process.env.RESEND_FROM;
   if (process.env.SMTP_FROM) return process.env.SMTP_FROM;
   if (process.env.RESEND_API_KEY) return `${fallbackName} <onboarding@resend.dev>`;

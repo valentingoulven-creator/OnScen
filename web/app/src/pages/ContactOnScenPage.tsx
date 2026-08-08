@@ -5,7 +5,7 @@ import { api } from '../lib/api';
 import { useSupportTicketUpdates } from '../hooks/useSupportTicketRealtime';
 import type { SupportContactMessage, SupportThreadMessage } from '../types';
 
-interface ContactSoundyPageProps {
+interface ContactOnScenPageProps {
   onBack: () => void;
   highlightMessageId?: string;
   /** Renders content only (no header/scroll shell) for embedding in SettingsPage. */
@@ -54,7 +54,7 @@ function getThread(msg: SupportContactMessage): SupportThreadMessage[] {
   return thread;
 }
 
-export function ContactSoundyPage({ onBack, highlightMessageId, embedded }: ContactSoundyPageProps) {
+export function ContactOnScenPage({ onBack, highlightMessageId, embedded }: ContactOnScenPageProps) {
   const { token } = useAuth();
   const { t, i18n } = useTranslation();
   const [body, setBody] = useState('');

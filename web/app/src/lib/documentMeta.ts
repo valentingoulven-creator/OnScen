@@ -2,19 +2,19 @@
 
 const META = {
   fr: {
-    title: "Soundy — Salons d'écoute musicale géolocalisés",
+    title: "OnScen — Salons d'écoute musicale géolocalisés",
     description:
       "Rejoignez des salons d'écoute musicale en direct, découvrez des lives et connectez-vous avec des mélomanes près de vous.",
     ogLocale: 'fr_FR',
-    keywords: 'salon musique, écoute collective, live musical, YouTube, géolocalisé, Soundy',
+    keywords: 'salon musique, écoute collective, live musical, YouTube, géolocalisé, OnScen',
     twitterDescription: "Salons d'écoute musicale géolocalisés — YouTube",
   },
   en: {
-    title: 'Soundy — Geo-located music listening rooms',
+    title: 'OnScen — Geo-located music listening rooms',
     description:
       'Join live music listening rooms, discover streams and connect with music lovers near you.',
     ogLocale: 'en_US',
-    keywords: 'music room, collective listening, live music, YouTube, geo-located, Soundy',
+    keywords: 'music room, collective listening, live music, YouTube, geo-located, OnScen',
     twitterDescription: 'Geo-located music listening rooms — YouTube',
   },
 } as const;

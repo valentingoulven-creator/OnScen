@@ -49,11 +49,11 @@ import {
 import { toGlobeCapitalLabels, type GlobeCapitalLabel } from '../lib/worldCapitals';
 import type { Salon, Live, NearbyPerson, MapEventCityCluster, MapEventMarker } from '../types';
 import type { GlobeCameraBridgeHandle, RecenterRequest } from './globe3d/GlobeCameraBridge';
-import type { SoundyGlobePoint } from './globe3d/SoundyGlobeMarkers';
+import type { OnScenGlobePoint } from './globe3d/OnScenGlobeMarkers';
 import type { DevMapMarkerRef } from '../lib/devMapMarkerDrag';
 
-const SoundyGlobeCanvas = lazy(() =>
-  import('./globe3d/SoundyGlobeCanvas').then((m) => ({ default: m.SoundyGlobeCanvas }))
+const OnScenGlobeCanvas = lazy(() =>
+  import('./globe3d/OnScenGlobeCanvas').then((m) => ({ default: m.OnScenGlobeCanvas }))
 );
 
 const GLOBE_CAPITAL_LABELS = toGlobeCapitalLabels();
@@ -849,7 +849,7 @@ export const GlobeView = memo(
       [syncTierAndPovFromGlobe, refreshGlobeCapitalRegion]
     );
 
-    const handlePointClick = useCallback((p: SoundyGlobePoint) => {
+    const handlePointClick = useCallback((p: OnScenGlobePoint) => {
       if (p.type === 'live-cluster') {
         const cluster = p.entity as MapLiveLocationCluster | undefined;
         if (!cluster) return;
@@ -956,7 +956,7 @@ export const GlobeView = memo(
               </div>
             }
           >
-            <SoundyGlobeCanvas
+            <OnScenGlobeCanvas
               width={size.w}
               height={size.h}
               maxPixelRatio={GLOBE_RENDER_PROFILE.maxPixelRatio}

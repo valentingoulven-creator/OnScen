@@ -109,7 +109,7 @@ function isSponsorEventSeedEnvironment(): boolean {
 function resolveSponsorContentAuthor(): User | undefined {
   const admins = [...db.users.values()].filter((u) => u.isAdmin);
   if (admins.length > 0) return admins[0];
-  return [...db.users.values()].find((u) => u.username.toLowerCase() === 'soundy');
+  return [...db.users.values()].find((u) => u.username.toLowerCase() === 'onscen');
 }
 
 function ensureSolarFestivalOrganizerUser(): User {
@@ -118,7 +118,7 @@ function ensureSolarFestivalOrganizerUser(): User {
   const user: User = {
     id: SOLAR_FESTIVAL_ORGANIZER_USER_ID,
     username: SOLAR_FESTIVAL_ORGANIZER_USERNAME,
-    email: 'solarfestival@organizer.soundy.local',
+    email: 'solarfestival@organizer.onscen.local',
     passwordHash: existing?.passwordHash ?? 'bot',
     avatarUrl: SOLAR_FESTIVAL_ORGANIZER_AVATAR,
     meloCoins: existing?.meloCoins ?? 0,
@@ -266,10 +266,10 @@ export function ensureProductionSponsorContent(): {
   const events = seedProductionSponsorEvents();
   if (events.created > 0) {
     console.log(
-      `[soundy] Événements sponsorisés carte : ${events.created} créé(s) (${events.total} au total)`
+      `[onscen] Événements sponsorisés carte : ${events.created} créé(s) (${events.total} au total)`
     );
   } else if (events.skippedNoAuthor) {
-    console.warn('[soundy] Événements sponsorisés carte ignorés — aucun compte admin trouvé');
+    console.warn('[onscen] Événements sponsorisés carte ignorés — aucun compte admin trouvé');
   }
   return { events };
 }

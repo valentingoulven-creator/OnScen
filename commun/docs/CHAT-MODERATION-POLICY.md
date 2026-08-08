@@ -1,4 +1,4 @@
-# Politique de modération chat — Soundy
+# Politique de modération chat — OnScen
 
 Document de référence (CTO / produit / modération). Dernière mise à jour : 2026-08-07.
 
@@ -6,7 +6,7 @@ Document de référence (CTO / produit / modération). Dernière mise à jour : 
 
 Assurer des espaces **salon**, **live**, **DM** et **groupes** accueillants pour **tous les artistes** (musique, danse, spectacle…) et leur public, en s’alignant sur les bonnes pratiques des grandes plateformes (Twitch, Instagram, TikTok) **sans prétendre reproduire leurs listes secrètes**.
 
-Soundy combine :
+OnScen combine :
 
 | Couche | Rôle |
 |--------|------|

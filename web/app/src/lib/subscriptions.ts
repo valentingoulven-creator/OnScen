@@ -2,10 +2,10 @@ export const SUBSCRIPTION_MIN_AGE = 18;
 
 export type SubscriptionTargetType = 'creator' | 'platform';
 
-export type PlatformPlanId = 'free' | 'soundy_plus' | 'soundy_ultra';
+export type PlatformPlanId = 'free' | 'onscen_plus' | 'onscen_ultra';
 
 export function canAccessArchivedLives(planId: string): boolean {
-  return planId === 'soundy_plus' || planId === 'soundy_ultra';
+  return planId === 'onscen_plus' || planId === 'onscen_ultra';
 }
 
 export interface SubscriptionTierConfig {
@@ -78,7 +78,7 @@ export function userCanSubscribeByAge(age: number | undefined, ageConfirmed: boo
 }
 
 export const SUBSCRIPTION_LEGAL_NOTICE =
-  'Les abonnements sont des soutiens récurrents volontaires au créateur ou à Soundy (pas des dons associatifs ouvrant droit à reçu fiscal). Paiement sécurisé par Stripe Billing. Résiliation possible à tout moment ; aucune donnée de carte sur nos serveurs.';
+  'Les abonnements sont des soutiens récurrents volontaires au créateur ou à OnScen (pas des dons associatifs ouvrant droit à reçu fiscal). Paiement sécurisé par Stripe Billing. Résiliation possible à tout moment ; aucune donnée de carte sur nos serveurs.';
 
 export const SUBSCRIPTION_STRIPE_TERMS_URL = 'https://stripe.com/fr/legal/consumer';
 

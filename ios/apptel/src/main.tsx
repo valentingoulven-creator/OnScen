@@ -43,4 +43,4 @@ createRoot(rootEl).render(
   </StrictMode>
 );
 
-document.getElementById('melosong-boot')?.remove();
+document.getElementById('onscen-boot')?.remove();

@@ -264,7 +264,7 @@ livesRouter.post('/start', authenticateJWT, liveStartLimiter, async (req: Reques
 
   if (!user.liveTermsAcceptedAt) {
     res.status(403).json({
-      error: 'Vous devez accepter les règles de diffusion Soundy avant de lancer un live.',
+      error: 'Vous devez accepter les règles de diffusion OnScen avant de lancer un live.',
       code: 'LIVE_TERMS_REQUIRED',
     });
     return;
@@ -435,7 +435,7 @@ livesRouter.get('/user/:userId', authenticateJWT, (req: Request, res: Response) 
   }
   if (userId === me && !canAccessArchivedLives(me)) {
     res.status(403).json({
-      error: 'Les rediffusions sont réservées aux abonné·e·s Soundy+.',
+      error: 'Les rediffusions sont réservées aux abonné·e·s OnScen+.',
       code: 'ARCHIVED_LIVES_PLUS_REQUIRED',
     });
     return;
@@ -781,7 +781,7 @@ async function ensureLiveKitCdnCloudflareInput(live: Live): Promise<CloudflareLi
   if (live.cloudflareLiveInputId) {
     return getCloudflareLiveInput(live.cloudflareLiveInputId);
   }
-  const cfCreds = await createCloudflareLiveInput({ name: `soundy-egress-${live.id}` });
+  const cfCreds = await createCloudflareLiveInput({ name: `onscen-egress-${live.id}` });
   live.cloudflareLiveInputId = cfCreds.uid;
   live.cloudflarePlaybackUrl = cfCreds.playbackHlsUrl;
   live.cloudflareCustomerSubdomain = cfCreds.customerSubdomain;

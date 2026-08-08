@@ -88,7 +88,7 @@ const PHONE_PREVIEW_HTML = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>📱 Soundy — Phone Preview</title>
+  <title>📱 OnScen — Phone Preview</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -209,7 +209,7 @@ const PHONE_PREVIEW_HTML = `<!DOCTYPE html>
 </head>
 <body>
   <div class="header">
-    <h1>📱 Soundy — Aperçu Téléphone</h1>
+    <h1>📱 OnScen — Aperçu Téléphone</h1>
     <p>apptel &rarr; <a href="/tel/" target="_blank">localhost:4080/tel</a></p>
   </div>
   <div class="size-bar">
@@ -243,7 +243,7 @@ const PHONE_PREVIEW_HTML = `<!DOCTYPE html>
           </div>
         </div>
         <div class="island"></div>
-        <iframe class="app-frame" id="iframe" src="/tel/" title="Soundy Tel" allow="autoplay; camera; microphone; geolocation"></iframe>
+        <iframe class="app-frame" id="iframe" src="/tel/" title="OnScen Tel" allow="autoplay; camera; microphone; geolocation"></iframe>
         <div class="home"></div>
         <button class="reload-btn" onclick="reloadApp()" title="Recharger l'app">↻ reload</button>
       </div>
@@ -620,7 +620,7 @@ app.get('/health', (_req, res) => {
     const services = await checkExternalServicesHealth().catch(() => null);
     res.status(httpStatus).json({
       status,
-      app: 'Soundy',
+      app: 'OnScen',
       env: process.env.APP_ENV || 'development',
       db: dbStatus,
       services,
@@ -708,7 +708,7 @@ app.get('/msdev-mobile', (req, res) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Soundy — Smartphone</title>
+  <title>OnScen — Smartphone</title>
   <style>
     body { font-family: system-ui, sans-serif; background: #0b0b0f; color: #e5e7eb; margin: 0; padding: 1.5rem; text-align: center; }
     h1 { font-size: 1.25rem; color: #c4b5fd; }
@@ -719,7 +719,7 @@ app.get('/msdev-mobile', (req, res) => {
   </style>
 </head>
 <body>
-  <h1>Soundy sur smartphone</h1>
+  <h1>OnScen sur smartphone</h1>
   <p>Ouvrez cette URL <strong>sur le téléphone</strong> (même Wi‑Fi que le PC) :</p>
   <p><a href="${mobileUrl}">${mobileUrl}</a></p>
   <img src="${qrApi}" width="220" height="220" alt="QR code" />
@@ -740,7 +740,7 @@ app.get('/clear-pwa', (_req, res) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Soundy \u2014 Nettoyage cache PWA</title>
+  <title>OnScen \u2014 Nettoyage cache PWA</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, sans-serif; background: #0b0b0f; color: #e5e7eb; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 1.5rem; text-align: center; gap: 1rem; }
@@ -778,7 +778,7 @@ app.get('/clear-pwa', (_req, res) => {
       }
       try {
         Object.keys(localStorage).forEach(function (k) {
-          if (k.startsWith('melosong_sw_purge_')) localStorage.removeItem(k);
+          if (k.startsWith('onscen_sw_purge_')) localStorage.removeItem(k);
         });
       } catch (e) {}
       p.then(finish).catch(finish);
@@ -884,7 +884,7 @@ app.get('*', (req, res, next) => {
   if (fs.existsSync(indexPath)) {
     sendSpaIndex(req, res, indexPath);
   } else {
-    res.status(404).send('Soundy app not built. Run: npm run app:build');
+    res.status(404).send('OnScen app not built. Run: npm run app:build');
   }
 });
 

@@ -130,7 +130,7 @@ adminPaymentsRouter.post(
 
 /**
  * Annulation + remboursement (total ou partiel) de la dernière facture payée
- * d'un abonnement créateur / Soundy+ via Stripe.
+ * d'un abonnement créateur / OnScen+ via Stripe.
  * Body optionnel : { amountCents?: number, reason?: string, cancelSubscription?: boolean }
  */
 adminPaymentsRouter.post(

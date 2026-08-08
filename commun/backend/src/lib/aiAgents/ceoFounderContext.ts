@@ -60,7 +60,7 @@ export function getCeoFounderContextPaths(): string[] {
   return [
     path.join(getAppRoot(), 'ceo-founder-context.json'),
     path.join(msdevDir, 'ceo-founder-context.json'),
-    '/opt/soundy/ceo-founder-context.json',
+    '/opt/onscen/ceo-founder-context.json',
     '/opt/soundly/ceo-founder-context.json',
   ];
 }
@@ -148,7 +148,7 @@ export function computeCeoDataGaps(
       id: 'cash',
       category: 'financial',
       severity: 'critical',
-      question: 'Trésorerie disponible pour Soundy aujourd’hui (€) ?',
+      question: 'Trésorerie disponible pour OnScen aujourd’hui (€) ?',
       whyItMatters: 'Runway et tempo d’investissement (infra, marketing, legal).',
       suggestedField: 'financials.cashOnHandEur',
     });
@@ -189,7 +189,7 @@ export function computeCeoDataGaps(
       category: 'gtm',
       severity: 'high',
       question: 'Ville pivot GTM (une seule pour densifier l’effet réseau) ?',
-      whyItMatters: 'Soundy gagne par densité locale, pas par lancement national dilué.',
+      whyItMatters: 'OnScen gagne par densité locale, pas par lancement national dilué.',
       suggestedField: 'strategy.primaryCity',
     });
   }

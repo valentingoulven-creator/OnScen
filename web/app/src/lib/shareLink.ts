@@ -67,7 +67,7 @@ export async function getCompositionShareUrl(userId: string, compositionId: stri
   return `${base}${getCompositionPath(userId, compositionId)}`;
 }
 
-/** Public URL for sharing the Soundy app (origin from config / LAN on msdev). */
+/** Public URL for sharing the OnScen app (origin from config / LAN on msdev). */
 export async function getAppShareUrl(): Promise<string> {
   return resolveShareOrigin();
 }

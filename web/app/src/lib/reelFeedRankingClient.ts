@@ -6,8 +6,8 @@ import {
   type ReelFeedAlgorithmWeights,
 } from './reelFeedAlgorithm';
 
-const LAST_REELS_TAB_START_KEY = 'melosong_reels_last_tab_start_id';
-const REELS_SESSION_SEED_KEY = 'melosong_reels_shuffle_seed';
+const LAST_REELS_TAB_START_KEY = 'onscen_reels_last_tab_start_id';
+const REELS_SESSION_SEED_KEY = 'onscen_reels_shuffle_seed';
 
 function fisherYatesShuffle<T>(items: T[], random: () => number): T[] {
   const arr = items.slice();
@@ -47,7 +47,7 @@ export function refreshReelsShuffleSeed(): void {
   }
 }
 
-/** Algorithme Soundy par défaut ou msdev → ordre aléatoire (Fisher-Yates, graine session). */
+/** Algorithme OnScen par défaut ou msdev → ordre aléatoire (Fisher-Yates, graine session). */
 export function shouldShuffleReelsFeed(
   prefs: ReelFeedAlgorithmPreferences,
   msdev: boolean

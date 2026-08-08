@@ -27,11 +27,11 @@ const DEFAULT_SESSION: LiveHostSession = {
 };
 
 function sessionKey(liveId: string): string {
-  return `soundy:live-host:${liveId}`;
+  return `onscen:live-host:${liveId}`;
 }
 
 function sessionEventName(liveId: string): string {
-  return `soundy-live-host-session:${liveId}`;
+  return `onscen-live-host-session:${liveId}`;
 }
 
 function readRaw(liveId: string): LiveHostSession {

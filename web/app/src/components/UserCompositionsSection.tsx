@@ -1251,7 +1251,7 @@ export function UserCompositionsSection({
 
 
 
-  const shareDisplayName = defaultArtist || me?.username || 'Soundy';
+  const shareDisplayName = defaultArtist || me?.username || 'OnScen';
 
 
 
@@ -2390,7 +2390,7 @@ export function UserCompositionsSection({
 
           url={shareAlbumUrl}
 
-          title={`${shareAlbum.title} — Soundy`}
+          title={`${shareAlbum.title} — OnScen`}
 
           text={t('profile.compositions.shareAlbumText', {
 

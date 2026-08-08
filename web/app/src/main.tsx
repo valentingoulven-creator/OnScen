@@ -52,7 +52,7 @@ function showPwaUpdateBar(onUpdate: () => void): void {
   bar.id = 'pwa-update-bar';
   bar.setAttribute('role', 'status');
   const text = document.createElement('span');
-  text.textContent = 'Une nouvelle version de Soundy est disponible.';
+  text.textContent = 'Une nouvelle version de OnScen est disponible.';
   const actions = document.createElement('div');
   actions.className = 'pwa-update-bar__actions';
   const later = document.createElement('button');
@@ -110,4 +110,4 @@ createRoot(rootEl).render(
   </StrictMode>
 );
 
-document.getElementById('melosong-boot')?.remove();
+document.getElementById('onscen-boot')?.remove();

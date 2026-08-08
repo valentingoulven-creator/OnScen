@@ -249,7 +249,7 @@ export function appendPlatformStatsPresentation(
   return y;
 }
 
-/** Présentation PDF stats plateforme (couverture Soundy + synthèse + tableaux). */
+/** Présentation PDF stats plateforme (couverture OnScen + synthèse + tableaux). */
 export async function downloadAdminStatsPresentationPdf(
   data: StatsOverviewResponse,
   labels: AdminFullReportPdfLabels,
@@ -294,5 +294,5 @@ export async function downloadAdminStatsPresentationPdf(
   pdfAddFooters(doc, margin, labels.footer, `${cover.generatedAtLabel} ${new Date(data.generatedAt).toLocaleDateString(locale)}`);
 
   const stamp = new Date(data.generatedAt).toISOString().slice(0, 10);
-  doc.save(`soundy-statistiques-${stamp}.pdf`);
+  doc.save(`onscen-statistiques-${stamp}.pdf`);
 }

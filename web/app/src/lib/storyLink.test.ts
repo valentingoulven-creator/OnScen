@@ -22,9 +22,9 @@ describe('storyLink', () => {
 
   it('resolves display label from custom text or domain', () => {
     expect(
-      storyLinkDisplayLabel({ url: 'https://www.soundy.com/foo', label: 'Voir plus' })
+      storyLinkDisplayLabel({ url: 'https://www.onscen.com/foo', label: 'Voir plus' })
     ).toBe('Voir plus');
-    expect(storyLinkDisplayLabel({ url: 'https://www.soundy.com/foo' })).toBe('soundy.com');
+    expect(storyLinkDisplayLabel({ url: 'https://www.onscen.com/foo' })).toBe('onscen.com');
     expect(storyLinkDisplayLabel({ url: 'not-a-url' })).toBe('Voir plus');
   });
 

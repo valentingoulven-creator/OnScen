@@ -16,8 +16,8 @@ if (isMsdev) {
 }
 
 void import('./bootstrap')
-  .then(({ startMeloSong }) => startMeloSong({ forceMsdev: isMsdev, openBrowser: false }))
+  .then(({ startOnScen }) => startOnScen({ forceMsdev: isMsdev, openBrowser: false }))
   .catch((err) => {
-    console.error('Failed to start MeloSong:', err);
+    console.error('Failed to start OnScen:', err);
     process.exit(1);
   });

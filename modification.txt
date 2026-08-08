@@ -37261,3 +37261,181 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 1343 — 2026-08-07
 ================================================================================
+
+================================================================================
+MODIF 1344 — Correctifs audit compat iOS/Android (safe-area duo, LiveKit apptel,
+viewer mobile annonce/sondage) — Soundy Dev
+Date : 2026-08-08
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suite au rapport d'audit compat mobile (2026-08-08-audit-compat-ios-android.md),
+ 3 correctifs ciblés validés par le fondateur (portage complet du panel hôte live
+ sur mobile explicitement écarté — décision produit en attente) :
+ 1. Safe-area sur la tuile vidéo duo (chevauchement home indicator iPhone).
+ 2. Dépendance LiveKit fragile côté apptel (résolution implicite via
+    web/app/node_modules, cassable en CI n'installant que ios/apptel).
+ 3. Viewer mobile aveugle aux annonces épinglées / sondages publiés par un hôte
+    web (composants non branchés dans ios/apptel/src/pages/LivePage.tsx).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/LiveKitVideoStage.tsx
+ ─────────────────
+ • `LiveKitPeerTile` (tuile vidéo duo) : position `bottom` remplacée par
+   `calc(0.75rem + env(safe-area-inset-bottom))` (style inline) — évite le
+   chevauchement avec le geste home iPhone en plein écran vidéo.
+
+ ios/apptel/package.json
+ ─────────────────
+ • Ajout explicite de `livekit-client` (^2.20.0) et `@livekit/components-react`
+   (^2.9.21) en dépendances directes (mêmes versions que web/app), + `npm install`
+   exécuté (node_modules + package-lock.json mis à jour). Auparavant ces packages
+   n'étaient déclarés que dans web/app/package.json ; le build apptel fonctionnait
+   par effet de bord (résolution Node.js depuis le chemin réel du fichier
+   importeur `LiveKitVideoStage.tsx`, physiquement dans web/app/src/) — fragile
+   si un environnement CI n'installe que ios/apptel/.
+
+ ios/apptel/src/types.ts
+ ─────────────────
+ • Ajout `LivePinnedAnnouncement`, `LivePoll` (mêmes types que web/app/src/types.ts,
+   MODIF 1341) + champs `Live.pinnedAnnouncement`/`Live.activePoll`. Le reste des
+   champs Live liés au duo/config hôte (coHostId, description, isSensitive,
+   replayEnabled…) n'a volontairement PAS été ajouté : hors périmètre de ce
+   correctif (lecture viewer uniquement, pas de config hôte mobile).
+
+ ios/apptel/src/pages/LivePage.tsx
+ ─────────────────
+ • Import + rendu de `LivePinnedAnnouncementBanner` et `LivePollWidget` (fallback
+   web, aucun override nécessaire) en tête de la zone chat, à l'identique du
+   branchement web (MODIF 1341). Un viewer mobile voit désormais et peut voter à
+   un sondage / voir une annonce publiée par un hôte web.
+ • Commentaire d'audit du fichier mis à jour pour tracer explicitement que
+   `LiveHostPanel` (Config/Don/Chat complet) reste non porté sur mobile — décision
+   produit en attente, cf. rapport dev-agent 2026-08-08-audit-compat-ios-android.md.
+
+ NON FAIT (hors périmètre, validé avec le fondateur)
+ ─────────────────
+ • Portage complet du panel hôte live (`LiveHostPanel`) en bottom-sheet mobile —
+   chantier large (item #2 du plan d'action de l'audit), nécessite une décision
+   produit sur la forme (panel identique vs simplifié) avant tout chiffrage.
+ • Extension de l'AASA (`/reels/*`, `/dm/*`) — investigation a montré qu'aucune
+   route de deep-link dédiée n'existe actuellement pour reels/DM côté frontend
+   (pas de `<Route>` ni de parsing de pathname trouvé) ; ajouter ces chemins à
+   l'AASA sans route fonctionnelle ouvrirait l'app sur un état non pertinent.
+   Nécessite un chantier de routing dédié, pas un simple ajout de chaîne.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/LiveKitVideoStage.tsx → safe-area LiveKitPeerTile
+ ios/apptel/package.json, package-lock.json → livekit-client + @livekit/components-react
+ ios/apptel/src/types.ts → LivePinnedAnnouncement, LivePoll, Live.pinnedAnnouncement/activePoll
+ ios/apptel/src/pages/LivePage.tsx → branchement viewer annonce/sondage + commentaire d'audit
+
+BUILD (si vérifié)
+-----
+ commun/backend → npx vitest run → ✅ (105 fichiers, 504 tests)
+ web/app → npx tsc --noEmit → ✅ (0 erreur)
+ ios/apptel → npx tsc --noEmit -p tsconfig.app.json → ✅ (0 erreur)
+ ios/apptel → npm run build (vite build) → ✅ (LivePage bundle 120.4→123.15kb gzip,
+   cohérent avec l'ajout de 2 petits composants)
+ ios/apptel → npx eslint src/pages/LivePage.tsx → ⚠️ 10 erreurs/5 warnings
+   PRÉ-EXISTANTES (règles react-hooks/refs, set-state-in-effect — dette React
+   Compiler sur tout le fichier, lignes 147-815, aucune sur les lignes ajoutées
+   par ce correctif). Non corrigées (hors périmètre).
+
+================================================================================
+Fin MODIF 1344 — 2026-08-08
+================================================================================
+
+================================================================================
+MODIF 1345 — Rebranding Soundy/MeloSong -> OnScen (code, UI, docs vivants) — Soundly Dev
+Date : 2026-08-08
+================================================================================
+
+OBJECTIF / PROBLEME
+----
+ Demande fondateur (@soundy-cto) : renommer l'application et le repo de
+ "Soundy/MeloSong" vers "OnScen" (nom de domaine deja achete, bascule DNS
+ differee a plus tard). Perimetre clarifie via 4 questions de cadrage :
+ - Documents historiques dates (audits, rapports dev-agent) : NON renommes
+   (on ne reecrit pas l'historique).
+ - Infra (repo GitHub, process PM2, dossier VPS) : demande "maintenant" mais
+   execution partielle par prudence (voir NON FAIT).
+ - Entite legale (SIRET) : reste "Valentin Goulven" (entrepreneur individuel) ;
+   seul le nom commercial ("Soundy" -> "OnScen") change, pas de nouvelle
+   personne morale creee.
+ - Domaine : getsoundy.com CONSERVE techniquement (emails, liens, DNS) tant
+   que le nouveau domaine n'est pas branche.
+
+CHANGEMENTS / FIX
+-----
+ Script de migration (supprime apres execution)
+ ─────────────────
+ • commun/scripts/rebrand-onscen.mjs : remplacement texte "Soundy"/"MeloSong"
+   -> "OnScen" sur les repertoires produit (web/app/src, ios/apptel/src,
+   commun/backend/src) + docs "vivants" (README, ONBOARDING, STACK-CIBLE,
+   runbooks juridiques...) + noms de package.json. Domaine "getsoundy.com" et
+   le compte Gmail externe reel (yt.audit.demo2.soundy@gmail.com) proteges
+   explicitement (jamais modifies).
+
+ Renommage de fichiers (imports mis a jour automatiquement)
+ ─────────────────
+ • web/app/src/components/SoundyLogo.tsx -> OnScenLogo.tsx
+ • web/app/src/components/SupportMeloSongSection.tsx -> SupportOnScenSection.tsx
+ • web/app/src/components/globe3d/SoundyGlobe*.tsx -> OnScenGlobe*.tsx (10 fichiers)
+ • web/app/src/pages/ContactSoundyPage.tsx -> ContactOnScenPage.tsx
+
+ GitHub
+ ─────────────────
+ • Repo renomme : valentingoulven-creator/MeloSong -> valentingoulven-creator/OnScen
+   (via `gh repo rename` — GitHub conserve une redirection automatique de
+   l'ancienne URL). Remote local `origin` mis a jour en consequence.
+
+ Legal (local, non commite)
+ ─────────────────
+ • commun/msdev/legal-publisher.json : publisherName "Valentin Goulven (Soundy)"
+   -> "Valentin Goulven (OnScen)" (mention de nom commercial uniquement — le
+   SIREN/forme juridique ne changent pas).
+
+NON FAIT (par prudence infra — decision CTO documentee)
+-----
+ • Process PM2 (`melosong-backend`/`melosong-backend-staging`), dossier VPS
+   (`/opt/soundly`), nom de la base PostgreSQL (`soundy-prod`/`soundy_staging`),
+   role DB `soundy`, alias SSH (`soundy-prod`/`soundy-staging`) : VOLONTAIREMENT
+   NON renommes dans ce passage. Le script de migration les avait initialement
+   modifies (car inclus dans commun/deploy et commun/scripts) ; probleme
+   detecte a la revue : cela aurait cree un decalage entre le code source
+   (nouveaux noms) et l'etat reel du VPS/PostgreSQL (anciens noms), avec un
+   risque concret de double-process PM2 sur le meme port au prochain deploy.
+   Tous ces identifiants ont ete revertes explicitement apres detection.
+ • Renommage effectif du repertoire live VPS et de la base de donnees :
+   necessite une fenetre de maintenance coordonnee (SSH, arret bref PM2,
+   verification post-migration) — propose comme etape separee, pas execute
+   dans cette session.
+ • Alias SSH locaux (~/.ssh/config) : non renommes (lies au renommage VPS
+   ci-dessus).
+ • Documents historiques dates (commun/docs/audit/**, dev-agent/rapports/**,
+   modification.txt lui-meme, brevet/**, depot-e-soleau/**, strategie/**) :
+   non touches intentionnellement.
+
+FICHIERS MODIFIES
+-----
+ 429 fichiers (contenu) + 13 renommages de fichiers — web/app/src, ios/apptel/src,
+ commun/backend/src, commun/tests/agents, package.json (5 workspaces),
+ ~20 fichiers commun/docs/*.md "vivants" -> texte de marque "OnScen"
+ web/app/src/locales/fr.json, en.json -> corrige (hint PM2 reverte a
+ "melosong-backend" pour rester coherent avec l'infra reelle)
+ commun/msdev/legal-publisher.json -> nom commercial (non commite, gitignore)
+
+BUILD (si verifie)
+-----
+ web/app → npx tsc --noEmit → ✅ (0 erreur)
+ commun/backend → npx tsc --noEmit → ✅ (0 erreur)
+ ios/apptel → npx tsc --noEmit -p tsconfig.json → ✅ (0 erreur)
+ web/app → vitest (storyAppLink, reelAlbumLinkPlatform, storyLink) → ✅ 15/15
+
+================================================================================
+Fin MODIF 1345 — 2026-08-08
+================================================================================

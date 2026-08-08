@@ -29,7 +29,7 @@ interface UserLivesSectionProps {
   isOwner?: boolean;
   hideSectionTitle?: boolean;
   onOpenLive?: (liveId: string) => void;
-  /** Ouvre la page d'abonnement Soundy+ (profil personnel). */
+  /** Ouvre la page d'abonnement OnScen+ (profil personnel). */
   onSubscribe?: () => void;
 }
 

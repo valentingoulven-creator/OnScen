@@ -14,25 +14,25 @@ describe('detectAlbumLinkPlatform', () => {
     expect(style.label).toBe('Deezer');
   });
 
-  it('detects Soundy via parseStoryAppLink (localhost)', () => {
+  it('detects OnScen via parseStoryAppLink (localhost)', () => {
     const style = detectAlbumLinkPlatform(
       'http://localhost:5173/profile/user_listener?tab=compositions&album=msdev_showcase_album_01'
     );
-    expect(style.platform).toBe('soundy');
-    expect(style.label).toBe('Soundy');
+    expect(style.platform).toBe('onscen');
+    expect(style.label).toBe('OnScen');
   });
 
-  it('detects Soundy via getsoundy.com album link', () => {
+  it('detects OnScen via getsoundy.com album link', () => {
     const style = detectAlbumLinkPlatform(
       'https://getsoundy.com/profile/u1?tab=compositions&album=alb-42'
     );
-    expect(style.platform).toBe('soundy');
-    expect(style.label).toBe('Soundy');
+    expect(style.platform).toBe('onscen');
+    expect(style.label).toBe('OnScen');
   });
 
-  it('detects Soundy for getsoundy.com even without compositions tab', () => {
+  it('detects OnScen for getsoundy.com even without compositions tab', () => {
     const style = detectAlbumLinkPlatform('https://getsoundy.com/profile/u1');
-    expect(style.platform).toBe('soundy');
+    expect(style.platform).toBe('onscen');
   });
 
   it('detects YouTube (youtube.com)', () => {

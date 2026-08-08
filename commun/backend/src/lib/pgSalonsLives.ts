@@ -6,7 +6,7 @@ import { db, type Live, type Salon } from '../models/schema';
 import { clearSalonPlaybackData, ensureSalonProposals, ensureSalonQueue } from './salonPlaybackOps';
 import { purgeStaleYoutubeMetadataForStorage } from './youtubeMetadata';
 /** Préfixe IDs salons Occitanie (persistés PostgreSQL). */
-export const OCCITANIE_SALON_ID_PREFIX = 'salon_soundy_occitanie_';
+export const OCCITANIE_SALON_ID_PREFIX = 'salon_onscen_occitanie_';
 import { SALON_LIVE_ID_PREFIX } from '../seed-salons-lives';
 import { WORLD_LIVE_ID_PREFIX, WORLD_SALON_ID_PREFIX } from '../seed-world-random';
 

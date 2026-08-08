@@ -284,7 +284,7 @@ export function PlatformSubscriptionPage({ onBack }: PlatformSubscriptionPagePro
                 const canUpgrade =
                   plan.subscriptionTierId != null &&
                   !isCurrent &&
-                  (plan.id === 'soundy_plus' || plan.id === 'soundy_ultra');
+                  (plan.id === 'onscen_plus' || plan.id === 'onscen_ultra');
 
                 return (
                   <div key={plan.id} className={planBadgeClass(isCurrent)}>

@@ -11,7 +11,7 @@ export interface MapAd {
   bannerDisplayMode?: MapBannerDisplayMode;
   /** Nom affiché à côté du badge Sponsorisé (démo) */
   sponsor?: string;
-  /** Promo interne Soundy vs partenaire fictif */
+  /** Promo interne OnScen vs partenaire fictif */
   kind?: 'promo' | 'sponsored';
   logoUrl?: string;
   /** Image de fond du bandeau carte (optionnel). */
@@ -29,11 +29,11 @@ export interface MapAd {
 export const MAP_ADS: MapAd[] = [
   {
     id: 'premium',
-    title: 'Soundy Premium',
+    title: 'OnScen Premium',
     subtitle: 'Sans pub sur la carte et badge exclusif pour ton profil',
     cta: 'Découvrir',
     accent: 'purple',
-    sponsor: 'Soundy',
+    sponsor: 'OnScen',
     kind: 'promo',
     displayDurationSec: 15,
   },
@@ -77,7 +77,7 @@ export const MAP_ADS: MapAd[] = [
     subtitle: 'Partage YouTube avec les auditeurs autour de toi',
     cta: 'Créer un salon',
     accent: 'pink',
-    sponsor: 'Soundy',
+    sponsor: 'OnScen',
     kind: 'promo',
   },
   {
@@ -86,7 +86,7 @@ export const MAP_ADS: MapAd[] = [
     subtitle: 'Réactions, chat public et messages privés depuis la carte',
     cta: 'Voir les lives',
     accent: 'amber',
-    sponsor: 'Soundy',
+    sponsor: 'OnScen',
     kind: 'promo',
   },
   {
@@ -110,11 +110,11 @@ export const MAP_ADS: MapAd[] = [
   },
   {
     id: 'discover',
-    title: 'Explore la carte Soundy',
+    title: 'Explore la carte OnScen',
     subtitle: 'Salons, lives et créateurs musicaux à proximité — rejoins la communauté',
     cta: 'Explorer',
     accent: 'purple',
-    sponsor: 'Soundy',
+    sponsor: 'OnScen',
     kind: 'promo',
   },
 ];

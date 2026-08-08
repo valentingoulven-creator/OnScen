@@ -436,7 +436,7 @@ export default function App() {
         showAppToast('Connexion YouTube indisponible : OAuth Google non configuré sur le serveur.', 'error');
       } else if (googleError === 'access_denied') {
         showAppToast(
-          'Google refuse la connexion : l’app Soundy est encore en mode test OAuth. Demandez à l’équipe d’ajouter votre adresse Gmail comme testeur Google Cloud, ou utilisez « Connexion démo (sans Google) » dans le salon. Un compte Google Workspace n’est pas requis — un compte YouTube personnel suffit.',
+          'Google refuse la connexion : l’app OnScen est encore en mode test OAuth. Demandez à l’équipe d’ajouter votre adresse Gmail comme testeur Google Cloud, ou utilisez « Connexion démo (sans Google) » dans le salon. Un compte Google Workspace n’est pas requis — un compte YouTube personnel suffit.',
           'error'
         );
       } else {

@@ -1,4 +1,4 @@
-const REELS_PREFS_KEY = 'melosong_reels_prefs';
+const REELS_PREFS_KEY = 'onscen_reels_prefs';
 
 export const REEL_GENRES_LIST = [
   // Visible by default (12) — ordered by global streaming popularity 2024-2025

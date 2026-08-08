@@ -1,4 +1,4 @@
-const STRIPE_CONNECT_SKIP_KEY = 'soundy_stripe_connect_skipped';
+const STRIPE_CONNECT_SKIP_KEY = 'onscen_stripe_connect_skipped';
 
 /** Dev/msdev only — lancer un live sans Stripe Connect configuré. */
 export function canBypassStripeConnect(): boolean {

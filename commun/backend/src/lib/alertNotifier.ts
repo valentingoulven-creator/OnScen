@@ -131,7 +131,7 @@ function buildEmailContent(alert: MonitoringAlert): { subject: string; html: str
          </tr>`
       : '';
 
-  const subject = `${icon} [Soundy ${severityLabel}] ${label} — ${ts}`;
+  const subject = `${icon} [OnScen ${severityLabel}] ${label} — ${ts}`;
 
   const html = `
     <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
@@ -159,12 +159,12 @@ function buildEmailContent(alert: MonitoringAlert): { subject: string; html: str
         </a>
       </div>
       <p style="color:#9ca3af;font-size:12px;margin-top:24px;">
-        Alerte automatique Soundy — <a href="${adminUrl}" style="color:#7c3aed;">getsoundy.com/admin</a>
+        Alerte automatique OnScen — <a href="${adminUrl}" style="color:#7c3aed;">getsoundy.com/admin</a>
       </p>
     </div>`;
 
   const textLines = [
-    `[Soundy ${severityLabel}] ${label}`,
+    `[OnScen ${severityLabel}] ${label}`,
     ``,
     `Serveur : getsoundy.com (51.159.164.100)`,
     `Heure   : ${ts}`,
@@ -225,7 +225,7 @@ export async function sendMonitoringAlert(params: {
 
   const recipients = getRecipients();
   const { subject, html, text } = buildEmailContent(alert);
-  const from = getEmailFrom('Soundy Monitoring');
+  const from = getEmailFrom('OnScen Monitoring');
 
   try {
     await sendEmail({ from, to: recipients, subject, text, html });

@@ -1,5 +1,5 @@
 /**
- * run.ts — Point d'entrée de l'infrastructure de test agents Soundy
+ * run.ts — Point d'entrée de l'infrastructure de test agents OnScen
  *
  * CE FICHIER N'EXÉCUTE PAS LES TESTS AUTOMATIQUEMENT.
  * Il doit être lancé explicitement avec : npm run test:agents
@@ -51,7 +51,7 @@ function validateConfig(): void {
 // ── Avertissement prod ─────────────────────────────────────────────────────────
 
 function warnIfProduction(): Promise<void> {
-  if (!CONFIG.BASE_URL.includes('getsoundy.com') && !CONFIG.BASE_URL.includes('soundy.com')) {
+  if (!CONFIG.BASE_URL.includes('getsoundy.com') && !CONFIG.BASE_URL.includes('onscen.com')) {
     return Promise.resolve();
   }
 

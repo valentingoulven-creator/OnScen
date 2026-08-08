@@ -30,7 +30,7 @@ const STORY_CONTENT_SAMPLES = [
   'Track du jour — impossible de s\'en lasser 🔁',
   'Bonne vibe ce weekend 🎉',
   'Premier live bientôt — un peu stressé 😅',
-  'Soundy + musique = combo parfait ❤️',
+  'OnScen + musique = combo parfait ❤️',
   'Qui écoute la même chose que moi ? 👂',
   'Salon ouvert — rejoignez-moi 🙌',
 ];

@@ -138,7 +138,7 @@ export function StoryCatalogLinkPicker({ token, onSelect }: StoryCatalogLinkPick
     <div className="space-y-3">
       <p className="text-[10px] text-gray-500">
         {t('stories.catalogLinkHint', {
-          defaultValue: 'Les viewers seront redirigés vers votre album ou son dans Soundy.',
+          defaultValue: 'Les viewers seront redirigés vers votre album ou son dans OnScen.',
         })}
       </p>
       <input

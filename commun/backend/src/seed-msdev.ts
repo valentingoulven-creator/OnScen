@@ -157,7 +157,7 @@ function buildMsdevDemoUsers(hash: string): { dj: User; bass: User; listener: Us
     age: MSDEV_DEMO_AGE,
     lastSeenAt: Date.now(),
     memberSince: Date.now() - 86400000 * 30,
-    bio: 'Compte de démonstration Soundy — contenu de test pour valider les parcours produit.',
+    bio: 'Compte de démonstration OnScen — contenu de test pour valider les parcours produit.',
     interests: ['Sessions live', 'Carte géoloc', 'Rencontres musicales'],
     favoriteGenres: ['Électro', 'Indie', 'Lo-fi', 'French touch'],
     favoriteArtists: ['M83', 'Daft Punk', 'Lomepal'],
@@ -172,7 +172,7 @@ function buildMsdevDemoUsers(hash: string): { dj: User; bass: User; listener: Us
   };
 
   Object.assign(dj, {
-    bio: 'Host deep house — je mixe en live sur Soundy pour faire vibrer le quartier.',
+    bio: 'Host deep house — je mixe en live sur OnScen pour faire vibrer le quartier.',
     interests: ['Deep house', 'Live mixing', 'Communauté'],
     favoriteGenres: ['House', 'Techno'],
     favoriteArtists: ['M83', 'Disclosure'],
@@ -410,7 +410,7 @@ export async function seedMsdevData(): Promise<void> {
   const dmSeed = [
     { from: bass.id, to: listener.id, content: 'Hey ! On écoute quoi ce soir ?', ago: 3600000 },
     { from: listener.id, to: bass.id, content: 'Je suis sur la carte, je te rejoins !', ago: 3500000 },
-    { from: dj.id, to: listener.id, content: 'Bienvenue sur Soundy 🎵', ago: 7200000 },
+    { from: dj.id, to: listener.id, content: 'Bienvenue sur OnScen 🎵', ago: 7200000 },
     { from: listener.id, to: dj.id, content: 'Merci DJ Melody, super live !', ago: 7000000 },
     { from: dj.id, to: listener.id, content: 'Merci d\'être passé, à bientôt sur la carte', ago: 6800000 },
   ];

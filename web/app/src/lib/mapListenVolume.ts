@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'melosong_map_listen_volume';
+const STORAGE_KEY = 'onscen_map_listen_volume';
 
 export function getMapListenVolume(): number {
   try {

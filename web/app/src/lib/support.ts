@@ -1,4 +1,4 @@
-const KEY = 'melosong_support_clicks';
+const KEY = 'onscen_support_clicks';
 
 export function getSupportClickCount(): number {
   const n = Number(localStorage.getItem(KEY));

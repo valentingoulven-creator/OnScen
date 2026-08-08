@@ -45,7 +45,7 @@ export interface ChatPanelProps {
   onPrivateMessage?: (target: { id: string; name: string }) => void;
   isHost?: boolean;
   canModerateChat?: boolean;
-  /** Compte Dev (soundy_dev) : modération étendue (hôte, VIP). */
+  /** Compte Dev (onscen_dev) : modération étendue (hôte, VIP). */
   isDevModerator?: boolean;
   hostId?: string;
   vipModeratorIds?: string[];

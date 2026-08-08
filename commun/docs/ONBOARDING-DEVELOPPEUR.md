@@ -1,6 +1,6 @@
-# Onboarding développeur — Soundy
+# Onboarding développeur — OnScen
 
-> **Point d'entrée unique** pour un nouveau développeur rejoignant le projet Soundy (getsoundy.com).  
+> **Point d'entrée unique** pour un nouveau développeur rejoignant le projet OnScen (getsoundy.com).  
 > Dernière mise à jour : **juillet 2026** · Branche principale : `master` · Repo : [github.com/valentingoulven-creator/Melo](https://github.com/valentingoulven-creator/Melo)
 
 ---
@@ -24,7 +24,7 @@
 
 ## 1. Vue d'ensemble produit
 
-**Soundy** ([getsoundy.com](https://getsoundy.com)) est une plateforme sociale autour de la musique et des événements géolocalisés :
+**OnScen** ([getsoundy.com](https://getsoundy.com)) est une plateforme sociale autour de la musique et des événements géolocalisés :
 
 - **Carte et globe 3D** — découverte de salons musicaux, lives et événements à proximité ou dans le monde.
 - **Salons** — écoute synchronisée YouTube entre participants (type « watch party »).
@@ -50,7 +50,7 @@ Pour la vision scaling : [`commun/docs/STACK-CIBLE.md`](./STACK-CIBLE.md).
 ### Structure monorepo (racine)
 
 ```
-Soundy/
+OnScen/
 ├── web/app/           # Frontend React (source de vérité web)
 ├── ios/apptel/        # Overrides Capacitor mobile uniquement
 ├── commun/
@@ -66,7 +66,7 @@ Soundy/
 └── TODO-MANUAL.md     # Tâches non automatisables post-audit
 ```
 
-Le package npm racine s'appelle `melosong` (héritage MeloSongv2) — le produit public est **Soundy**.
+Le package npm racine s'appelle `onscen` (héritage OnScenv2) — le produit public est **OnScen**.
 
 ---
 
@@ -105,8 +105,8 @@ Pour le travail web/backend quotidien, **Android/iOS ne sont pas requis**.
 ### 3.1 Cloner le dépôt
 
 ```powershell
-git clone https://github.com/valentingoulven-creator/Melo.git Soundy
-cd Soundy
+git clone https://github.com/valentingoulven-creator/Melo.git OnScen
+cd OnScen
 git checkout master   # branche principale
 ```
 
@@ -281,7 +281,7 @@ Après toute modification **significative** (feature, bug fix, refonte UI, backe
 | **Preprod** | `preproduction` | https://staging.getsoundy.com | PG `soundy_staging` | Fondateur / CI auto |
 | **Prod** | `production` | https://getsoundy.com | PG `soundy-prod` | Fondateur uniquement |
 
-Doc détaillée : [`commun/docs/ENVIRONNEMENTS.md`](./ENVIRONNEMENTS.md) · infra : [`commun/docs/INFRA-SOUNDY.md`](./INFRA-SOUNDY.md).
+Doc détaillée : [`commun/docs/ENVIRONNEMENTS.md`](./ENVIRONNEMENTS.md) · infra : [`commun/docs/INFRA-ONSCEN.md`](./INFRA-ONSCEN.md).
 
 ### Ce que vous pouvez toucher (nouveau dev)
 
@@ -302,19 +302,19 @@ Doc détaillée : [`commun/docs/ENVIRONNEMENTS.md`](./ENVIRONNEMENTS.md) · infr
 
 ## 7. Workflow dev quotidien
 
-### Agent Cursor — `@soundy-dev-agent`
+### Agent Cursor — `@onscen-dev-agent`
 
 Pour implémenter bugs, features, refactors :
 
 ```
-@soundy-dev-agent
+@onscen-dev-agent
 
 Mission : [description]
 Scope : [fichiers / périmètre]
 Ne pas commit. Rapport en fin de session.
 ```
 
-Guide complet : [`commun/docs/SOUNDY-DEV-AGENT.md`](./SOUNDY-DEV-AGENT.md) · règle : `.cursor/rules/soundy-dev-agent.mdc`.
+Guide complet : [`commun/docs/ONSCEN-DEV-AGENT.md`](./ONSCEN-DEV-AGENT.md) · règle : `.cursor/rules/onscen-dev-agent.mdc`.
 
 L'agent Dev **code et teste** ; il ne décide pas de la stratégie produit ni ne déploie en prod.
 
@@ -397,7 +397,7 @@ Priorité modes live : LiveKit → Cloudflare Stream → mesh WebRTC + Coturn.
 ### Carte et globe
 
 - **Carte 2D** : Leaflet · `MapView.tsx`, `components/globe3d/` (vue alternative)
-- **Globe 3D** : Three.js · `GlobeView.tsx`, `SoundyGlobeScene.tsx`
+- **Globe 3D** : Three.js · `GlobeView.tsx`, `OnScenGlobeScene.tsx`
 - **Géo** : `/api/geo/nearby` · bots msdev (1000 par défaut) · PostGIS en prod
 - **Événements** : marqueurs salons, lives, festivals sur carte et globe
 
@@ -431,9 +431,9 @@ Par ordre de priorité la première semaine :
 |----------|---------|
 | **Ce fichier** | Onboarding |
 | [`AGENTS.md`](../../AGENTS.md) | Instructions agents Cursor, chemins canoniques |
-| [`commun/docs/SOUNDY-DEV-AGENT.md`](./SOUNDY-DEV-AGENT.md) | Workflow agent Dev, rapports de session |
+| [`commun/docs/ONSCEN-DEV-AGENT.md`](./ONSCEN-DEV-AGENT.md) | Workflow agent Dev, rapports de session |
 | [`commun/docs/STACK-CIBLE.md`](./STACK-CIBLE.md) | Architecture cible scaling |
-| [`commun/docs/INFRA-SOUNDY.md`](./INFRA-SOUNDY.md) | VPS, PG, backups, coûts, LiveKit/CF |
+| [`commun/docs/INFRA-ONSCEN.md`](./INFRA-ONSCEN.md) | VPS, PG, backups, coûts, LiveKit/CF |
 | [`commun/docs/ENVIRONNEMENTS.md`](./ENVIRONNEMENTS.md) | Dev / preprod / prod, fichiers `.env` |
 | [`TODO-MANUAL.md`](../../TODO-MANUAL.md) | QA manuelle, tâches sécurité, priorités audit |
 | [`commun/msdev/SCALABILITY.md`](../msdev/SCALABILITY.md) | Checklist montée en charge 500k |
@@ -490,9 +490,9 @@ Compléments :
 | Sujet | Qui contacter |
 |-------|---------------|
 | Accès secrets (`.env`, Stripe, OAuth) | **Fondateur** — transmission sécurisée, jamais par chat non chiffré |
-| Décisions produit / priorisation | Fondateur · agent `@soundy-ceo-ia` pour briefs stratégiques |
-| Architecture avant gros chantier | `@soundy-cto` (audit, recommandations — pas d'implémentation) |
-| Implémentation code | `@soundy-dev-agent` ou vous directement |
+| Décisions produit / priorisation | Fondateur · agent `@onscen-ceo-ia` pour briefs stratégiques |
+| Architecture avant gros chantier | `@onscen-cto` (audit, recommandations — pas d'implémentation) |
+| Implémentation code | `@onscen-dev-agent` ou vous directement |
 | Deploy prod / SSH prod | Fondateur uniquement |
 | Incidents prod | Fondateur — ne pas toucher au VPS sans autorisation |
 
@@ -560,4 +560,4 @@ Le journal complet des modifications est dans `modification.txt` (dernières ent
 
 ---
 
-*Bienvenue dans l'équipe Soundy. En cas de blocage setup, contactez le fondateur avec la sortie de `npm run dev` et de `curl http://localhost:4080/health`.*
+*Bienvenue dans l'équipe OnScen. En cas de blocage setup, contactez le fondateur avec la sortie de `npm run dev` et de `curl http://localhost:4080/health`.*

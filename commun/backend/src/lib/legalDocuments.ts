@@ -30,7 +30,7 @@ const mentionsLegales: LegalDocument = {
   sections: [
     {
       heading: 'Éditeur du site et de l’application',
-      body: `L’application Soundy et le site associé sont édités par :\n\n{{publisherName}}\n{{legalForm}}\n{{address}}\nSIREN / SIRET : {{siren}}\n{{rcs}}\n{{capital}}\n\nContact : {{contactEmail}}\n\nDirecteur de la publication : {{publicationDirector}}`,
+      body: `L’application OnScen et le site associé sont édités par :\n\n{{publisherName}}\n{{legalForm}}\n{{address}}\nSIREN / SIRET : {{siren}}\n{{rcs}}\n{{capital}}\n\nContact : {{contactEmail}}\n\nDirecteur de la publication : {{publicationDirector}}`,
     },
     {
       heading: 'Hébergement',
@@ -38,11 +38,11 @@ const mentionsLegales: LegalDocument = {
     },
     {
       heading: 'Activité du service',
-      body: `Soundy est une application sociale autour de la musique : salons d’écoute géolocalisés, lives, messagerie, carte des utilisateurs et contenus musicaux via YouTube. Soundy n’est pas un service de rencontre sentimental.\n\nDomaine de production : {{productionDomain}}`,
+      body: `OnScen est une application sociale autour de la musique : salons d’écoute géolocalisés, lives, messagerie, carte des utilisateurs et contenus musicaux via YouTube. OnScen n’est pas un service de rencontre sentimental.\n\nDomaine de production : {{productionDomain}}`,
     },
     {
       heading: 'Propriété intellectuelle',
-      body: `L’ensemble des éléments composant Soundy (textes, interface, logo, charte, code source, sauf composants open source) est protégé par le droit d’auteur.\n\nLes marques YouTube, Google, Instagram appartiennent à leurs propriétaires. Soundy n’est pas affilié, sponsorisé ou approuvé par ces sociétés, sauf accord écrit contraire.`,
+      body: `L’ensemble des éléments composant OnScen (textes, interface, logo, charte, code source, sauf composants open source) est protégé par le droit d’auteur.\n\nLes marques YouTube, Google, Instagram appartiennent à leurs propriétaires. OnScen n’est pas affilié, sponsorisé ou approuvé par ces sociétés, sauf accord écrit contraire.`,
     },
     {
       heading: 'Données personnelles et cookies',
@@ -65,7 +65,7 @@ const politiqueConfidentialite: LegalDocument = {
   sections: [
     {
       heading: '1. Responsable du traitement',
-      body: `Le responsable du traitement des données personnelles est l’éditeur de Soundy, identifié dans les Mentions légales.\n\nContact données personnelles : {{privacyEmail}}\nContact général : {{contactEmail}}\n\nDélégué à la protection des données (DPO) : {{dpoEmail}}`,
+      body: `Le responsable du traitement des données personnelles est l’éditeur de OnScen, identifié dans les Mentions légales.\n\nContact données personnelles : {{privacyEmail}}\nContact général : {{contactEmail}}\n\nDélégué à la protection des données (DPO) : {{dpoEmail}}`,
     },
     {
       heading: '2. Données traitées',
@@ -105,7 +105,7 @@ const politiqueConfidentialite: LegalDocument = {
     },
     {
       heading: '11. Autorisations OAuth YouTube et Instagram',
-      body: `Lorsque vous connectez YouTube ou Instagram, Soundy demande uniquement les autorisations nécessaires aux fonctionnalités visibles (lecture de playlists YouTube, profil Instagram). Vous pouvez révoquer ces autorisations à tout moment dans Soundy ou depuis votre compte Google/Meta.`,
+      body: `Lorsque vous connectez YouTube ou Instagram, OnScen demande uniquement les autorisations nécessaires aux fonctionnalités visibles (lecture de playlists YouTube, profil Instagram). Vous pouvez révoquer ces autorisations à tout moment dans OnScen ou depuis votre compte Google/Meta.`,
     },
     {
       heading: '12. Modifications',
@@ -120,11 +120,11 @@ const cgu: LegalDocument = {
   sections: [
     {
       heading: '1. Objet et acceptation',
-      body: `Les présentes Conditions générales d’utilisation (« CGU ») régissent l’accès et l’utilisation de l’application Soundy (« l’Application », « le Service »), accessible via navigateur web ou PWA.\n\nEn créant un compte ou en utilisant le Service, vous acceptez sans réserve les CGU, la Politique de confidentialité, les Mentions légales et, le cas échéant, les Conditions relatives aux API YouTube.`,
+      body: `Les présentes Conditions générales d’utilisation (« CGU ») régissent l’accès et l’utilisation de l’application OnScen (« l’Application », « le Service »), accessible via navigateur web ou PWA.\n\nEn créant un compte ou en utilisant le Service, vous acceptez sans réserve les CGU, la Politique de confidentialité, les Mentions légales et, le cas échéant, les Conditions relatives aux API YouTube.`,
     },
     {
       heading: '2. Description du Service',
-      body: `Soundy permet notamment de visualiser sur une carte des salons d’écoute musicale et des lives, de créer ou rejoindre des salons YouTube, d’échanger via chat et messages privés, et de publier ou consulter des contenus sociaux autour de la musique et des arts du spectacle.\n\nLes reels, stories, lives et autres contenus doivent avoir un lien direct avec une activité artistique (chant, musique, danse, performance, DJ set, etc.). Les lives jeux vidéo, IRL sans dimension artistique, vlogs ou formats généralistes non musicaux ne sont pas acceptés.\n\nLe Service est une plateforme sociale musicale. Il ne constitue pas un service de rencontre.`,
+      body: `OnScen permet notamment de visualiser sur une carte des salons d’écoute musicale et des lives, de créer ou rejoindre des salons YouTube, d’échanger via chat et messages privés, et de publier ou consulter des contenus sociaux autour de la musique et des arts du spectacle.\n\nLes reels, stories, lives et autres contenus doivent avoir un lien direct avec une activité artistique (chant, musique, danse, performance, DJ set, etc.). Les lives jeux vidéo, IRL sans dimension artistique, vlogs ou formats généralistes non musicaux ne sont pas acceptés.\n\nLe Service est une plateforme sociale musicale. Il ne constitue pas un service de rencontre.`,
     },
     {
       heading: '3. Éligibilité et compte',
@@ -136,7 +136,7 @@ const cgu: LegalDocument = {
     },
     {
       heading: '5. Contenus et musique',
-      body: `La lecture musicale s’effectue via YouTube : vous devez respecter les conditions d’utilisation de YouTube et de Google. Soundy ne fournit pas de licence musicale propre.\n\nReels, stories et lives doivent être orientés chant, musique, danse ou performance artistique. L’éditeur peut retirer tout contenu non conforme.\n\nLes salons YouTube utilisent le lecteur intégré IFrame API ; le consentement cookies tiers peut être requis.`,
+      body: `La lecture musicale s’effectue via YouTube : vous devez respecter les conditions d’utilisation de YouTube et de Google. OnScen ne fournit pas de licence musicale propre.\n\nReels, stories et lives doivent être orientés chant, musique, danse ou performance artistique. L’éditeur peut retirer tout contenu non conforme.\n\nLes salons YouTube utilisent le lecteur intégré IFrame API ; le consentement cookies tiers peut être requis.`,
     },
     {
       heading: '6. Géolocalisation et visibilité',
@@ -147,8 +147,8 @@ const cgu: LegalDocument = {
       body: `Les messages peuvent être stockés pour assurer l’historique des conversations. L’éditeur peut intervenir en cas de signalement d’abus manifeste.`,
     },
     {
-      heading: '8. Propriété intellectuelle de Soundy',
-      body: `Soundy, son interface et sa marque restent la propriété de l’éditeur. Aucune cession de droits de propriété intellectuelle n’est consentie au-delà d’une licence d’utilisation personnelle.`,
+      heading: '8. Propriété intellectuelle de OnScen',
+      body: `OnScen, son interface et sa marque restent la propriété de l’éditeur. Aucune cession de droits de propriété intellectuelle n’est consentie au-delà d’une licence d’utilisation personnelle.`,
     },
     {
       heading: '9. Disponibilité et évolutions',
@@ -176,7 +176,7 @@ const politiqueCookies: LegalDocument = {
     {
       heading: '1. Cookies nécessaires',
       body:
-        'Cookie httpOnly soundy_auth (session web). Préférences en localStorage. Sur mobile natif : stockage sécurisé Keychain/Keystore.',
+        'Cookie httpOnly onscen_auth (session web). Préférences en localStorage. Sur mobile natif : stockage sécurisé Keychain/Keystore.',
     },
     {
       heading: '2. Services tiers (consentement)',

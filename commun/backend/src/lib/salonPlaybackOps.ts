@@ -219,8 +219,8 @@ export function hostLoadYoutubePlaylist(
   return state;
 }
 
-/** Retire un morceau de la file Soundy s'il y est (changement immédiat ≠ file d'attente). */
-/** Réordonne la file Soundy (hôte / VIP). `orderedIds` doit lister tous les ids actuels. */
+/** Retire un morceau de la file OnScen s'il y est (changement immédiat ≠ file d'attente). */
+/** Réordonne la file OnScen (hôte / VIP). `orderedIds` doit lister tous les ids actuels. */
 export function reorderSalonQueue(salonId: string, orderedIds: string[]): SalonQueueItem[] | null {
   const queue = ensureSalonQueue(salonId);
   if (orderedIds.length !== queue.length) return null;

@@ -8,7 +8,7 @@ export const moderationEtRecours: LegalDocument = {
   sections: [
     {
       heading: '1. Principes',
-      body: `Soundy modère les contenus et comptes signalés ou détectés comme contraires aux **Règles de la communauté**, aux **CGU** ou à la loi.\n\nSoundy n'est pas tenu à une surveillance générale et permanente de tous les contenus (LCEN), mais traite les signalements et peut agir de sa propre initiative en cas de risque grave.`,
+      body: `OnScen modère les contenus et comptes signalés ou détectés comme contraires aux **Règles de la communauté**, aux **CGU** ou à la loi.\n\nOnScen n'est pas tenu à une surveillance générale et permanente de tous les contenus (LCEN), mais traite les signalements et peut agir de sa propre initiative en cas de risque grave.`,
     },
     {
       heading: '2. Signalement',
@@ -20,11 +20,11 @@ export const moderationEtRecours: LegalDocument = {
     },
     {
       heading: '4. Décision motivée (DSA)',
-      body: `Lorsque Soundy prend une **décision significative** de restriction ou de suspension (notamment suppression de contenu ou de compte pour violation des règles), nous nous efforçons d'informer l'utilisateur concerné des **motifs principaux** et des **voies de recours**, par notification in-app ou par e-mail associé au compte, sauf interdiction légale ou risque pour la sécurité.\n\nLes motifs peuvent inclure : type de contenu, règle enfreinte (communauté / CGU), gravité, récidive.`,
+      body: `Lorsque OnScen prend une **décision significative** de restriction ou de suspension (notamment suppression de contenu ou de compte pour violation des règles), nous nous efforçons d'informer l'utilisateur concerné des **motifs principaux** et des **voies de recours**, par notification in-app ou par e-mail associé au compte, sauf interdiction légale ou risque pour la sécurité.\n\nLes motifs peuvent inclure : type de contenu, règle enfreinte (communauté / CGU), gravité, récidive.`,
     },
     {
       heading: '5. Recours interne',
-      body: `Si vous contestez une décision de modération :\n1. Répondez à la notification reçue ou écrivez à **${LEGAL_CONTACT_EMAIL}** avec l'objet « Recours modération ».\n2. Indiquez votre identifiant / pseudo, la date, le contenu ou la sanction concernée, et vos arguments.\n3. Soundy réexamine la demande dans un délai indicatif de **14 jours ouvrés** et vous communique la décision.\n\nUn recours ne garantit pas la réactivation du contenu ou du compte si la violation est confirmée.`,
+      body: `Si vous contestez une décision de modération :\n1. Répondez à la notification reçue ou écrivez à **${LEGAL_CONTACT_EMAIL}** avec l'objet « Recours modération ».\n2. Indiquez votre identifiant / pseudo, la date, le contenu ou la sanction concernée, et vos arguments.\n3. OnScen réexamine la demande dans un délai indicatif de **14 jours ouvrés** et vous communique la décision.\n\nUn recours ne garantit pas la réactivation du contenu ou du compte si la violation est confirmée.`,
     },
     {
       heading: '6. Médiation et autorités',

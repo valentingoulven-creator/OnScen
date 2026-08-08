@@ -981,7 +981,7 @@ export function SalonYouTubePlayer({
             <p className="text-xs text-gray-300 leading-relaxed max-w-xs">
               {t(
                 'salon.youtubeConsent.body',
-                'Le lecteur YouTube nécessite votre accord aux cookies tiers. Acceptez-les pour écouter dans Soundy.'
+                'Le lecteur YouTube nécessite votre accord aux cookies tiers. Acceptez-les pour écouter dans OnScen.'
               )}
             </p>
             <button

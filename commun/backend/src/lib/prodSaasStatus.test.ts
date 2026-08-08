@@ -39,8 +39,8 @@ describe('getProdSaasStatusReport', () => {
   it('includes external link groups', () => {
     const report = getProdSaasStatusReport();
     expect(report.linkGroups.length).toBeGreaterThan(5);
-    const soundy = report.linkGroups.find((g) => g.id === 'soundy');
-    expect(soundy?.links.some((l) => l.url.includes('getsoundy.com'))).toBe(true);
+    const onscen = report.linkGroups.find((g) => g.id === 'onscen');
+    expect(onscen?.links.some((l) => l.url.includes('getsoundy.com'))).toBe(true);
     expect(Array.isArray(report.alerts)).toBe(true);
   });
 

@@ -1,6 +1,6 @@
 import { parseStoryAppLink } from './storyAppLink';
 
-export type AlbumLinkPlatform = 'spotify' | 'deezer' | 'soundy' | 'youtube' | 'other';
+export type AlbumLinkPlatform = 'spotify' | 'deezer' | 'onscen' | 'youtube' | 'other';
 
 export interface AlbumLinkPlatformStyle {
   platform: AlbumLinkPlatform;
@@ -24,9 +24,9 @@ const PLATFORM_STYLES: Record<AlbumLinkPlatform, AlbumLinkPlatformStyle> = {
     gradientStops: ['#67e8f9', '#00c7f2', '#0369a1'],
     ringColor: 'rgba(0, 199, 242, 0.45)',
   },
-  soundy: {
-    platform: 'soundy',
-    label: 'Soundy',
+  onscen: {
+    platform: 'onscen',
+    label: 'OnScen',
     gradientStops: ['#f472b6', '#c026d3', '#581c87'],
     ringColor: 'rgba(244, 114, 182, 0.45)',
   },
@@ -44,7 +44,7 @@ const PLATFORM_STYLES: Record<AlbumLinkPlatform, AlbumLinkPlatformStyle> = {
   },
 };
 
-const SOUNDY_HOSTS = new Set(['getsoundy.com', 'www.getsoundy.com', 'localhost', '127.0.0.1']);
+const ONSCEN_HOSTS = new Set(['getsoundy.com', 'www.getsoundy.com', 'localhost', '127.0.0.1']);
 
 function isSpotifyHost(host: string): boolean {
   return host === 'open.spotify.com' || host === 'spotify.com' || host.endsWith('.spotify.com');
@@ -58,8 +58,8 @@ function isYouTubeHost(host: string): boolean {
   return host === 'youtu.be' || host === 'youtube.com' || host.endsWith('.youtube.com');
 }
 
-function isSoundyHost(host: string): boolean {
-  if (SOUNDY_HOSTS.has(host)) return true;
+function isOnScenHost(host: string): boolean {
+  if (ONSCEN_HOSTS.has(host)) return true;
   if (typeof window !== 'undefined' && host === window.location.hostname.toLowerCase()) {
     return true;
   }
@@ -72,14 +72,14 @@ export function detectAlbumLinkPlatform(url: string): AlbumLinkPlatformStyle {
   if (!trimmed) return PLATFORM_STYLES.other;
 
   if (parseStoryAppLink(trimmed)) {
-    return PLATFORM_STYLES.soundy;
+    return PLATFORM_STYLES.onscen;
   }
 
   try {
     const parsed = new URL(trimmed);
     const host = parsed.hostname.toLowerCase();
 
-    if (isSoundyHost(host)) return PLATFORM_STYLES.soundy;
+    if (isOnScenHost(host)) return PLATFORM_STYLES.onscen;
     if (isSpotifyHost(host)) return PLATFORM_STYLES.spotify;
     if (isDeezerHost(host)) return PLATFORM_STYLES.deezer;
     if (isYouTubeHost(host)) return PLATFORM_STYLES.youtube;

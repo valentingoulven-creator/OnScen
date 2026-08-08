@@ -35,7 +35,7 @@ import {
 
 // ── Relying Party configuration ───────────────────────────────────────────────
 const rpID   = process.env.WEBAUTHN_RP_ID   ?? 'getsoundy.com';
-const rpName = process.env.WEBAUTHN_RP_NAME ?? 'Soundy';
+const rpName = process.env.WEBAUTHN_RP_NAME ?? 'OnScen';
 /** Accepts a comma-separated list of origins for multi-origin setups (e.g. ngrok). */
 function getExpectedOrigins(): string[] {
   const env = process.env.WEBAUTHN_ORIGIN ?? 'https://getsoundy.com';

@@ -50,7 +50,7 @@ export async function runMigrations(): Promise<void> {
     for (const filename of files) {
       const version = parseMigrationVersion(filename);
       if (version === null) {
-        console.warn(`[soundy] Fichier migration ignoré (pas de numéro) : ${filename}`);
+        console.warn(`[onscen] Fichier migration ignoré (pas de numéro) : ${filename}`);
         continue;
       }
       if (applied.has(version)) continue;
@@ -65,10 +65,10 @@ export async function runMigrations(): Promise<void> {
           [version]
         );
         await client.query('COMMIT');
-        console.log(`[soundy] Migration v${version} (${filename}) appliquée`);
+        console.log(`[onscen] Migration v${version} (${filename}) appliquée`);
       } catch (err) {
         await client.query('ROLLBACK');
-        console.error(`[soundy] Échec migration v${version} (${filename}) :`, err);
+        console.error(`[onscen] Échec migration v${version} (${filename}) :`, err);
         throw err;
       }
     }

@@ -1,6 +1,6 @@
 /**
  * Palette dédiée à la vue analytique avancée — 3 accents max (violet, rose,
- * cyan — cohérents avec la charte Soundy) + échelle de gris. Volontairement
+ * cyan — cohérents avec la charte OnScen) + échelle de gris. Volontairement
  * distincte des couleurs par défaut Tailwind/Chart.js.
  */
 export const ANALYTICS_ACCENTS = ['#A78BFA', '#F472B6', '#38BDF8'] as const;

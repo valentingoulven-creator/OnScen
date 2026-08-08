@@ -90,7 +90,7 @@ describe('newsUserPrefs', () => {
     ).toBe(true);
   });
 
-  it('migre musicalAffinitiesOnly depuis melosong_feed_prefs', () => {
+  it('migre musicalAffinitiesOnly depuis onscen_feed_prefs', () => {
     writeFeedUserPrefs({
       ...DEFAULT_FEED_USER_PREFS,
       musicalAffinitiesOnly: true,

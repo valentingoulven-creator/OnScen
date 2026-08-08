@@ -1,7 +1,7 @@
 import { normalizeTag } from './musicAffinities';
 import { POPULAR_GENRES } from './popularGenres';
 
-export const CREATE_SALON_GENRES_STORAGE_KEY = 'melosong_create_salon_genres';
+export const CREATE_SALON_GENRES_STORAGE_KEY = 'onscen_create_salon_genres';
 export const MAX_CREATE_SALON_GENRES = 10;
 
 /** Liste de suggestions : genres populaires + genres profil absents de la liste. */

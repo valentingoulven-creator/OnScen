@@ -42,10 +42,10 @@ export const CONFIG = {
   LOG_LEVEL: (process.env.LOG_LEVEL ?? 'info') as 'debug' | 'info' | 'warn' | 'error',
 
   // ── Auth agents ───────────────────────────────────────────────────────────
-  // Préfixe email des comptes de test — ex: soundy.agent01@test.local
-  AGENT_EMAIL_PREFIX: 'soundy.agent',
-  AGENT_EMAIL_DOMAIN: process.env.AGENT_EMAIL_DOMAIN ?? '@test.soundy.local',
-  AGENT_PASSWORD: process.env.AGENT_PASSWORD ?? 'SoundyTest#2026!',
+  // Préfixe email des comptes de test — ex: onscen.agent01@test.local
+  AGENT_EMAIL_PREFIX: 'onscen.agent',
+  AGENT_EMAIL_DOMAIN: process.env.AGENT_EMAIL_DOMAIN ?? '@test.onscen.local',
+  AGENT_PASSWORD: process.env.AGENT_PASSWORD ?? 'OnScenTest#2026!',
 
   // Accepter les CGU automatiquement (requis pour l'inscription)
   AGENT_ACCEPT_TERMS: true,
@@ -88,14 +88,14 @@ export const CONFIG = {
     'Super salon, merci !',
     'First time here, it\'s great!',
     '🎶🎶🎶',
-    'Soundy c\'est vraiment top',
+    'OnScen c\'est vraiment top',
     'Cette chanson me rappelle des souvenirs',
     'Bonjour tout le monde !',
   ],
 
   // Contenus de posts feed
   FEED_POST_CONTENTS: [
-    'Je viens de découvrir Soundy et c\'est incroyable ! 🎵',
+    'Je viens de découvrir OnScen et c\'est incroyable ! 🎵',
     'Mon salon de jazz du dimanche est ouvert 🎷',
     'Nouvelle playlist disponible sur mon salon électro',
     'Qui veut faire un salon lofi ce soir ? 🌙',

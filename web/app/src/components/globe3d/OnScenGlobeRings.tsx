@@ -4,13 +4,13 @@ import { DoubleSide, Mesh, MeshBasicMaterial, Quaternion, Vector3 } from 'three'
 import { MARKER_SURFACE_RADIUS } from '../../lib/globe3d/constants';
 import { lonLatToVector3 } from '../../lib/globe3d/geoMath';
 
-export interface SoundyGlobeRing {
+export interface OnScenGlobeRing {
   lat: number;
   lng: number;
 }
 
-interface SoundyGlobeRingsProps {
-  rings: SoundyGlobeRing[];
+interface OnScenGlobeRingsProps {
+  rings: OnScenGlobeRing[];
   maxRadius: number;
   propagationSpeed: number;
   repeatPeriod: number;
@@ -66,12 +66,12 @@ function LiveRingMesh({
   );
 }
 
-export function SoundyGlobeRings({
+export function OnScenGlobeRings({
   rings,
   maxRadius,
   propagationSpeed,
   repeatPeriod,
-}: SoundyGlobeRingsProps) {
+}: OnScenGlobeRingsProps) {
   if (rings.length === 0) return null;
 
   return (

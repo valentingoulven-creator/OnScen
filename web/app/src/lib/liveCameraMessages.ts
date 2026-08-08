@@ -1,6 +1,6 @@
-/** Host OBS Cloudflare : RTMP coupé — le live Soundy se termine automatiquement. */
+/** Host OBS Cloudflare : RTMP coupé — le live OnScen se termine automatiquement. */
 export const LIVE_CAMERA_HOST_OBS_STOPPED =
-  'Diffusion OBS arrêtée — fin du live Soundy…';
+  'Diffusion OBS arrêtée — fin du live OnScen…';
 
 /** Note affichée aux spectateurs quand la caméra est active mais le flux WebRTC n’est pas encore reçu. */
 export const LIVE_CAMERA_VIEWER_NOTE =
@@ -36,7 +36,7 @@ export const LIVE_CAMERA_VIEWER_FILE_NOTE =
 
 /** Contexte iframe : la caméra est souvent bloquée sans permission `allow="camera"`. */
 export const LIVE_CAMERA_IFRAME_NOTE =
-  'Si Soundy est intégré dans une autre page (iframe), la caméra peut être bloquée. Ouvrez l’app dans un onglet dédié ou demandez l’attribut allow="camera; microphone".';
+  'Si OnScen est intégré dans une autre page (iframe), la caméra peut être bloquée. Ouvrez l’app dans un onglet dédié ou demandez l’attribut allow="camera; microphone".';
 
 /** PWA / écran d’accueil iOS : parfois permissions limitées au premier lancement. */
 export const LIVE_CAMERA_PWA_NOTE =
@@ -61,7 +61,7 @@ export const LIVE_CAMERA_UNSUPPORTED_BROWSER =
   'Votre navigateur ne prend pas en charge l’accès caméra (getUserMedia). Mettez à jour Chrome, Edge, Opera ou Safari, ou utilisez « Choisir une vidéo ».';
 
 export const LIVE_CAMERA_IFRAME_BLOCKED =
-  'Caméra indisponible dans cette fenêtre intégrée (iframe). Ouvrez Soundy dans un onglet complet.';
+  'Caméra indisponible dans cette fenêtre intégrée (iframe). Ouvrez OnScen dans un onglet complet.';
 
 export const LIVE_CAMERA_INVALID_FILE =
   'Choisissez un fichier vidéo (MP4, WebM, etc.).';

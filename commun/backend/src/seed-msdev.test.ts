@@ -9,10 +9,10 @@ describe('ensureMsdevDemoAccounts', () => {
   beforeEach(() => {
     process.env = { ...envBackup, APP_ENV: 'msdev' };
     db.users.clear();
-    db.users.set('soundy_world_salon_01', {
-      id: 'soundy_world_salon_01',
+    db.users.set('onscen_world_salon_01', {
+      id: 'onscen_world_salon_01',
       username: 'bot',
-      email: 'bot@bot.melosong.local',
+      email: 'bot@bot.onscen.local',
       passwordHash: 'bot',
       meloCoins: 0,
       isGhostMode: false,

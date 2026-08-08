@@ -205,7 +205,7 @@ export class Orchestrator {
     const durationStr = formatDuration(this.durationMs);
     console.log(`
 \x1b[36m╔══════════════════════════════════════════════════════════════════════╗
-║              🎵  SOUNDY — INFRASTRUCTURE DE TESTS AGENTS             ║
+║              🎵  ONSCEN — INFRASTRUCTURE DE TESTS AGENTS             ║
 ╚══════════════════════════════════════════════════════════════════════╝\x1b[0m
 
 \x1b[1m  Cible  :\x1b[0m ${CONFIG.BASE_URL}
@@ -248,7 +248,7 @@ ${Object.entries(ROLE_DESCRIPTIONS)
     try {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
       const suffix = isPartial ? '-partial' : '-final';
-      const baseName = `soundy-agents-report-${timestamp}${suffix}`;
+      const baseName = `onscen-agents-report-${timestamp}${suffix}`;
 
       const { htmlPath, jsonPath, summary } = await generateReport(results, {
         baseUrl: CONFIG.BASE_URL,

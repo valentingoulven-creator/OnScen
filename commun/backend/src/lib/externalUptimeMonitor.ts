@@ -50,7 +50,7 @@ async function sendUptimeAlert(detail: string): Promise<void> {
 
   await sendEmail({
     to: adminEmail,
-    subject: `[Soundy] Uptime — ${url} indisponible`,
+    subject: `[OnScen] Uptime — ${url} indisponible`,
     text: `Health check public failed at ${ts}. URL: ${url}. ${detail}`,
     html: `<p>Le health check public a échoué à <strong>${ts}</strong>.</p><p>URL : ${url}</p><p>${detail}</p>`,
   });

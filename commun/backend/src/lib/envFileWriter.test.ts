@@ -8,7 +8,7 @@ describe('upsertEnvFileKeys', () => {
   const tmpFiles: string[] = [];
 
   function tmpEnvPath(): string {
-    const file = path.join(os.tmpdir(), `soundy-env-writer-test-${Date.now()}-${Math.random()}.env`);
+    const file = path.join(os.tmpdir(), `onscen-env-writer-test-${Date.now()}-${Math.random()}.env`);
     tmpFiles.push(file);
     return file;
   }

@@ -717,7 +717,7 @@ export function ActualiteTabPage({ onOpenProfile, isActive }: ActualiteTabPagePr
                     type="checkbox"
                     checked={prefs.musicalAffinitiesOnly}
                     onChange={(e) => updatePrefs({ musicalAffinitiesOnly: e.target.checked })}
-                    className="melosong-checkbox scale-90 shrink-0"
+                    className="onscen-checkbox scale-90 shrink-0"
                   />
                 </label>
 
@@ -734,7 +734,7 @@ export function ActualiteTabPage({ onOpenProfile, isActive }: ActualiteTabPagePr
                       type="checkbox"
                       checked={prefs.favoritesFirst}
                       onChange={(e) => updatePrefs({ favoritesFirst: e.target.checked })}
-                      className="melosong-checkbox scale-90"
+                      className="onscen-checkbox scale-90"
                     />
                   </label>
                 )}

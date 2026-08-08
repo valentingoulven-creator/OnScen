@@ -7,7 +7,7 @@ export type ListeningRole = 'auditeur' | 'host' | 'les_deux';
 
 export type RelationshipStatus = 'celibataire' | 'en_couple' | 'autre';
 
-/** Type de profil / activité (bar, DJ, compositeur, etc.) — distinct du rôle d'écoute Soundy. */
+/** Type de profil / activité (bar, DJ, compositeur, etc.) — distinct du rôle d'écoute OnScen. */
 export type ProfileType =
   | 'bar'
   | 'restaurant'
@@ -47,7 +47,7 @@ export interface PlatformAccount {
 export interface User {
   id: string;
   username: string;
-  /** Hex (#rrggbb) ou `wave` (dégradé Soundy). */
+  /** Hex (#rrggbb) ou `wave` (dégradé OnScen). */
   usernameColor?: string;
   /** Couleur de départ du dégradé wave (hex, si usernameColor === wave). */
   usernameWaveFrom?: string;
@@ -120,7 +120,7 @@ export interface User {
   youtubeChannel?: string;
   /** Compte Stripe Connect (acct_…) pour recevoir les pourboires live en production. */
   stripeConnectAccountId?: string;
-  /** Horodatage d'acceptation des règles de diffusion live Soundy (UNIX ms). */
+  /** Horodatage d'acceptation des règles de diffusion live OnScen (UNIX ms). */
   liveTermsAcceptedAt?: number;
   /** Attestation utilisateur d'avoir au moins 13 ans à l'inscription (UNIX ms). */
   ageConfirmedAt?: number;
@@ -547,11 +547,11 @@ export interface DonationPayment {
   refundReason?: string;
 }
 
-/** Abonnement mensuel à un créateur ou à Soundy+ (plateforme). */
+/** Abonnement mensuel à un créateur ou à OnScen+ (plateforme). */
 export interface CreatorSubscription {
   id: string;
   subscriberId: string;
-  /** userId du créateur, ou `platform` pour Soundy+ */
+  /** userId du créateur, ou `platform` pour OnScen+ */
   creatorId: string;
   tierId: string;
   tierLabel: string;
@@ -648,7 +648,7 @@ export type SponsorBannerDisplayMode = 'full' | 'image_only';
 /** Sponsor / bandeau publicitaire géré depuis l'administration. */
 export interface Sponsor {
   id: string;
-  /** Nom affiché (ex. « Deezer », « Soundy »). */
+  /** Nom affiché (ex. « Deezer », « OnScen »). */
   name: string;
   logoUrl?: string;
   /** Image de fond du bandeau carte (map_banner uniquement). */
@@ -690,7 +690,7 @@ export interface Sponsor {
   updatedAt: number;
 }
 
-/** Message utilisateur → équipe Soundy (support). */
+/** Message utilisateur → équipe OnScen (support). */
 export interface SupportContactMessage {
   id: string;
   fromUserId: string;
@@ -803,7 +803,7 @@ export interface UserReel {
   createdAt: number;
   /** private = profil uniquement ; absent = public (rétrocompat) */
   visibility?: ReelVisibility;
-  /** Piste audio séparée (morceau Discographie Soundy) — vidéo muette côté lecteur. */
+  /** Piste audio séparée (morceau Discographie OnScen) — vidéo muette côté lecteur. */
   audioUrl?: string;
   /** Morceau source lorsque le son provient de la discographie utilisateur. */
   compositionId?: string;

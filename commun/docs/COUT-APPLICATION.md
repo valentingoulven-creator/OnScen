@@ -1,16 +1,16 @@
-# Coûts et architecture — Soundy / MeloSongv2
+# Coûts et architecture — OnScen / OnScenv2
 
 Document de référence pour l’infrastructure, les modes de diffusion live et les estimations budgétaires par stade de croissance.
 
 > **Dernière mise à jour :** juin 2026  
-> **Production :** [getsoundy.com](https://getsoundy.com) · VPS `51.159.164.100` · chemin `/opt/soundy`  
+> **Production :** [getsoundy.com](https://getsoundy.com) · VPS `51.159.164.100` · chemin `/opt/onscen`  
 > **Aucun secret** (tokens, mots de passe, clés API) ne figure dans ce document.
 
 ---
 
-## 1. Vue d'ensemble Soundy
+## 1. Vue d'ensemble OnScen
 
-Soundy (MeloSongv2) est une application web de **salons musicaux synchronisés**, **lives vidéo** et **fil d’actualité**, accessible en production sur **getsoundy.com**.
+OnScen (OnScenv2) est une application web de **salons musicaux synchronisés**, **lives vidéo** et **fil d’actualité**, accessible en production sur **getsoundy.com**.
 
 ### Architecture production
 
@@ -26,7 +26,7 @@ flowchart TB
     PM2["PM2 — melosong-backend"]
     Node["Node.js — backend/"]
     Coturn["Coturn TURN — port 3478"]
-    Data["/opt/soundy/.env + legal-publisher.json"]
+    Data["/opt/onscen/.env + legal-publisher.json"]
   end
 
   subgraph DB["Scaleway Managed Database"]
@@ -150,7 +150,7 @@ Trois modes exclusifs par live, choisis automatiquement à la création selon la
 | **Ingest** | RTMP/RTMPS (OBS, Streamlabs, etc.) — **gratuit** |
 | **Spectateurs** | **Illimités** via HLS/CDN Cloudflare |
 | **Caméra navigateur directe** | Non (OBS requis actuellement ; WHIP phase 2) |
-| **Activation prod** | Variables `.env` sur `/opt/soundy/.env` |
+| **Activation prod** | Variables `.env` sur `/opt/onscen/.env` |
 
 **Variables d'environnement :**
 
@@ -235,7 +235,7 @@ Trois modes exclusifs par live, choisis automatiquement à la création selon la
 
 ```mermaid
 flowchart LR
-  subgraph Host["Hôte Soundy"]
+  subgraph Host["Hôte OnScen"]
     Browser["Caméra navigateur"]
   end
 
@@ -364,7 +364,7 @@ Les bots simulent des **salons YouTube** et des **marqueurs LIVE** sur la carte 
 
 ## 7. Comparaison Instagram / TikTok
 
-| Aspect | Instagram Live / TikTok Live | Soundy (cible LiveKit) |
+| Aspect | Instagram Live / TikTok Live | OnScen (cible LiveKit) |
 |--------|-------------------------------|------------------------|
 | **Encodage** | Intégré dans l’app native | LiveKit : encodeur navigateur (WebRTC) |
 | **Ingest** | RTMP interne → CDN propriétaire | RTMP Cloudflare (OBS) ou WebRTC LiveKit |
@@ -373,7 +373,7 @@ Les bots simulent des **salons YouTube** et des **marqueurs LIVE** sur la carte 
 | **Latence** | ~3–10 s (HLS) / faible (WebRTC interne) | LiveKit ~1–3 s ; Cloudflare HLS ~10–30 s |
 | **Coût infra** | Absorbé par Meta / ByteDance | Pay-as-you-go Cloudflare / LiveKit |
 
-**Ce que Soundy vise avec LiveKit :** une expérience **« un tap pour live caméra »** comparable aux réseaux sociaux, sans OBS, tout en conservant la **montée en charge CDN** (Cloudflare) pour les audiences massives — le meilleur des deux mondes décrit en §3.4.
+**Ce que OnScen vise avec LiveKit :** une expérience **« un tap pour live caméra »** comparable aux réseaux sociaux, sans OBS, tout en conservant la **montée en charge CDN** (Cloudflare) pour les audiences massives — le meilleur des deux mondes décrit en §3.4.
 
 ---
 
@@ -383,7 +383,7 @@ Les bots simulent des **salons YouTube** et des **marqueurs LIVE** sur la carte 
 
 | Ressource | URL |
 |-----------|-----|
-| **Production Soundy** | https://getsoundy.com |
+| **Production OnScen** | https://getsoundy.com |
 | **Health check** | https://getsoundy.com/health |
 | **Inscription / connexion** | https://getsoundy.com (UI auth) |
 
@@ -392,7 +392,7 @@ Les bots simulent des **salons YouTube** et des **marqueurs LIVE** sur la carte 
 | Ressource | URL / accès |
 |-----------|-------------|
 | **VPS SSH** | `ssh root@51.159.164.100` (clé `~/.ssh/id_ed25519`) |
-| **Chemin application** | `/opt/soundy` |
+| **Chemin application** | `/opt/onscen` |
 | **Console Scaleway** | https://console.scaleway.com |
 | **Managed Database** | Console → Managed Databases → `soundy-prod` |
 | **GitHub (dépôt)** | https://github.com/valentingoulven-creator/Melo |
@@ -468,7 +468,7 @@ export function defaultLiveStreamMode(): LiveStreamMode {
 
 - **Infra :** VPS DEV1-S + PostgreSQL DB-DEV-S (~25 €/mois).
 - **Live vidéo :** Mesh WebRTC ou LiveKit Build (gratuit, caméra navigateur).
-- **Action :** Configurer LiveKit sur `/opt/soundy/.env` ; tester caméra sans OBS.
+- **Action :** Configurer LiveKit sur `/opt/onscen/.env` ; tester caméra sans OBS.
 - **Éviter :** Postgres sur le même VPS que Node.
 
 ### Phase 1 — Traction (10–50 lives/mois, < 30 spectateurs)
@@ -514,4 +514,4 @@ Coût infra fixe (€)           ≈ VPS (8–12) + PostgreSQL (15) + domaine (1
 
 ---
 
-*Document généré pour MeloSongv2 / Soundy — ne pas committer de secrets. Mettre à jour ce fichier lors de changements tarifaires ou d’architecture.*
+*Document généré pour OnScenv2 / OnScen — ne pas committer de secrets. Mettre à jour ce fichier lors de changements tarifaires ou d’architecture.*

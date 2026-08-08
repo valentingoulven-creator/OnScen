@@ -46,7 +46,7 @@ function shouldShowToast(n: AppNotification): boolean {
   );
 }
 
-const NOTIF_VIEWED_LS_PREFIX = 'soundy:notifications-viewed:';
+const NOTIF_VIEWED_LS_PREFIX = 'onscen:notifications-viewed:';
 
 function notifViewedLsKey(userId: string): string {
   return `${NOTIF_VIEWED_LS_PREFIX}${userId}`;

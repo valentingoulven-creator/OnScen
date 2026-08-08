@@ -1,12 +1,12 @@
 # Sync documentation → Google Drive
 
-Synchronise `commun/docs/` et `docs/` vers le dossier Drive Soundy (remote rclone `gdrive-soundy`).
+Synchronise `commun/docs/` et `docs/` vers le dossier Drive OnScen (remote rclone `gdrive-onscen`).
 
 ## Prérequis (une fois)
 
 1. **rclone** : `winget install Rclone.Rclone`
 2. **OAuth Google** : `rclone authorize drive` (connexion navigateur)
-3. **Remote** : fichier `%APPDATA%\rclone\rclone.conf` avec section `[gdrive-soundy]` et `root_folder_id` = ID du dossier Drive cible.
+3. **Remote** : fichier `%APPDATA%\rclone\rclone.conf` avec section `[gdrive-onscen]` et `root_folder_id` = ID du dossier Drive cible.
 4. **Installation auto** : `npm run docs:gdrive:install`
 
 ## Comportement (sans commit)
@@ -15,7 +15,7 @@ Dès qu’un fichier sous `commun/docs/` ou `docs/` est **enregistré**, le watc
 
 Le watcher est démarré automatiquement :
 
-- **À la connexion Windows** — tâche planifiée `Soundy-Docs-GDrive-Watch` (installée par `docs:gdrive:install`)
+- **À la connexion Windows** — tâche planifiée `OnScen-Docs-GDrive-Watch` (installée par `docs:gdrive:install`)
 - **À `npm run dev`** — script `ensure-docs-gdrive-watch` (processus Node en arrière-plan)
 
 ## Commandes
@@ -39,4 +39,4 @@ Le watcher est démarré automatiquement :
 - **Drive pas à jour** → `npm run docs:gdrive:ensure` puis modifier/sauvegarder un fichier test
 - **rclone introuvable** → redémarrer le terminal après `winget install Rclone.Rclone`
 - **Token expiré** → `rclone authorize drive` puis mettre à jour `rclone.conf`
-- **Désinstaller la tâche Windows** → Planificateur de tâches → supprimer `Soundy-Docs-GDrive-Watch`
+- **Désinstaller la tâche Windows** → Planificateur de tâches → supprimer `OnScen-Docs-GDrive-Watch`

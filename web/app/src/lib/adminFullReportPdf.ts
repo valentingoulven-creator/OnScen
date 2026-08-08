@@ -291,5 +291,5 @@ export async function downloadAdminFullReportPdf(
   );
 
   const stamp = new Date(bundle.generatedAt).toISOString().slice(0, 10);
-  doc.save(`soundy-rapport-statistiques-couts-${stamp}.pdf`);
+  doc.save(`onscen-rapport-statistiques-couts-${stamp}.pdf`);
 }

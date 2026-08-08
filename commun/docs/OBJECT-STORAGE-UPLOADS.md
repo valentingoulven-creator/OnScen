@@ -21,9 +21,9 @@
 
 ## Migration future (non implémentée)
 
-1. Bucket privé `soundy-uploads` en `fr-par`.
+1. Bucket privé `onscen-uploads` en `fr-par`.
 2. Variables `.env` : `SCW_BUCKET`, `SCW_ACCESS_KEY`, `SCW_SECRET_KEY`, `SCW_REGION=fr-par`.
 3. Remplacer écriture disque par `PutObject`, servir via **URLs signées** (TTL 1h) ou proxy backend.
 4. Script de migration one-shot `uploads/` → bucket.
 
-Voir aussi : `commun/deploy/setup-scaleway-object-storage.sh`, `docs/INFRA-SOUNDY.md`.
+Voir aussi : `commun/deploy/setup-scaleway-object-storage.sh`, `docs/INFRA-ONSCEN.md`.

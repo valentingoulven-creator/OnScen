@@ -2,12 +2,12 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-/** Release Sentry backend : soundy-api@version+gitsha */
+/** Release Sentry backend : onscen-api@version+gitsha */
 export function resolveBackendSentryRelease(): string {
   const explicit = process.env.SENTRY_RELEASE?.trim();
   if (explicit) return explicit;
 
-  const slug = process.env.SENTRY_RELEASE_SLUG?.trim() || 'soundy-api';
+  const slug = process.env.SENTRY_RELEASE_SLUG?.trim() || 'onscen-api';
   let version = process.env.APP_VERSION?.trim() || '';
   if (!version) {
     try {

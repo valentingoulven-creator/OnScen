@@ -52,7 +52,7 @@ function ensureSyntheticUsers(count: number): string[] {
     const user: User = {
       id,
       username: `fan_${i}`,
-      email: `${id}@bot.melosong.local`,
+      email: `${id}@bot.onscen.local`,
       passwordHash: 'bot',
       avatarUrl: dicebearAdventurerAvatar(id),
       meloCoins: 0,
@@ -109,7 +109,7 @@ function upgradeBeatCastelUser(user: User): boolean {
   const seed = SALON_LIVE_BOT_SEEDS.find((s) => s.userId === BEATCASTEL_USER_ID);
   apply(
     'bio',
-    'MC & host Soundy — sessions rap live depuis Castelnau-le-Lez et l’agglo montpelliéraine. Freestyles, cyphers et sorties du collectif Agglo Beats. Rejoins le salon ou le live quand le badge LIVE est allumé.'
+    'MC & host OnScen — sessions rap live depuis Castelnau-le-Lez et l’agglo montpelliéraine. Freestyles, cyphers et sorties du collectif Agglo Beats. Rejoins le salon ou le live quand le badge LIVE est allumé.'
   );
   apply('profileType', 'dj');
   apply('listeningRole', 'les_deux');
@@ -119,7 +119,7 @@ function upgradeBeatCastelUser(user: User): boolean {
   apply('favoriteGenres', seed?.genres ?? ['Hip-Hop', 'Rap', 'Trap']);
   apply('favoriteArtists', ['Kendrick Lamar', 'J. Cole', 'Travis Scott', 'Ninho', 'Damso']);
   apply('interests', ['Freestyle', 'Beatmaking', 'Cyphers', 'Live rap', 'Montpellier']);
-  apply('youtubeChannel', '@BeatCastelSoundy');
+  apply('youtubeChannel', '@BeatCastelOnScen');
   apply('instagramHandle', 'beatcastel.mtp');
   apply('favoritesCountOverride', BEATCASTEL_FOLLOWERS_TARGET);
 
@@ -168,7 +168,7 @@ function ensureBeatCastelFeedPosts(): number {
     },
     {
       id: `${CONTENT_PREFIX}post_03`,
-      content: 'Shoutout à la commu Soundy — 36 abonnés, on continue la montée 🔥 Castelnau représente.',
+      content: 'Shoutout à la commu OnScen — 36 abonnés, on continue la montée 🔥 Castelnau représente.',
       imageUrl: 'https://img.youtube.com/vi/DyDfgMOUjCI/hqdefault.jpg',
       daysAgo: 5,
     },
@@ -301,7 +301,7 @@ function ensureBeatCastelAlbums(): number {
       id: def.id,
       userId: BEATCASTEL_USER_ID,
       title: def.title,
-      description: `Extrait démo Soundy — ${def.title}.`,
+      description: `Extrait démo OnScen — ${def.title}.`,
       coverUrl: `https://img.youtube.com/vi/${RAP_TRACKS[def.trackOffset]?.trackId ?? 'tvTRZ0-26n0'}/hqdefault.jpg`,
       createdAt: now - def.trackOffset * 3600_000,
       updatedAt: now,

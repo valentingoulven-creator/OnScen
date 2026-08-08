@@ -1,7 +1,7 @@
 # Runbook opérationnel — Contenu suspecté CSAM / mineur en danger
 
 **Statut : ⚠️ Brouillon opérationnel — à faire valider par l'avocat lors du rendez-vous déjà planifié (`RENDEZ-VOUS-AVOCAT.md`).**
-Ce document n'est **pas** un texte destiné aux utilisateurs (voir CGU/politique mineurs pour cela) — c'est une procédure interne pour l'équipe Soundy (admin/modération/support/fondateur), rédigée suite à l'audit technique du 2026-08-07 (`commun/docs/audit/2026-08-audit-technique-complet/07-moderation.md`, §7.6 — MOD-8, risque critique).
+Ce document n'est **pas** un texte destiné aux utilisateurs (voir CGU/politique mineurs pour cela) — c'est une procédure interne pour l'équipe OnScen (admin/modération/support/fondateur), rédigée suite à l'audit technique du 2026-08-07 (`commun/docs/audit/2026-08-audit-technique-complet/07-moderation.md`, §7.6 — MOD-8, risque critique).
 
 **Complément opérationnel (alertes, staging, coûts Sightengine) :** [`MODERATION-OPS.md`](./MODERATION-OPS.md).
 
@@ -47,13 +47,13 @@ Ce document n'est **pas** un texte destiné aux utilisateurs (voir CGU/politique
 - Plateforme : **https://www.internet-signalement.gouv.fr/**
 - Signalement à faire par le référent désigné, avec :
   - Capture d'écran / export du contenu concerné (métadonnées : date, heure, URL interne, ID utilisateur).
-  - Coordonnées Soundy (raison sociale, contact DPO/légal — voir `legalPublisher.ts`/mentions légales).
+  - Coordonnées OnScen (raison sociale, contact DPO/légal — voir `legalPublisher.ts`/mentions légales).
 - **Délai visé : sous 24h ouvrées** à compter de la qualification à l'étape 3 (cohérent avec le délai déjà annoncé dans les CGU — voir `legalDocumentsApp.json`).
 
 ### États-Unis — NCMEC CyberTipline (si utilisateurs/hébergement US concernés)
 
 - Plateforme : **https://report.cybertip.org/**
-- À évaluer avec l'avocat si Soundy est un « electronic service provider » soumis à l'obligation fédérale US de signalement (18 U.S.C. § 2258A) — pertinent dès lors que l'app est accessible à des utilisateurs américains, même sans hébergement US.
+- À évaluer avec l'avocat si OnScen est un « electronic service provider » soumis à l'obligation fédérale US de signalement (18 U.S.C. § 2258A) — pertinent dès lors que l'app est accessible à des utilisateurs américains, même sans hébergement US.
 
 ### Conservation de la preuve
 

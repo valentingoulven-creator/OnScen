@@ -72,7 +72,7 @@ async function sendSystemAlert(params: {
 
   const label = params.metric === 'ram' ? 'RAM' : params.metric === 'cpu' ? 'CPU' : 'Disque';
   const ts = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' });
-  const subject = `🚨 [Soundy VPS] ${label} ${params.value}% - Action requise`;
+  const subject = `🚨 [OnScen VPS] ${label} ${params.value}% - Action requise`;
   const adminUrl = `${process.env.WEB_APP_URL ?? 'https://getsoundy.com'}/admin?tab=monitoring`;
 
   const html = `
@@ -105,12 +105,12 @@ async function sendSystemAlert(params: {
         </a>
       </div>
       <p style="color:#9ca3af;font-size:12px;margin-top:24px;">
-        Alerte automatique Soundy — <a href="${adminUrl}" style="color:#7c3aed;">getsoundy.com/admin</a>
+        Alerte automatique OnScen — <a href="${adminUrl}" style="color:#7c3aed;">getsoundy.com/admin</a>
       </p>
     </div>`;
 
   const text = [
-    `[Soundy ALERTE] ${label} ${params.value}% (seuil : ${params.threshold}%)`,
+    `[OnScen ALERTE] ${label} ${params.value}% (seuil : ${params.threshold}%)`,
     ``,
     `Serveur : getsoundy.com`,
     `Heure   : ${ts}`,
@@ -119,7 +119,7 @@ async function sendSystemAlert(params: {
   ].join('\n');
 
   try {
-    await sendEmail({ from: getEmailFrom('Soundy Monitoring'), to: alertEmail, subject, text, html });
+    await sendEmail({ from: getEmailFrom('OnScen Monitoring'), to: alertEmail, subject, text, html });
     console.info(`[systemMonitor] Alerte ${label} envoyée à ${alertEmail} (${params.value}% > ${params.threshold}%)`);
   } catch (err) {
     console.error(`[systemMonitor] Échec envoi alerte ${label}:`, err);

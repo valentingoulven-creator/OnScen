@@ -1,7 +1,7 @@
 /**
  * admin.scenario.ts — Agent 30 : Administrateur
  *
- * Simule un administrateur Soundy qui parcourt les panneaux admin,
+ * Simule un administrateur OnScen qui parcourt les panneaux admin,
  * vérifie les analytics, surveille les utilisateurs et le contenu.
  * Utilise un compte admin configuré via PROD_ADMIN_EMAIL/PASSWORD.
  */
@@ -290,7 +290,7 @@ export class AdminAgent extends BaseAgent {
 // ── Persona Agent 30 ──────────────────────────────────────────────────────────
 
 export const ADMIN_PERSONAS: AgentPersona[] = [
-  buildPersona(30, 'admin', 'Admin Soundy', 'Administrateur — surveillance, analytics et modération globale'),
+  buildPersona(30, 'admin', 'Admin OnScen', 'Administrateur — surveillance, analytics et modération globale'),
 ];
 
 export function createAdminAgent(persona: AgentPersona): AdminAgent {

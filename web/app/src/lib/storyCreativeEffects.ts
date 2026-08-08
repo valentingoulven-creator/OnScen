@@ -34,7 +34,7 @@ export const DUOTONE_GENRE_PRESETS: DuotoneGenrePreset[] = [
   { id: 'rnb', label: 'R&B', shadow: '#120818', highlight: '#c084fc' },
   { id: 'jazz', label: 'Jazz', shadow: '#0f1410', highlight: '#fbbf24' },
   { id: 'lofi', label: 'Lo-fi', shadow: '#1a1520', highlight: '#a8c4b8' },
-  { id: 'default', label: 'Soundy', shadow: '#120a1f', highlight: '#a855f7' },
+  { id: 'default', label: 'OnScen', shadow: '#120a1f', highlight: '#a855f7' },
 ];
 
 export function resolveDuotoneGenre(genreHint?: string | null): DuotoneGenrePreset {
@@ -50,5 +50,5 @@ export function resolveDuotoneGenre(genreHint?: string | null): DuotoneGenrePres
 
 /** Hash stable pour waveform synthétique à partir du titre / artiste. */
 export function waveformSeedFromText(...parts: (string | undefined)[]): string {
-  return parts.filter(Boolean).join('|').trim().toLowerCase() || 'soundy';
+  return parts.filter(Boolean).join('|').trim().toLowerCase() || 'onscen';
 }

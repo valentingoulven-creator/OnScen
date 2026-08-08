@@ -12,7 +12,7 @@ import {
 } from './usernameColor';
 
 describe('usernameColor wave', () => {
-  it('uses Soundy defaults when wave colors are missing', () => {
+  it('uses OnScen defaults when wave colors are missing', () => {
     expect(resolveUsernameWaveColors(null)).toEqual({
       from: DEFAULT_USERNAME_WAVE_FROM,
       to: DEFAULT_USERNAME_WAVE_TO,

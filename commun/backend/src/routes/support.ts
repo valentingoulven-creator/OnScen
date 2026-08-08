@@ -169,7 +169,7 @@ supportRouter.post('/contact/:id/reply', authenticateJWT, (req: Request, res: Re
     return;
   }
   if (msg.status !== 'replied') {
-    res.status(400).json({ error: 'Réponse possible uniquement après une réponse Soundy' });
+    res.status(400).json({ error: 'Réponse possible uniquement après une réponse OnScen' });
     return;
   }
 
@@ -232,7 +232,7 @@ supportRouter.patch('/contact/:id/status', authenticateJWT, (req: Request, res: 
     return;
   }
   if (msg.status !== 'replied') {
-    res.status(400).json({ error: 'Marquage résolu possible uniquement après une réponse Soundy' });
+    res.status(400).json({ error: 'Marquage résolu possible uniquement après une réponse OnScen' });
     return;
   }
 

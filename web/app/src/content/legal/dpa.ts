@@ -2,7 +2,7 @@
  * dpa.ts — Modèles d'Accords de Traitement des Données (DPA / Art. 28 RGPD)
  *
  * Ce fichier contient les modèles de clauses contractuelles à signer avec
- * chaque sous-traitant qui traite des données personnelles pour le compte de Soundy.
+ * chaque sous-traitant qui traite des données personnelles pour le compte de OnScen.
  *
  * Référence réglementaire : RGPD art. 28 — tout responsable de traitement doit
  * formaliser par contrat ses relations avec ses sous-traitants.
@@ -36,7 +36,7 @@ export interface SubprocessorRecord {
 }
 
 /**
- * Registre des sous-traitants de Soundy au sens de l'art. 28 RGPD.
+ * Registre des sous-traitants de OnScen au sens de l'art. 28 RGPD.
  * TODO : Mettre à jour le statut (dpaStatus) à chaque signature de DPA.
  */
 export const SUBPROCESSORS: SubprocessorRecord[] = [
@@ -77,7 +77,7 @@ export const SUBPROCESSORS: SubprocessorRecord[] = [
   },
   {
     name: 'Stripe, Inc. / Stripe Payments Europe, Ltd.',
-    role: 'Traitement des paiements — pourboires live, abonnements créateurs, Soundy+',
+    role: 'Traitement des paiements — pourboires live, abonnements créateurs, OnScen+',
     country: 'Irlande (UE) + États-Unis pour certains services',
     euTransfer: true,
     transferMechanism: 'Entité UE (Dublin) — CCT pour transferts vers les États-Unis',
@@ -88,7 +88,7 @@ export const SUBPROCESSORS: SubprocessorRecord[] = [
       'Données de paiement (numéro de carte tokenisé par Stripe)',
       'Données d\'identité partielle (e-mail, pays, IP)',
       'Historique des transactions',
-      'Note : Soundy ne stocke jamais les numéros de carte — délégué à Stripe',
+      'Note : OnScen ne stocke jamais les numéros de carte — délégué à Stripe',
     ],
     retentionNote: 'Selon obligations légales Stripe (5 à 10 ans pour les données fiscales)',
   },
@@ -133,7 +133,7 @@ export const SUBPROCESSORS: SubprocessorRecord[] = [
     dpaUrl: 'https://livekit.io/legal/data-processing-addendum',
     dpaStatus: 'pending',
     dataCategories: [
-      'Identifiant utilisateur Soundy (pseudonyme)',
+      'Identifiant utilisateur OnScen (pseudonyme)',
       'Métadonnées de salon (titre, participants)',
       'Adresse IP (transit WebRTC)',
     ],
@@ -207,7 +207,7 @@ est autorisé à traiter des données personnelles pour le compte du Responsable
 conformément à l'article 28 du RGPD.
 
 Champ d'application : tous les traitements de données personnelles des utilisateurs
-de Soundy (getsoundy.com) réalisés par un sous-traitant pour le compte du Responsable.`,
+de OnScen (getsoundy.com) réalisés par un sous-traitant pour le compte du Responsable.`,
     },
     {
       heading: '2. Obligations du sous-traitant (art. 28 § 3 RGPD)',
@@ -245,9 +245,9 @@ uniquement dans le cadre des finalités définies dans le Registre des Sous-trai
 Toute instruction hors périmètre défini doit faire l'objet d'un avenant écrit.
 
 Finalités autorisées par sous-traitant :
-• Scaleway SAS : Hébergement et stockage des données de l'application Soundy
-• Cloudflare, Inc. : Acheminement et protection du trafic réseau vers les serveurs Soundy
-• Stripe : Traitement des paiements initiés par les utilisateurs de Soundy
+• Scaleway SAS : Hébergement et stockage des données de l'application OnScen
+• Cloudflare, Inc. : Acheminement et protection du trafic réseau vers les serveurs OnScen
+• Stripe : Traitement des paiements initiés par les utilisateurs de OnScen
 • Resend : Envoi des e-mails transactionnels déclenchés par les actions utilisateurs
 • Google (YouTube) : Fourniture de l’API YouTube intégrée dans le service`,
     },
@@ -277,7 +277,7 @@ appropriées pour garantir un niveau de sécurité adapté au risque, notamment 
 • Journalisation et détection des incidents
 • Formation et sensibilisation des personnels
 
-Mesures Soundy (côté Responsable) :
+Mesures OnScen (côté Responsable) :
 ☑ Authentification JWT — sessions courtes
 ☑ Mots de passe bcrypt — jamais stockés en clair
 ☑ Floutage des coordonnées GPS côté serveur
@@ -347,7 +347,7 @@ Signature : ___________________________
 Note : Ce document est un modèle interne de référence.
 Les DPA signés avec chaque sous-traitant sont les documents contractuellement
 contraignants. Ce modèle doit être conservé avec les DPA signés dans le dossier
-de conformité RGPD de Soundy.`,
+de conformité RGPD de OnScen.`,
     },
   ],
 };

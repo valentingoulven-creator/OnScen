@@ -16,7 +16,7 @@
 import type { LegalDocument } from './types';
 
 export const dpiaTemplate: LegalDocument = {
-  title: 'AIPD — Analyse d\'Impact (DPIA) — Soundy [MODÈLE À COMPLÉTER]',
+  title: 'AIPD — Analyse d\'Impact (DPIA) — OnScen [MODÈLE À COMPLÉTER]',
   updated: 'juin 2026',
   sections: [
     {
@@ -153,7 +153,7 @@ Siège : Dublin, Irlande (entité UE pour les marchands européens)
 Transfert hors UE : Partiel — CCT applicables
 DPA signé : [À REMPLIR — https://stripe.com/legal/dpa]
 Données traitées : Données de paiement, identité partielle (e-mail, pays)
-Note : Stripe ne traite pas de données de géolocalisation Soundy
+Note : Stripe ne traite pas de données de géolocalisation OnScen
 
 Resend (e-mail transactionnel)
 Rôle : Envoi d'e-mails (vérification, réinitialisation mot de passe, notifications)
@@ -164,7 +164,7 @@ Données traitées : Adresse e-mail, contenu de l'e-mail
 
 OpenStreetMap / CARTO (tuiles cartographiques)
 Rôle : Affichage de la carte de fond
-Note : Les tuiles sont des images statiques. Votre compte Soundy n'est pas transmis
+Note : Les tuiles sont des images statiques. Votre compte OnScen n'est pas transmis
 à OSM/CARTO, mais les requêtes de tuiles partent du navigateur de l'utilisateur.
 DPA : Non requis (pas de données personnelles transmises au sens strict)`,
     },

@@ -8,11 +8,11 @@ export const politiqueCookies: LegalDocument = {
   sections: [
     {
       heading: '1. Qu\'est-ce qu\'un cookie ?',
-      body: 'Un cookie est un petit fichier texte déposé sur votre terminal (ordinateur, smartphone) lors de la visite d\'un site. Soundy utilise également le stockage local du navigateur (localStorage) pour certaines préférences.',
+      body: 'Un cookie est un petit fichier texte déposé sur votre terminal (ordinateur, smartphone) lors de la visite d\'un site. OnScen utilise également le stockage local du navigateur (localStorage) pour certaines préférences.',
     },
     {
       heading: '2. Cookies strictement nécessaires',
-      body: 'Ces cookies sont indispensables au fonctionnement du service. Ils ne nécessitent pas votre consentement préalable (RGPD / directive ePrivacy).\n\n• soundy_auth : cookie httpOnly sécurisé contenant votre jeton de session web. Durée : session ou 7 jours si « rester connecté ».\n• Préférences essentielles en localStorage : langue, consentement cookies (soundy_cookie_consent_v1).\n\nSur l\'application mobile native (Capacitor), la session est stockée dans le Keychain iOS / Keystore Android.',
+      body: 'Ces cookies sont indispensables au fonctionnement du service. Ils ne nécessitent pas votre consentement préalable (RGPD / directive ePrivacy).\n\n• onscen_auth : cookie httpOnly sécurisé contenant votre jeton de session web. Durée : session ou 7 jours si « rester connecté ».\n• Préférences essentielles en localStorage : langue, consentement cookies (onscen_cookie_consent_v1).\n\nSur l\'application mobile native (Capacitor), la session est stockée dans le Keychain iOS / Keystore Android.',
     },
     {
       heading: '3. Cookies et services tiers (consentement requis)',

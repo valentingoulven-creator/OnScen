@@ -20,8 +20,8 @@ describe('storyTextMention', () => {
       start: 0,
       end: 4,
     });
-    expect(parseActiveStoryMention('Salut @soundy', 13)).toEqual({
-      query: 'soundy',
+    expect(parseActiveStoryMention('Salut @onscen', 13)).toEqual({
+      query: 'onscen',
       start: 6,
       end: 13,
     });
@@ -44,7 +44,7 @@ describe('storyTextMention', () => {
   });
 
   it('textContainsMention matches complete @username tokens', () => {
-    expect(textContainsMention('@soundy_occitanie_auch <3', 'soundy_occitanie_auch')).toBe(
+    expect(textContainsMention('@onscen_occitanie_auch <3', 'onscen_occitanie_auch')).toBe(
       true
     );
     expect(textContainsMention('Salut @user!', 'user')).toBe(true);

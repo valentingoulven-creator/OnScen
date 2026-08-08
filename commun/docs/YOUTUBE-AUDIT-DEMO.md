@@ -1,6 +1,6 @@
 # Démo YouTube API — audit / vérification OAuth
 
-**Produit :** Soundy · https://getsoundy.com  
+**Produit :** OnScen · https://getsoundy.com  
 **Périmètre de la démo :** module **Salon YouTube uniquement** (pas lives, carte, reels, DMs, etc.)  
 **Référence Google :** [Quota and Compliance Audits](https://developers.google.com/youtube/v3/guides/quota_and_compliance_audits)
 
@@ -23,7 +23,7 @@
 
 **Credentials locaux :** `docs/youtube-audit-demo-credentials.local.txt` (non versionné)
 
-Compte Soundy créé sur prod :
+Compte OnScen créé sur prod :
 
 - **E-mail :** `yt.audit.demo2.soundy@gmail.com`
 - **Mot de passe :** voir fichier credentials local
@@ -52,20 +52,20 @@ Enregistrer **une seule vidéo continue** de préférence. Parler en **français
 
 **À dire :**
 
-> « This screencast demonstrates the **YouTube-only integration** in Soundy (getsoundy.com).  
-> Soundy is a social music app; **this review covers only**: connecting a YouTube account, listing playlists, searching videos, and playback via the **official YouTube IFrame Player**. Other features (live streaming, map, chat) are out of scope. »
+> « This screencast demonstrates the **YouTube-only integration** in OnScen (getsoundy.com).  
+> OnScen is a social music app; **this review covers only**: connecting a YouTube account, listing playlists, searching videos, and playback via the **official YouTube IFrame Player**. Other features (live streaming, map, chat) are out of scope. »
 
-**À l’écran :** page d’accueil Soundy connectée, onglet Carte ou Accueil — **ne pas** montrer reels/live longuement.
+**À l’écran :** page d’accueil OnScen connectée, onglet Carte ou Accueil — **ne pas** montrer reels/live longuement.
 
 ---
 
-### Étape A — Connexion Soundy (0:20 – 0:35)
+### Étape A — Connexion OnScen (0:20 – 0:35)
 
 1. Ouvrir https://getsoundy.com  
 2. Se connecter avec le **compte test**  
 3. (Si demandé) accepter CGU / âge minimum  
 
-**À montrer :** login e-mail ou Google Sign-In **pour Soundy** (distinct du lien YouTube plus tard).
+**À montrer :** login e-mail ou Google Sign-In **pour OnScen** (distinct du lien YouTube plus tard).
 
 ---
 
@@ -75,10 +75,10 @@ Enregistrer **une seule vidéo continue** de préférence. Parler en **français
 2. Section **Plateformes** / **Connecter YouTube**  
 3. Cliquer **Connecter YouTube**  
 4. **Pause sur l’écran Google OAuth** — montrer clairement :
-   - Nom de l’app : Soundy  
+   - Nom de l’app : OnScen  
    - Scope : **Voir votre compte YouTube** / `youtube.readonly`  
    - Pas d’accès en écriture  
-5. Autoriser → retour sur Soundy → badge YouTube connecté (nom de chaîne visible)
+5. Autoriser → retour sur OnScen → badge YouTube connecté (nom de chaîne visible)
 
 **À dire :**
 
@@ -142,11 +142,11 @@ Enregistrer **une seule vidéo continue** de préférence. Parler en **français
 ### Étape G — Déconnexion & révocation (3:15 – 3:35)
 
 1. Retour **Profil** → **Déconnecter YouTube**  
-2. Confirmer que le lien est retiré dans Soundy  
+2. Confirmer que le lien est retiré dans OnScen  
 
 **À dire :**
 
-> « Users can revoke access in Soundy or from their Google account settings. »
+> « Users can revoke access in OnScen or from their Google account settings. »
 
 ---
 
@@ -177,7 +177,7 @@ Enregistrer **une seule vidéo continue** de préférence. Parler en **français
 ### Champ « Application purpose » / « How do you use the API? »
 
 ```
-Soundy (https://getsoundy.com) is a social music platform. This submission covers the YouTube module ONLY.
+OnScen (https://getsoundy.com) is a social music platform. This submission covers the YouTube module ONLY.
 
 Use case:
 - Hosts connect YouTube via OAuth (scope: youtube.readonly) to list their playlists.
@@ -215,7 +215,7 @@ Demo video: [LIEN LOOM / DRIVE / YOUTUBE UNLISTED]
 ### Version française (justification interne / support)
 
 ```
-Soundy demande la vérification pour le module Salon YouTube uniquement.
+OnScen demande la vérification pour le module Salon YouTube uniquement.
 Scope : youtube.readonly — lister les playlists de l'hôte.
 Lecture via IFrame Player API officielle. Pas de téléchargement ni lecteur personnalisé.
 Cache API 1 h. Révocation possible dans l'app.
@@ -239,7 +239,7 @@ Vidéo de démo : [lien]
 1. Héberger la vidéo : **Loom** (lien public), **Google Drive** (accès « anyone with link »), ou **YouTube non répertorié**  
 2. Coller le lien dans le formulaire + e-mail test  
 3. Vérifier les quotas : [Console → YouTube Data API v3 → Quotas](https://console.cloud.google.com/apis/api/youtube.googleapis.com/quotas)  
-4. Conserver une copie locale du MP4 (nom : `soundy-youtube-audit-demo-YYYY-MM-DD.mp4`)
+4. Conserver une copie locale du MP4 (nom : `onscen-youtube-audit-demo-YYYY-MM-DD.mp4`)
 
 ---
 

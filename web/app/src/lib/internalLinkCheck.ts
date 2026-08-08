@@ -18,7 +18,7 @@ function unavailableMessage(target: InternalLinkTarget, t: TranslateFn): string 
   }
 }
 
-/** Vérifie qu'une cible Soundy (salon, profil, post) existe encore avant navigation in-app. */
+/** Vérifie qu'une cible OnScen (salon, profil, post) existe encore avant navigation in-app. */
 export async function verifyInternalLink(
   token: string,
   target: InternalLinkTarget,

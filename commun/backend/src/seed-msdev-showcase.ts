@@ -404,7 +404,7 @@ export function upgradeListenerShowcaseProfile(): boolean {
 
     'bio',
 
-    'Compte de démonstration Soundy — contenu de test pour valider les parcours produit (carte, reels, lives, salons, événements).'
+    'Compte de démonstration OnScen — contenu de test pour valider les parcours produit (carte, reels, lives, salons, événements).'
 
   );
 
@@ -755,7 +755,7 @@ function ensureShowcaseEuropeanLiveHosts(): { users: number; salons: number; liv
       user = {
         id: seed.userId,
         username: seed.username,
-        email: `${seed.userId}@bot.melosong.local`,
+        email: `${seed.userId}@bot.onscen.local`,
         passwordHash: 'bot',
         avatarUrl: dicebearAdventurerAvatar(seed.userId),
         meloCoins: 0,
@@ -1277,7 +1277,7 @@ function ensureListenerEvents(): number {
 
       id: `${MSDEV_SHOWCASE_EVENT_PREFIX}01`,
 
-      content: 'Showcase Soundy — soirée électro Place de la Comédie, entrée libre avant 22h 🎧',
+      content: 'Showcase OnScen — soirée électro Place de la Comédie, entrée libre avant 22h 🎧',
 
       location: 'Place de la Comédie, Montpellier, France',
 

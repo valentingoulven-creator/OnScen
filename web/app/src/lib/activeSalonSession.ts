@@ -11,7 +11,7 @@ export type ActiveSalonSession = {
   isHost?: boolean;
 };
 
-const STORAGE_KEY = 'soundy.activeSalonSession';
+const STORAGE_KEY = 'onscen.activeSalonSession';
 
 export function readPersistedSalonSession(): ActiveSalonSession | null {
   try {

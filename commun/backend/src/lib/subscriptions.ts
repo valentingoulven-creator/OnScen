@@ -69,13 +69,13 @@ export function getPlatformCommissionPercent(): number {
 export function getSubscriptionTiers(): SubscriptionTier[] {
   const tier1Cents = parseAmountCents('SUBSCRIPTION_TIER1_AMOUNT_EUR', 499);
   const tier2Cents = parseAmountCents('SUBSCRIPTION_TIER2_AMOUNT_EUR', 999);
-  const soundyPlusCents = parseAmountCents('SUBSCRIPTION_SOUNDY_PLUS_AMOUNT_EUR', 999);
-  const soundyUltraCents = parseAmountCents('SUBSCRIPTION_SOUNDY_ULTRA_AMOUNT_EUR', 1999);
+  const onscenPlusCents = parseAmountCents('SUBSCRIPTION_ONSCEN_PLUS_AMOUNT_EUR', 999);
+  const onscenUltraCents = parseAmountCents('SUBSCRIPTION_ONSCEN_ULTRA_AMOUNT_EUR', 1999);
 
   const tier1Label = process.env.SUBSCRIPTION_TIER1_LABEL?.trim() || 'Supporter';
   const tier2Label = process.env.SUBSCRIPTION_TIER2_LABEL?.trim() || 'Super fan';
-  const soundyPlusLabel = process.env.SUBSCRIPTION_SOUNDY_PLUS_LABEL?.trim() || 'Soundy+';
-  const soundyUltraLabel = process.env.SUBSCRIPTION_SOUNDY_ULTRA_LABEL?.trim() || 'SoundyUltra';
+  const onscenPlusLabel = process.env.SUBSCRIPTION_ONSCEN_PLUS_LABEL?.trim() || 'OnScen+';
+  const onscenUltraLabel = process.env.SUBSCRIPTION_ONSCEN_ULTRA_LABEL?.trim() || 'OnScenUltra';
 
   const tiers: SubscriptionTier[] = [
     {
@@ -93,17 +93,17 @@ export function getSubscriptionTiers(): SubscriptionTier[] {
       targetType: 'creator',
     },
     {
-      id: 'soundy_plus',
-      label: soundyPlusLabel,
-      amountCents: soundyPlusCents,
-      stripePriceId: process.env.STRIPE_PRICE_ID_SOUNDY_PLUS?.trim() || null,
+      id: 'onscen_plus',
+      label: onscenPlusLabel,
+      amountCents: onscenPlusCents,
+      stripePriceId: process.env.STRIPE_PRICE_ID_ONSCEN_PLUS?.trim() || null,
       targetType: 'platform',
     },
     {
-      id: 'soundy_ultra',
-      label: soundyUltraLabel,
-      amountCents: soundyUltraCents,
-      stripePriceId: process.env.STRIPE_PRICE_ID_SOUNDY_ULTRA?.trim() || null,
+      id: 'onscen_ultra',
+      label: onscenUltraLabel,
+      amountCents: onscenUltraCents,
+      stripePriceId: process.env.STRIPE_PRICE_ID_ONSCEN_ULTRA?.trim() || null,
       targetType: 'platform',
     },
   ];
@@ -191,7 +191,7 @@ export function assertDailySimulationSubBudget(userId: string): void {
 
 const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 
-/** Active ou renouvelle un abonnement créateur / Soundy+ (simulation ou Stripe confirmé). */
+/** Active ou renouvelle un abonnement créateur / OnScen+ (simulation ou Stripe confirmé). */
 export function recordCreatorSubscription(params: {
   subscriberId: string;
   creatorId: string;

@@ -318,7 +318,10 @@ function LiveKitPeerTile({ identity, label }: { identity: string; label: string 
   );
   if (!track) return null;
   return (
-    <div className="absolute bottom-3 right-3 z-20 w-20 sm:w-28 aspect-[9/16] rounded-lg overflow-hidden border-2 border-white/25 shadow-xl bg-black">
+    <div
+      className="absolute right-3 z-20 w-20 sm:w-28 aspect-[9/16] rounded-lg overflow-hidden border-2 border-white/25 shadow-xl bg-black"
+      style={{ bottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+    >
       <VideoTrack trackRef={track} autoPlay playsInline className="w-full h-full object-cover" />
       <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/60 text-[8px] font-bold text-white uppercase tracking-wide">
         {label}
