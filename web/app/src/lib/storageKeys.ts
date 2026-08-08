@@ -1,16 +1,16 @@
-/** Canonical localStorage keys (Soundy rebrand). Legacy `soundly_*` keys are migrated on read. */
+/** Canonical localStorage keys (OnScen rebrand). Legacy `soundly_*` keys are migrated on read. */
 export const STORAGE_KEYS = {
-  mapStyle: 'soundy_map_style',
-  theaterChatDockMode: 'soundy_theater_chat_dock_mode',
-  floatingChatBg: 'soundy_floating_chat_bg',
-  floatingChatPos: 'soundy_floating_chat_pos',
-  floatingChatSize: 'soundy_floating_chat_size',
-  chatOverlayTransparent: 'soundy_chat_overlay_transparent',
-  salonChatHidden: 'soundy_salon_chat_hidden',
-  salonChatMinimized: 'soundy_salon_chat_minimized',
-  platformPromptDismissed: 'soundy_platform_prompt_dismissed',
-  liveChatVideoOverlay: 'soundy_live_chat_video_overlay',
-  liveChatPinned: 'soundy_live_chat_pinned',
+  mapStyle: 'onscen_map_style',
+  theaterChatDockMode: 'onscen_theater_chat_dock_mode',
+  floatingChatBg: 'onscen_floating_chat_bg',
+  floatingChatPos: 'onscen_floating_chat_pos',
+  floatingChatSize: 'onscen_floating_chat_size',
+  chatOverlayTransparent: 'onscen_chat_overlay_transparent',
+  salonChatHidden: 'onscen_salon_chat_hidden',
+  salonChatMinimized: 'onscen_salon_chat_minimized',
+  platformPromptDismissed: 'onscen_platform_prompt_dismissed',
+  liveChatVideoOverlay: 'onscen_live_chat_video_overlay',
+  liveChatPinned: 'onscen_live_chat_pinned',
 } as const;
 
 const LEGACY_KEY_MAP: Record<string, string> = {

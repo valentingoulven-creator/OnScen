@@ -29,7 +29,7 @@ describe('JWT scope', () => {
   it('rejects 2fa_pending scope on verifyAuthToken', () => {
     const user = makeUser();
     db.users.set(user.id, user);
-    const secret = process.env.JWT_SECRET || 'melosong_secret_dev_fallback';
+    const secret = process.env.JWT_SECRET || 'onscen_secret_dev_fallback';
     const pending = jwt.sign(
       { id: user.id, username: user.username, scope: '2fa_pending' },
       secret,

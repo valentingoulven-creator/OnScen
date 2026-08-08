@@ -121,7 +121,7 @@ async function sendToToken(device: NativePushTokenRecord, n: AppNotification): P
       body: JSON.stringify({
         message: {
           token: device.token,
-          notification: { title: 'Soundy', body: n.message },
+          notification: { title: 'OnScen', body: n.message },
           data: {
             url: resolveNotificationUrl(n),
             type: n.type,

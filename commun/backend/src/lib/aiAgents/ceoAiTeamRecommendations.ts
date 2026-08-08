@@ -18,7 +18,7 @@ export interface AiTeamRecommendation {
   whyNow: string[];
   /** Limites du CEO IA seul sur ce domaine */
   whyCeoAloneIsInsufficient: string[];
-  /** Bénéfices concrets pour Soundy / fondateur */
+  /** Bénéfices concrets pour OnScen / fondateur */
   whatYouGain: string[];
   /** Coût de ne PAS recruter (opportunité, risque, temps) */
   costOfWaiting: string[];
@@ -100,7 +100,7 @@ function buildSalesRec(founder: CeoFounderContext | null, live: LiveSignals): Ai
   const whyNow: string[] = [
     `[FACT] Sponsors actifs en prod : ${live.activeSponsorCampaigns} (objectif fondateur : ${target}).`,
     `[FACT] 4 emplacements sponsors natifs déjà en prod — le produit est prêt à monétiser, pas le pipeline commercial.`,
-    `[FACT] Modèle économique Soundy : sponsors = 45–55 % revenu cible M24 (commun/docs/Soundy-Pitch-Deck.md).`,
+    `[FACT] Modèle économique OnScen : sponsors = 45–55 % revenu cible M24 (commun/docs/OnScen-Pitch-Deck.md).`,
   ];
   if (pipeline === 0) {
     whyNow.push('[FACT] Pipeline sponsor déclaré à 0 € — aucune négo formalisée.');
@@ -294,7 +294,7 @@ function buildLegalRec(founder: CeoFounderContext | null, live: LiveSignals): Ai
       'Le fondateur reporte le RDV avocat faute de dossier structuré.',
     ],
     expectedDeliverables: [
-      'Checklist conformité Soundy (LCEN, RGPD, cookies, mineurs).',
+      'Checklist conformité OnScen (LCEN, RGPD, cookies, mineurs).',
       'Gap analysis vs TODO-MANUAL C1/C3/C6/C7.',
       'Draft paragraphes mentions légales (validation avocat requise).',
       'Ordre du jour RDV avocat + questions prioritaires.',
@@ -321,7 +321,7 @@ function buildLegalRec(founder: CeoFounderContext | null, live: LiveSignals): Ai
     exampleQuestions: [
       'Quelles mentions LCEN manquent exactement ?',
       'Quel ordre du jour pour mon RDV avocat ?',
-      'IAP vs Stripe web : quelles règles Apple pour Soundy ?',
+      'IAP vs Stripe web : quelles règles Apple pour OnScen ?',
     ],
   };
 }
@@ -384,12 +384,12 @@ function buildCmoRec(founder: CeoFounderContext | null, live: LiveSignals): AiTe
     estimatedApiCostEurMonth: '3–12 €',
     firstWeekActions: [
       'Définir ICP créateur Paris (genre, taille audience, lieu).',
-      'Rédiger 3 scripts reels « pourquoi Soundy vs Instagram ».',
+      'Rédiger 3 scripts reels « pourquoi OnScen vs Instagram ».',
       'Choisir 1 quartier test pour densité carte.',
     ],
     exampleQuestions: [
       'Quel hook reel pour montrer un salon sync ?',
-      'Comment lancer Soundy à Paris avec 0 budget ads ?',
+      'Comment lancer OnScen à Paris avec 0 budget ads ?',
       'Quel message pour un DJ 5k followers ?',
     ],
   };
@@ -428,7 +428,7 @@ function buildCfoRec(founder: CeoFounderContext | null, live: LiveSignals): AiTe
       '[FACT] Pitch deck contient scénarios M12/M24 — à recaler avec données live.',
     ],
     whyCeoAloneIsInsufficient: [
-      'Le CEO intègre les finances au brief ; le CFO IA modélise des scénarios interactifs (sensibilité sponsors, lives, tips, Soundy+).',
+      'Le CEO intègre les finances au brief ; le CFO IA modélise des scénarios interactifs (sensibilité sponsors, lives, tips, OnScen+).',
       'Unit economics lives (Cloudflare minutes + LiveKit) demandent des calculs récurrents que le CEO résume trop.',
     ],
     whatYouGain: [
@@ -438,7 +438,7 @@ function buildCfoRec(founder: CeoFounderContext | null, live: LiveSignals): AiTe
       'Support dossier levée si fundraising [HYP].',
     ],
     costOfWaiting: [
-      'Décisions pricing sponsor ou Soundy+ sans modèle → sous-pricing ou sur-promesse.',
+      'Décisions pricing sponsor ou OnScen+ sans modèle → sous-pricing ou sur-promesse.',
       'Surprise coûts variables lives si trafic décolle sans suivi.',
     ],
     expectedDeliverables: [
@@ -460,7 +460,7 @@ function buildCfoRec(founder: CeoFounderContext | null, live: LiveSignals): AiTe
     firstWeekActions: [
       'Recaler burn réel (infra + IA + tools).',
       'Scénario « 2 sponsors + 10 pilotes » vs « 0 sponsor ».',
-      'Identifier levier #1 marge (sponsor vs tips vs Soundy+).',
+      'Identifier levier #1 marge (sponsor vs tips vs OnScen+).',
     ],
     exampleQuestions: [
       'Quel MRR à M12 avec 2 sponsors et 30 pilotes ?',

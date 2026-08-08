@@ -99,7 +99,7 @@ describe('Salon / Live — compat Safari mobile (CSS + structure)', () => {
 
     expect(roomTheater).toMatch(/useLiveChatDockWidth/);
 
-    expect(roomTheater).toMatch(/soundy-live-chat-dock-width/);
+    expect(roomTheater).toMatch(/onscen-live-chat-dock-width/);
 
   });
 

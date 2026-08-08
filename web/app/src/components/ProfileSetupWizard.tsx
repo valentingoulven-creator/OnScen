@@ -123,7 +123,7 @@ export function ProfileSetupWizard({
   token,
   username,
   title = 'Bienvenue',
-  subtitle = 'Personnalisez votre expérience Soundy',
+  subtitle = 'Personnalisez votre expérience OnScen',
   onProfileUpdate,
   onDone,
 }: ProfileSetupWizardProps) {
@@ -308,7 +308,7 @@ export function ProfileSetupWizard({
             </div>
           ) : null}
           <h1 className={`font-extrabold text-white ${step === 'profile' ? 'text-xl' : 'text-2xl'}`}>
-            {step === 'profile' ? 'Qui êtes-vous sur Soundy ?' : welcomeTitle}
+            {step === 'profile' ? 'Qui êtes-vous sur OnScen ?' : welcomeTitle}
           </h1>
           {step !== 'profile' && subtitle ? (
             <p className="text-gray-400 text-sm mt-1">{subtitle}</p>
@@ -485,7 +485,7 @@ export function ProfileSetupWizard({
               <div>
                 <h2 className="text-base font-bold text-white">Partage ta position</h2>
                 <p className="text-xs text-gray-400 mt-1.5 leading-relaxed">
-                  Soundy utilise ta position pour afficher les salons, lives et personnes musicales près de toi. Ta position exacte n&apos;est jamais partagée publiquement.
+                  OnScen utilise ta position pour afficher les salons, lives et personnes musicales près de toi. Ta position exacte n&apos;est jamais partagée publiquement.
                 </p>
               </div>
             </div>

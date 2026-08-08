@@ -16,7 +16,7 @@ interface CreatorSubscribeSheetProps {
   onClose: () => void;
   token: string;
   userAge?: number;
-  /** Créateur ciblé ; absent pour Soundy+ */
+  /** Créateur ciblé ; absent pour OnScen+ */
   creatorId?: string;
   creatorName?: string;
   targetType?: SubscriptionTargetType;
@@ -50,7 +50,7 @@ export function CreatorSubscribeSheet({
 
   const title =
     targetType === 'platform'
-      ? 'Soundy+'
+      ? 'OnScen+'
       : `Soutenir ${creatorName ?? 'ce créateur'}`;
 
   const tiers =
@@ -177,7 +177,7 @@ export function CreatorSubscribeSheet({
           <>
             <p className="text-xs text-gray-400 mb-4">
               {targetType === 'platform'
-                ? 'Soutenez Soundy avec un abonnement mensuel récurrent (EUR).'
+                ? 'Soutenez OnScen avec un abonnement mensuel récurrent (EUR).'
                 : `Abonnement mensuel récurrent pour soutenir ${creatorName ?? 'ce créateur'} (EUR).`}
               {config.platformCommissionPercent > 0 && targetType === 'creator' && (
                 <span className="block mt-1 text-gray-500">

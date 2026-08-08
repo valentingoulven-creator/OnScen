@@ -60,10 +60,10 @@ describe('nearbyPanelSettings favorites', () => {
 
   it('respecte les prefs existantes en localStorage', () => {
     localStorage.setItem(
-      'melosong_nearby_panel_prefs',
+      'onscen_nearby_panel_prefs',
       JSON.stringify({ sortBy: 'audience', musicalAffinitiesOnly: true })
     );
-    localStorage.setItem('melosong_nearby_radius_km', '45');
+    localStorage.setItem('onscen_nearby_radius_km', '45');
     const prefs = getNearbyPanelPreferences();
     expect(prefs.sortBy).toBe('audience');
     expect(prefs.musicalAffinitiesOnly).toBe(true);

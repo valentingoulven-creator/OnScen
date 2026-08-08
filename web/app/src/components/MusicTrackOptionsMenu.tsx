@@ -357,7 +357,7 @@ export function MusicTrackOptionsMenu({
             onClose();
           }}
           url={shareUrl}
-          title={`${track.title} — Soundy`}
+          title={`${track.title} — OnScen`}
           text={`${track.title} · ${track.artist}`}
           onToast={showToast}
           overlayZClass="z-[115]"

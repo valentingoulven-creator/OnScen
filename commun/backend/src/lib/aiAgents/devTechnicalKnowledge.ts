@@ -1,4 +1,4 @@
-/** Connaissance technique & innovation Soundy — injectée dans le contexte Dev Agent. */
+/** Connaissance technique & innovation OnScen — injectée dans le contexte Dev Agent. */
 export function getDevTechnicalKnowledge() {
   return {
     architecture: {
@@ -56,8 +56,8 @@ export function getDevTechnicalKnowledge() {
         why: 'Réduit friction upload, compétition TikTok',
       },
       {
-        id: 'soundy-pro-venues',
-        title: 'Soundy Pro Lieu — QR entrée + playlist du lieu + sponsor local',
+        id: 'onscen-pro-venues',
+        title: 'OnScen Pro Lieu — QR entrée + playlist du lieu + sponsor local',
         impact: 'high',
         effort: 'high',
         why: 'B2B aligné GTM CEO IA, monétisation lieux',
@@ -92,7 +92,7 @@ export function getDevTechnicalKnowledge() {
       },
     ],
     competitorTechGaps: {
-      soundyAdvantages: [
+      onscenAdvantages: [
         'Salons sync YouTube multi-users — rare sur TikTok/IG',
         'Carte/globe + présence géo + ghost mode',
         'Sponsors natifs 4 slots déjà en prod',

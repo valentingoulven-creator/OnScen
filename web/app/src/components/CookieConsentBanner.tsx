@@ -44,7 +44,7 @@ export function CookieConsentBanner() {
         <p className="text-xs text-gray-400 leading-relaxed">
           {t(
             'cookies.bannerBody',
-            'Soundy utilise des cookies essentiels pour la connexion et, avec votre accord, charge Stripe (paiements) et YouTube (lecteur intégré).'
+            'OnScen utilise des cookies essentiels pour la connexion et, avec votre accord, charge Stripe (paiements) et YouTube (lecteur intégré).'
           )}{' '}
           <button
             type="button"

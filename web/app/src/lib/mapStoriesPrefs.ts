@@ -1,5 +1,5 @@
-const HIDDEN_KEY = 'melosong_map_stories_hidden';
-const COLLAPSED_KEY = 'melosong_map_stories_collapsed';
+const HIDDEN_KEY = 'onscen_map_stories_hidden';
+const COLLAPSED_KEY = 'onscen_map_stories_collapsed';
 
 export function isMapStoriesHidden(): boolean {
   try {

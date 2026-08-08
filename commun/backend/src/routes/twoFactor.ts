@@ -119,7 +119,7 @@ twoFactorRouter.post('/setup', authenticateJWT, async (req: Request, res: Respon
   }
 
   const secret = otplib.generateSecret();
-  const appName = process.env.APP_NAME ?? 'MeloSong';
+  const appName = process.env.APP_NAME ?? 'OnScen';
   const otpauthUrl = otplib.generateURI({
     label: user.email,
     issuer: appName,

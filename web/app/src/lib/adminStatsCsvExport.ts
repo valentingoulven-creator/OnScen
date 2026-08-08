@@ -132,7 +132,7 @@ function triggerCsvDownload(csv: string, locale: string, generatedAt: string, pr
   const lang = locale.slice(0, 2);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `soundy-${prefix}-${lang}-${stamp}.csv`;
+  a.download = `onscen-${prefix}-${lang}-${stamp}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }

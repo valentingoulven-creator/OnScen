@@ -46,7 +46,7 @@ export function ensureMsdevHttpsCredentials(): { key: Buffer; cert: Buffer } | n
     const san = buildSubjectAltName(ips);
     try {
       execSync(
-        `openssl req -x509 -newkey rsa:2048 -keyout "${keyPath}" -out "${certPath}" -days 825 -nodes -subj "/CN=MeloSong msdev local" -addext "subjectAltName=${san}"`,
+        `openssl req -x509 -newkey rsa:2048 -keyout "${keyPath}" -out "${certPath}" -days 825 -nodes -subj "/CN=OnScen msdev local" -addext "subjectAltName=${san}"`,
         { stdio: 'pipe' }
       );
     } catch (err) {

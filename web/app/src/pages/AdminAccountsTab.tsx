@@ -17,12 +17,12 @@ type UserFilter = 'all' | AccountStatus;
 
 const PAGE_SIZE = 30;
 
-type PlatformPlanId = 'free' | 'soundy_plus' | 'soundy_ultra';
+type PlatformPlanId = 'free' | 'onscen_plus' | 'onscen_ultra';
 
 const PLATFORM_PLAN_OPTIONS: { id: PlatformPlanId; labelKey: string }[] = [
   { id: 'free', labelKey: 'admin.accounts.platformPlanFree' },
-  { id: 'soundy_plus', labelKey: 'admin.accounts.platformPlanPlus' },
-  { id: 'soundy_ultra', labelKey: 'admin.accounts.platformPlanUltra' },
+  { id: 'onscen_plus', labelKey: 'admin.accounts.platformPlanPlus' },
+  { id: 'onscen_ultra', labelKey: 'admin.accounts.platformPlanUltra' },
 ];
 
 function formatDate(ts: number | undefined, locale: string): string {
@@ -69,8 +69,8 @@ function statusBadgeClass(status: AccountStatus): string {
 }
 
 function platformPlanBadgeClass(planId: PlatformPlanId | undefined): string {
-  if (planId === 'soundy_ultra') return 'bg-amber-500/20 text-amber-300';
-  if (planId === 'soundy_plus') return 'bg-purple-500/20 text-purple-300';
+  if (planId === 'onscen_ultra') return 'bg-amber-500/20 text-amber-300';
+  if (planId === 'onscen_plus') return 'bg-purple-500/20 text-purple-300';
   return 'bg-gray-500/20 text-gray-300';
 }
 
@@ -223,7 +223,7 @@ function exportUsersCsv(users: AccessManagedUser[], t: (key: string) => string):
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `soundy-users-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `onscen-users-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }

@@ -66,13 +66,13 @@ export type { ProfileTastes };
 export { countMusicalAffinityMatches, hasMusicalAffinity, viewerHasTasteProfile };
 
 /** Préférences filtres/tri du panneau À proximité (hors rayon et lieu — voir settings / livesGeo). */
-export const NEARBY_PANEL_PREFS_STORAGE_KEY = 'melosong_nearby_panel_prefs';
+export const NEARBY_PANEL_PREFS_STORAGE_KEY = 'onscen_nearby_panel_prefs';
 const STORAGE_KEY = NEARBY_PANEL_PREFS_STORAGE_KEY;
 
-export const NEARBY_PANEL_CHANGED_EVENT = 'melosong-nearby-panel-changed';
+export const NEARBY_PANEL_CHANGED_EVENT = 'onscen-nearby-panel-changed';
 
 /** Visibilité panneau liste carte (sidebar / bottom). Défaut : masqué. */
-export const MAP_SIDEBAR_LIST_STORAGE_KEY = 'melosong_show_nearby_people';
+export const MAP_SIDEBAR_LIST_STORAGE_KEY = 'onscen_show_nearby_people';
 
 export function getMapSidebarListVisible(): boolean {
   try {

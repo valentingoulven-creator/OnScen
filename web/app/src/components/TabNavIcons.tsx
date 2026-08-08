@@ -1,12 +1,12 @@
 export type TabId = 'actualite' | 'map' | 'live' | 'dm' | 'music' | 'reels';
 
 /** ID partagé pour le dégradé wave des icônes dock (defs dans MainTabNav). */
-export const SOUNDY_TAB_WAVE_GRADIENT_ID = 'soundy-tab-wave';
+export const ONSCEN_TAB_WAVE_GRADIENT_ID = 'onscen-tab-wave';
 
 interface TabIconProps {
   tab: TabId;
   className?: string;
-  /** Dégradé Soundy purple → pink (onglet actif). */
+  /** Dégradé OnScen purple → pink (onglet actif). */
   wave?: boolean;
 }
 
@@ -21,11 +21,11 @@ const svgBase = {
 };
 
 function waveStroke(wave?: boolean): string {
-  return wave ? `url(#${SOUNDY_TAB_WAVE_GRADIENT_ID})` : 'currentColor';
+  return wave ? `url(#${ONSCEN_TAB_WAVE_GRADIENT_ID})` : 'currentColor';
 }
 
 function waveFill(wave?: boolean): string {
-  return wave ? `url(#${SOUNDY_TAB_WAVE_GRADIENT_ID})` : 'currentColor';
+  return wave ? `url(#${ONSCEN_TAB_WAVE_GRADIENT_ID})` : 'currentColor';
 }
 
 /** Icône « LIVE » (vinyle + ondes) — hub carte. */

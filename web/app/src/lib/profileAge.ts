@@ -87,7 +87,7 @@ export function birthDateErrorMessage(
     case 'birthDateFuture':
       return 'La date de naissance ne peut pas être dans le futur.';
     case 'underMinAge':
-      return 'Vous devez avoir au moins 13 ans pour utiliser Soundy. La création du compte n’est pas autorisée.';
+      return 'Vous devez avoir au moins 13 ans pour utiliser OnScen. La création du compte n’est pas autorisée.';
     case 'overMaxAge':
       return "L'âge doit être entre 13 et 120 ans.";
   }

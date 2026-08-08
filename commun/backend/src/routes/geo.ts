@@ -326,7 +326,7 @@ interface GeocodeSuggestion {
 
 const GOUV_COMMUNES_API = 'https://geo.api.gouv.fr/communes';
 const NOMINATIM_API = 'https://nominatim.openstreetmap.org/search';
-const NOMINATIM_UA = 'Soundy/1.0 (https://getsoundy.com; admin@getsoundy.com)';
+const NOMINATIM_UA = 'OnScen/1.0 (https://getsoundy.com; admin@getsoundy.com)';
 const DEFAULT_GEOCODE_LIMIT = 5;
 const MAX_GEOCODE_LIMIT = 10;
 

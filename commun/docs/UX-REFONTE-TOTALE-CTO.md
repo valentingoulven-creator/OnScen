@@ -1,4 +1,4 @@
-# Refonte UX totale — Soundy (proposition CTO)
+# Refonte UX totale — OnScen (proposition CTO)
 
 **Date :** 2026-07-15  
 **Statut :** Analyse / recommandation — pas d’implémentation  
@@ -10,7 +10,7 @@
 
 ## Verdict
 
-Soundy a le bon récit produit (`découverte → écoute → live → IRL`) mais une **IA d’accrétion**.  
+OnScen a le bon récit produit (`découverte → écoute → live → IRL`) mais une **IA d’accrétion**.  
 **Recommandation : Core Journey** — 4 modes + hub Créer + SessionBar globale, sans tuer la carte ni les salons.
 
 ---
@@ -106,7 +106,7 @@ Couche Session (globale)
 1. Valider **Core Journey** (vs A / C)  
 2. **Music** : section Accueil vs onglet dédié  
 3. **Landing** : Accueil partout ?  
-4. Autoriser spec détaillée `commun/docs/UX-CORE-JOURNEY.md` puis sprint via `@soundy-dev-agent`
+4. Autoriser spec détaillée `commun/docs/UX-CORE-JOURNEY.md` puis sprint via `@onscen-dev-agent`
 
 ---
 
@@ -119,4 +119,4 @@ Couche Session (globale)
 
 ---
 
-*Handoff implémentation : `@soundy-dev-agent` — phase par phase, pas de big-bang.*
+*Handoff implémentation : `@onscen-dev-agent` — phase par phase, pas de big-bang.*

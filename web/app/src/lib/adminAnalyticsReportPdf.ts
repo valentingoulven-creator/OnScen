@@ -1,7 +1,7 @@
 /**
  * Génération du PDF « Rapport Analytics — Aperçu avancé » (dataset mocké,
  * cf. src/data/mockAnalyticsDashboard.ts). Réutilise les primitives de
- * adminPdfCommon.ts (couverture, KPI, tableaux, thème sombre Soundy) et
+ * adminPdfCommon.ts (couverture, KPI, tableaux, thème sombre OnScen) et
  * ajoute des graphiques vectoriels (ligne, barres empilées, donut, classement)
  * — pas de screenshot du dashboard : chaque page est composée programmatiquement,
  * avec en-tête/pied de page cohérents et protection anti-coupure des nombres
@@ -103,7 +103,7 @@ export async function downloadAdminAnalyticsInsightsPdf(input: AnalyticsInsights
     generatedAtLabel: 'Généré le',
     generatedAt: now.toLocaleString('fr-FR'),
     scopeLine: 'Admin Dev — dataset de démonstration (à connecter à une vraie API).',
-    confidential: 'Document interne Soundy — usage démonstration, non contractuel.',
+    confidential: 'Document interne OnScen — usage démonstration, non contractuel.',
   });
 
   // ── Résumé exécutif ────────────────────────────────────────────
@@ -327,7 +327,7 @@ export async function downloadAdminAnalyticsInsightsPdf(input: AnalyticsInsights
   pdfAddFooters(
     doc,
     margin,
-    'Soundy · Rapport analytics — dataset de démonstration',
+    'OnScen · Rapport analytics — dataset de démonstration',
     `Généré le ${now.toLocaleDateString('fr-FR')}`
   );
 

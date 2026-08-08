@@ -40,7 +40,7 @@ interface NominatimResult {
 
 const NOMINATIM_SEARCH = 'https://nominatim.openstreetmap.org/search';
 const NOMINATIM_REVERSE = 'https://nominatim.openstreetmap.org/reverse';
-const USER_AGENT = 'MeloSong/1.0 (map location; https://github.com/melosong)';
+const USER_AGENT = 'OnScen/1.0 (map location; https://github.com/onscen)';
 const MIN_QUERY_LEN = 5;
 const MIN_SUGGEST_QUERY_LEN = 3;
 const MAX_ADDRESS_SUGGESTIONS = 8;

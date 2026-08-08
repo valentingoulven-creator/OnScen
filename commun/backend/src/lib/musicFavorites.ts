@@ -19,7 +19,7 @@ export function ensureFavoritesAlbum(userId: string): UserAlbum {
     id,
     userId,
     title: FAVORITES_ALBUM_TITLE,
-    description: 'Morceaux enregistrés depuis le lecteur Soundy.',
+    description: 'Morceaux enregistrés depuis le lecteur OnScen.',
     createdAt: now,
     updatedAt: now,
   };

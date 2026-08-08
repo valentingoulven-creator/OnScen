@@ -6,7 +6,7 @@ import { MARKER_SURFACE_RADIUS } from '../../lib/globe3d/constants';
 import { lonLatToVector3 } from '../../lib/globe3d/geoMath';
 import { isGlobePointFacingCamera } from '../../lib/globe3d/markerVisibility3d';
 
-export interface SoundyGlobePoint {
+export interface OnScenGlobePoint {
   lat: number;
   lng: number;
   type: string;
@@ -24,11 +24,11 @@ export interface SoundyGlobePoint {
   count?: number;
 }
 
-interface SoundyGlobeMarkersProps {
-  points: SoundyGlobePoint[];
+interface OnScenGlobeMarkersProps {
+  points: OnScenGlobePoint[];
   resolution: number;
   overviewDots: boolean;
-  onPointClick: (point: SoundyGlobePoint) => void;
+  onPointClick: (point: OnScenGlobePoint) => void;
 }
 
 function markerWorldSize(radius: number, overviewDots: boolean): number {
@@ -42,9 +42,9 @@ function FacingSphereInstance({
   size,
   onPointClick,
 }: {
-  point: SoundyGlobePoint;
+  point: OnScenGlobePoint;
   size: number;
-  onPointClick: (point: SoundyGlobePoint) => void;
+  onPointClick: (point: OnScenGlobePoint) => void;
 }) {
   const groupRef = useRef<Group>(null);
   const markerPosRef = useRef(lonLatToVector3(point.lng, point.lat, MARKER_SURFACE_RADIUS));
@@ -78,12 +78,12 @@ function FacingSphereInstance({
  * Sphères — marqueurs sans overlay DOM (event/live/salon/user via composants dédiés).
  * Masque l'hémisphère arrière (comme GlobeFacingHtml).
  */
-export function SoundyGlobeMarkers({
+export function OnScenGlobeMarkers({
   points,
   resolution,
   overviewDots,
   onPointClick,
-}: SoundyGlobeMarkersProps) {
+}: OnScenGlobeMarkersProps) {
   const spherePoints = useMemo(
     () => points.filter((p) => !ICON_MARKER_TYPES.has(p.type)),
     [points]

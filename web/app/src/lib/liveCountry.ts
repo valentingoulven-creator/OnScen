@@ -2,7 +2,7 @@ import type { Live, Salon } from '../types';
 
 export const FRANCE_COUNTRY_CODE = 'FR';
 export const LIVES_COUNTRY_FILTER_ALL = 'all';
-export const LIVES_COUNTRY_FILTER_STORAGE_KEY = 'melosong_lives_country_filter';
+export const LIVES_COUNTRY_FILTER_STORAGE_KEY = 'onscen_lives_country_filter';
 
 interface CountryRegion {
   code: string;

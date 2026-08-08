@@ -371,7 +371,7 @@ function generateHTML(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Soundy — Rapport Tests Agents ${options.isPartial ? '(Partiel)' : ''}</title>
+  <title>OnScen — Rapport Tests Agents ${options.isPartial ? '(Partiel)' : ''}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f0f1a; color: #e2e8f0; line-height: 1.6; }
@@ -430,7 +430,7 @@ function generateHTML(
 <div class="container">
   <div class="header">
     <div>
-      <h1>🎵 Soundy — Rapport Tests Agents</h1>
+      <h1>🎵 OnScen — Rapport Tests Agents</h1>
       <div class="meta">
         ${partialBadge}
         &nbsp;Généré le ${generatedAt}
@@ -524,7 +524,7 @@ function generateHTML(
   </div>
 
   <div class="footer">
-    Soundy Agent Testing Infrastructure — Généré automatiquement
+    OnScen Agent Testing Infrastructure — Généré automatiquement
   </div>
 </div>
 </body>

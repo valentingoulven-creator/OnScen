@@ -4,7 +4,7 @@ import type { RemoteVideoHit } from './youtubeRemote';
 import { parseYoutubeApiResponse, YoutubeDataApiError } from './youtubeApiErrors';
 import { canAttemptYoutubeSearchListCall, recordYoutubeSearchListCall } from './youtubeQuotaBudget';
 
-/** TTL 1 h — conforme YouTube API Services (stockage max 24 h) et texte légal Soundy. */
+/** TTL 1 h — conforme YouTube API Services (stockage max 24 h) et texte légal OnScen. */
 export const YOUTUBE_DATA_API_CACHE_TTL_MS = 60 * 60 * 1000;
 
 const ytDataCache = new Map<string, { data: unknown; expiresAt: number }>();

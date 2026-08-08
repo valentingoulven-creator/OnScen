@@ -39,8 +39,8 @@ export function resolveShareOgMeta(pathname: string, baseUrl: string): ShareOgMe
     if (!salon || salon.adminBlocked) return null;
     const platform = platformLabel(salon.platform);
     return {
-      title: `${salon.title} — Salon ${platform} · Soundy`,
-      description: `Rejoignez le salon musical de ${salon.hostName} sur Soundy. Écoute synchronisée, file d'attente et chat en direct.`,
+      title: `${salon.title} — Salon ${platform} · OnScen`,
+      description: `Rejoignez le salon musical de ${salon.hostName} sur OnScen. Écoute synchronisée, file d'attente et chat en direct.`,
       imageUrl: salon.hostAvatarUrl?.startsWith('http')
         ? salon.hostAvatarUrl
         : resolveUserAvatar(salon.hostId, base),
@@ -55,11 +55,11 @@ export function resolveShareOgMeta(pathname: string, baseUrl: string): ShareOgMe
     if (!user) return null;
     const bio = user.bio?.trim();
     return {
-      title: `${user.username} — Profil Soundy`,
+      title: `${user.username} — Profil OnScen`,
       description:
         bio && bio.length <= 160
           ? bio
-          : `Découvrez le profil musical de ${user.username} sur Soundy : salons, lives, reels et actu.`,
+          : `Découvrez le profil musical de ${user.username} sur OnScen : salons, lives, reels et actu.`,
       imageUrl: resolveUserAvatar(userId, base),
       canonicalUrl: `${base}/profile/${encodeURIComponent(userId)}`,
     };
@@ -85,7 +85,7 @@ export function buildOgHtmlTags(meta: ShareOgMeta): string {
     `<title>${title}</title>`,
     `<meta name="description" content="${description}" />`,
     `<meta property="og:type" content="website" />`,
-    `<meta property="og:site_name" content="Soundy" />`,
+    `<meta property="og:site_name" content="OnScen" />`,
     `<meta property="og:title" content="${title}" />`,
     `<meta property="og:description" content="${description}" />`,
     `<meta property="og:image" content="${image}" />`,

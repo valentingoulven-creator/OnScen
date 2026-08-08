@@ -1,4 +1,4 @@
-# Documentation Soundy (`commun/docs`)
+# Documentation OnScen (`commun/docs`)
 
 Index des dossiers. Les chemins sont relatifs à ce répertoire.
 
@@ -8,16 +8,16 @@ Index des dossiers. Les chemins sont relatifs à ce répertoire.
 |----------|--------|
 | [ONBOARDING-DEVELOPPEUR.md](./ONBOARDING-DEVELOPPEUR.md) | Nouveau dev |
 | [ENVIRONNEMENTS.md](./ENVIRONNEMENTS.md) · [DEV-WORKFLOW.md](./DEV-WORKFLOW.md) | Dev / deploy |
-| [INFRA-SOUNDY.md](./INFRA-SOUNDY.md) · [STACK-CIBLE.md](./STACK-CIBLE.md) | Infra & scaling |
+| [INFRA-ONSCEN.md](./INFRA-ONSCEN.md) · [STACK-CIBLE.md](./STACK-CIBLE.md) | Infra & scaling |
 | [CURSOR-CLOUD-AGENTS.md](./CURSOR-CLOUD-AGENTS.md) | Cloud Agents |
 
 ## Agents & prompts
 
 | Dossier / fichier | Rôle |
 |-------------------|------|
-| [SOUNDY-DEV-AGENT.md](./SOUNDY-DEV-AGENT.md) | Agent Dev |
-| [SOUNDY-CTO-PROMPT.md](./SOUNDY-CTO-PROMPT.md) | Agent CTO |
-| [SOUNDY-CEO-IA-PROMPT.md](./SOUNDY-CEO-IA-PROMPT.md) | Agent CEO IA |
+| [ONSCEN-DEV-AGENT.md](./ONSCEN-DEV-AGENT.md) | Agent Dev |
+| [ONSCEN-CTO-PROMPT.md](./ONSCEN-CTO-PROMPT.md) | Agent CTO |
+| [ONSCEN-CEO-IA-PROMPT.md](./ONSCEN-CEO-IA-PROMPT.md) | Agent CEO IA |
 | [dev-agent/INDEX.md](./dev-agent/INDEX.md) | Rapports de sessions Dev |
 
 ## Juridique & avocat
@@ -68,4 +68,4 @@ CLOUDFLARE-*.md · GITHUB-ACTIONS-PREPROD.md · OBJECT-STORAGE-UPLOADS.md · GOO
 
 ---
 
-*Soundy · getsoundy.com*
+*OnScen · getsoundy.com*

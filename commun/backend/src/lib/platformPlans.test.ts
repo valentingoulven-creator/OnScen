@@ -37,12 +37,12 @@ describe('platformPlans', () => {
     expect(plan.limits.allowObs).toBe(false);
   });
 
-  it('soundy_plus autorise les rediffusions archivées', () => {
+  it('onscen_plus autorise les rediffusions archivées', () => {
     recordCreatorSubscription({
       subscriberId: 'host1',
       creatorId: 'platform',
-      tierId: 'soundy_plus',
-      tierLabel: 'Soundy+',
+      tierId: 'onscen_plus',
+      tierLabel: 'OnScen+',
       amountCents: 999,
       targetType: 'platform',
       paymentMode: 'simulation',
@@ -54,27 +54,27 @@ describe('platformPlans', () => {
     expect(canAccessArchivedLives('host1')).toBe(false);
   });
 
-  it('soundy_plus via abonnement plateforme', () => {
+  it('onscen_plus via abonnement plateforme', () => {
     recordCreatorSubscription({
       subscriberId: 'host1',
       creatorId: 'platform',
-      tierId: 'soundy_plus',
-      tierLabel: 'Soundy+',
+      tierId: 'onscen_plus',
+      tierLabel: 'OnScen+',
       amountCents: 999,
       targetType: 'platform',
       paymentMode: 'simulation',
     });
     const plan = getUserPlatformPlan('host1');
-    expect(plan.id).toBe('soundy_plus');
+    expect(plan.id).toBe('onscen_plus');
     expect(plan.limits.maxViewers).toBe(400);
   });
 
-  it('soundy_ultra autorise OBS', () => {
+  it('onscen_ultra autorise OBS', () => {
     recordCreatorSubscription({
       subscriberId: 'host1',
       creatorId: 'platform',
-      tierId: 'soundy_ultra',
-      tierLabel: 'SoundyUltra',
+      tierId: 'onscen_ultra',
+      tierLabel: 'OnScenUltra',
       amountCents: 1999,
       targetType: 'platform',
       paymentMode: 'simulation',

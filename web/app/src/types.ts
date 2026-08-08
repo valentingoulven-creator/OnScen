@@ -64,7 +64,7 @@ export interface AccessManagedUser {
   privateReelsCount?: number;
   publicReelsCount?: number;
   instagramHandle?: string;
-  platformPlanId?: 'free' | 'soundy_plus' | 'soundy_ultra';
+  platformPlanId?: 'free' | 'onscen_plus' | 'onscen_ultra';
   platformPlanLabel?: string;
   followingCount?: number;
   salonsHosted?: number;
@@ -1037,7 +1037,7 @@ export interface HostRatingSummary {
 export interface User {
   id: string;
   username: string;
-  /** Hex (#rrggbb) ou `wave` (dégradé Soundy). */
+  /** Hex (#rrggbb) ou `wave` (dégradé OnScen). */
   usernameColor?: string;
   /** Couleur de départ du dégradé wave (hex). */
   usernameWaveFrom?: string;
@@ -1051,7 +1051,7 @@ export interface User {
   onboardingCompleted?: boolean;
   isAdmin?: boolean;
   staffRole?: StaffRole;
-  /** Badge Dev visible publiquement (soundy_dev, ACCESS_ADMIN). */
+  /** Badge Dev visible publiquement (onscen_dev, ACCESS_ADMIN). */
   isDev?: boolean;
   avatarUrl?: string;
   profilePhotos?: string[];
@@ -1143,7 +1143,7 @@ export interface User {
   currentTermsVersion?: string;
   /** Compte Stripe Connect (acct_…) pour recevoir les pourboires live. */
   stripeConnectAccountId?: string;
-  /** Horodatage d'acceptation des règles de diffusion live Soundy (UNIX ms). */
+  /** Horodatage d'acceptation des règles de diffusion live OnScen (UNIX ms). */
   liveTermsAcceptedAt?: number;
   /** Double authentification TOTP activée (renvoyé au propriétaire uniquement). */
   twoFactorEnabled?: boolean;

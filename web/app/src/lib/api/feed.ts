@@ -12,7 +12,7 @@ export const feedApi = {
       eventLocationSearch?: string;
       eventCountry?: string;
       eventType?: 'dance' | 'chant' | 'autre';
-      /** When true, the server ranks posts with Algo Soundy instead of chronological order. */
+      /** When true, the server ranks posts with Algo OnScen instead of chronological order. */
       algo?: boolean;
       /** Fil d'accueil : publications et événements des comptes suivis + les vôtres. */
       followingOnly?: boolean;

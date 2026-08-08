@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'melosong_feed_link_shared';
+const STORAGE_KEY = 'onscen_feed_link_shared';
 
 function readIds(): Set<string> {
   try {

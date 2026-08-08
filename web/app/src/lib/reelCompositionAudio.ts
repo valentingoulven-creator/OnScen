@@ -1,6 +1,6 @@
 import type { UserAlbumItem, UserCompositionItem } from '../components/UserCompositionsSection';
 
-/** Piste audio hébergée sur Soundy (/uploads/compositions/…). */
+/** Piste audio hébergée sur OnScen (/uploads/compositions/…). */
 export const COMPOSITION_AUDIO_URL_RE =
   /^\/uploads\/compositions\/[a-zA-Z0-9._-]+\.(mp3|wav|m4a|ogg|webm|flac)$/i;
 

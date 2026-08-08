@@ -8,14 +8,14 @@ export interface PrivacyPreferences {
 }
 
 const KEYS = {
-  nearbyRadiusKm: 'melosong_nearby_radius_km',
-  nearbyDistanceFilter: 'melosong_nearby_distance_filter',
-  language: 'melosong_language',
-  privacy: 'melosong_privacy_prefs',
+  nearbyRadiusKm: 'onscen_nearby_radius_km',
+  nearbyDistanceFilter: 'onscen_nearby_distance_filter',
+  language: 'onscen_language',
+  privacy: 'onscen_privacy_prefs',
 } as const;
 
-export const SETTINGS_CHANGED_EVENT = 'melosong-settings-changed';
-export const APP_LANGUAGE_CHANGED_EVENT = 'melosong-language-changed';
+export const SETTINGS_CHANGED_EVENT = 'onscen-settings-changed';
+export const APP_LANGUAGE_CHANGED_EVENT = 'onscen-language-changed';
 
 /**
  * Accès défensif à `localStorage` : évite un crash quand ce module est importé

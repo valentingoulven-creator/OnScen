@@ -2,13 +2,13 @@ import { PROFILE_TYPE_OPTIONS } from './profileTypes';
 import type { ProfileType } from '../types';
 
 /** Préférences fil d'Accueil (publications) — filtres utilisateur désactivés, ordre chronologique. */
-const STORAGE_KEY = 'melosong_feed_prefs';
+const STORAGE_KEY = 'onscen_feed_prefs';
 /** Préférences panneau Actualités (catégories news + affinités). */
-const NEWS_STORAGE_KEY = 'melosong_news_prefs';
+const NEWS_STORAGE_KEY = 'onscen_news_prefs';
 const VALID_PROFILE_TYPES = new Set<string>(PROFILE_TYPE_OPTIONS.map((o) => o.value));
 
-export const FEED_PREFS_CHANGED_EVENT = 'melosong-feed-prefs-changed';
-export const NEWS_PREFS_CHANGED_EVENT = 'melosong-news-prefs-changed';
+export const FEED_PREFS_CHANGED_EVENT = 'onscen-feed-prefs-changed';
+export const NEWS_PREFS_CHANGED_EVENT = 'onscen-news-prefs-changed';
 
 export type FeedAudienceScope = 'all' | 'favorites_only';
 export type NewsCategory = 'une' | 'musique' | 'promo' | 'tendance';

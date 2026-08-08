@@ -77,8 +77,8 @@ export function renderPublicLegalHtml(docKey: string, lang: AppLocale = 'fr'): s
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${escapeHtml(doc.title)} — Soundy</title>
-  <meta name="description" content="${escapeHtml(doc.title)} — Soundy (getsoundy.com)">
+  <title>${escapeHtml(doc.title)} — OnScen</title>
+  <meta name="description" content="${escapeHtml(doc.title)} — OnScen (getsoundy.com)">
   <style>
     :root { color-scheme: dark; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; line-height: 1.6; max-width: 48rem; margin: 0 auto; padding: 1.5rem; background: #0b0b0f; color: #e5e7eb; }
@@ -95,7 +95,7 @@ export function renderPublicLegalHtml(docKey: string, lang: AppLocale = 'fr'): s
   <p class="lang-switch"><a href="?lang=fr">Français</a> · <a href="?lang=en">English</a></p>
   <header>
     <h1>${escapeHtml(doc.title)}</h1>
-    <p class="meta">Soundy · ${ui.updated} : ${escapeHtml(doc.updated)}</p>
+    <p class="meta">OnScen · ${ui.updated} : ${escapeHtml(doc.updated)}</p>
     ${enNotice}
   </header>
   <main>

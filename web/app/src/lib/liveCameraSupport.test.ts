@@ -28,7 +28,7 @@ describe('isLocalNetworkHost', () => {
   });
 
   it('refuse les hôtes publics', () => {
-    expect(isLocalNetworkHost('melosong.app')).toBe(false);
+    expect(isLocalNetworkHost('onscen.app')).toBe(false);
     expect(isLocalNetworkHost('8.8.8.8')).toBe(false);
   });
 });

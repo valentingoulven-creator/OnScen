@@ -12,7 +12,7 @@ export interface MapSearchSearchIntent {
 }
 
 /** Émis quand l'utilisateur choisit une ville/pays dans la recherche globale. */
-export const MAP_FLY_TO_PLACE_EVENT = 'melosong_map_fly_to_place';
+export const MAP_FLY_TO_PLACE_EVENT = 'onscen_map_fly_to_place';
 
 let pendingMapFly: MapSearchSearchIntent | null = null;
 

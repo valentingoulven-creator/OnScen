@@ -24,7 +24,7 @@ export function ShareSalonLink({
   const [toUserOpen, setToUserOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [toast, setToast] = useState<string | null>(null);
-  const shareText = `Rejoins le salon de ${hostName} sur Soundy`;
+  const shareText = `Rejoins le salon de ${hostName} sur OnScen`;
 
   useEffect(() => {
     let cancelled = false;

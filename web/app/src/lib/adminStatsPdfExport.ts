@@ -162,8 +162,8 @@ export function buildAdminStatsAnalysis(
   if (subs > 0) {
     lines.push(
       fr
-        ? `Monétisation récurrente : ${fmtNum(engagement.activeCreatorSubscriptions, locale)} abo créateur(s) actif(s), ${fmtNum(engagement.activePlatformSubscriptions, locale)} Soundy+ actif(s).`
-        : `Recurring revenue: ${fmtNum(engagement.activeCreatorSubscriptions, locale)} active creator sub(s), ${fmtNum(engagement.activePlatformSubscriptions, locale)} active Soundy+.`
+        ? `Monétisation récurrente : ${fmtNum(engagement.activeCreatorSubscriptions, locale)} abo créateur(s) actif(s), ${fmtNum(engagement.activePlatformSubscriptions, locale)} OnScen+ actif(s).`
+        : `Recurring revenue: ${fmtNum(engagement.activeCreatorSubscriptions, locale)} active creator sub(s), ${fmtNum(engagement.activePlatformSubscriptions, locale)} active OnScen+.`
     );
   }
 

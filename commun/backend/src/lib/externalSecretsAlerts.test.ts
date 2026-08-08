@@ -89,7 +89,7 @@ describe('getProviderIssues', () => {
 
   it('flags test_mode_in_production only when APP_ENV=production (resend.dev sandbox domain)', () => {
     process.env.RESEND_API_KEY = 're_abcdefgh12345678';
-    process.env.RESEND_FROM = 'Soundy <onboarding@resend.dev>';
+    process.env.RESEND_FROM = 'OnScen <onboarding@resend.dev>';
 
     delete process.env.APP_ENV;
     expect(getProviderIssues(getProviderDef('resend_email')!).some((i) => i.type === 'test_mode_in_production')).toBe(
@@ -104,7 +104,7 @@ describe('getProviderIssues', () => {
   it('does not flag test_mode_in_production for a verified custom domain', () => {
     process.env.APP_ENV = 'production';
     process.env.RESEND_API_KEY = 're_abcdefgh12345678';
-    process.env.RESEND_FROM = 'Soundy <noreply@getsoundy.com>';
+    process.env.RESEND_FROM = 'OnScen <noreply@getsoundy.com>';
 
     const issues = getProviderIssues(getProviderDef('resend_email')!);
     expect(issues.some((i) => i.type === 'test_mode_in_production')).toBe(false);

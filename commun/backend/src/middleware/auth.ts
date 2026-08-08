@@ -43,7 +43,7 @@ export const AUTH_TOKEN_HEADER = 'x-auth-token';
  * requests (forms, XHR, fetch from other origins), eliminating CSRF attacks without needing
  * a separate CSRF token. Reviewed 2026-06-21.
  */
-export const AUTH_COOKIE_NAME = 'soundy_auth';
+export const AUTH_COOKIE_NAME = 'onscen_auth';
 
 // ─── Cookie helpers ──────────────────────────────────────────────────────────
 
@@ -218,7 +218,7 @@ export function revokeSessionFromRequest(req: Request): void {
 
 /**
  * Extracts a JWT for socket.io handshake authentication.
- * Priority: auth.token → X-Auth-Token header → soundy_auth cookie.
+ * Priority: auth.token → X-Auth-Token header → onscen_auth cookie.
  * Cookie parsing is manual because socket.io handshake has raw HTTP headers (no cookie-parser).
  */
 export function extractSocketAuthToken(handshake: {

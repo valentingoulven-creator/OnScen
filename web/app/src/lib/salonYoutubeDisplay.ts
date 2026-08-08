@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'melosong_salon_show_youtube_video';
+const STORAGE_KEY = 'onscen_salon_show_youtube_video';
 
 export function getSalonShowYoutubeVideo(): boolean {
   if (typeof localStorage === 'undefined') return true;

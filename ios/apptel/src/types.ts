@@ -76,7 +76,7 @@ export interface HostRatingSummary {
 export interface User {
   id: string;
   username: string;
-  /** Hex (#rrggbb) ou `wave` (dégradé Soundy). */
+  /** Hex (#rrggbb) ou `wave` (dégradé OnScen). */
   usernameColor?: string;
   /** Couleur de départ du dégradé wave (hex). */
   usernameWaveFrom?: string;
@@ -359,6 +359,23 @@ export interface LivePublicGoal {
   label: string;
 }
 
+/** Annonce épinglée par l'hôte en tête du chat (distinct des animations de dons). */
+export interface LivePinnedAnnouncement {
+  text: string;
+  postedAt: number;
+}
+
+/** Sondage / Q&A live publié par l'hôte (vue publique agrégée). */
+export interface LivePoll {
+  id: string;
+  question: string;
+  options: { id: string; label: string; count: number }[];
+  totalVotes: number;
+  closedAt?: number;
+  /** Option choisie par le viewer courant (calculée côté serveur au chargement). */
+  myVote?: string;
+}
+
 export interface Live {
   id: string;
   salonId?: string;
@@ -369,6 +386,10 @@ export interface Live {
   hostUsernameWaveFrom?: string;
   hostUsernameWaveTo?: string;
   title: string;
+  /** Annonce épinglée par l'hôte (config non disponible sur mobile — lecture seule). */
+  pinnedAnnouncement?: LivePinnedAnnouncement;
+  /** Sondage/Q&A actif publié par l'hôte (création non disponible sur mobile — vote possible). */
+  activePoll?: LivePoll;
   platform: 'youtube';
   playbackState: PlaybackState;
   latitude: number;

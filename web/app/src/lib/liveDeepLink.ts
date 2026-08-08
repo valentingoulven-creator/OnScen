@@ -1,6 +1,6 @@
 /** Deep link `/live/:liveId` — ouverture directe d'un live spectateur. */
 
-const PENDING_KEY = 'melosong_pending_live_join';
+const PENDING_KEY = 'onscen_pending_live_join';
 
 export function getLivePath(liveId: string): string {
   return `/live/${encodeURIComponent(liveId)}`;

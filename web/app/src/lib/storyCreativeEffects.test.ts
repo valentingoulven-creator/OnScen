@@ -13,7 +13,7 @@ describe('storyCreativeEffects', () => {
 
   it('waveformSeedFromText', () => {
     expect(waveformSeedFromText('Track', 'Artist')).toBe('track|artist');
-    expect(waveformSeedFromText()).toBe('soundy');
+    expect(waveformSeedFromText()).toBe('onscen');
   });
 
   it('has genre presets', () => {

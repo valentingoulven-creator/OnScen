@@ -4,9 +4,9 @@ import { useTranslation } from 'react-i18next';
 export const LIVE_THEATER_CHROME_BTN_CLASS =
   'live-theater-chrome-btn flex items-center justify-center gap-1 min-h-10 min-w-10 px-2 py-1 rounded-full border border-white/12 bg-[#14141c]/90 text-white text-[11px] font-semibold backdrop-blur-md hover:bg-[#1c1c28]/95 hover:border-white/20 active:scale-95 transition touch-manipulation';
 
-/** Bouton don spectateur — dégradé wave Soundy (purple → pink). */
+/** Bouton don spectateur — dégradé wave OnScen (purple → pink). */
 export const LIVE_THEATER_DONATE_BTN_CLASS =
-  'live-theater-chrome-btn--soundy-wave text-white border-purple-400/45 shadow-lg shadow-purple-900/45 hover:border-pink-300/55 hover:shadow-pink-900/35 ring-1 ring-inset ring-white/20 min-h-11 min-w-11 backdrop-blur-sm';
+  'live-theater-chrome-btn--onscen-wave text-white border-purple-400/45 shadow-lg shadow-purple-900/45 hover:border-pink-300/55 hover:shadow-pink-900/35 ring-1 ring-inset ring-white/20 min-h-11 min-w-11 backdrop-blur-sm';
 
 const CHROME_BTN = LIVE_THEATER_CHROME_BTN_CLASS;
 

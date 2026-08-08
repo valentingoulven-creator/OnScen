@@ -1,5 +1,5 @@
-const VOLUME_KEY = 'soundy_music_player_volume';
-const MUTED_KEY = 'soundy_music_player_muted';
+const VOLUME_KEY = 'onscen_music_player_volume';
+const MUTED_KEY = 'onscen_music_player_muted';
 
 export function getMusicPlayerVolume(): number {
   try {

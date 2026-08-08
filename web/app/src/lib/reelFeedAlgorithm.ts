@@ -27,7 +27,7 @@ export const DEFAULT_CUSTOM_WEIGHTS: ReelFeedAlgorithmWeights = {
   recency: 20,
 };
 
-const STORAGE_KEY = 'melosong_reels_feed_algo';
+const STORAGE_KEY = 'onscen_reels_feed_algo';
 
 function clampWeight(n: number): number {
   if (!Number.isFinite(n)) return 0;
@@ -76,7 +76,7 @@ export function setFeedAlgorithmPreferences(prefs: ReelFeedAlgorithmPreferences)
 
 /** Déclenche un rafraîchissement du flux Reels (voir ReelsTabPage). */
 export function notifyFeedAlgorithmChanged(): void {
-  window.dispatchEvent(new Event('melosong-settings-changed'));
+  window.dispatchEvent(new Event('onscen-settings-changed'));
 }
 
 export function serializeFeedAlgoForApi(prefs: ReelFeedAlgorithmPreferences): string {

@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import type { AiAgentDefinition, AiChatMessage, AiAgentsStatus, AiTeamRecommendation } from '../types';
 
-const STORAGE_PREFIX = 'soundy-admin-agent-chat:';
+const STORAGE_PREFIX = 'onscen-admin-agent-chat:';
 
 function loadStoredMessages(agentId: string): AiChatMessage[] {
   try {

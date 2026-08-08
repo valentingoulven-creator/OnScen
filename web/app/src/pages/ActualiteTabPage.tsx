@@ -1610,7 +1610,7 @@ export function ActualiteTabPage({
         if (!cancelled) setUserPos([latitude, longitude]);
         fetch(
           `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
-          { headers: { 'Accept-Language': 'fr', 'User-Agent': 'MeloSong/1.0' } }
+          { headers: { 'Accept-Language': 'fr', 'User-Agent': 'OnScen/1.0' } }
         )
           .then((res) => res.json())
           .then((data: { address?: { country_code?: string; country?: string } }) => {

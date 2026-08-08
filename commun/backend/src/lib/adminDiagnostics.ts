@@ -81,7 +81,7 @@ function resolveBackupDir(): string {
   const explicit = process.env.BACKUP_DIR?.trim();
   if (explicit) return explicit;
   const candidates = [
-    '/opt/soundy/backups',
+    '/opt/onscen/backups',
     path.join(process.cwd(), 'backups'),
     path.join(process.cwd(), '..', 'backups'),
   ];
@@ -94,7 +94,7 @@ function resolveBackupDir(): string {
 function resolveOffsiteDir(): string | null {
   const explicit = process.env.BACKUP_OFFSITE_DIR?.trim();
   if (explicit) return explicit;
-  const candidate = '/opt/soundy/backups-offsite';
+  const candidate = '/opt/onscen/backups-offsite';
   return fs.existsSync(candidate) ? candidate : null;
 }
 
@@ -142,7 +142,7 @@ function scanBackups(): AdminBackupsReport {
   );
 
   const scanAvailable = fs.existsSync(backupDir);
-  const dbBackups = listBackupFiles(backupDir, /^soundy-.*\.sql\.gz$/i);
+  const dbBackups = listBackupFiles(backupDir, /^onscen-.*\.sql\.gz$/i);
   const uploadBackups = listBackupFiles(path.join(backupDir, 'uploads'), /^uploads-.*\.(tar\.gz|tgz)$/i);
 
   let offsiteLatest: BackupFileInfo | null = null;
@@ -155,7 +155,7 @@ function scanBackups(): AdminBackupsReport {
   if (!scanAvailable) {
     warnings.push(`Répertoire backup introuvable (${backupDir}) — scan local indisponible depuis ce process.`);
   } else if (dbBackups.length === 0) {
-    warnings.push('Aucune sauvegarde soundy-*.sql.gz trouvée.');
+    warnings.push('Aucune sauvegarde onscen-*.sql.gz trouvée.');
   } else if (dbBackups[0].ageHours > MAX_BACKUP_AGE_HOURS) {
     warnings.push(
       `Dernière sauvegarde DB datée de ${dbBackups[0].ageHours} h (> ${MAX_BACKUP_AGE_HOURS} h).`

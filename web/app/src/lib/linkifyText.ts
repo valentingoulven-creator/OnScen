@@ -19,7 +19,7 @@ function splitTrailingPunctuation(value: string): { core: string; trailing: stri
   return { core: m[1], trailing: m[2] };
 }
 
-function isSoundyHost(hostname: string): boolean {
+function isOnScenHost(hostname: string): boolean {
   const h = hostname.toLowerCase();
   if (typeof window !== 'undefined' && h === window.location.hostname.toLowerCase()) return true;
   return h === 'getsoundy.com' || h.endsWith('.getsoundy.com') || h === 'localhost' || h === '127.0.0.1';
@@ -35,7 +35,7 @@ function parseHashRoute(hash: string): InternalLinkTarget | null {
   return { kind: 'salon', salonId: id };
 }
 
-/** Resolve Soundy in-app targets from a URL fragment, path, or full http(s) link. */
+/** Resolve OnScen in-app targets from a URL fragment, path, or full http(s) link. */
 export function resolveInternalLink(raw: string): InternalLinkTarget | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
@@ -53,14 +53,14 @@ export function resolveInternalLink(raw: string): InternalLinkTarget | null {
     if (!url) return null;
 
     const fromHash = url.hash ? parseHashRoute(url.hash) : null;
-    if (fromHash && isSoundyHost(url.hostname)) return fromHash;
+    if (fromHash && isOnScenHost(url.hostname)) return fromHash;
 
     const fakeLoc = { pathname: url.pathname, search: url.search, hash: url.hash } as Location;
     const profileId = parseProfileIdFromLocation(fakeLoc);
-    if (profileId && isSoundyHost(url.hostname)) return { kind: 'profile', userId: profileId };
+    if (profileId && isOnScenHost(url.hostname)) return { kind: 'profile', userId: profileId };
 
     const salonId = parseSalonIdFromLocation(fakeLoc);
-    if (salonId && isSoundyHost(url.hostname)) return { kind: 'salon', salonId };
+    if (salonId && isOnScenHost(url.hostname)) return { kind: 'salon', salonId };
 
     return null;
   } catch {

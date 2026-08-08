@@ -8,7 +8,7 @@ export const conformiteRgpd: LegalDocument = {
   sections: [
     {
       heading: '1. Engagement',
-      body: `Soundy s'engage à traiter les données personnelles conformément au Règlement (UE) 2016/679 (RGPD) et à la loi française « Informatique et Libertés ».\n\nCe document complète la Politique de confidentialité en détaillant les traitements principaux, les mesures de conformité et les actions attendues avant une mise en production publique.`,
+      body: `OnScen s'engage à traiter les données personnelles conformément au Règlement (UE) 2016/679 (RGPD) et à la loi française « Informatique et Libertés ».\n\nCe document complète la Politique de confidentialité en détaillant les traitements principaux, les mesures de conformité et les actions attendues avant une mise en production publique.`,
     },
     {
       heading: '2. Registre des activités de traitement (synthèse)',
@@ -44,7 +44,7 @@ export const conformiteRgpd: LegalDocument = {
     },
     {
       heading: '9a. Loi sur les services numériques (DSA) — art. 16',
-      body: `Le DSA (Règlement (UE) 2022/2065) impose aux plateformes hébergeant des contenus générés par des utilisateurs de mettre en place un mécanisme de signalement accessible.\n\nMécanisme en place :\n• Signalements disponibles depuis les contenus (messages, reels, profils) via l'interface de l'application.\n• Section « Signaler un contenu illicite (DSA) » accessible dans Paramètres > Légal & RGPD.\n• Les signalements sont traités par l'équipe de modération via l'espace administrateur (AdminReportsTab).\n\nObligations supplémentaires pour les Very Large Online Platforms (VLOP) — à surveiller si Soundy dépasse 45 millions d'utilisateurs actifs mensuels dans l'UE.`,
+      body: `Le DSA (Règlement (UE) 2022/2065) impose aux plateformes hébergeant des contenus générés par des utilisateurs de mettre en place un mécanisme de signalement accessible.\n\nMécanisme en place :\n• Signalements disponibles depuis les contenus (messages, reels, profils) via l'interface de l'application.\n• Section « Signaler un contenu illicite (DSA) » accessible dans Paramètres > Légal & RGPD.\n• Les signalements sont traités par l'équipe de modération via l'espace administrateur (AdminReportsTab).\n\nObligations supplémentaires pour les Very Large Online Platforms (VLOP) — à surveiller si OnScen dépasse 45 millions d'utilisateurs actifs mensuels dans l'UE.`,
     },
     {
       heading: '10. Contact',

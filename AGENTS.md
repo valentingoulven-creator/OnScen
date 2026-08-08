@@ -1,4 +1,4 @@
-# Soundy — Instructions agents
+# OnScen — Instructions agents
 
 ## Nouveau développeur
 
@@ -21,23 +21,23 @@
 
 ## Agent Dev (implémentation)
 
-- Règle : `@soundy-dev-agent` (`.cursor/rules/soundy-dev-agent.mdc`)
-- Guide : [`commun/docs/SOUNDY-DEV-AGENT.md`](./commun/docs/SOUNDY-DEV-AGENT.md)
+- Règle : `@onscen-dev-agent` (`.cursor/rules/onscen-dev-agent.mdc`)
+- Guide : [`commun/docs/ONSCEN-DEV-AGENT.md`](./commun/docs/ONSCEN-DEV-AGENT.md)
 - Rapports : [`commun/docs/dev-agent/INDEX.md`](./commun/docs/dev-agent/INDEX.md) — un rapport par session significative
 
 Usage : bugs, features, refactors, tests. **Rapport obligatoire** en fin de session (fichier + résumé chat).
 
 ## Agent CTO (architecture & audits)
 
-- Règle : `@soundy-cto` (`.cursor/rules/soundy-cto.mdc`)
-- Prompt complet : [`commun/docs/SOUNDY-CTO-PROMPT.md`](./commun/docs/SOUNDY-CTO-PROMPT.md)
+- Règle : `@onscen-cto` (`.cursor/rules/onscen-cto.mdc`)
+- Prompt complet : [`commun/docs/ONSCEN-CTO-PROMPT.md`](./commun/docs/ONSCEN-CTO-PROMPT.md)
 
-Usage : audits, choix d'architecture, revue sécurité/légal/UX/infra, arbitrage technique **avant** implémentation. Analyse et recommande — n'implémente pas (→ `@soundy-dev-agent`).
+Usage : audits, choix d'architecture, revue sécurité/légal/UX/infra, arbitrage technique **avant** implémentation. Analyse et recommande — n'implémente pas (→ `@onscen-dev-agent`).
 
-## Projet Soundy CEO IA
+## Projet OnScen CEO IA
 
-Workspace dédié : [`Soundy-CEO-IA.code-workspace`](./Soundy-CEO-IA.code-workspace)  
-Règle agent : `@soundy-ceo-ia` (`.cursor/rules/soundy-ceo-ia.mdc`)  
-Prompt complet : [`commun/docs/SOUNDY-CEO-IA-PROMPT.md`](./commun/docs/SOUNDY-CEO-IA-PROMPT.md)
+Workspace dédié : [`OnScen-CEO-IA.code-workspace`](./OnScen-CEO-IA.code-workspace)  
+Règle agent : `@onscen-ceo-ia` (`.cursor/rules/onscen-ceo-ia.mdc`)  
+Prompt complet : [`commun/docs/ONSCEN-CEO-IA-PROMPT.md`](./commun/docs/ONSCEN-CEO-IA-PROMPT.md)
 
 Pour un brief stratégique, croissance ou modèle financier, activer le mode CEO IA — le repo entier est le contexte produit.

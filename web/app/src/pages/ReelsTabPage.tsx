@@ -70,7 +70,7 @@ import { ConfirmModal } from '../components/ConfirmModal';
 
 const SWIPE_THRESHOLD_PX = 22;
 const SWIPE_VELOCITY_PX_MS = 0.32;
-const REELS_UNMUTED_KEY = 'melosong_reels_unmuted';
+const REELS_UNMUTED_KEY = 'onscen_reels_unmuted';
 /** Zone centrale (tap) : pause / lecture — 30 %–70 % de la largeur et hauteur. */
 const CENTER_TAP_MIN = 0.3;
 const CENTER_TAP_MAX = 0.7;
@@ -1752,7 +1752,7 @@ const ReelAuthorStack = memo(function ReelAuthorStack({
 }) {
   const { t } = useTranslation();
   const authorId = reel.authorId?.trim();
-  const displayName = reel.authorUsername?.trim() || reel.artist.trim() || 'Soundy';
+  const displayName = reel.authorUsername?.trim() || reel.artist.trim() || 'OnScen';
   const avatarUserId = authorId || reel.id;
   const canOpenProfile = !!authorId && !!onOpenAuthor;
 
@@ -2295,7 +2295,7 @@ function ReelsAlgoSheet({
           <section className="rounded-xl bg-gradient-to-br from-pink-600/20 to-[#1a1a28] border border-pink-500/40 px-4 py-3.5">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-base font-semibold text-white">Algo Soundy</p>
+                <p className="text-base font-semibold text-white">Algo OnScen</p>
                 <p className="text-xs text-gray-300 mt-0.5">Personnalise ton feed selon tes goûts</p>
               </div>
               <button

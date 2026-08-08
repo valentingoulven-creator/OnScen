@@ -1,6 +1,6 @@
 let permissionAsked = false;
 
-export const NOTIFICATIONS_MUTED_LS_KEY = 'soundy_notifications_muted';
+export const NOTIFICATIONS_MUTED_LS_KEY = 'onscen_notifications_muted';
 
 function isNotificationsMuted(): boolean {
   try {
@@ -24,7 +24,7 @@ export function showDmSystemNotification(senderName: string, preview: string): v
   if (document.visibilityState === 'visible') return;
   try {
     const body = preview.length > 120 ? `${preview.slice(0, 117)}…` : preview;
-    new Notification(`Message de ${senderName}`, { body, tag: 'melosong-dm' });
+    new Notification(`Message de ${senderName}`, { body, tag: 'onscen-dm' });
   } catch {
     /* ignore */
   }
@@ -37,7 +37,7 @@ export function showMatchSystemNotification(partnerName: string): void {
   try {
     new Notification('Nouveau match musical !', {
       body: `Match avec ${partnerName} 💞`,
-      tag: 'melosong-match',
+      tag: 'onscen-match',
     });
   } catch {
     /* ignore */

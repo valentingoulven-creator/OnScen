@@ -2,7 +2,7 @@
 
 import type { Live, Salon } from '../types';
 
-export const FOLLOWING_CHANGED_EVENT = 'soundy:following-changed';
+export const FOLLOWING_CHANGED_EVENT = 'onscen:following-changed';
 
 export type FollowingChangedDetail = {
   userId: string;

@@ -1,5 +1,5 @@
-const STORAGE_KEY = 'soundy.salon.youtubeVolume';
-const MUTED_STORAGE_KEY = 'soundy.salon.youtubeMuted';
+const STORAGE_KEY = 'onscen.salon.youtubeVolume';
+const MUTED_STORAGE_KEY = 'onscen.salon.youtubeMuted';
 
 export function getSalonYoutubeVolume(): number {
   try {

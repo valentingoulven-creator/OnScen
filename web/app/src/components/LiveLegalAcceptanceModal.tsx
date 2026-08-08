@@ -9,7 +9,7 @@ interface LiveLegalAcceptanceModalProps {
 }
 
 /**
- * Gate 2 — Acceptation des règles de diffusion Soundy.
+ * Gate 2 — Acceptation des règles de diffusion OnScen.
  * Affiché uniquement avant le PREMIER live (liveTermsAcceptedAt absent du profil).
  */
 export function LiveLegalAcceptanceModal({ token, onAccepted, onClose }: LiveLegalAcceptanceModalProps) {
@@ -123,7 +123,7 @@ export function LiveLegalAcceptanceModal({ token, onAccepted, onClose }: LiveLeg
               💰
             </span>
             <p className="text-[11px] sm:text-xs text-amber-200/80 leading-snug">
-              <span className="font-bold">Commission Soundy 30 %</span> — vous recevez{' '}
+              <span className="font-bold">Commission OnScen 30 %</span> — vous recevez{' '}
               <span className="font-bold text-amber-300">70 %</span> de chaque pourboire sur votre compte
               Stripe.
             </p>

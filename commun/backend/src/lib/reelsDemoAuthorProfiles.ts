@@ -33,7 +33,7 @@ export function getReelDemoAuthorProfile(artist: string): {
   authorId: string;
   authorUsername: string;
 } {
-  const authorUsername = artist.trim() || 'Soundy';
+  const authorUsername = artist.trim() || 'OnScen';
   const mapped = ARTIST_TO_USER_ID[authorUsername];
   const authorId =
     mapped ?? DEMO_REEL_AUTHOR_USER_IDS[hashArtist(authorUsername) % DEMO_REEL_AUTHOR_USER_IDS.length]!;

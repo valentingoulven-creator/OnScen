@@ -42,7 +42,7 @@ import { StoriesRingsCarousel } from './StoriesRingsCarousel';
 
 function loadSeenStoryIds(userId: string): Set<string> {
   try {
-    const raw = localStorage.getItem(`soundy_seen_stories_${userId}`);
+    const raw = localStorage.getItem(`onscen_seen_stories_${userId}`);
     return new Set(raw ? (JSON.parse(raw) as string[]) : []);
   } catch {
     return new Set();
@@ -51,7 +51,7 @@ function loadSeenStoryIds(userId: string): Set<string> {
 
 function saveSeenStoryIds(userId: string, ids: Set<string>): void {
   try {
-    localStorage.setItem(`soundy_seen_stories_${userId}`, JSON.stringify([...ids]));
+    localStorage.setItem(`onscen_seen_stories_${userId}`, JSON.stringify([...ids]));
   } catch { /* ignore */ }
 }
 

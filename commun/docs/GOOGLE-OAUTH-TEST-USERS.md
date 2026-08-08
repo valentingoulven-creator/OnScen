@@ -31,7 +31,7 @@ or the account is not eligible for designation as a test user
 | **Mauvais projet / session navigateur** | Navigation privée, un seul compte Google connecté, projet GCP `522947046161` sélectionné en haut de la console. |
 | **Compte enfant / Family Link** | Non éligible comme test user — utiliser un compte adulte. |
 
-**Cas Val (`valentin.goulven@gmail.com`)** : en prod, le compte Soundy **Val** a déjà une liaison YouTube OAuth active (chaîne `UCv-zjYnw9-_qH5cA8jdhGPQ`, connectée récemment). L’ajout en test user n’est **pas obligatoire** tant que la session est valide. En cas d’échec OAuth à la reconnexion, utiliser **Connexion démo (sans Google)** (`MOCK_PLATFORM_CONNECT_USERNAMES` inclut `val`).
+**Cas Val (`valentin.goulven@gmail.com`)** : en prod, le compte OnScen **Val** a déjà une liaison YouTube OAuth active (chaîne `UCv-zjYnw9-_qH5cA8jdhGPQ`, connectée récemment). L’ajout en test user n’est **pas obligatoire** tant que la session est valide. En cas d’échec OAuth à la reconnexion, utiliser **Connexion démo (sans Google)** (`MOCK_PLATFORM_CONNECT_USERNAMES` inclut `val`).
 
 ## Automatisation
 
@@ -55,7 +55,7 @@ or the account is not eligible for designation as a test user
    ```
    → **Save**.
 
-   Comptes Soundy : **Dye** (`Dye`, id `user_1781987745291_b2b1b`) · **Val** (`Val`, id `user_1781025111633_ipv5l`, Gmail `valentin.goulven@gmail.com`).
+   Comptes OnScen : **Dye** (`Dye`, id `user_1781987745291_b2b1b`) · **Val** (`Val`, id `user_1781025111633_ipv5l`, Gmail `valentin.goulven@gmail.com`).
 
 5. (Recommandé) Vérifier les redirect URIs du client OAuth :
    - [Credentials — projet 522947046161](https://console.cloud.google.com/apis/credentials?project=522947046161)
@@ -66,7 +66,7 @@ or the account is not eligible for designation as a test user
 
 6. Tester sur prod :
    - [getsoundy.com](https://getsoundy.com) → Profil → **Connecter YouTube**
-   - Si Google affiche *« Google hasn't verified this app »* : **Advanced** → **Go to Soundy (unsafe)** (normal en mode Testing).
+   - Si Google affiche *« Google hasn't verified this app »* : **Advanced** → **Go to OnScen (unsafe)** (normal en mode Testing).
 
 ## Si le lien direct échoue
 
@@ -93,7 +93,7 @@ Si l’OAuth Google n’est pas encore autorisé pour un testeur, vous pouvez ac
 MOCK_PLATFORM_CONNECT_USERNAMES=dye,val
 ```
 
-Sur le VPS : ajouter la ligne dans `/opt/soundy/.env`, puis `pm2 reload melosong-backend --update-env`.
+Sur le VPS : ajouter la ligne dans `/opt/onscen/.env`, puis `pm2 reload melosong-backend --update-env`.
 
 Le compte **Val** (`Val`, id `user_1781025111633_ipv5l`) verra alors le bouton « Connexion démo (sans Google) » sous « Connecter YouTube ».
 

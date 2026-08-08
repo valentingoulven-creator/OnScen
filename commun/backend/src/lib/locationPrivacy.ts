@@ -196,7 +196,7 @@ async function fetchCityFromNominatim(normalized: string): Promise<void> {
     const params = new URLSearchParams({ city: normalized, format: 'json', limit: '1' });
     const res = await fetch(
       `https://nominatim.openstreetmap.org/search?${params}`,
-      { headers: { 'User-Agent': 'Soundy/1.0 (https://getsoundy.com; admin@getsoundy.com)' } }
+      { headers: { 'User-Agent': 'OnScen/1.0 (https://getsoundy.com; admin@getsoundy.com)' } }
     );
     if (!res.ok) return;
     const data = (await res.json()) as Array<{ lat?: string; lon?: string }>;

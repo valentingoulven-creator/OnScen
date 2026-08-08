@@ -56,7 +56,7 @@ function matchScore(artist: PopularArtist, q: string): number | null {
 
 /**
 
- * Recherche locale dans la liste d'artistes populaires Soundy.
+ * Recherche locale dans la liste d'artistes populaires OnScen.
 
  * Insensible à la casse et aux accents ; priorité aux noms qui commencent par la requête.
 

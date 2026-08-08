@@ -62,7 +62,7 @@ function toError(err: unknown): Error {
 
 function resetMapCenter(): void {
   try {
-    const key = 'melosong_lives_geo';
+    const key = 'onscen_lives_geo';
     const raw = localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw) as Record<string, unknown>;
@@ -105,7 +105,7 @@ export class AppErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: unknown, info: ErrorInfo): void {
-    console.error('[MeloSong]', error, info.componentStack);
+    console.error('[OnScen]', error, info.componentStack);
 
     if (
       !isSocketAuthError(error) &&
@@ -169,7 +169,7 @@ export class AppErrorBoundary extends Component<Props, State> {
     if (error) {
       return (
         <div className="min-h-dvh flex flex-col items-center justify-center gap-4 p-6 bg-[#0b0b0f] text-gray-300 text-center">
-          <p className="text-lg font-semibold text-red-400">Soundy — erreur de chargement</p>
+          <p className="text-lg font-semibold text-red-400">OnScen — erreur de chargement</p>
           <p className="text-sm text-gray-500 max-w-md">{error.message}</p>
           {showMsdevHint && (
             <p className="text-xs text-gray-500 max-w-md">

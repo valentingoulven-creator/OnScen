@@ -14,7 +14,7 @@ describe('getMonetizationSummary', () => {
       subscriberId: 'u1',
       creatorId: 'platform',
       tierId: 'plus',
-      tierLabel: 'Soundy+',
+      tierLabel: 'OnScen+',
       amountCents: 999,
       targetType: 'platform',
       status: 'active',

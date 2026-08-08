@@ -29,10 +29,10 @@ import { resolveEventCityCoordsSync, resolveEventCoordsSync } from './mapEventCo
 import { clampNearbyRadiusKm, getNearbyRadiusKm, setNearbyRadiusKm } from './settings';
 
 /** Point de référence carte / requêtes nearby (source GPS, ville ou adresse). */
-export const LIVES_GEO_STORAGE_KEY = 'melosong_lives_geo';
+export const LIVES_GEO_STORAGE_KEY = 'onscen_lives_geo';
 const STORAGE_KEY = LIVES_GEO_STORAGE_KEY;
 
-export const MAP_GEO_CHANGED_EVENT = 'melosong-map-geo-changed';
+export const MAP_GEO_CHANGED_EVENT = 'onscen-map-geo-changed';
 
 export const PRESET_CITIES: PresetCity[] = [
   { id: 'paris', label: 'Paris, France', latitude: 48.8566, longitude: 2.3522, postalCode: '75001' },

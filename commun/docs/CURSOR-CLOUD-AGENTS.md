@@ -1,6 +1,6 @@
-# Cursor Cloud Agents — Soundy
+# Cursor Cloud Agents — OnScen
 
-Configuration repo pour lancer des **Cloud Agents** sur Soundy (VM Ubuntu, msdev).
+Configuration repo pour lancer des **Cloud Agents** sur OnScen (VM Ubuntu, msdev).
 
 ## Fichiers
 
@@ -21,7 +21,7 @@ npm run cloud:sync:install-hook
 
 # 2. Dashboard Cursor
 #    https://cursor.com/dashboard/cloud-agents
-#    → Connecter GitHub (repo Melo / Soundy)
+#    → Connecter GitHub (repo Melo / OnScen)
 #    → Secrets : copier les clés depuis .cursor/cloud-secrets.manifest.json
 #      Valeurs depuis commun/msdev/.env LOCAL (Runtime Secret pour API keys)
 
@@ -44,7 +44,7 @@ npm run cloud:sync:install-hook
 - Changements non commités → commit + push avant Cloud Agent
 - SSH VPS / deploy prod → rester en **Client local**
 
-## Cloud vs local Soundy
+## Cloud vs local OnScen
 
 | Tâche | Client | Cloud |
 |-------|--------|-------|
@@ -55,8 +55,8 @@ npm run cloud:sync:install-hook
 
 ## Terminals cloud
 
-1. **soundy-api** — `commun/backend` msdev `:4080`
-2. **soundy-web** — Vite `:5173` (proxy API → 4080)
+1. **onscen-api** — `commun/backend` msdev `:4080`
+2. **onscen-web** — Vite `:5173` (proxy API → 4080)
 
 Ports forwardés : 5173 (web), 4080 (api).
 

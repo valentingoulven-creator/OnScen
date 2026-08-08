@@ -26,7 +26,7 @@ function fetchFromCarto(z: string, x: string, y: string, r: string): Promise<Buf
       url,
       {
         headers: {
-          'User-Agent': 'Mozilla/5.0 MeloSong-TileProxy/2.0',
+          'User-Agent': 'Mozilla/5.0 OnScen-TileProxy/2.0',
           Referer: 'https://getsoundy.com/',
           Accept: 'image/png,image/*;q=0.8',
         },

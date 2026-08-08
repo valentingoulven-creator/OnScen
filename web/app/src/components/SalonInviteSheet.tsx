@@ -36,7 +36,7 @@ export function SalonInviteSheet({
   const [shareToast, setShareToast] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const shareText = `Rejoins le salon de ${hostName} sur Soundy`;
+  const shareText = `Rejoins le salon de ${hostName} sur OnScen`;
 
   useEffect(() => {
     let cancelled = false;
@@ -175,7 +175,7 @@ export function SalonInviteSheet({
             {/* Invite specific users */}
             <section className="space-y-2">
               <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">
-                Inviter un utilisateur Soundy
+                Inviter un utilisateur OnScen
               </p>
               <SalonInviteUserSearch
                 token={token}

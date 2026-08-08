@@ -1,6 +1,6 @@
 /**
  * Stub pour 'stats.js' (dépendance transitive de @react-three/drei via son
- * composant <Stats>, inutilisé par Soundy). Le vrai package est un bundle
+ * composant <Stats>, inutilisé par OnScen). Le vrai package est un bundle
  * UMD sans export ESM 'default' propre, ce qui fait planter soit la
  * résolution ESM native (module exclu du pre-bundle), soit l'optimiseur
  * esbuild de Vite (module inclus) selon la config. Comme drei réexporte

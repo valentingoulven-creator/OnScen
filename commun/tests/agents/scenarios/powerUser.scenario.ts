@@ -138,7 +138,7 @@ export class PowerUserAgent extends BaseAgent {
     const result = await this.post('/api/reels', {
       title: `Reel test ${this.persona.name} #${randomInt(1, 999)}`,
       description: 'Reel généré automatiquement — tests QA',
-      tags: ['test', 'soundy', 'musique'],
+      tags: ['test', 'onscen', 'musique'],
       musicTrack: randomItem(CONFIG.YOUTUBE_TRACK_IDS),
       isPublic: false, // Draft
     }, 'Créer reel (draft)');
@@ -251,7 +251,7 @@ export class PowerUserAgent extends BaseAgent {
   // ── Social ────────────────────────────────────────────────────────────────────
 
   private async searchUsers(): Promise<void> {
-    const queries = ['soundy', 'agent', 'music', 'live', 'jazz'];
+    const queries = ['onscen', 'agent', 'music', 'live', 'jazz'];
     await this.get('/api/users/search', 'Recherche utilisateurs', {
       q: randomItem(queries),
       limit: 20,

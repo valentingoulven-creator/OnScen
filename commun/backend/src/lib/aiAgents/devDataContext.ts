@@ -130,7 +130,7 @@ export async function buildDevDataContext(): Promise<string> {
 
   const payload = {
     generatedAt: new Date().toISOString(),
-    role: 'Dev Agent Soundy — staff engineer + innovateur produit',
+    role: 'Dev Agent OnScen — staff engineer + innovateur produit',
     mission:
       'Proposer, challenger, planifier : sécurité, scale, mobile, UX, features différenciantes — avec plans exécutables.',
     liveMetrics: {
@@ -170,7 +170,7 @@ export async function buildDevDataContext(): Promise<string> {
     recentProductChanges: readRecentModifications(80),
     docsPointers: [
       'commun/docs/STACK-CIBLE.md',
-      'commun/docs/INFRA-SOUNDY.md',
+      'commun/docs/INFRA-ONSCEN.md',
       'commun/docs/ENVIRONNEMENTS.md',
       'commun/msdev/SCALABILITY.md',
       'TODO-MANUAL.md',

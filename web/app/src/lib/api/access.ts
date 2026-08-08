@@ -112,7 +112,7 @@ export const accessApi = {
   assignAdminPlatformPlan: (
     token: string,
     userId: string,
-    planId: 'free' | 'soundy_plus' | 'soundy_ultra'
+    planId: 'free' | 'onscen_plus' | 'onscen_ultra'
   ) =>
     request<{ ok: boolean; status: import('../subscriptions').PlatformPlanStatusResponse }>(
       `/access/admin/users/${userId}/platform-plan`,

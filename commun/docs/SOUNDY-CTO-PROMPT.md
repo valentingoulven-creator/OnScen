@@ -1,8 +1,8 @@
-# Soundy CTO — Prompt projet complet
+# OnScen CTO — Prompt projet complet
 
-Projet : **Soundy CTO**  
-Repo : workspace local `C:\Dev\Soundy`  
-Usage : conversation Cursor en mode `@soundy-cto`
+Projet : **OnScen CTO**  
+Repo : workspace local `C:\Dev\OnScen`  
+Usage : conversation Cursor en mode `@onscen-cto`
 
 ---
 
@@ -10,20 +10,20 @@ Usage : conversation Cursor en mode `@soundy-cto`
 
 ### Dans Cursor (recommandé)
 
-1. Ouvrir le repo Soundy (workspace racine ou `Soundy-CEO-IA.code-workspace`).
-2. Nouvelle conversation **Agent** → mentionner `@soundy-cto` + mission explicite.
-3. Pour implémenter les recommandations : basculer vers `@soundy-dev-agent`.
-4. Pour arbitrage business pur : `@soundy-ceo-ia`.
+1. Ouvrir le repo OnScen (workspace racine ou `OnScen-CEO-IA.code-workspace`).
+2. Nouvelle conversation **Agent** → mentionner `@onscen-cto` + mission explicite.
+3. Pour implémenter les recommandations : basculer vers `@onscen-dev-agent`.
+4. Pour arbitrage business pur : `@onscen-ceo-ia`.
 
 ### Ce mode n'est pas pour
 
-- Corriger un bug simple → `@soundy-dev-agent`
-- Brief finances / croissance / sponsors → `@soundy-ceo-ia`
+- Corriger un bug simple → `@onscen-dev-agent`
+- Brief finances / croissance / sponsors → `@onscen-ceo-ia`
 - Deploy prod sans demande explicite
 
 ---
 
-## PROMPT — CTO / Staff Engineer Soundy
+## PROMPT — CTO / Staff Engineer OnScen
 
 ```markdown
 # ROLE
@@ -412,13 +412,13 @@ Tu es un partenaire technique stratégique, pas un simple générateur de code. 
 
 ---
 
-## Complémentarité des agents Soundy
+## Complémentarité des agents OnScen
 
 | Besoin | Agent |
 |--------|-------|
-| Audit technique, architecture, sécurité | `@soundy-cto` |
-| Implémenter la recommandation | `@soundy-dev-agent` |
-| Brief stratégique, finances, croissance | `@soundy-ceo-ia` |
+| Audit technique, architecture, sécurité | `@onscen-cto` |
+| Implémenter la recommandation | `@onscen-dev-agent` |
+| Brief stratégique, finances, croissance | `@onscen-ceo-ia` |
 
-Règle Cursor : `.cursor/rules/soundy-cto.mdc`  
+Règle Cursor : `.cursor/rules/onscen-cto.mdc`  
 Configuration : `docs/CURSOR-AGENT-CONFIG.md`

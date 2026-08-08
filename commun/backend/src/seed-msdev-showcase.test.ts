@@ -214,7 +214,7 @@ describe('seedMsdevShowcase', () => {
 
     for (let i = 0; i < 200; i++) {
 
-      seedUser(`bot_fr_${i}`, `Bot ${i}`, `bot_fr_${i}@bot.melosong.local`);
+      seedUser(`bot_fr_${i}`, `Bot ${i}`, `bot_fr_${i}@bot.onscen.local`);
 
     }
 

@@ -1,15 +1,15 @@
-import type { SoundyGlobePoint } from './SoundyGlobeMarkers';
+import type { OnScenGlobePoint } from './OnScenGlobeMarkers';
 import { GlobeFacingHtml } from './GlobeFacingHtml';
 
-interface SoundyGlobeUserMarkerProps {
-  points: SoundyGlobePoint[];
+interface OnScenGlobeUserMarkerProps {
+  points: OnScenGlobePoint[];
 }
 
 /**
  * Marqueur « Ma position » — pastille indigo + halo pulsé (overlay DOM Html),
  * distinct des pins événement (📍) et des pastilles live (rouge).
  */
-export function SoundyGlobeUserMarker({ points }: SoundyGlobeUserMarkerProps) {
+export function OnScenGlobeUserMarker({ points }: OnScenGlobeUserMarkerProps) {
   const userPoint = points.find((p) => p.type === 'user');
   if (!userPoint) return null;
 

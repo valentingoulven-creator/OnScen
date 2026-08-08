@@ -63,7 +63,7 @@ export class LiveStreamerAgent extends BaseAgent {
   private async startLive(): Promise<boolean> {
     const liveData = {
       title: `Live Test ${this.persona.name} — ${new Date().toLocaleTimeString()}`,
-      description: 'Session live automatisée — tests QA Soundy',
+      description: 'Session live automatisée — tests QA OnScen',
       isPublic: true,
       latitude: CONFIG.DEFAULT_LAT + (Math.random() - 0.5) * 0.02,
       longitude: CONFIG.DEFAULT_LON + (Math.random() - 0.5) * 0.02,

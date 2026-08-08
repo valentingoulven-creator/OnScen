@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'soundy_saved_event_location';
+const STORAGE_KEY = 'onscen_saved_event_location';
 
 export function readSavedEventLocation(): string | null {
   try {

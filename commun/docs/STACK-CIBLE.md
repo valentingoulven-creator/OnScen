@@ -1,7 +1,7 @@
-# Stack cible Soundy — montée en charge rapide
+# Stack cible OnScen — montée en charge rapide
 
 > **Document canonique** · juin 2026  
-> Complète `msdev/SCALABILITY.md` (checklist 500k) et `docs/INFRA-SOUNDY.md` (état actuel).  
+> Complète `msdev/SCALABILITY.md` (checklist 500k) et `docs/INFRA-ONSCEN.md` (état actuel).  
 > **Principe : évolution, pas réécriture.** On garde ce qui ship déjà ; on change la couche qui plafonne.
 
 ---
@@ -185,7 +185,7 @@ flowchart TB
 # Déjà présents — à activer
 DATABASE_URL=postgresql://...
 REDIS_URL=redis://...
-S3_BUCKET=soundy-uploads
+S3_BUCKET=onscen-uploads
 S3_ENDPOINT=https://s3.fr-par.scw.cloud
 S3_REGION=fr-par
 

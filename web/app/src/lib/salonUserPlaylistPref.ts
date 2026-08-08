@@ -6,7 +6,7 @@ export type SalonUserPlaylistPref = {
   title?: string;
 };
 
-const STORAGE_KEY = 'soundy_salon_playlist_pref_v1';
+const STORAGE_KEY = 'onscen_salon_playlist_pref_v1';
 
 function storageKey(userId: string, platform: string): string {
   return `${userId}:${platform}`;

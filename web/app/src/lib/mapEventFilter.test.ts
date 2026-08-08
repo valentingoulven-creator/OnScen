@@ -188,7 +188,7 @@ describe('resolveDefaultEventFilterLocation', () => {
     mockLocalStorage(
       new Map([
         [
-          'melosong_lives_geo',
+          'onscen_lives_geo',
           JSON.stringify({
             latitude: 43.6108,
             longitude: 3.8767,

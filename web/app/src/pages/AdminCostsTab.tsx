@@ -10,7 +10,7 @@ type CostsSubTab = 'summary' | 'pricing';
 
 /** Valeurs indicatives — voir docs/COUT-APPLICATION.md §2 */
 const FIXED_COSTS = [
-  { label: 'VPS Scaleway (DEV1-S)', amount: '~8–12 €', note: '51.159.164.100 — /opt/soundy' },
+  { label: 'VPS Scaleway (DEV1-S)', amount: '~8–12 €', note: '51.159.164.100 — /opt/onscen' },
   { label: 'PostgreSQL Scaleway (DB-DEV-S)', amount: '~15 €', note: 'Base managée Paris, sslmode=require' },
   { label: 'Gmail Pro (Google Workspace)', amount: '16,90 €', note: 'Messagerie équipe @getsoundy.com' },
   { label: 'Domaine getsoundy.com', amount: '~1 €', note: 'Renouvellement annuel ~10–15 €' },

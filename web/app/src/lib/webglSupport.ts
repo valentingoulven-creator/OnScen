@@ -4,10 +4,10 @@ import { STORAGE_KEYS } from './storageKeys';
 export const MAP_STYLE_STORAGE_KEY = STORAGE_KEYS.mapStyle;
 
 /** sessionStorage flag set when globe 3D fails at runtime. */
-export const MAP_GLOBE_DISABLED_KEY = 'soundy_disable_globe';
+export const MAP_GLOBE_DISABLED_KEY = 'onscen_disable_globe';
 
 /** Dispatched when the 3D globe must fall back to the flat map (runtime WebGL failure). */
-export const GLOBE_UNAVAILABLE_EVENT = 'soundy_globe_unavailable';
+export const GLOBE_UNAVAILABLE_EVENT = 'onscen_globe_unavailable';
 
 export interface WebGLSupportResult {
   supported: boolean;

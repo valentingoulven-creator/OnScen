@@ -22,7 +22,7 @@ export type UserObsIngestPayload = {
   playbackUrl: string;
   whipUrl?: string;
   liveInputId: string;
-  /** Clé RTMP liée au compte Soundy (réutilisée à chaque live OBS). */
+  /** Clé RTMP liée au compte OnScen (réutilisée à chaque live OBS). */
   persistent: true;
 };
 
@@ -44,7 +44,7 @@ async function createAndPersistUserObsLiveInput(userId: string): Promise<Cloudfl
   if (!user) throw new Error('Utilisateur introuvable');
 
   const creds = await createCloudflareLiveInput({
-    name: `Soundy OBS — ${user.username} (${user.id})`,
+    name: `OnScen OBS — ${user.username} (${user.id})`,
   });
   user.cloudflareObsLiveInputId = creds.uid;
   db.users.set(userId, user);

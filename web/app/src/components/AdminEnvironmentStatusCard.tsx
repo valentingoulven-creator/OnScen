@@ -5,7 +5,7 @@ import { api } from '../lib/api';
 import type { DeployEnvironmentId, EnvironmentStatusResponse } from '../types';
 
 /**
- * Carte statut lecture seule d'un environnement Soundy (dev / preprod / prod)
+ * Carte statut lecture seule d'un environnement OnScen (dev / preprod / prod)
  * — ping `/health` côté backend (aucune clé SSH/secret côté frontend), voir
  * `commun/backend/src/routes/adminEnvironments.ts`. Aucune action d'écriture
  * ni de déclenchement de déploiement ici par choix de sécurité (cf. audit

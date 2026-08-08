@@ -123,7 +123,7 @@ export class NewUserAgent extends BaseAgent {
   private async updateProfile(): Promise<void> {
     if (this.hasCompletedOnboarding) return;
     await this.put('/api/auth/profile', {
-      bio: `Agent de test #${this.persona.id} — Soundy QA`,
+      bio: `Agent de test #${this.persona.id} — OnScen QA`,
       location: 'Paris, France',
       age: 20 + this.persona.id,
       profileType: 'auditeur',
@@ -201,7 +201,7 @@ export class NewUserAgent extends BaseAgent {
   }
 
   private async browseUsers(): Promise<void> {
-    await this.get('/api/users/search', 'Recherche utilisateurs', { q: 'soundy' });
+    await this.get('/api/users/search', 'Recherche utilisateurs', { q: 'onscen' });
     await this.get('/api/trending', 'Utilisateurs trending');
   }
 

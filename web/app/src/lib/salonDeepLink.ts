@@ -1,7 +1,7 @@
 /** Query param legacy / alternate: `/?join=salonId` */
 export const SALON_JOIN_QUERY = 'join';
 
-const PENDING_KEY = 'melosong_pending_salon_join';
+const PENDING_KEY = 'onscen_pending_salon_join';
 
 /** Same format as POST /salons (backend). Use before creation for shareable invite links. */
 export function generateSalonId(): string {

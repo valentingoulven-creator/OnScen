@@ -21,7 +21,7 @@ export interface ShareLinkMenuProps {
   text?: string;
   onToast: (message: string) => void;
   onShared?: () => void | Promise<void>;
-  /** Ouvre le sélecteur d'utilisateur Soundy (DM). */
+  /** Ouvre le sélecteur d'utilisateur OnScen (DM). */
   onSendToUser?: () => void;
   /** Classe z-index pour l'overlay (ex. z-[120] au-dessus d'un modal). */
   overlayZClass?: string;

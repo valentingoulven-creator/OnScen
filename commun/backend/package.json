@@ -1,8 +1,8 @@
 {
-  "name": "melosong-backend",
+  "name": "onscen-backend",
   "version": "1.0.0",
   "license": "UNLICENSED",
-  "description": "Soundy Real-time Geolocation & Music Sharing Backend",
+  "description": "OnScen Real-time Geolocation & Music Sharing Backend",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc && node -e \"require('fs').cpSync('src/db/migrations','dist/db/migrations',{recursive:true})\"",

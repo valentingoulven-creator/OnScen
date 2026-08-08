@@ -4,7 +4,7 @@
  * Depuis l'évolution du modèle de quota Google, `search.list` a son propre bucket,
  * indépendant du pool général de 10 000 unités : **100 appels par jour et par projet**
  * (voir developers.google.com/youtube/v3/determine_quota_cost). Ce plafond s'applique à
- * l'ensemble de la plateforme Soundy, pas par utilisateur — un simple compteur en mémoire
+ * l'ensemble de la plateforme OnScen, pas par utilisateur — un simple compteur en mémoire
  * suffit donc à protéger la fonctionnalité de recherche pour tous les utilisateurs.
  *
  * Le compteur est réinitialisé sur un changement de « jour » UTC. C'est une approximation

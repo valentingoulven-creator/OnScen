@@ -378,7 +378,7 @@ function createNamedMapBot(
   const user: User = {
     id: userId,
     username: `🤖 ${bot.username}`,
-    email: `${bot.id}@bot.melosong.local`,
+    email: `${bot.id}@bot.onscen.local`,
     passwordHash: 'bot',
     avatarUrl: dicebearAdventurerAvatar(userId),
     meloCoins: 0,
@@ -599,7 +599,7 @@ function createBulkWorldBot(index: number, liveCount: number, bulkCount: number)
   const user: User = {
     id: userId,
     username,
-    email: `bot_fr_${index}@bot.melosong.local`,
+    email: `bot_fr_${index}@bot.onscen.local`,
     passwordHash: 'bot',
     avatarUrl: dicebearAdventurerAvatar(userId),
     meloCoins: 0,
@@ -661,11 +661,11 @@ export function seedWorldMapBots(): void {
   const totalLives = [...db.lives.values()].filter((l) => l.isActive && l.hostId.startsWith('bot_')).length;
   const elapsed = Date.now() - t0;
   console.log(
-    `[melosong] ${totalBots} bot(s) sur la carte monde (${usersCreated} nouveaux, ${salonsCreated} salons, ${livesCreated} lives seedés, ${totalLives} lives actifs, cap live ${LIVE_CAP}, ${elapsed}ms)`
+    `[onscen] ${totalBots} bot(s) sur la carte monde (${usersCreated} nouveaux, ${salonsCreated} salons, ${livesCreated} lives seedés, ${totalLives} lives actifs, cap live ${LIVE_CAP}, ${elapsed}ms)`
   );
   if (elapsed > 5000) {
     console.warn(
-      `[melosong] Seed bots lent (${elapsed}ms) — réduire MSDEV_BOT_COUNT si le boot timeout (ex. 500).`
+      `[onscen] Seed bots lent (${elapsed}ms) — réduire MSDEV_BOT_COUNT si le boot timeout (ex. 500).`
     );
   }
 }
@@ -694,7 +694,7 @@ export function ensureMapBots(centerLat: number, centerLon: number): void {
 
   const count = MAP_BOTS.filter((b) => db.salons.has(`bot_salon_${b.id}`)).length;
   console.log(
-    `[melosong] ${count} bot(s) sur la carte près de ${centerLat.toFixed(4)}, ${centerLon.toFixed(4)}`
+    `[onscen] ${count} bot(s) sur la carte près de ${centerLat.toFixed(4)}, ${centerLon.toFixed(4)}`
   );
 }
 
@@ -724,25 +724,25 @@ const BOT_POST_CONTENT_TEMPLATES: Array<
   () => `Live ce soir 🌙 — musique jusqu'au bout de la nuit 🎷 Rejoignez !`,
   () => `Qui écoute quoi en ce moment ? 👂 Partagez vos découvertes dans les commentaires !`,
   () => `Ambiance parfaite pour une soirée relax 🛋️🎵 — le salon est ouvert`,
-  () => `J'adore quand on tombe sur une pépite musicale par hasard 💎 La magie de Soundy`,
+  () => `J'adore quand on tombe sur une pépite musicale par hasard 💎 La magie de OnScen`,
   () => `Session collective sur le salon — rejoignez-nous, on est déjà 8 ! 🎉`,
   (t) => `"${t?.title ?? 'Ce titre'}" tourne en boucle chez moi depuis hier 🔁 Accro.`,
   () => `La carte est animée ce soir — plein de salons actifs autour de moi ! 🗺️`,
   () => `Qui partage une bonne playlist ? Je cherche des idées pour la semaine 🎧`,
   (t) => `Le clip de "${t?.title ?? 'ce morceau'}" par ${t?.artist ?? 'cet artiste'} — regardez c'est magnifique 📺`,
-  () => `Soirée entre amis, on écoute de la musique ensemble sur Soundy 🎶✨`,
+  () => `Soirée entre amis, on écoute de la musique ensemble sur OnScen 🎶✨`,
   () => `Mon coup de cœur de la semaine, je vous le partage ici ❤️‍🔥`,
-  () => `Music is life 🎵 — sur Soundy encore une fois, impossible de décrocher !`,
+  () => `Music is life 🎵 — sur OnScen encore une fois, impossible de décrocher !`,
   () => `Bonne nuit à tous, dernière track avant de dormir 🌙😴`,
   (t) => `${t?.artist ?? 'Artiste incroyable'} = génie absolu. Fin de la discussion. 🏆`,
   () => `On est plusieurs sur le salon ce soir, belle ambiance — venez ! 🙌`,
-  () => `Découverte grâce à la carte — merci Soundy 🗺️❤️`,
+  () => `Découverte grâce à la carte — merci OnScen 🗺️❤️`,
   (t) => `"${t?.title ?? 'Un titre parfait'}" + café du matin = journée qui commence bien ☕🎵`,
   () => `Vous connaissez ce morceau ? Un chef-d'œuvre selon moi 🎼 Vos avis ?`,
   () => `Juste passé un live — 45 min de pure musique, merci à tous les auditeurs 🔥`,
   () => `Quelqu'un connaît un bon salon de jazz ce soir ? Je cherche 🎷`,
   (t) => `Top track du moment : "${t?.title ?? 'à découvrir'}" 🎯 Ajoutez-la à votre playlist !`,
-  () => `Soundy + weekend + bonne humeur = combo parfait ☀️🎵`,
+  () => `OnScen + weekend + bonne humeur = combo parfait ☀️🎵`,
   () => `Premier live de ma vie ce soir — un peu stressé mais motivé ! 😤🎶`,
   () => `Petit café + playlist chill = matinée parfaite ☕🎧`,
   () => `Qui veut rejoindre mon salon ce soir ? On teste des morceaux inédits 🎤`,
@@ -750,7 +750,7 @@ const BOT_POST_CONTENT_TEMPLATES: Array<
   () => `Ma playlist du moment fait 3h, impossible de m'arrêter 😅`,
   () => `Le live d'hier soir était fou — merci à tous ceux qui étaient là 🔥`,
   () => `Découverte du jour sur la carte : un salon lo-fi incroyable 🗺️`,
-  () => `Vendredi soir = soirée musique sur Soundy, qui est partant ? 🎉`,
+  () => `Vendredi soir = soirée musique sur OnScen, qui est partant ? 🎉`,
   () => `Ce morceau me donne envie de danser dans mon salon 💃🎵`,
   () => `En train de préparer ma setlist pour le prochain live — vos suggestions ? 🎛️`,
 ];

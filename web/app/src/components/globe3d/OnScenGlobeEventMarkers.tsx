@@ -2,13 +2,13 @@ import { EventDayPinIcon } from '../EventDayPinIcon';
 import { SPONSOR_EVENT_ICON } from '../../lib/eventType';
 import { devMarkerRefFromEventEntity } from '../../lib/devMapMarkerDrag';
 import type { MapEventCityCluster, MapEventMarker } from '../../types';
-import type { SoundyGlobePoint } from './SoundyGlobeMarkers';
+import type { OnScenGlobePoint } from './OnScenGlobeMarkers';
 import { DevDraggableGlobeHtmlMarker } from './DevDraggableGlobeMarker';
 import { GlobeFacingHtml } from './GlobeFacingHtml';
 
-interface SoundyGlobeEventMarkersProps {
-  points: SoundyGlobePoint[];
-  onPointClick: (point: SoundyGlobePoint) => void;
+interface OnScenGlobeEventMarkersProps {
+  points: OnScenGlobePoint[];
+  onPointClick: (point: OnScenGlobePoint) => void;
 }
 
 const MAX_HTML_EVENT_MARKERS = 120;
@@ -18,8 +18,8 @@ function EventMarkerContent({
   onPointClick,
   drag,
 }: {
-  p: SoundyGlobePoint;
-  onPointClick: (point: SoundyGlobePoint) => void;
+  p: OnScenGlobePoint;
+  onPointClick: (point: OnScenGlobePoint) => void;
   drag?: {
     onPointerDown: (event: React.PointerEvent) => void;
     devDragClassName?: string;
@@ -53,7 +53,7 @@ function EventMarkerContent({
   );
 }
 
-export function SoundyGlobeEventMarkers({ points, onPointClick }: SoundyGlobeEventMarkersProps) {
+export function OnScenGlobeEventMarkers({ points, onPointClick }: OnScenGlobeEventMarkersProps) {
   const eventPoints = points
     .filter((p) => p.type === 'event')
     .slice(0, MAX_HTML_EVENT_MARKERS);

@@ -10,7 +10,7 @@ export type ActiveLiveViewerSession = {
   isHost?: boolean;
 };
 
-const STORAGE_KEY = 'soundy.activeLiveViewerSession';
+const STORAGE_KEY = 'onscen.activeLiveViewerSession';
 
 export function readPersistedLiveViewerSession(): ActiveLiveViewerSession | null {
   try {

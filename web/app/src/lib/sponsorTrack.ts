@@ -4,7 +4,7 @@ import { api } from './api';
 const STATIC_AD_IDS = new Set(['salon', 'live']);
 
 function sessionImpressionKey(sponsorId: string, placement: SponsorPlacement): string {
-  return `soundy:sponsor:imp:${sponsorId}:${placement}`;
+  return `onscen:sponsor:imp:${sponsorId}:${placement}`;
 }
 
 function shouldTrackSponsorId(sponsorId: string | undefined): sponsorId is string {

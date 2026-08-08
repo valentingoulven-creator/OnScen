@@ -3,24 +3,24 @@ import { Clouds } from './Clouds';
 import { Atmosphere } from './Atmosphere';
 import { Starfield } from './Starfield';
 import { CountryBorders } from './CountryBorders';
-import { SoundyGlobeMarkers, type SoundyGlobePoint } from './SoundyGlobeMarkers';
-import { SoundyGlobeEventMarkers } from './SoundyGlobeEventMarkers';
-import { SoundyGlobeLiveMarkers } from './SoundyGlobeLiveMarkers';
-import { SoundyGlobeSalonMarkers } from './SoundyGlobeSalonMarkers';
-import { SoundyGlobeUserMarker } from './SoundyGlobeUserMarker';
-import { SoundyGlobeRings, type SoundyGlobeRing } from './SoundyGlobeRings';
-import { SoundyGlobeQueryRadiusRing } from './SoundyGlobeQueryRadiusRing';
-import { SoundyGlobeCapitalLabels } from './SoundyGlobeCapitalLabels';
+import { OnScenGlobeMarkers, type OnScenGlobePoint } from './OnScenGlobeMarkers';
+import { OnScenGlobeEventMarkers } from './OnScenGlobeEventMarkers';
+import { OnScenGlobeLiveMarkers } from './OnScenGlobeLiveMarkers';
+import { OnScenGlobeSalonMarkers } from './OnScenGlobeSalonMarkers';
+import { OnScenGlobeUserMarker } from './OnScenGlobeUserMarker';
+import { OnScenGlobeRings, type OnScenGlobeRing } from './OnScenGlobeRings';
+import { OnScenGlobeQueryRadiusRing } from './OnScenGlobeQueryRadiusRing';
+import { OnScenGlobeCapitalLabels } from './OnScenGlobeCapitalLabels';
 import { GlobeCameraBridge, type GlobeCameraBridgeHandle, type RecenterRequest } from './GlobeCameraBridge';
 import type { PreparedCountry } from '../../lib/globe3d/types';
 import type { GlobeCapitalLabel } from '../../lib/worldCapitals';
 import type { DevMapMarkerRef } from '../../lib/devMapMarkerDrag';
 
-export interface SoundyGlobeSceneProps {
+export interface OnScenGlobeSceneProps {
   countries: PreparedCountry[];
   lowPower: boolean;
-  points: SoundyGlobePoint[];
-  rings: SoundyGlobeRing[];
+  points: OnScenGlobePoint[];
+  rings: OnScenGlobeRing[];
   capitalLabels: GlobeCapitalLabel[];
   overviewDots: boolean;
   pointResolution: number;
@@ -34,7 +34,7 @@ export interface SoundyGlobeSceneProps {
   livesListPinCircle?: { lat: number; lng: number; radiusKm: number } | null;
   cameraRef: React.RefObject<GlobeCameraBridgeHandle | null>;
   recenterRequest: RecenterRequest | null;
-  onPointClick: (point: SoundyGlobePoint) => void;
+  onPointClick: (point: OnScenGlobePoint) => void;
   onGlobeDblClick?: (lat: number, lng: number) => void;
   onInteractionStart: () => void;
   onInteractionEnd: () => void;
@@ -45,7 +45,7 @@ export interface SoundyGlobeSceneProps {
   onDevMarkerDragEnd?: (ref: DevMapMarkerRef, lat: number, lng: number) => void;
 }
 
-export function SoundyGlobeScene({
+export function OnScenGlobeScene({
   countries,
   lowPower,
   points,
@@ -67,7 +67,7 @@ export function SoundyGlobeScene({
   onControlsChange,
   autoRotateEnabled = false,
   controlsEnabled = true,
-}: SoundyGlobeSceneProps) {
+}: OnScenGlobeSceneProps) {
   return (
     <>
       <Starfield lowPower={lowPower} />
@@ -77,28 +77,28 @@ export function SoundyGlobeScene({
       <Clouds parallaxActive={autoRotateEnabled} />
       <CountryBorders countries={countries} />
 
-      <SoundyGlobeMarkers
+      <OnScenGlobeMarkers
         points={points}
         resolution={pointResolution}
         overviewDots={overviewDots}
         onPointClick={onPointClick}
       />
-      <SoundyGlobeEventMarkers points={points} onPointClick={onPointClick} />
-      <SoundyGlobeLiveMarkers
+      <OnScenGlobeEventMarkers points={points} onPointClick={onPointClick} />
+      <OnScenGlobeLiveMarkers
         points={points}
         overviewDots={overviewDots}
         onPointClick={onPointClick}
       />
-      <SoundyGlobeSalonMarkers points={points} onPointClick={onPointClick} />
-      <SoundyGlobeUserMarker points={points} />
-      <SoundyGlobeRings
+      <OnScenGlobeSalonMarkers points={points} onPointClick={onPointClick} />
+      <OnScenGlobeUserMarker points={points} />
+      <OnScenGlobeRings
         rings={rings}
         maxRadius={ringMaxRadius}
         propagationSpeed={ringPropagationSpeed}
         repeatPeriod={ringRepeatPeriod}
       />
       {livesListViewportCircle && livesListViewportCircle.radiusKm > 0 ? (
-        <SoundyGlobeQueryRadiusRing
+        <OnScenGlobeQueryRadiusRing
           lat={livesListViewportCircle.lat}
           lng={livesListViewportCircle.lng}
           radiusKm={livesListViewportCircle.radiusKm}
@@ -106,14 +106,14 @@ export function SoundyGlobeScene({
         />
       ) : null}
       {livesListPinCircle && livesListPinCircle.radiusKm > 0 ? (
-        <SoundyGlobeQueryRadiusRing
+        <OnScenGlobeQueryRadiusRing
           lat={livesListPinCircle.lat}
           lng={livesListPinCircle.lng}
           radiusKm={livesListPinCircle.radiusKm}
           kind="reference"
         />
       ) : null}
-      <SoundyGlobeCapitalLabels labels={capitalLabels} />
+      <OnScenGlobeCapitalLabels labels={capitalLabels} />
 
       <GlobeCameraBridge
         ref={cameraRef}

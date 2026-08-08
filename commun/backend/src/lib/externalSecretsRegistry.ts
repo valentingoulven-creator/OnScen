@@ -113,7 +113,7 @@ export const EXTERNAL_SECRET_PROVIDERS: ExternalSecretProviderDef[] = [
     id: 's3_scaleway',
     helpUrl: 'https://console.scaleway.com/object-storage/buckets',
     fields: [
-      { key: 'S3_BUCKET', kind: 'public', format: 'id', required: true, placeholder: 'soundy-uploads' },
+      { key: 'S3_BUCKET', kind: 'public', format: 'id', required: true, placeholder: 'onscen-uploads' },
       { key: 'S3_REGION', kind: 'public', format: 'id', required: true, placeholder: 'fr-par' },
       { key: 'S3_ENDPOINT', kind: 'public', format: 'httpUrl', required: true, placeholder: 'https://s3.fr-par.scw.cloud' },
       { key: 'S3_ACCESS_KEY_ID', kind: 'secret', format: 'token', required: true, placeholder: 'SCW…' },
@@ -126,7 +126,7 @@ export const EXTERNAL_SECRET_PROVIDERS: ExternalSecretProviderDef[] = [
     helpUrl: 'https://resend.com/api-keys',
     fields: [
       { key: 'RESEND_API_KEY', kind: 'secret', format: 'token', required: true, placeholder: 're_…' },
-      { key: 'RESEND_FROM', kind: 'public', format: 'freeText', required: false, placeholder: 'Soundy <noreply@getsoundy.com>' },
+      { key: 'RESEND_FROM', kind: 'public', format: 'freeText', required: false, placeholder: 'OnScen <noreply@getsoundy.com>' },
     ],
   },
   {
@@ -151,7 +151,7 @@ export const EXTERNAL_SECRET_PROVIDERS: ExternalSecretProviderDef[] = [
     helpUrl: undefined,
     fields: [
       { key: 'TURN_URL', kind: 'public', format: 'freeText', required: true, placeholder: 'turn:51.159.164.100:3478?transport=udp' },
-      { key: 'TURN_USERNAME', kind: 'public', format: 'id', required: true, placeholder: 'soundy' },
+      { key: 'TURN_USERNAME', kind: 'public', format: 'id', required: true, placeholder: 'onscen' },
       { key: 'TURN_CREDENTIAL', kind: 'secret', format: 'token', required: true, placeholder: '…' },
     ],
   },

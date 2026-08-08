@@ -41,5 +41,5 @@ const ALL_ARTISTS: PopularArtist[] = [
   ...COUNTRY_CLASSIC_ARTISTS,
 ];
 
-/** Liste curatée d'artistes populaires Soundy — FR + international, tous genres. */
+/** Liste curatée d'artistes populaires OnScen — FR + international, tous genres. */
 export const POPULAR_ARTISTS: PopularArtist[] = dedupeArtists(ALL_ARTISTS);

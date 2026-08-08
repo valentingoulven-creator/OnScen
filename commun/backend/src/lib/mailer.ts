@@ -15,7 +15,7 @@ export async function sendSupportAlertEmail(params: {
   }
 
   const adminEmail = process.env.SMTP_ADMIN_EMAIL ?? 'admin@getsoundy.com';
-  const from = getEmailFrom('Soundy');
+  const from = getEmailFrom('OnScen');
   const adminUrl = `${process.env.WEB_APP_URL ?? 'https://getsoundy.com'}/admin?tab=support`;
 
   const preview =
@@ -24,7 +24,7 @@ export async function sendSupportAlertEmail(params: {
       : params.bodyPreview;
 
   const subjectSuffix = params.isFollowUp ? '(réponse)' : '';
-  const subject = `Nouveau message support Soundy - ${params.fromUsername} ${subjectSuffix}`.trim();
+  const subject = `Nouveau message support OnScen - ${params.fromUsername} ${subjectSuffix}`.trim();
 
   const safePreview = preview
     .replace(/&/g, '&amp;')
@@ -33,7 +33,7 @@ export async function sendSupportAlertEmail(params: {
 
   const html = `
     <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
-      <h2 style="color:#7c3aed;margin-top:0;">🎵 ${params.isFollowUp ? 'Réponse utilisateur' : 'Nouveau message'} support Soundy</h2>
+      <h2 style="color:#7c3aed;margin-top:0;">🎵 ${params.isFollowUp ? 'Réponse utilisateur' : 'Nouveau message'} support OnScen</h2>
       <table style="border-collapse:collapse;width:100%;margin-bottom:16px;">
         <tr>
           <td style="padding:4px 8px 4px 0;color:#6b7280;font-size:14px;white-space:nowrap;">Utilisateur</td>
@@ -51,13 +51,13 @@ export async function sendSupportAlertEmail(params: {
         Voir dans l'admin →
       </a>
       <p style="color:#9ca3af;font-size:12px;margin-top:24px;">
-        Notification automatique Soundy — <a href="${adminUrl}" style="color:#7c3aed;">getsoundy.com/admin</a>
+        Notification automatique OnScen — <a href="${adminUrl}" style="color:#7c3aed;">getsoundy.com/admin</a>
       </p>
     </div>
   `;
 
   const text = [
-    `${params.isFollowUp ? 'Réponse utilisateur' : 'Nouveau message'} support Soundy`,
+    `${params.isFollowUp ? 'Réponse utilisateur' : 'Nouveau message'} support OnScen`,
     ``,
     `Utilisateur : ${params.fromUsername}`,
     `Email       : ${params.fromEmail}`,
@@ -88,12 +88,12 @@ export async function sendVerificationEmail(params: {
     return;
   }
 
-  const from = getEmailFrom('Soundy');
-  const subject = 'Vérifie ton adresse e-mail — Soundy';
+  const from = getEmailFrom('OnScen');
+  const subject = 'Vérifie ton adresse e-mail — OnScen';
 
   const html = `
     <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
-      <h2 style="color:#7c3aed;margin-top:0;">🎵 Bienvenue sur Soundy, ${params.username} !</h2>
+      <h2 style="color:#7c3aed;margin-top:0;">🎵 Bienvenue sur OnScen, ${params.username} !</h2>
       <p style="color:#374151;font-size:15px;">
         Clique sur le bouton ci-dessous pour vérifier ton adresse e-mail et activer ton compte.
       </p>
@@ -104,16 +104,16 @@ export async function sendVerificationEmail(params: {
         </a>
       </div>
       <p style="color:#6b7280;font-size:13px;">
-        Ce lien expire dans 24 heures. Si tu n'as pas créé de compte Soundy, ignore cet e-mail.
+        Ce lien expire dans 24 heures. Si tu n'as pas créé de compte OnScen, ignore cet e-mail.
       </p>
       <p style="color:#9ca3af;font-size:12px;margin-top:24px;">
-        Soundy — <a href="https://getsoundy.com" style="color:#7c3aed;">getsoundy.com</a>
+        OnScen — <a href="https://getsoundy.com" style="color:#7c3aed;">getsoundy.com</a>
       </p>
     </div>
   `;
 
   const text = [
-    `Bienvenue sur Soundy, ${params.username} !`,
+    `Bienvenue sur OnScen, ${params.username} !`,
     ``,
     `Vérifie ton adresse e-mail en cliquant sur ce lien :`,
     params.verificationUrl,
@@ -141,14 +141,14 @@ export async function sendPasswordResetEmail(params: {
     return;
   }
 
-  const from = getEmailFrom('Soundy');
-  const subject = 'Réinitialisation de ton mot de passe — Soundy';
+  const from = getEmailFrom('OnScen');
+  const subject = 'Réinitialisation de ton mot de passe — OnScen';
 
   const html = `
     <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
       <h2 style="color:#7c3aed;margin-top:0;">🔐 Réinitialisation de mot de passe</h2>
       <p style="color:#374151;font-size:15px;">
-        Tu as demandé la réinitialisation de ton mot de passe Soundy pour le compte <strong>${params.username}</strong>.
+        Tu as demandé la réinitialisation de ton mot de passe OnScen pour le compte <strong>${params.username}</strong>.
       </p>
       <div style="text-align:center;margin:32px 0;">
         <a href="${params.resetUrl}"
@@ -160,13 +160,13 @@ export async function sendPasswordResetEmail(params: {
         Ce lien expire dans 1 heure. Si tu n'as pas fait cette demande, ignore cet e-mail — ton mot de passe ne sera pas modifié.
       </p>
       <p style="color:#9ca3af;font-size:12px;margin-top:24px;">
-        Soundy — <a href="https://getsoundy.com" style="color:#7c3aed;">getsoundy.com</a>
+        OnScen — <a href="https://getsoundy.com" style="color:#7c3aed;">getsoundy.com</a>
       </p>
     </div>
   `;
 
   const text = [
-    `Réinitialisation de mot de passe Soundy`,
+    `Réinitialisation de mot de passe OnScen`,
     ``,
     `Compte : ${params.username}`,
     ``,

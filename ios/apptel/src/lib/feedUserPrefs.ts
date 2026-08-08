@@ -1,10 +1,10 @@
 import { PROFILE_TYPE_OPTIONS } from './profileTypes';
 import type { ProfileType } from '../types';
 
-const STORAGE_KEY = 'melosong_feed_prefs';
+const STORAGE_KEY = 'onscen_feed_prefs';
 const VALID_PROFILE_TYPES = new Set<string>(PROFILE_TYPE_OPTIONS.map((o) => o.value));
 
-export const FEED_PREFS_CHANGED_EVENT = 'melosong-feed-prefs-changed';
+export const FEED_PREFS_CHANGED_EVENT = 'onscen-feed-prefs-changed';
 
 export type FeedAudienceScope = 'all' | 'favorites_only';
 

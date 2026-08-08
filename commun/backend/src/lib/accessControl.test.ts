@@ -98,7 +98,7 @@ describe('accessControl', () => {
     const msdevUser = {
       id: 'u1',
       email: 'listener@msdev.local',
-      username: 'soundy_dev',
+      username: 'onscen_dev',
       isAdmin: false,
     } as User;
     expect(isAccessAdmin(msdevUser)).toBe(false);

@@ -64,7 +64,7 @@ donationsRouter.get('/config', (req: Request, res: Response) => {
   // Optionally identify the caller using any supported token source (cookie or header).
   // We use verifyAuthToken directly since this endpoint is intentionally public.
   const authHeader = req.headers.authorization;
-  const cookieToken = (req as Request & { cookies?: Record<string, string> }).cookies?.['soundy_auth'];
+  const cookieToken = (req as Request & { cookies?: Record<string, string> }).cookies?.['onscen_auth'];
   const rawToken =
     cookieToken ||
     (authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined) ||
@@ -186,7 +186,7 @@ donationsRouter.post('/connect-onboard', authenticateJWT, async (req: Request, r
           card_payments: { requested: true },
           transfers: { requested: true },
         },
-        metadata: { melosongUserId: userId },
+        metadata: { onscenUserId: userId },
       });
       connectId = account.id;
       user.stripeConnectAccountId = connectId;

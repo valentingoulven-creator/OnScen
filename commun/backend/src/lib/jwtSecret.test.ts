@@ -33,7 +33,7 @@ describe('jwtSecret', () => {
     delete process.env.JWT_SECRET;
     process.env.APP_ENV = 'msdev';
     process.env.NODE_ENV = 'test';
-    expect(getJwtSecret()).toBe('melosong_secret_dev_fallback');
+    expect(getJwtSecret()).toBe('onscen_secret_dev_fallback');
   });
 
   it('throws outside production when JWT_SECRET is missing and NODE_ENV is not test', () => {

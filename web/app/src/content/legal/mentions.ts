@@ -7,7 +7,7 @@ export const mentionsLegales: LegalDocument = {
   sections: [
     {
       heading: 'Éditeur du site et de l\u2019application',
-      body: `L\u2019application Soundy et le site associé sont édités par :\n\n{{publisherName}}\n{{legalForm}}\n{{address}}\nSIREN / SIRET : {{siren}}\n{{rcs}}\n{{capital}}\n\nContact : {{contactEmail}}\n\nDirecteur de la publication : {{publicationDirector}}`,
+      body: `L\u2019application OnScen et le site associé sont édités par :\n\n{{publisherName}}\n{{legalForm}}\n{{address}}\nSIREN / SIRET : {{siren}}\n{{rcs}}\n{{capital}}\n\nContact : {{contactEmail}}\n\nDirecteur de la publication : {{publicationDirector}}`,
     },
     {
       heading: 'Hébergement',
@@ -15,11 +15,11 @@ export const mentionsLegales: LegalDocument = {
     },
     {
       heading: 'Activité du service',
-      body: `Soundy est une application sociale autour de la musique : salons d\u2019écoute géolocalisés, lives, messagerie, carte des utilisateurs et contenus musicaux via YouTube. Soundy n\u2019est pas un service de rencontre sentimental.\n\nDomaine de production : getsoundy.com`,
+      body: `OnScen est une application sociale autour de la musique : salons d\u2019écoute géolocalisés, lives, messagerie, carte des utilisateurs et contenus musicaux via YouTube. OnScen n\u2019est pas un service de rencontre sentimental.\n\nDomaine de production : getsoundy.com`,
     },
     {
       heading: 'Propriété intellectuelle',
-      body: `L\u2019ensemble des éléments composant Soundy (textes, interface, logo, charte, code source, sauf composants open source et contenus tiers) est protégé par le droit d\u2019auteur. Toute reproduction ou représentation non autorisée est interdite.\n\nLes marques YouTube, Google et autres mentionnées appartiennent à leurs propriétaires respectifs. Soundy n\u2019est pas affilié, sponsorisé ou approuvé par ces sociétés, sauf accord écrit contraire.`,
+      body: `L\u2019ensemble des éléments composant OnScen (textes, interface, logo, charte, code source, sauf composants open source et contenus tiers) est protégé par le droit d\u2019auteur. Toute reproduction ou représentation non autorisée est interdite.\n\nLes marques YouTube, Google et autres mentionnées appartiennent à leurs propriétaires respectifs. OnScen n\u2019est pas affilié, sponsorisé ou approuvé par ces sociétés, sauf accord écrit contraire.`,
     },
     {
       heading: 'Données personnelles et cookies',

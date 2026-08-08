@@ -113,7 +113,7 @@ function makeHostUser(userId: string, username: string, city: string, lat: numbe
   const user: User = {
     id: userId,
     username,
-    email: `${userId}@bot.melosong.local`,
+    email: `${userId}@bot.onscen.local`,
     passwordHash: 'bot',
     avatarUrl: dicebearAdventurerAvatar(userId),
     meloCoins: 0,

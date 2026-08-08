@@ -18,8 +18,8 @@
  *   header, so native clients continue to work unchanged.
  */
 
-const TOKEN_KEY = 'melosong_token';
-const REMEMBER_KEY = 'melosong_remember_me';
+const TOKEN_KEY = 'onscen_token';
+const REMEMBER_KEY = 'onscen_remember_me';
 
 /** True when running inside a Capacitor native wrapper (iOS / Android). */
 function isNativePlatform(): boolean {

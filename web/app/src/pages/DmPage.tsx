@@ -100,7 +100,7 @@ function conversationListPrefix(c: Conversation, isGroup: boolean): string {
 
 type View = 'list' | 'thread' | 'groupThread' | 'supportThread' | 'new' | 'createGroup' | 'blocked';
 
-const DM_MATCHES_ONLY_KEY = 'melosong_dm_matches_only';
+const DM_MATCHES_ONLY_KEY = 'onscen_dm_matches_only';
 
 function readMatchesOnlyFilter(): boolean {
   try {
@@ -254,7 +254,7 @@ function UserCheckbox({
       checked={checked}
       onChange={onChange}
       onClick={(e) => e.stopPropagation()}
-      className="melosong-checkbox"
+      className="onscen-checkbox"
       aria-label="Sélectionner"
     />
   );

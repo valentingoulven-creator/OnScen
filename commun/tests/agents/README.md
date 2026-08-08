@@ -1,6 +1,6 @@
-# Soundy — Infrastructure de Tests Agents IA
+# OnScen — Infrastructure de Tests Agents IA
 
-Simule **27 utilisateurs IA** qui testent Soundy pendant **24 heures** en parallèle.
+Simule **27 utilisateurs IA** qui testent OnScen pendant **24 heures** en parallèle.
 
 ---
 
@@ -102,7 +102,7 @@ Appuyer sur **CTRL+C** en cours d'exécution :
 
 Après chaque run (ou CTRL+C), deux fichiers sont créés dans `tests/agents/reports/` :
 
-### `soundy-agents-report-YYYYMMDD-final.html`
+### `onscen-agents-report-YYYYMMDD-final.html`
 Rapport HTML interactif avec :
 - Stats globales (taux de succès, latences P50/P95/P99)
 - **Bugs détectés** (erreurs 500, timeouts, taux d'erreur élevé, Socket.io)
@@ -110,7 +110,7 @@ Rapport HTML interactif avec :
 - Résultats par agent (actions, succès, erreurs)
 - Stats par groupe de rôles
 
-### `soundy-agents-report-YYYYMMDD-final.json`
+### `onscen-agents-report-YYYYMMDD-final.json`
 Rapport JSON pour intégration CI/CD :
 ```json
 {
@@ -143,7 +143,7 @@ Rapport JSON pour intégration CI/CD :
 | 19–21 | Sophie, Pierre, Marie | Donateurs | Dons Stripe, cadeaux live, abonnements créateurs |
 | 22–24 | Lucas, Jade, Tom | Power users | Reels, posts, DMs, groupes, mentions, edge cases |
 | 25–26 | Audrey, Fabien | Modérateurs | Signalements, support tickets, conformité légale |
-| 27 | Admin Soundy | Admin | Panel admin, analytics, gestion users, modération |
+| 27 | Admin OnScen | Admin | Panel admin, analytics, gestion users, modération |
 
 ---
 
@@ -255,7 +255,7 @@ Rapport JSON pour intégration CI/CD :
 
 | Package | Rôle |
 |---|---|
-| `axios` | Requêtes HTTP vers l'API Soundy |
+| `axios` | Requêtes HTTP vers l'API OnScen |
 | `socket.io-client` | Connexion Socket.io (salons, lives, chat) |
 | `faker` | Données de test réalistes |
 | `uuid` | Génération d'IDs uniques |
@@ -274,6 +274,6 @@ Rapport JSON pour intégration CI/CD :
 
 3. **Pas de vrais OAuth** : les agents ne peuvent pas lier YouTube via OAuth (nécessite un vrai navigateur). Les erreurs 403 sur ces endpoints sont attendues et documentées.
 
-4. **Comptes de test** : les agents créent de vrais comptes avec des emails `soundy.agent01@test.soundy.local`. En production, utiliser un domaine de test isolé.
+4. **Comptes de test** : les agents créent de vrais comptes avec des emails `onscen.agent01@test.onscen.local`. En production, utiliser un domaine de test isolé.
 
 5. **Rate limiting** : certains agents testent intentionnellement les limites de débit. Des erreurs 429 sont attendues et comptées comme "comportement correct".

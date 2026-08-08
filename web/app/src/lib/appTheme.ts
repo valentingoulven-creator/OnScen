@@ -1,8 +1,8 @@
 export type AppTheme = 'dark' | 'light' | 'system';
 export type ResolvedAppTheme = 'dark' | 'light';
 
-const STORAGE_KEY = 'melosong_app_theme';
-export const APP_THEME_CHANGED_EVENT = 'melosong_app_theme_changed';
+const STORAGE_KEY = 'onscen_app_theme';
+export const APP_THEME_CHANGED_EVENT = 'onscen_app_theme_changed';
 
 export function getStoredAppTheme(): AppTheme {
   const raw = localStorage.getItem(STORAGE_KEY);

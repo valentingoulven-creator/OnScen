@@ -1,7 +1,7 @@
 /**
  * Statut des sauvegardes prod (DB + uploads + off-site) pour l'onglet admin
  * (Analytics → VPS). Lit directement le système de fichiers du process
- * backend — en prod celui-ci tourne sur le VPS avec cwd = racine Soundy
+ * backend — en prod celui-ci tourne sur le VPS avec cwd = racine OnScen
  * (cf. ecosystem.config.cjs), donc pas besoin de SSH.
  *
  * Miroir des vérifications de commun/deploy/verify-prod.sh (mêmes chemins,
@@ -49,8 +49,8 @@ export interface BackupsStatusReport {
   warnings: string[];
 }
 
-function soundyRoot(): string {
-  if (process.env.SOUNDY_ROOT) return process.env.SOUNDY_ROOT;
+function onscenRoot(): string {
+  if (process.env.ONSCEN_ROOT) return process.env.ONSCEN_ROOT;
   if (process.platform === 'win32') return process.cwd();
   return process.cwd();
 }
@@ -132,13 +132,13 @@ async function getCronStatus(): Promise<BackupsStatusReport['cron']> {
 }
 
 export async function getBackupsStatusReport(): Promise<BackupsStatusReport> {
-  const root = soundyRoot();
+  const root = onscenRoot();
   const backupDir = process.env.BACKUP_DIR || path.join(root, 'backups');
   const uploadsBackupDir = process.env.UPLOADS_BACKUP_DIR || path.join(root, 'backups', 'uploads');
   const offsiteDir = process.env.BACKUP_OFFSITE_DIR || path.join(root, 'backups-offsite');
 
   const [db, uploads, offsiteDb, offsiteUploads, cron] = await Promise.all([
-    statBucket(backupDir, /^soundy-.*\.sql\.gz$/, 26),
+    statBucket(backupDir, /^onscen-.*\.sql\.gz$/, 26),
     statBucket(uploadsBackupDir, /^uploads-.*\.tar\.gz$/, 48),
     countDir(path.join(offsiteDir, 'db')),
     countDir(path.join(offsiteDir, 'uploads')),

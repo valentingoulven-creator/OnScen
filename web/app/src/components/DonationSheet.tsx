@@ -1,10 +1,10 @@
 import { useState } from 'react';
 
 const PAYPAL_URL: string =
-  (import.meta.env.VITE_DONATION_PAYPAL_URL as string | undefined) ?? 'https://paypal.me/getsoundy';
+  (import.meta.env.VITE_DONATION_PAYPAL_URL as string | undefined) ?? 'https://paypal.me/getonscen';
 
 const BMC_URL: string =
-  (import.meta.env.VITE_DONATION_BMC_URL as string | undefined) ?? 'https://buymeacoffee.com/soundy';
+  (import.meta.env.VITE_DONATION_BMC_URL as string | undefined) ?? 'https://buymeacoffee.com/onscen';
 
 const PRESET_AMOUNTS = [
   { value: 2, label: 'Un café ☕', linkLabel: 'Un café', icon: '☕' },
@@ -13,7 +13,7 @@ const PRESET_AMOUNTS = [
 ] as const;
 
 const CUSTOM_AMOUNT_LABEL = 'Montant libre';
-const CUSTOM_AMOUNT_TAGLINE = 'Soutiens Soundy comme tu le sens';
+const CUSTOM_AMOUNT_TAGLINE = 'Soutiens OnScen comme tu le sens';
 
 function getPaymentPresentation(selected: number | 'custom', customAmount: string) {
   if (selected === 'custom') {
@@ -27,7 +27,7 @@ function getPaymentPresentation(selected: number | 'custom', customAmount: strin
   const preset = PRESET_AMOUNTS.find((p) => p.value === selected);
   return preset
     ? { linkLabel: preset.linkLabel, icon: preset.icon }
-    : { linkLabel: 'Soutenir Soundy', icon: '💜' };
+    : { linkLabel: 'Soutenir OnScen', icon: '💜' };
 }
 
 interface DonationSheetProps {
@@ -58,7 +58,7 @@ export function DonationSheet({ onClose }: DonationSheetProps) {
 
         {/* Header */}
         <div className="flex items-start justify-between mb-1">
-          <h2 className="text-lg font-bold text-white">💜 Soutenir Soundy</h2>
+          <h2 className="text-lg font-bold text-white">💜 Soutenir OnScen</h2>
           <button
             type="button"
             onClick={onClose}

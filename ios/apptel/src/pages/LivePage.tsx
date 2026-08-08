@@ -3,6 +3,12 @@
  * web/app/src/pages/LivePage.tsx pour la version desktop complète.
  * Vérifié au commit ca9bc509 (2026-07-22) — toute feature web majeure ajoutée sur cette
  * page (sécurité, modération, paiement) doit être évaluée pour portage ici.
+ *
+ * MODIF 1342 (2026-08-08) : `LiveHostPanel` (Config/Don/Chat, MODIF 1341) n'est
+ * toujours PAS porté ici — un hôte mobile ne voit que le bloc OBS
+ * (`LiveCloudflareHostPanel`), décision produit en attente (cf. rapport dev-agent
+ * 2026-08-08-audit-compat-ios-android.md). Seule la lecture viewer (annonce
+ * épinglée + sondage) a été branchée, indépendante du panel hôte.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -31,6 +37,8 @@ import {
 import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys';
 import { publicGoalsToLiveGoals } from '../lib/liveGoalProgress';
 import { ChatRoomProvider, ChatMessagesView, ChatInputBar, ChatModals } from '../components/ChatPanel';
+import { LivePinnedAnnouncementBanner } from '../components/LivePinnedAnnouncementBanner';
+import { LivePollWidget } from '../components/LivePollWidget';
 import { UsernameDisplay } from '../components/UsernameDisplay';
 import { RoomTheaterLayout } from '../components/RoomTheaterLayout';
 import { LivePrivateSheet } from '../components/LivePrivateSheet';
@@ -55,7 +63,7 @@ function formatRemaining(ms: number): string {
   return `${m} min`;
 }
 
-const LIVE_CHAT_HIDDEN_KEY = 'melosong_live_chat_hidden';
+const LIVE_CHAT_HIDDEN_KEY = 'onscen_live_chat_hidden';
 function readLiveChatHidden(): boolean {
   try {
     return localStorage.getItem(LIVE_CHAT_HIDDEN_KEY) === '1';
@@ -1046,7 +1054,7 @@ export function LivePage({
                   onClick={() => void configureObs()}
                   disabled={cfProvisioning}
                   className="px-2.5 py-1.5 rounded-full text-[10px] font-bold border border-orange-500/40 bg-orange-950/60 text-orange-200 hover:bg-orange-900/70 hover:border-orange-400/50 transition disabled:opacity-50"
-                  title="Passer en diffusion OBS via Cloudflare Stream (SoundyUltra)"
+                  title="Passer en diffusion OBS via Cloudflare Stream (OnScenUltra)"
                 >
                   {cfProvisioning ? '…' : '📡 Configurer OBS'}
                 </button>
@@ -1054,7 +1062,7 @@ export function LivePage({
               {canSwitchToCloudflare && obsAllowed === false && cloudflareAvailable && (
                 <span
                   className="px-2 py-1 rounded-full text-[9px] text-gray-500 border border-[#2d2d3d]"
-                  title="Réservé à SoundyUltra"
+                  title="Réservé à OnScenUltra"
                 >
                   OBS · Ultra
                 </span>
@@ -1307,6 +1315,12 @@ export function LivePage({
         }
         chat={
           <div className="flex flex-col h-full min-h-0">
+            {live.pinnedAnnouncement ? (
+              <LivePinnedAnnouncementBanner announcement={live.pinnedAnnouncement} />
+            ) : null}
+            {live.activePoll ? (
+              <LivePollWidget liveId={liveId} poll={live.activePoll} isHost={isHost} />
+            ) : null}
             <ChatMessagesView />
           </div>
         }

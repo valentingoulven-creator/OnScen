@@ -26,7 +26,7 @@ export function getPublicDir(): string {
   return path.join(__dirname, '../public');
 }
 
-/** Monorepo root (Soundy/) in dev; exe directory when packaged. */
+/** Monorepo root (OnScen/) in dev; exe directory when packaged. */
 export function getRepoRoot(): string {
   if (isPackaged) {
     return path.dirname(process.execPath);

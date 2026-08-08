@@ -191,7 +191,7 @@ function makeBotUser(seed: SalonLiveBotSeed): User {
   const user: User = {
     id: seed.userId,
     username: seed.username,
-    email: `${seed.userId}@bot.melosong.local`,
+    email: `${seed.userId}@bot.onscen.local`,
     passwordHash: 'bot',
     avatarUrl: dicebearAdventurerAvatar(seed.userId),
     meloCoins: 0,

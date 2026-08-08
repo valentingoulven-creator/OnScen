@@ -845,7 +845,7 @@ export function listFeedPosts(
     eventLocationSearch?: string;
     eventCountry?: string;
     eventType?: 'dance' | 'chant' | 'autre';
-    /** When true, rank posts via the Algo Soundy scoring engine instead of chronological order. */
+    /** When true, rank posts via the Algo OnScen scoring engine instead of chronological order. */
     useAlgo?: boolean;
     /** Fil d'accueil : publications et événements des comptes suivis + les vôtres, par createdAt. */
     followingOnly?: boolean;
@@ -883,7 +883,7 @@ export function listFeedPosts(
   const followingOnly = opts?.followingOnly === true;
   const followedIds = followingOnly ? new Set(getFollowingIds(viewerId)) : undefined;
 
-  // Algo Soundy: only applies to the main feed (not events-only, following-only, or msdev).
+  // Algo OnScen: only applies to the main feed (not events-only, following-only, or msdev).
   if (opts?.useAlgo && !eventFilters.eventsOnly && !followingOnly && !isMsdevFeed()) {
     const algoPosts = getAlgoFeed(viewerId, limit);
     // Fall back to chronological when not enough posts to rank meaningfully.

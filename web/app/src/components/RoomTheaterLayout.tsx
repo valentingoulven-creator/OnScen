@@ -15,7 +15,7 @@ import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys
 
 const DOCK_MODE_KEY = STORAGE_KEYS.theaterChatDockMode;
 const CHAT_DOCK_WIDTH_KEY = 'salon-theater-chat-width';
-const LIVE_CHAT_DOCK_WIDTH_KEY = 'soundy-live-chat-dock-width';
+const LIVE_CHAT_DOCK_WIDTH_KEY = 'onscen-live-chat-dock-width';
 const CHAT_DOCK_MIN_WIDTH = 240;
 const CHAT_DOCK_MAX_WIDTH = 480;
 const LIVE_CHAT_DOCK_MIN_WIDTH_MOBILE = 144;

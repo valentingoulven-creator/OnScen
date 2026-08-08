@@ -120,7 +120,7 @@ function extractS3KeyFromUrl(url: string): string | null {
  * Supprime un objet uploadé (local ou S3) à partir de son URL publique.
  * No-op silencieux pour les URLs externes (CDN tiers, picsum, etc.) que
  * l'application ne possède pas — uniquement utilisé pour le nettoyage RGPD
- * (droit à l'effacement) des médias réellement hébergés par Soundy.
+ * (droit à l'effacement) des médias réellement hébergés par OnScen.
  */
 export async function deleteObjectByUrl(url: string | null | undefined): Promise<void> {
   if (!url) return;
@@ -131,7 +131,7 @@ export async function deleteObjectByUrl(url: string | null | undefined): Promise
       return;
     }
     const s3Key = extractS3KeyFromUrl(url);
-    if (!s3Key) return; // URL externe non gérée par Soundy
+    if (!s3Key) return; // URL externe non gérée par OnScen
     const bucket = process.env.S3_BUCKET?.trim();
     if (!bucket) return;
     const { S3Client, DeleteObjectCommand } = await import(

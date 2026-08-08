@@ -19,8 +19,8 @@ export interface DiagnosticLogEntry {
   synced?: boolean;
 }
 
-const STORAGE_KEY = 'soundy_diagnostic_logs_v1';
-const CLIENT_ID_KEY = 'soundy_diagnostic_client_id';
+const STORAGE_KEY = 'onscen_diagnostic_logs_v1';
+const CLIENT_ID_KEY = 'onscen_diagnostic_client_id';
 /** ~5 months */
 const RETENTION_MS = 5 * 30 * 24 * 60 * 60 * 1000;
 const MAX_LOCAL_ENTRIES = 800;

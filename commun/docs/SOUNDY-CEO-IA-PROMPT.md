@@ -1,8 +1,8 @@
-# Soundy CEO IA — Prompt projet complet
+# OnScen CEO IA — Prompt projet complet
 
-Projet : **Soundy CEO IA**  
-Repo : `valentingoulven-creator/MeloSong` (workspace local `c:\Dev\Soundy`)  
-Usage : première conversation Claude / Cursor en mode `@soundy-ceo-ia`
+Projet : **OnScen CEO IA**  
+Repo : `valentingoulven-creator/OnScen` (workspace local `c:\Dev\OnScen`)  
+Usage : première conversation Claude / Cursor en mode `@onscen-ceo-ia`
 
 ---
 
@@ -10,38 +10,38 @@ Usage : première conversation Claude / Cursor en mode `@soundy-ceo-ia`
 
 ### Dans Cursor (recommandé)
 
-1. Ouvrir le workspace [`Soundy-CEO-IA.code-workspace`](../Soundy-CEO-IA.code-workspace) — **tout le repo est attaché**.
-2. Nouvelle conversation Agent → mentionner `@soundy-ceo-ia` ou coller le prompt ci-dessous.
+1. Ouvrir le workspace [`OnScen-CEO-IA.code-workspace`](../OnScen-CEO-IA.code-workspace) — **tout le repo est attaché**.
+2. Nouvelle conversation Agent → mentionner `@onscen-ceo-ia` ou coller le prompt ci-dessous.
 3. Follow-up implémentation : « Code Sprint 1 : endpoint + onglet admin CEO IA ».
 
 ### Sur Claude.ai (Projet homonyme)
 
-1. [claude.ai](https://claude.ai) → **Projects** → **New project** → nom : `Soundy CEO IA`.
-2. **Project knowledge** → connecter GitHub `valentingoulven-creator/MeloSong` **ou** uploader les fichiers listés en annexe.
+1. [claude.ai](https://claude.ai) → **Projects** → **New project** → nom : `OnScen CEO IA`.
+2. **Project knowledge** → connecter GitHub `valentingoulven-creator/OnScen` **ou** uploader les fichiers listés en annexe.
 3. Coller le prompt **MISSION** ci-dessous en première conversation.
 
 ---
 
-## PROMPT — CEO IA Soundy (style Tang Yu)
+## PROMPT — CEO IA OnScen (style Tang Yu)
 
 ```markdown
 # MISSION
 
-Tu es un architecte stratégique + ingénieur IA senior. Ta mission est de concevoir et spécifier un **CEO IA** pour mon application **Soundy** (getsoundy.com), inspiré du modèle **Tang Yu** (dirigeant virtuel IA de NetDragon) : un exécutif virtuel qui analyse les données, conseille sur la stratégie, arbitre les priorités opérationnelles, modélise coûts/revenus, et produit des briefs exécutifs actionnables — **sans jamais exécuter d'actions dangereuses seul**.
+Tu es un architecte stratégique + ingénieur IA senior. Ta mission est de concevoir et spécifier un **CEO IA** pour mon application **OnScen** (getsoundy.com), inspiré du modèle **Tang Yu** (dirigeant virtuel IA de NetDragon) : un exécutif virtuel qui analyse les données, conseille sur la stratégie, arbitre les priorités opérationnelles, modélise coûts/revenus, et produit des briefs exécutifs actionnables — **sans jamais exécuter d'actions dangereuses seul**.
 
 Je veux un livrable **complet, implémentable dans mon repo**, pas un discours marketing vague.
 
 ---
 
-# CONTEXTE PRODUIT — SOUNDY (SOURCE DE VÉRITÉ)
+# CONTEXTE PRODUIT — ONSCEN (SOURCE DE VÉRITÉ)
 
 ## Vision
-Soundy est **le réseau social de la musique live et de l'écoute partagée** — PWA mobile-first en production sur https://getsoundy.com.
+OnScen est **le réseau social de la musique live et de l'écoute partagée** — PWA mobile-first en production sur https://getsoundy.com.
 
 **Proposition de valeur** : unifier ce que les fans dispersent entre TikTok (découverte), Spotify (écoute), Instagram (social), Shotgun (sorties) — dans une seule app verticale musique.
 
 ## 5 onglets utilisateur (en production)
-1. **Actualités** — feed social, stories, algo Soundy
+1. **Actualités** — feed social, stories, algo OnScen
 2. **Carte** — événements, salons, personnes proches, bannières sponsor `map_banner`, globe 3D
 3. **Direct (Live)** — vidéo LiveKit / Cloudflare HLS / mesh WebRTC fallback, chat, pourboires Stripe Connect (50 % plateforme), abonnements créateur
 4. **Messages** — DMs, groupes, matching hearts (triple gate : 18+, célibataire, compte actif)
@@ -54,7 +54,7 @@ Soundy est **le réseau social de la musique live et de l'écoute partagée** �
 - **Géolocalisation** — debounce, floutage, ghost mode, mode ville seule
 - **Compositions** — upload audio ≤ 30 Mo (filesystem VPS)
 - **Auth** — JWT, 2FA TOTP, WebAuthn, OAuth Google/YouTube/Instagram/Apple
-- **Monétisation** — Stripe Connect (tips live 50 %), abonnements Supporter/Super fan (4,99–9,99 €/mois), Soundy+ (2,99–4,99 €/mois roadmap)
+- **Monétisation** — Stripe Connect (tips live 50 %), abonnements Supporter/Super fan (4,99–9,99 €/mois), OnScen+ (2,99–4,99 €/mois roadmap)
 - **Sponsors natifs** — 4 emplacements live : `map_banner`, `feed_inline`, `stories_banner`, `reels_sponsored` — admin CRUD complet
 - **Admin panel** — onglets : Comptes, Accès, Contenu (modération), Analytics/Coûts/VPS, Support (signalements), Sponsors
 - **RGPD** — export données, suppression cascade, mentions légales
@@ -73,7 +73,7 @@ Fixe MVP ~24–28 €/mois · Cloudflare variable · LiveKit Ship ~46 €/mois s
 ## Modèle économique
 1. Sponsors natifs (45–55 % revenu cible M24)
 2. Commissions créateurs tips/abos (25–35 %)
-3. Soundy+ (10–15 %)
+3. OnScen+ (10–15 %)
 4. B2B lieux (5–15 %)
 
 ---
@@ -153,13 +153,13 @@ Si upload manuel (limite taille), prioriser :
 
 | Fichier | Contenu |
 |---------|---------|
-| `docs/Soundy-Pitch-Deck.md` | Vision investisseur |
+| `docs/OnScen-Pitch-Deck.md` | Vision investisseur |
 | `docs/PLAN-SPONSORING-PAYANT.md` | Pricing sponsors |
 | `docs/COUT-APPLICATION.md` | Coûts |
-| `docs/INFRA-SOUNDY.md` | Infra prod |
+| `docs/INFRA-ONSCEN.md` | Infra prod |
 | `docs/audit-cto-20260619.md` | Risques tech |
 | `app/src/pages/AdminPage.tsx` | Admin existant |
 | `backend/src/lib/analytics.ts` | Métriques |
 | `modification.txt` | Historique produit |
 
-Pour **repo complet** : connecter GitHub `valentingoulven-creator/MeloSong` (branche `master`).
+Pour **repo complet** : connecter GitHub `valentingoulven-creator/OnScen` (branche `master`).

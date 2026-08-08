@@ -1,5 +1,5 @@
 /**
- * Config statique des 3 environnements Soundy (source de vérité côté backend
+ * Config statique des 3 environnements OnScen (source de vérité côté backend
  * pour l'onglet Admin → Environnements). Miroir de `commun/deploy/environments.ps1`
  * pour les URLs publiques — ne contient aucun secret (SSH, tokens…).
  */

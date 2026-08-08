@@ -65,7 +65,7 @@ function SectionCard({ title, children }: { title: string; children: React.React
  * Dashboard analytique complet (croissance, engagement, contenu, monétisation,
  * technique, acquisition) sur données MOCKÉES 12 mois — voir
  * `src/data/mockAnalyticsDashboard.ts` pour le détail et le plan de bascule
- * vers une vraie API. Les données réelles Soundy restent dans les sous-onglets
+ * vers une vraie API. Les données réelles OnScen restent dans les sous-onglets
  * « Plateforme » et « Activité ».
  */
 export function AdminAnalyticsInsightsTab() {

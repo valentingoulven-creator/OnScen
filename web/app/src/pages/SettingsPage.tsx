@@ -18,8 +18,8 @@ import { ConfirmModal } from '../components/ConfirmModal';
 import { CreatorStripeConnectCard } from '../components/CreatorStripeConnectCard';
 import { DonationSheet } from '../components/DonationSheet';
 import { PlatformConnectCard } from '../components/PlatformConnectCard';
-import { SupportMeloSongTeaser } from '../components/SupportMeloSongSection';
-import { ContactSoundyPage } from './ContactSoundyPage';
+import { SupportOnScenTeaser } from '../components/SupportOnScenSection';
+import { ContactOnScenPage } from './ContactOnScenPage';
 import { PlatformSubscriptionPage } from './PlatformSubscriptionPage';
 import { SettingsAccordionSection } from '../components/settings/SettingsAccordionSection';
 import {
@@ -86,7 +86,7 @@ async function unsubscribePush(token: string): Promise<void> {
 }
 interface SettingsPageProps {
   onBack: () => void;
-  /** Ouvre Contacter Soundy à l’affichage (ex. notification support_reply). */
+  /** Ouvre Contacter OnScen à l’affichage (ex. notification support_reply). */
   openContactOnMount?: boolean;
   onContactMountHandled?: () => void;
   highlightSupportMessageId?: string;
@@ -413,7 +413,7 @@ export function SettingsPage({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `soundy-export-${Date.now()}.json`;
+      a.download = `onscen-export-${Date.now()}.json`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -516,7 +516,7 @@ export function SettingsPage({
 
       <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
         {showContact ? (
-          <ContactSoundyPage
+          <ContactOnScenPage
             embedded
             onBack={() => setShowContact(false)}
             highlightMessageId={highlightSupportMessageId}
@@ -1103,13 +1103,13 @@ export function SettingsPage({
               <div className="pt-2">
                 <SettingsGroup>
                   <SettingsRow
-                    label={t('profile.contactSoundy')}
+                    label={t('profile.contactOnScen')}
                     onClick={() => setShowContact(true)}
                   />
                 </SettingsGroup>
               </div>
               <div className="pt-2">
-                <SupportMeloSongTeaser onOpen={() => setShowDonationSheet(true)} />
+                <SupportOnScenTeaser onOpen={() => setShowDonationSheet(true)} />
               </div>
               <div className="pt-2">
                 <SettingsGroup>

@@ -8,9 +8,9 @@
 import { Preferences } from '@capacitor/preferences';
 import { SecureStorage } from '@aparajita/capacitor-secure-storage';
 
-const TOKEN_KEY = 'melosong_token';
-const REMEMBER_KEY = 'melosong_remember_me';
-const SESSION_TOKEN_KEY = 'melosong_token_session';
+const TOKEN_KEY = 'onscen_token';
+const REMEMBER_KEY = 'onscen_remember_me';
+const SESSION_TOKEN_KEY = 'onscen_token_session';
 
 let cachedToken: string | null = null;
 let initDone = false;

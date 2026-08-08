@@ -29,7 +29,7 @@ describe('aiAgents', () => {
 
     it('includes Dev Agent staff engineer role for dev', () => {
       const prompt = getSystemPrompt('dev', '{"totalUsers":1}');
-      expect(prompt).toContain('Dev Agent Soundy');
+      expect(prompt).toContain('Dev Agent OnScen');
       expect(prompt).toContain('force de proposition');
       expect(prompt).toContain('{"totalUsers":1}');
     });

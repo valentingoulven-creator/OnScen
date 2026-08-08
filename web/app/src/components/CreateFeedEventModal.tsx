@@ -645,7 +645,7 @@ export function CreateFeedEventModal({
                         onChange={(e) =>
                           setDraft((prev) => ({ ...prev, saveEventLocation: e.target.checked }))
                         }
-                        className="melosong-checkbox"
+                        className="onscen-checkbox"
                         aria-label={t('feed.eventLocationSave')}
                       />
                       <span className="text-xs text-gray-400 leading-snug">

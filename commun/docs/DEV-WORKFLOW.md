@@ -1,4 +1,4 @@
-# Workflow développement — Soundy / MeloSongv2
+# Workflow développement — OnScen / OnScenv2
 
 
 
@@ -82,7 +82,7 @@ flowchart LR
 
 
 
-Depuis la racine `MeloSongv2/` :
+Depuis la racine `OnScenv2/` :
 
 
 
@@ -196,7 +196,7 @@ powershell -ExecutionPolicy Bypass -File commun/scripts/deploy-prod.ps1 -AskComm
 
 
 
-**Ne pas développer dans iCloud Drive** (`Application\MeloSong\...`) pour le travail quotidien : sync lente, fichiers verrouillés, risque de corruption sur `msdev/data/store.json`.
+**Ne pas développer dans iCloud Drive** (`Application\OnScen\...`) pour le travail quotidien : sync lente, fichiers verrouillés, risque de corruption sur `msdev/data/store.json`.
 
 
 
@@ -206,7 +206,7 @@ Recommandé :
 
 ```text
 
-C:\Dev\MeloSongv2
+C:\Dev\OnScenv2
 
 ```
 
@@ -220,9 +220,9 @@ Cloner une fois :
 
 mkdir C:\Dev -ErrorAction SilentlyContinue
 
-git clone https://github.com/valentingoulven-creator/Melo.git C:\Dev\MeloSongv2
+git clone https://github.com/valentingoulven-creator/Melo.git C:\Dev\OnScenv2
 
-cd C:\Dev\MeloSongv2
+cd C:\Dev\OnScenv2
 
 ```
 
@@ -300,13 +300,13 @@ Voir [`commun/deploy/RUNBOOK-PROD.md`](../commun/deploy/RUNBOOK-PROD.md). Résum
 
 # Sur le VPS (root)
 
-bash /opt/soundy/commun/deploy/setup-legal-publisher.sh   # puis éditer legal-publisher.json
+bash /opt/onscen/commun/deploy/setup-legal-publisher.sh   # puis éditer legal-publisher.json
 
-sudo bash /opt/soundy/commun/deploy/install-backup-cron.sh
+sudo bash /opt/onscen/commun/deploy/install-backup-cron.sh
 
-sudo bash /opt/soundy/commun/deploy/install-health-cron.sh   # optionnel
+sudo bash /opt/onscen/commun/deploy/install-health-cron.sh   # optionnel
 
-cd /opt/soundy && pm2 start commun/deploy/ecosystem.config.cjs && pm2 save
+cd /opt/onscen && pm2 start commun/deploy/ecosystem.config.cjs && pm2 save
 
 ```
 

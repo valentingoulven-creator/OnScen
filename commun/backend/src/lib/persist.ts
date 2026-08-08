@@ -70,14 +70,14 @@ export async function loadPersistedStoreAsync(): Promise<boolean> {
 export function savePersistedStore(): void {
   if (usesPostgresPersistence()) {
     void savePersistedStoreToPostgres().catch((e) => {
-      console.error('[soundy] Échec sauvegarde PostgreSQL:', e);
+      console.error('[onscen] Échec sauvegarde PostgreSQL:', e);
     });
     return;
   }
   try {
     savePersistedStoreToFile();
   } catch (e) {
-    console.error('[soundy] Échec sauvegarde store.json:', e);
+    console.error('[onscen] Échec sauvegarde store.json:', e);
     throw e;
   }
 }
@@ -105,7 +105,7 @@ function flushPersistIfDirty(force = false): void {
     savePersistedStore();
     storeDirty = false;
   } catch (e) {
-    console.error('[melosong] Échec sauvegarde planifiée:', e);
+    console.error('[onscen] Échec sauvegarde planifiée:', e);
   }
 }
 
@@ -129,6 +129,6 @@ export async function stopPersistLoop(): Promise<void> {
     }
     storeDirty = false;
   } catch (e) {
-    console.error('[melosong] Échec sauvegarde finale à l’arrêt:', e);
+    console.error('[onscen] Échec sauvegarde finale à l’arrêt:', e);
   }
 }

@@ -44,7 +44,7 @@ export function getSupportLastTimestamp(msg: SupportContactMessage): number {
   return last?.createdAt ?? msg.createdAt;
 }
 
-const SUPPORT_SEEN_KEY = 'soundy_support_seen';
+const SUPPORT_SEEN_KEY = 'onscen_support_seen';
 
 export function getSupportSeenAt(ticketId: string): number {
   try {

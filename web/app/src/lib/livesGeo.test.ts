@@ -9,7 +9,7 @@ import {
   type LivesGeoPrefs,
 } from './livesGeo';
 
-const STORAGE_KEY = 'melosong_lives_geo';
+const STORAGE_KEY = 'onscen_lives_geo';
 
 function mockLocalStorage() {
   const store = new Map<string, string>();
@@ -84,7 +84,7 @@ describe('livesGeo', () => {
       expect(loaded.source).toBe('address');
       expect(loaded.addressLine).toBe(prefs.addressLine);
       expect(loaded.latitude).toBeCloseTo(43.61);
-      expect(STORAGE_KEY).toBe('melosong_lives_geo');
+      expect(STORAGE_KEY).toBe('onscen_lives_geo');
     });
   });
 

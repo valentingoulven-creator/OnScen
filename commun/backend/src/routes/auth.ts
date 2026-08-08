@@ -411,7 +411,7 @@ authRouter.get('/me/export', exportDataLimiter, authenticateJWT, (req: Request, 
   }
   applyProfileDefaults(user);
   const exportData = buildUserDataExport(user);
-  const filename = `soundy-export-${user.username.replace(/[^a-zA-Z0-9_-]/g, '_')}-${Date.now()}.json`;
+  const filename = `onscen-export-${user.username.replace(/[^a-zA-Z0-9_-]/g, '_')}-${Date.now()}.json`;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.json(exportData);

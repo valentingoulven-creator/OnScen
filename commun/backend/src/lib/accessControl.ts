@@ -170,7 +170,7 @@ function parseAdminEmails(): Set<string> {
 
 function parseAdminUsernames(): Set<string> {
   const raw = process.env.ACCESS_ADMIN_USERNAMES?.trim();
-  const defaults = isMsdevAccessEnv() ? ['soundy_dev'] : [];
+  const defaults = isMsdevAccessEnv() ? ['onscen_dev'] : [];
   const list = raw
     ? raw.split(/[,;]/).map((u) => u.trim().toLowerCase()).filter(Boolean)
     : defaults;

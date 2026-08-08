@@ -119,7 +119,7 @@ export function AdminSponsorsPricingTab() {
               <tr className="text-[10px] uppercase tracking-wide text-gray-500 border-b border-[#1e1e2f]">
                 <th className="py-2 pr-3 font-semibold">{t('admin.sponsors.pricingColPlacement')}</th>
                 <th className="py-2 pr-3 font-semibold">{t('admin.sponsors.pricingColExposedUsers')}</th>
-                <th className="py-2 pr-3 font-semibold">{t('admin.sponsors.pricingColSoundyCpm')}</th>
+                <th className="py-2 pr-3 font-semibold">{t('admin.sponsors.pricingColOnScenCpm')}</th>
                 {SPONSOR_TIER_DURATION_PRESETS.map((days) => (
                   <th key={days} className="py-2 pr-3 font-semibold tabular-nums">
                     {t('admin.sponsors.pricingColDaysPrice', { days })}
@@ -142,7 +142,7 @@ export function AdminSponsorsPricingTab() {
                     {formatCompactCount(row.exposedUsers)}
                   </td>
                   <td className="py-3 pr-3 text-purple-200 font-semibold tabular-nums">
-                    {formatEurPrice(row.soundyCpmEur, i18n.language)}
+                    {formatEurPrice(row.onscenCpmEur, i18n.language)}
                   </td>
                   {SPONSOR_TIER_DURATION_PRESETS.map((days) => (
                     <td key={days} className="py-3 pr-3 tabular-nums">
@@ -206,8 +206,8 @@ export function AdminSponsorsPricingTab() {
             <tr className="text-[10px] uppercase tracking-wide text-gray-500 border-b border-[#1e1e2f]">
               <th className="py-2 pr-3 font-semibold">{t('admin.sponsors.pricingColPlacement')}</th>
               <th className="py-2 pr-3 font-semibold">{t('admin.sponsors.pricingColBenchmark')}</th>
-              <th className="py-2 pr-3 font-semibold">{t('admin.sponsors.pricingColSoundyCpm')}</th>
-              <th className="py-2 pr-3 font-semibold">{t('admin.sponsors.pricingColSoundyPrice')}</th>
+              <th className="py-2 pr-3 font-semibold">{t('admin.sponsors.pricingColOnScenCpm')}</th>
+              <th className="py-2 pr-3 font-semibold">{t('admin.sponsors.pricingColOnScenPrice')}</th>
               <th className="py-2 font-semibold">{t('admin.sponsors.pricingColMarketRange')}</th>
             </tr>
           </thead>
@@ -228,11 +228,11 @@ export function AdminSponsorsPricingTab() {
                   </p>
                 </td>
                 <td className="py-3 pr-3 text-purple-200 font-semibold tabular-nums">
-                  {formatEurPrice(quote.soundyCpmEur, i18n.language)}
+                  {formatEurPrice(quote.onscenCpmEur, i18n.language)}
                 </td>
                 <td className="py-3 pr-3">
                   <p className="text-base font-bold text-white tabular-nums">
-                    {formatEurPrice(quote.soundyPriceEur, i18n.language)}
+                    {formatEurPrice(quote.onscenPriceEur, i18n.language)}
                   </p>
                   <p className="text-[10px] text-gray-500 mt-0.5">
                     {t('admin.sponsors.pricingImpressions', {

@@ -28,7 +28,7 @@ export interface MonetizationSummary {
   platformFeesAllTimeCents: number;
   platformFeesMonthStripeCents: number;
   platformRevenueMonthEstimateCents: number;
-  /** MRR Soundy+ Stripe + commissions pourboires Stripe du mois UTC. */
+  /** MRR OnScen+ Stripe + commissions pourboires Stripe du mois UTC. */
   platformRevenueMonthStripeCents: number;
   /** MRR Stripe reconstruit depuis la dernière invoice.paid par abo actif. */
   stripeReconciledMrrCents: number;

@@ -79,10 +79,10 @@ import {
 import type { ChatMessage, DmContact, Live, AppNotification, PlaybackState } from '../types';
 import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys';
 
-const SOUNDY_BASE_URL = 'https://getsoundy.com';
+const ONSCEN_BASE_URL = 'https://getsoundy.com';
 const LIVE_MAX_DURATION_MS = 8 * 60 * 60 * 1000;
 
-const LIVE_CHAT_HIDDEN_KEY = 'melosong_live_chat_hidden';
+const LIVE_CHAT_HIDDEN_KEY = 'onscen_live_chat_hidden';
 
 function readLiveChatPinned(): boolean {
   return getStorageItem(STORAGE_KEYS.liveChatPinned) === '1';
@@ -198,7 +198,7 @@ export function LivePage({
     []
   );
   const leavingLiveRef = useRef(false);
-  /** OBS a déjà diffusé au moins une fois durant ce live (auto-stop Soundy si RTMP coupé). */
+  /** OBS a déjà diffusé au moins une fois durant ce live (auto-stop OnScen si RTMP coupé). */
   const obsWasLiveRef = useRef(false);
   const obsDisconnectPollsRef = useRef(0);
   const obsAutoStopTriggeredRef = useRef(false);
@@ -1219,10 +1219,10 @@ export function LivePage({
     setShowShareMenu(true);
   };
 
-  const liveShareUrl = `${SOUNDY_BASE_URL}/live/${liveId}`;
-  const liveShareTitle = live?.title ?? t('live.shareLiveTitle', { defaultValue: 'Live Soundy' });
+  const liveShareUrl = `${ONSCEN_BASE_URL}/live/${liveId}`;
+  const liveShareTitle = live?.title ?? t('live.shareLiveTitle', { defaultValue: 'Live OnScen' });
   const liveShareText = t('live.shareLiveText', {
-    defaultValue: 'Rejoins ce live musical sur Soundy !',
+    defaultValue: 'Rejoins ce live musical sur OnScen !',
   });
 
   const openPrivate = (target: { id: string; name: string }) => {

@@ -79,11 +79,11 @@ describe('shareOgMeta', () => {
     expect(meta).not.toBeNull();
 
     const html = injectOgMetaIntoHtml(
-      '<!doctype html><html><head><title>Soundy</title></head><body></body></html>',
+      '<!doctype html><html><head><title>OnScen</title></head><body></body></html>',
       meta!
     );
     expect(html).toContain('og:title');
     expect(html).toContain('MeloFan');
-    expect(html).not.toContain('<title>Soundy</title>');
+    expect(html).not.toContain('<title>OnScen</title>');
   });
 });
