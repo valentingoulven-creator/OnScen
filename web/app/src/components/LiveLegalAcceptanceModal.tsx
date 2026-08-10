@@ -123,8 +123,8 @@ export function LiveLegalAcceptanceModal({ token, onAccepted, onClose }: LiveLeg
               💰
             </span>
             <p className="text-[11px] sm:text-xs text-amber-200/80 leading-snug">
-              <span className="font-bold">Commission OnScen 30 %</span> — vous recevez{' '}
-              <span className="font-bold text-amber-300">70 %</span> de chaque pourboire sur votre compte
+              <span className="font-bold">Commission OnScen 50 %</span> — vous recevez{' '}
+              <span className="font-bold text-amber-300">50 %</span> de chaque pourboire sur votre compte
               Stripe.
             </p>
           </div>

@@ -24,7 +24,7 @@ export const politiqueConfidentialite: LegalDocument = {
     },
     {
       heading: '5. Durées de conservation',
-      body: '• Compte et profil : pendant la durée du compte, puis suppression ou anonymisation dans un délai raisonnable après clôture.\n• Messages : conservés tant que nécessaire au fonctionnement de l\'historique des conversations ; vous pouvez masquer ou supprimer certains messages selon les fonctions proposées.\n• Données de localisation : dernière position connue mise à jour à chaque session ; non conservées au-delà du nécessaire pour le Service.\n• Logs techniques : durée limitée (ex. 12 mois en production, sauf obligation légale contraire).',
+      body: '• Compte et profil : pendant la durée du compte, puis suppression ou anonymisation dans un délai raisonnable après clôture.\n• Messages : conservés tant que nécessaire au fonctionnement de l\'historique des conversations ; vous pouvez masquer ou supprimer certains messages selon les fonctions proposées.\n• Données de localisation : dernière position connue mise à jour à chaque session ; non conservées au-delà du nécessaire pour le Service.\n• Logs techniques : durée limitée (ex. 6 mois en production, sauf obligation légale contraire).',
     },
     {
       heading: '6. Sécurité',
