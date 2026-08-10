@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import {
   useDraggableVideoPip,
   defaultVideoPipPos,
@@ -19,11 +20,14 @@ function LivePipPreviewFloatInner({
   live,
   onJoin,
   onClose,
+  onOpenProfile,
 }: {
   live: Live;
   onJoin: () => void;
   onClose: () => void;
+  onOpenProfile?: (userId: string) => void;
 }) {
+  const { t } = useTranslation();
   const { token } = useAuth();
   const pip = useDraggableVideoPip(true, onClose, defaultVideoPipPos, live.id);
   const videoH = Math.round((VIDEO_PIP_WIDTH * 9) / 16);
@@ -60,14 +64,36 @@ function LivePipPreviewFloatInner({
         onPointerDown={pip.onHeaderPointerDown}
       >
         <span className="text-[10px] text-red-400/80 leading-none shrink-0" aria-hidden>⠿</span>
-        <UsernameDisplay
-          as="p"
-          username={live.hostName}
-          usernameColor={live.hostUsernameColor}
-          usernameWaveFrom={live.hostUsernameWaveFrom}
-          usernameWaveTo={live.hostUsernameWaveTo}
-          className="flex-1 truncate min-w-0 text-[10px] font-semibold text-white"
-        />
+        {onOpenProfile ? (
+          <button
+            type="button"
+            className="flex-1 min-w-0 text-left truncate rounded px-0.5 -mx-0.5 hover:bg-white/10 transition cursor-pointer"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => onOpenProfile(live.hostId)}
+            aria-label={t('reels.openAuthorProfile', {
+              username: live.hostName,
+              defaultValue: `Voir le profil de ${live.hostName}`,
+            })}
+          >
+            <UsernameDisplay
+              as="span"
+              username={live.hostName}
+              usernameColor={live.hostUsernameColor}
+              usernameWaveFrom={live.hostUsernameWaveFrom}
+              usernameWaveTo={live.hostUsernameWaveTo}
+              className="block truncate text-[10px] font-semibold text-white"
+            />
+          </button>
+        ) : (
+          <UsernameDisplay
+            as="p"
+            username={live.hostName}
+            usernameColor={live.hostUsernameColor}
+            usernameWaveFrom={live.hostUsernameWaveFrom}
+            usernameWaveTo={live.hostUsernameWaveTo}
+            className="flex-1 truncate min-w-0 text-[10px] font-semibold text-white"
+          />
+        )}
         <div
           className="shrink-0 inline-flex items-center self-center"
           onPointerDown={(e) => e.stopPropagation()}
@@ -162,10 +188,19 @@ export function LivePipPreviewFloat({
   live,
   onJoin,
   onClose,
+  onOpenProfile,
 }: {
   live: Live;
   onJoin: () => void;
   onClose: () => void;
+  onOpenProfile?: (userId: string) => void;
 }) {
-  return <LivePipPreviewFloatInner live={live} onJoin={onJoin} onClose={onClose} />;
+  return (
+    <LivePipPreviewFloatInner
+      live={live}
+      onJoin={onJoin}
+      onClose={onClose}
+      onOpenProfile={onOpenProfile}
+    />
+  );
 }

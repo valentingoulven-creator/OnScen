@@ -2275,6 +2275,19 @@ export function ActualiteTabPage({
                   ))}
                 </div>
               )}
+              {!loading && posts.length > 0 ? (
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 px-0.5">
+                  {t('feed.followingRecentSection', {
+                    count: recentFollowingPosts.length,
+                    defaultValue: 'Abonnements · {{count}} sur 48 h',
+                  })}
+                  {olderFollowingRaw.length > 0 && !showOlderFollowing
+                    ? t('feed.followingOlderHint', {
+                        defaultValue: ' · plus anciennes via « Afficher plus »',
+                      })
+                    : null}
+                </p>
+              ) : null}
               {!loading &&
                 recentFollowingPosts.length === 0 &&
                 !(showOlderFollowing && olderFollowingPosts.length > 0) && (
@@ -2294,6 +2307,21 @@ export function ActualiteTabPage({
                       {t('feed.followingEmptyHint', {
                         defaultValue:
                           'Suivez des artistes depuis la carte ou leurs profils pour remplir votre fil d’accueil.',
+                      })}
+                    </p>
+                  ) : olderFollowingRaw.length > 0 ? (
+                    <p className="text-xs text-[var(--ms-text-muted)] max-w-sm">
+                      {t('feed.followingRecentEmptyHint', {
+                        count: olderFollowingRaw.length,
+                        defaultValue:
+                          '{{count}} publication(s) datent de plus de 2 jours — touchez « Afficher plus » pour les voir.',
+                      })}
+                    </p>
+                  ) : canOfferMoreFollowing ? (
+                    <p className="text-xs text-[var(--ms-text-muted)] max-w-sm">
+                      {t('feed.followingRecentEmptyHintLoadMore', {
+                        defaultValue:
+                          'D’autres publications peuvent exister — touchez « Afficher plus » pour charger la suite.',
                       })}
                     </p>
                   ) : null}
@@ -2460,6 +2488,10 @@ export function ActualiteTabPage({
           isOwn={feedStorySheet.kind === 'view' ? feedStorySheet.isOwn : false}
           token={token ?? undefined}
           onDeleted={feedStorySheet.kind === 'view' ? handleFeedStoryDeleted : undefined}
+          onOpenProfile={(userId) => {
+            onOpenProfile(userId);
+            setFeedStorySheet({ kind: 'closed' });
+          }}
         />
       ) : null}
 
@@ -2467,6 +2499,7 @@ export function ActualiteTabPage({
         <MapEventBrowseDetailOverlay
           post={feedEventDetailPost}
           onClose={() => setFeedEventDetailPost(null)}
+          onOpenProfile={onOpenProfile}
           onPostChange={patchEventPost}
         />
       ) : null}

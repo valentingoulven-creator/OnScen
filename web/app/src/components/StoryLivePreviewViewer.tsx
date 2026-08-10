@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useVerticalSwipe } from '../hooks/useVerticalSwipe';
 import { useHorizontalSwipe } from '../hooks/useHorizontalSwipe';
 import { useCloudflareHlsPlayback } from '../hooks/useCloudflareHlsPlayback';
@@ -27,6 +28,7 @@ export interface StoryLivePreviewViewerProps {
   canNext?: boolean;
   onPrev?: () => void;
   canPrev?: boolean;
+  onOpenProfile?: (userId: string) => void;
 }
 
 export function StoryLivePreviewViewer({
@@ -41,7 +43,9 @@ export function StoryLivePreviewViewer({
   canNext = Boolean(onNext),
   onPrev,
   canPrev = false,
+  onOpenProfile,
 }: StoryLivePreviewViewerProps) {
+  const { t } = useTranslation();
   const [live, setLive] = useState<Live | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -293,32 +297,72 @@ export function StoryLivePreviewViewer({
           </div>
         ) : null}
 
-        <div className="absolute top-0 inset-x-0 z-10 flex items-center gap-2 px-3 pt-2 pb-8">
-          <UserAvatarOnline
-            userId={entry.userId}
-            username={hostName}
-            avatarUrl={entry.avatarUrl}
-            size="sm"
-            isLive
-            liveViewersCount={viewersCount > 0 ? viewersCount : undefined}
-          />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className="text-[9px] font-extrabold uppercase tracking-wider text-red-400 bg-red-950/60 px-1.5 py-0.5 rounded border border-red-500/30 shrink-0">
-                Live
-              </span>
-              <UsernameDisplay
+        <div className="absolute top-0 inset-x-0 z-10 flex items-center gap-2 px-3 pt-2 pb-8 pointer-events-auto">
+          {onOpenProfile ? (
+            <button
+              type="button"
+              onClick={() => onOpenProfile(entry.userId)}
+              className="flex items-center gap-2 min-w-0 flex-1 text-left rounded-lg -ml-1 px-1 py-0.5 hover:bg-white/10 active:bg-white/15 transition min-h-[44px]"
+              aria-label={t('reels.openAuthorProfile', {
+                username: hostName,
+                defaultValue: `Voir le profil de ${hostName}`,
+              })}
+            >
+              <UserAvatarOnline
+                userId={entry.userId}
                 username={hostName}
-                usernameColor={live?.hostUsernameColor}
-                usernameWaveFrom={live?.hostUsernameWaveFrom}
-                usernameWaveTo={live?.hostUsernameWaveTo}
-                className="text-sm font-semibold truncate block text-white"
+                avatarUrl={entry.avatarUrl}
+                size="sm"
+                isLive
+                liveViewersCount={viewersCount > 0 ? viewersCount : undefined}
               />
-            </div>
-            {viewersLabel ? (
-              <p className="text-[11px] text-white/70 tabular-nums mt-0.5">{viewersLabel}</p>
-            ) : null}
-          </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-red-400 bg-red-950/60 px-1.5 py-0.5 rounded border border-red-500/30 shrink-0">
+                    Live
+                  </span>
+                  <UsernameDisplay
+                    username={hostName}
+                    usernameColor={live?.hostUsernameColor}
+                    usernameWaveFrom={live?.hostUsernameWaveFrom}
+                    usernameWaveTo={live?.hostUsernameWaveTo}
+                    className="text-sm font-semibold truncate block text-white"
+                  />
+                </div>
+                {viewersLabel ? (
+                  <p className="text-[11px] text-white/70 tabular-nums mt-0.5">{viewersLabel}</p>
+                ) : null}
+              </div>
+            </button>
+          ) : (
+            <>
+              <UserAvatarOnline
+                userId={entry.userId}
+                username={hostName}
+                avatarUrl={entry.avatarUrl}
+                size="sm"
+                isLive
+                liveViewersCount={viewersCount > 0 ? viewersCount : undefined}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-red-400 bg-red-950/60 px-1.5 py-0.5 rounded border border-red-500/30 shrink-0">
+                    Live
+                  </span>
+                  <UsernameDisplay
+                    username={hostName}
+                    usernameColor={live?.hostUsernameColor}
+                    usernameWaveFrom={live?.hostUsernameWaveFrom}
+                    usernameWaveTo={live?.hostUsernameWaveTo}
+                    className="text-sm font-semibold truncate block text-white"
+                  />
+                </div>
+                {viewersLabel ? (
+                  <p className="text-[11px] text-white/70 tabular-nums mt-0.5">{viewersLabel}</p>
+                ) : null}
+              </div>
+            </>
+          )}
           <button
             type="button"
             onClick={onClose}

@@ -27,6 +27,7 @@ export interface MapEventsBrowseSheetProps {
   onOpenEventDetail?: (post: FeedPost) => void;
   onOpenInFeed?: (postId: string) => void;
   onPostChange?: (postId: string, patch: Partial<FeedPost>) => void;
+  onOpenProfile?: (userId: string) => void;
   selectedMapEventDayKey?: string | null;
   onMapEventDayKeySelect?: (dayKey: string) => void;
   sponsoredEventPosts?: FeedPost[];
@@ -59,6 +60,7 @@ export function MapEventsBrowseSheet({
   onOpenEventDetail,
   onOpenInFeed,
   onPostChange,
+  onOpenProfile,
   selectedMapEventDayKey,
   onMapEventDayKeySelect,
   sponsoredEventPosts = [],
@@ -227,6 +229,7 @@ export function MapEventsBrowseSheet({
               : undefined
           }
           onPostChange={browse.handlePostChange}
+          onOpenProfile={onOpenProfile}
         />
       ) : null}
     </div>,

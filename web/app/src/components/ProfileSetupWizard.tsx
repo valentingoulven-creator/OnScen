@@ -9,6 +9,7 @@ import { validateBirthDate, computeAgeFromBirthDate, birthDateErrorMessage } fro
 import { validateImageFileAsync } from '../lib/imageConstraints';
 import { prepareImageFile } from '../lib/imageUtils';
 import { ConfirmModal } from './ConfirmModal';
+import { AuthPageShell } from './AuthSpaceBackground';
 import type { User } from '../types';
 
 type Step = 'profile' | 'location';
@@ -299,7 +300,7 @@ export function ProfileSetupWizard({
   const welcomeTitle = username ? `${title}, ${username} !` : `${title} !`;
 
   return (
-    <div className="min-h-dvh flex flex-col items-center justify-center px-4 py-5 sm:p-6 bg-[#0b0b0f]">
+    <AuthPageShell className="flex flex-col items-center justify-center px-4 py-5 sm:p-6">
       <div className="w-full max-w-sm">
         <div className={`text-center ${step === 'profile' ? 'mb-3' : 'mb-6'}`}>
           {step !== 'profile' ? (
@@ -536,6 +537,6 @@ export function ProfileSetupWizard({
         onCancel={() => setDeletePhotoIndex(null)}
         onConfirm={confirmRemoveOnboardingPhoto}
       />
-    </div>
+    </AuthPageShell>
   );
 }

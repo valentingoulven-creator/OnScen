@@ -46,7 +46,7 @@ export function DonationSheet({ onClose }: DonationSheetProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-[70] flex items-center justify-center ms-modal-overlay bg-black/70 backdrop-blur-sm"
       onClick={onClose}
     >
       <div

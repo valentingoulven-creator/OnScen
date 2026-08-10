@@ -1,4 +1,5 @@
-const MAX_DAYS_PER_USER = 120;
+/** ~12 mois glissants — aligné politique de confidentialité (audit rétention connexion). */
+const MAX_DAYS_PER_USER = 366;
 
 /** userId → jours UTC YYYY-MM-DD où une connexion a été enregistrée. */
 const loginDaysByUser = new Map<string, Set<string>>();

@@ -13,6 +13,9 @@ import { PasswordStrengthBar } from '../components/PasswordStrengthBar';
 import { getPasswordStrengthAsync, preloadPasswordStrength } from '../lib/passwordStrength';
 import type { PublicAccessConfig, User } from '../types';
 import { ProfileSetupWizard } from '../components/ProfileSetupWizard';
+import { SignupChatWizard, type SignupChatResult } from '../components/SignupChatWizard';
+import { AuthPageShell } from '../components/AuthSpaceBackground';
+import { TurnstileWidget, isTurnstileEnabledClient } from '../components/TurnstileWidget';
 import { startAuthentication } from '@simplewebauthn/browser';
 
 // ─── OAuth provider status ───────────────────────────────────────────────────
@@ -74,6 +77,8 @@ export function AuthPage() {
   const [username, setUsername] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [confirmAge, setConfirmAge] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRequired = isTurnstileEnabledClient();
   const [rememberMe, setRememberMe] = useState(true);
   const [inviteCode, setInviteCode] = useState('');
   const [accessConfig, setAccessConfig] = useState<PublicAccessConfig | null>(null);
@@ -377,7 +382,8 @@ export function AuthPage() {
           true,
           CURRENT_TERMS_VERSION,
           inviteCode.trim(),
-          confirmAge
+          confirmAge,
+          turnstileToken
         );
         if (r.pending) {
           throw new Error(
@@ -430,7 +436,7 @@ export function AuthPage() {
   // ── 2FA challenge screen ─────────────────────────────────────────────────
   if (twoFAState) {
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center p-6 bg-[#0b0b0f]">
+      <AuthPageShell className="flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
             <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 items-center justify-center text-2xl mb-4">
@@ -495,24 +501,24 @@ export function AuthPage() {
             ← Retour à la connexion
           </button>
         </div>
-      </div>
+      </AuthPageShell>
     );
   }
 
   if (oauthLoading) {
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center gap-3 bg-[#0b0b0f] text-gray-400">
+      <AuthPageShell className="flex flex-col items-center justify-center gap-3 text-gray-400">
         <span className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-400 rounded-full animate-spin" />
         <p className="text-sm">Connexion en cours…</p>
-      </div>
+      </AuthPageShell>
     );
   }
 
   if (legalPreview) {
     return (
-      <div className="min-h-dvh bg-[#0b0b0f]">
+      <AuthPageShell>
         <LegalDocumentView docKey={legalPreview} onBack={() => setLegalPreview(null)} />
-      </div>
+      </AuthPageShell>
     );
   }
 
@@ -534,6 +540,29 @@ export function AuthPage() {
     }
   };
 
+  const resetSignupToLogin = () => {
+    setMode('login');
+    setRegisterPhase('account');
+    setPendingSignup(null);
+    setError('');
+    setRegisterSuccess('');
+    setConfirmPassword('');
+    setUsernameStatus('idle');
+    setUsernameMessage('');
+    setConfirmAge(false);
+    setAcceptTerms(false);
+  };
+
+  const handleSignupChatComplete = (result: SignupChatResult) => {
+    if (result.kind === 'session') {
+      setPendingSignup({ token: result.token, user: result.user });
+      setRegisterPhase('profile');
+      return;
+    }
+    setRegisterSuccess(result.message);
+    resetSignupToLogin();
+  };
+
   if (mode === 'register' && registerPhase === 'profile' && pendingSignup) {
     return (
       <ProfileSetupWizard
@@ -546,9 +575,20 @@ export function AuthPage() {
     );
   }
 
+  if (mode === 'register' && registerPhase === 'account') {
+    return (
+      <SignupChatWizard
+        accessConfig={accessConfig}
+        onBack={resetSignupToLogin}
+        onLegalPreview={setLegalPreview}
+        onComplete={handleSignupChatComplete}
+      />
+    );
+  }
+
   if (oauthTermsCode) {
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center p-6 bg-[#0b0b0f]">
+      <AuthPageShell className="flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-sm bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-6 space-y-4">
           <h2 className="text-lg font-bold text-white text-center">Finaliser votre inscription</h2>
           <p className="text-sm text-gray-400 text-center">
@@ -592,38 +632,44 @@ export function AuthPage() {
             {oauthTermsBusy ? 'Validation…' : 'Continuer'}
           </button>
         </div>
-      </div>
+      </AuthPageShell>
     );
   }
 
   return (
-    <div className="min-h-dvh flex flex-col items-center justify-center p-6 bg-[#0b0b0f]">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <OnScenLogo className="h-12 sm:h-14 w-auto mx-auto mb-4" />
-          <p className="text-gray-400 text-sm mt-2">{t('app.tagline')}</p>
-        </div>
+    <AuthPageShell
+      fitViewport
+      className="flex flex-col items-center justify-start px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.35rem,env(safe-area-inset-top))] sm:px-6"
+    >
+      <div className="flex h-full min-h-0 max-h-full w-full max-w-sm flex-col">
+        <header className="shrink-0 pb-2 pt-0.5 text-center">
+          <OnScenLogo variant="lockup" density="compact" showMark={false} className="mx-auto" />
+        </header>
 
+        <div className="flex min-h-0 flex-1 flex-col justify-center gap-2.5">
         {pendingSalonId && (
-          <p className="mb-4 text-center text-xs text-purple-300 bg-purple-500/10 border border-purple-500/30 rounded-xl px-4 py-3">
+          <p className="text-center text-xs text-purple-300 bg-purple-500/10 border border-purple-500/30 rounded-xl px-3 py-2 shrink-0">
             {t('auth.pendingSalon')}
           </p>
         )}
 
         {accessConfig?.enabled && (
-          <p className="mb-4 text-center text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
+          <p className="text-center text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 shrink-0">
             {t('auth.secureAccess')}
             {accessConfig.adminApprovalRequired && t('auth.adminApproval')}
           </p>
         )}
 
         {registerSuccess && (
-          <p className="mb-4 text-center text-xs text-green-300 bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3">
+          <p className="text-center text-xs text-green-300 bg-green-500/10 border border-green-500/30 rounded-xl px-3 py-2 shrink-0">
             {registerSuccess}
           </p>
         )}
 
-        <form onSubmit={submit} className="space-y-4 bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-6">
+        <form
+          onSubmit={submit}
+          className="shrink-0 space-y-2.5 rounded-2xl border border-[#1e1e2f] bg-[#12121a]/92 p-4 backdrop-blur-sm"
+        >
           {mode === 'register' && (
             <p className="text-center text-xs text-purple-300/90 font-medium">Étape 1 sur 2 — votre compte</p>
           )}
@@ -671,7 +717,7 @@ export function AuthPage() {
           )}
 
           <input
-            className="w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-3 text-white"
+            className="w-full rounded-xl border border-[#2d2d3d] bg-[#1a1a26] px-3 py-2.5 text-sm text-white"
             type="email"
             placeholder={t('auth.email')}
             value={email}
@@ -680,9 +726,9 @@ export function AuthPage() {
             autoComplete="email"
           />
 
-          <div className="space-y-2">
+          <div className="space-y-1">
             <input
-              className="w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-3 text-white"
+              className="w-full rounded-xl border border-[#2d2d3d] bg-[#1a1a26] px-3 py-2.5 text-sm text-white"
               type="password"
               placeholder={t('auth.password')}
               value={password}
@@ -690,16 +736,28 @@ export function AuthPage() {
               required
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             />
-            {mode === 'login' && (
-              <div className="flex justify-end">
-                <a
-                  href={forgotPasswordHref()}
-                  className="text-xs text-purple-400 hover:text-purple-300 underline transition"
-                >
-                  {t('auth.forgotPassword')}
-                </a>
-              </div>
-            )}
+          {mode === 'login' && (
+            <div className="flex items-start justify-between gap-2">
+              <label className="flex items-start gap-2 cursor-pointer min-w-0">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="onscen-checkbox mt-0.5 shrink-0"
+                />
+                <span className="text-xs text-gray-400 leading-snug">
+                  {t('auth.rememberMe')}
+                  <span className="sr-only">{t('auth.rememberMeHint')}</span>
+                </span>
+              </label>
+              <a
+                href={forgotPasswordHref()}
+                className="text-[11px] text-purple-400 hover:text-purple-300 underline transition shrink-0 pt-0.5"
+              >
+                {t('auth.forgotPassword')}
+              </a>
+            </div>
+          )}
             {mode === 'register' && <PasswordStrengthBar password={password} />}
           </div>
 
@@ -728,23 +786,6 @@ export function AuthPage() {
               onChange={(e) => setInviteCode(e.target.value)}
               autoComplete="off"
             />
-          )}
-
-          {mode === 'login' && (
-            <label className="flex items-start gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="onscen-checkbox mt-0.5 shrink-0"
-              />
-              <span className="text-xs text-gray-400 leading-snug">
-                {t('auth.rememberMe')}
-                <span className="block text-[10px] text-gray-500 mt-0.5">
-                  {t('auth.rememberMeHint')}
-                </span>
-              </span>
-            </label>
           )}
 
           {mode === 'register' && (
@@ -787,6 +828,10 @@ export function AuthPage() {
             <p className="text-[10px] text-gray-500 leading-snug">{t('auth.minAgeNotice')}</p>
           )}
 
+          {mode === 'register' && turnstileRequired && (
+            <TurnstileWidget className="flex justify-center min-h-[65px]" onToken={setTurnstileToken} theme="dark" />
+          )}
+
           {error && (
             <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2">
               <span className="text-red-400 shrink-0 mt-0.5">⚠</span>
@@ -803,8 +848,12 @@ export function AuthPage() {
 
           <button
             type="submit"
-            disabled={loading || (mode === 'register' && (!acceptTerms || !confirmAge))}
-            className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 font-bold text-white disabled:opacity-50 transition"
+            disabled={
+              loading ||
+              (mode === 'register' &&
+                (!acceptTerms || !confirmAge || (turnstileRequired && !turnstileToken)))
+            }
+            className="w-full rounded-xl bg-purple-600 py-2.5 text-sm font-bold text-white transition hover:bg-purple-500 disabled:opacity-50"
           >
             {loading ? (
               <span className="inline-flex items-center gap-2 justify-center">
@@ -818,10 +867,10 @@ export function AuthPage() {
         </form>
 
         {(appleOAuthAvailable || (googleOAuthAvailable && !(isNativeIos() && !appleOAuthAvailable))) && (
-        <div className="mt-3 space-y-3">
+        <div className="shrink-0 space-y-2">
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-[#1e1e2f]" />
-            <span className="text-[11px] text-gray-500 shrink-0">{t('auth.oauthOrContinue')}</span>
+            <span className="text-[10px] sm:text-[11px] text-gray-500 shrink-0">{t('auth.oauthOrContinue')}</span>
             <div className="h-px flex-1 bg-[#1e1e2f]" />
           </div>
 
@@ -830,7 +879,7 @@ export function AuthPage() {
               type="button"
               onClick={() => { window.location.href = '/api/auth/apple'; }}
               aria-describedby="apple-oauth-hint"
-              className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-black border border-[#1e1e2f] flex items-center justify-center gap-3 transition active:scale-[0.99] hover:border-purple-500/50 hover:bg-[#12121a] hover:shadow-[0_0_12px_rgba(139,92,246,0.2)] cursor-pointer"
+              className="w-full flex min-h-[40px] cursor-pointer items-center justify-center gap-3 rounded-xl border border-[#1e1e2f] bg-black px-4 py-2 text-sm transition hover:border-purple-500/50 hover:bg-[#12121a] hover:shadow-[0_0_12px_rgba(139,92,246,0.2)] active:scale-[0.99]"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" className="shrink-0 fill-white">
                 <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
@@ -850,10 +899,10 @@ export function AuthPage() {
                 }}
                 aria-describedby="google-oauth-hint"
                 aria-disabled={googleOAuthDisabled}
-                className={`w-full min-h-[44px] py-2.5 px-4 rounded-xl border flex items-center justify-center gap-3 transition ${
+                className={`w-full flex min-h-[40px] items-center justify-center gap-3 rounded-xl border px-4 py-2 text-sm transition ${
                   googleOAuthDisabled
-                    ? 'bg-[#0a0a0f] border-[#1a1a22] opacity-50 cursor-not-allowed'
-                    : 'bg-[#12121a] border-[#1e1e2f] active:scale-[0.99] hover:border-purple-500/50 hover:bg-[#1a1a26] hover:shadow-[0_0_12px_rgba(139,92,246,0.2)] cursor-pointer'
+                    ? 'cursor-not-allowed border-[#1a1a22] bg-[#0a0a0f] opacity-50'
+                    : 'cursor-pointer border-[#1e1e2f] bg-[#12121a] active:scale-[0.99] hover:border-purple-500/50 hover:bg-[#1a1a26] hover:shadow-[0_0_12px_rgba(139,92,246,0.2)]'
                 }`}
               >
                 <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true" className={`shrink-0 ${googleOAuthDisabled ? 'grayscale' : ''}`}>
@@ -866,7 +915,7 @@ export function AuthPage() {
                   {t('auth.continueWithGoogle')}
                 </span>
               </button>
-              <p id="google-oauth-hint" className="text-center text-[11px] text-gray-500 leading-snug">
+              <p id="google-oauth-hint" className="sr-only">
                 {googleOAuthDisabled
                   ? t('auth.continueWithGoogleDisabledHint')
                   : t('auth.continueWithGoogleHint')}
@@ -875,7 +924,7 @@ export function AuthPage() {
           )}
 
           {appleOAuthAvailable && (
-            <p id="apple-oauth-hint" className="text-center text-[11px] text-gray-500 leading-snug">
+            <p id="apple-oauth-hint" className="sr-only">
               {t('auth.continueWithAppleHint')}
             </p>
           )}
@@ -884,7 +933,7 @@ export function AuthPage() {
 
         {/* ── Face ID / empreinte (WebAuthn) — connexion uniquement ── */}
         {mode === 'login' && biometricSupported && (
-          <div className="mt-3 space-y-3">
+          <div className="shrink-0 space-y-2">
             <div className="flex items-center gap-3">
               <div className="h-px flex-1 bg-[#1e1e2f]" />
               <span className="text-[11px] text-gray-500 shrink-0">{t('auth.biometricOr')}</span>
@@ -915,7 +964,7 @@ export function AuthPage() {
         <MsdevDualIpPanel onAutoLogin={handleAutoLogin} hasToken={Boolean(token)} />
 
         {import.meta.env.VITE_APP_ENV === 'msdev' && (
-          <p className="mt-4 text-center text-[11px] text-gray-500 leading-relaxed">
+          <p className="mt-1 text-center text-[10px] text-gray-500 leading-snug shrink-0">
             Compte démo msdev
             <br />
             <span className="text-gray-400 font-mono text-[10px]">listener@msdev.local</span>
@@ -925,7 +974,7 @@ export function AuthPage() {
         )}
 
         {isPreprod && demoLoginEmail && (
-          <p className="mt-4 text-center text-[11px] text-gray-500 leading-relaxed">
+          <p className="mt-1 text-center text-[10px] text-gray-500 leading-snug shrink-0">
             Staging — connexion admin par défaut
             <br />
             <span className="text-gray-400 font-mono text-[10px]">{demoLoginEmail}</span>
@@ -941,7 +990,7 @@ export function AuthPage() {
         {!(accessConfig?.registrationMode === 'closed' && mode === 'login') && (
         <button
           type="button"
-          className="w-full mt-4 border border-purple-500/60 bg-purple-950/30 py-2.5 px-4 rounded-xl text-sm text-purple-300 font-medium hover:bg-purple-900/40 hover:border-purple-400 transition"
+          className="w-full shrink-0 rounded-xl border border-purple-500/60 bg-purple-950/30 px-4 py-2 text-sm font-medium text-purple-300 transition hover:border-purple-400 hover:bg-purple-900/40"
           onClick={() => {
             if (accessConfig?.registrationMode === 'closed') return;
             setMode(mode === 'login' ? 'register' : 'login');
@@ -962,7 +1011,8 @@ export function AuthPage() {
             : t('auth.alreadyRegistered')}
         </button>
         )}
+        </div>
       </div>
-    </div>
+    </AuthPageShell>
   );
 }

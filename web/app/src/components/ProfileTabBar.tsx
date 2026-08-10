@@ -20,6 +20,8 @@ interface ProfileTabBarProps {
   active: ProfileTab;
   onChange: (tab: ProfileTab) => void;
   showReels?: boolean;
+  showCompositions?: boolean;
+  showProgrammation?: boolean;
   showLives?: boolean;
   /** Libellés alternatifs pour profils visités (ex. « Ses reels »). */
   reelsLabel?: string;
@@ -30,6 +32,8 @@ export function ProfileTabBar({
   active,
   onChange,
   showReels,
+  showCompositions = true,
+  showProgrammation = true,
   showLives,
   reelsLabel,
   livesLabel,
@@ -37,8 +41,8 @@ export function ProfileTabBar({
   const { t } = useTranslation();
   const tabs: [ProfileTab, string][] = [['profil', t('profile.tabProfil')]];
   if (showReels) tabs.push(['reels', reelsLabel ?? t('profile.tabReels')]);
-  tabs.push(['compositions', t('profile.tabCompositions')]);
-  tabs.push(['programmation', t('profile.tabProgrammation')]);
+  if (showCompositions) tabs.push(['compositions', t('profile.tabCompositions')]);
+  if (showProgrammation) tabs.push(['programmation', t('profile.tabProgrammation')]);
   if (showLives) tabs.push(['lives', livesLabel ?? t('profile.tabLives')]);
 
   return (

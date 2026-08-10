@@ -89,6 +89,8 @@ export interface EventCardProps {
   profileActions?: ReactNode;
   /** Clic sur l'organisateur → profil (ligne profil hors du bouton carte). */
   onOpenAuthor?: (post: FeedPost) => void;
+  /** Clic organisateur → profil par id (alternative à onOpenAuthor). */
+  onOpenProfile?: (userId: string) => void;
   /** Clic sur un compte tagué → profil. */
   onOpenTaggedUser?: (userId: string) => void;
   /** Intégré dans un modal — sans bordure ni halo autour de la carte. */
@@ -113,6 +115,7 @@ export function EventCard({
   extraBadges,
   profileActions,
   onOpenAuthor,
+  onOpenProfile,
   onOpenTaggedUser,
   embedded = false,
   locationNavigable = false,
@@ -144,7 +147,13 @@ export function EventCard({
   const { title: eventTitle, description: eventDescription } = splitFeedEventContent(post.content);
   const inlineTextLinks =
     textHasUrlLinks(eventTitle) || textHasUrlLinks(eventDescription);
-  const useDivCardShell = embedded || (inlineTextLinks && !onOpenAuthor);
+  const canOpenAuthor = Boolean(onOpenAuthor || onOpenProfile);
+  const openAuthorProfile = (e?: MouseEvent) => {
+    e?.stopPropagation();
+    if (onOpenAuthor) onOpenAuthor(post);
+    else if (post.author.id) onOpenProfile?.(post.author.id);
+  };
+  const useDivCardShell = embedded || (inlineTextLinks && !canOpenAuthor);
   const isCarousel = layout === 'carousel';
   const isCompact = compact ?? !isCarousel;
   const isSidebar = density === 'sidebar';
@@ -257,7 +266,7 @@ export function EventCard({
     </div>
   ) : null;
 
-  const profileRowInsideCard = !onOpenAuthor ? (
+  const profileRowInsideCard = !canOpenAuthor ? (
     <div className={profileRowBorder}>
       <div className={`flex items-center gap-2 min-w-0 ${profileActions ? 'flex-1' : 'w-full'}`}>
         {profileIdentity}
@@ -266,12 +275,12 @@ export function EventCard({
     </div>
   ) : null;
 
-  const profileRowOutsideCard = onOpenAuthor ? (
+  const profileRowOutsideCard = canOpenAuthor ? (
     <div className={`${isCompact ? 'px-2.5 pb-2.5' : 'px-3 pb-3'}`}>
       <div className={profileRowBorder}>
         <button
           type="button"
-          onClick={() => onOpenAuthor(post)}
+          onClick={openAuthorProfile}
           className={`flex items-center gap-2 min-w-0 flex-1 text-left rounded-lg -mx-1 px-1 py-0.5 hover:bg-purple-900/25 active:bg-purple-900/35 transition min-h-[44px] ${
             profileActions ? '' : 'w-full'
           }`}
@@ -505,7 +514,7 @@ export function EventCard({
         </button>
       ) : null}
       {post.isEvent && !embedded ? <EventDevSponsoButton post={post} /> : null}
-      {onOpenAuthor ? (
+      {canOpenAuthor ? (
         <>
           <div className="w-full">{heroVisual}</div>
           {cardBody}

@@ -6,7 +6,10 @@ import { IS_NATIVE_BUILD } from './lib/nativeServer';
 import { requestNativePermissions } from './lib/nativeBoot';
 import { initNativeDeepLinks } from './lib/nativeDeepLink';
 import { initNativeOfflineDetection } from './lib/nativeOfflineDetection';
+import { initNativeSentry } from './lib/sentryNative';
 import App from './App.tsx';
+
+initNativeSentry();
 
 initAppTheme();
 

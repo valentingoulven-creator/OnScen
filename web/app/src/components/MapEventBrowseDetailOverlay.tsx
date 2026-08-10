@@ -22,6 +22,7 @@ export function MapEventBrowseDetailOverlay({
   onClose,
   onViewOnMap,
   onOpenInFeed,
+  onOpenProfile,
   onPostChange,
 }: {
   post: FeedPost;
@@ -30,6 +31,7 @@ export function MapEventBrowseDetailOverlay({
   onClose: () => void;
   onViewOnMap?: (post: FeedPost) => void;
   onOpenInFeed?: (postId: string) => void;
+  onOpenProfile?: (userId: string) => void;
   onPostChange?: (postId: string, patch: Partial<FeedPost>) => void;
 }) {
   const { t } = useTranslation();
@@ -123,6 +125,22 @@ export function MapEventBrowseDetailOverlay({
                   locationCoords={locationCoords}
                   profileActions={hasMapFooterActions ? toolbar : undefined}
                   onOpen={() => {}}
+                  onOpenProfile={
+                    onOpenProfile
+                      ? (userId) => {
+                          onOpenProfile(userId);
+                          onClose();
+                        }
+                      : undefined
+                  }
+                  onOpenTaggedUser={
+                    onOpenProfile
+                      ? (userId) => {
+                          onOpenProfile(userId);
+                          onClose();
+                        }
+                      : undefined
+                  }
                   onPostChange={handlePostChange}
                 />
                 {comments ? <div className={`px-3 ${isSidebar ? 'text-sm' : ''}`}>{comments}</div> : null}

@@ -66,13 +66,13 @@ export function OpenLocationMenu({
 
   return (
     <div
-      className={`fixed inset-0 ${overlayZClass} flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm`}
+      className={`fixed inset-0 ${overlayZClass} flex items-center justify-center ms-modal-overlay bg-black/60 backdrop-blur-sm`}
       role="dialog"
       aria-modal="true"
       aria-labelledby="open-location-menu-title"
     >
       <button type="button" className="absolute inset-0" aria-label={t('common.close')} onClick={onClose} />
-      <div className="relative w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-[#12121a] border border-[#2d2d3d] pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <div className="relative w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl ms-modal-panel bg-[#12121a] border border-[#2d2d3d] pb-[max(0.5rem,env(safe-area-inset-bottom))]">
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e1e2f] sticky top-0 bg-[#12121a] z-10">
           <h2 id="open-location-menu-title" className="font-bold text-white text-sm">
             {t('openLocation.title', { defaultValue: 'Ouvrir le lieu' })}

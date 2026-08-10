@@ -581,6 +581,13 @@ export function MapStoriesAccordion({
           isOwn={sheet.kind === 'view' ? sheet.isOwn : false}
           token={token ?? undefined}
           onDeleted={sheet.kind === 'view' ? handleStoryDeleted : undefined}
+          onOpenProfile={(userId) => {
+            const person = nearbyPeople.find((p) => p.id === userId);
+            onOpenProfile(
+              person ?? { id: userId, username: '' }
+            );
+            setSheet({ kind: 'closed' });
+          }}
         />
       ) : null}
 
@@ -596,6 +603,11 @@ export function MapStoriesAccordion({
           canNext={livePreviewNav.canNext}
           onPrev={retreatBeforeLivePreview}
           canPrev={livePreviewNav.canPrev}
+          onOpenProfile={(userId) => {
+            const person = nearbyPeople.find((p) => p.id === userId);
+            onOpenProfile(person ?? { id: userId, username: '' });
+            setLivePreview({ kind: 'closed' });
+          }}
         />
       ) : null}
     </>

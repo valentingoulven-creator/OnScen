@@ -406,6 +406,19 @@ body {
   mask-position: center;
 }
 
+/** Wordmark « Scen » — même dégradé que la marque */
+.ms-onscen-wordmark {
+  background-image: linear-gradient(
+    105deg,
+    var(--onscen-logo-wave-from) 0%,
+    var(--onscen-logo-wave-mid) 52%,
+    var(--onscen-logo-wave-to) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 /** Bouton CTA — fond dégradé wave OnScen */
 .ms-wave-gradient-bg {
   background-image: linear-gradient(to right, #c084fc, #f472b6);

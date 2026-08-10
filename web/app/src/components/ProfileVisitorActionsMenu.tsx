@@ -48,10 +48,11 @@ export function ProfileVisitorActionsMenu({
             aria-label={t('common.close')}
             onClick={closeMenu}
           />
-          <div
-            role="menu"
-            className="fixed inset-x-0 bottom-0 z-50 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-1 sm:bottom-auto min-w-[12rem] rounded-t-2xl sm:rounded-xl border border-[#2d2d3d] bg-[#1a1a26] shadow-xl overflow-hidden pb-[env(safe-area-inset-bottom)] sm:pb-0"
-          >
+          <div className="fixed inset-0 z-50 flex items-center justify-center ms-modal-overlay pointer-events-none sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-1 sm:p-0 sm:pointer-events-none">
+            <div
+              role="menu"
+              className="pointer-events-auto w-[min(calc(100%-0.5rem),20rem)] min-w-[12rem] rounded-2xl border border-[#2d2d3d] bg-[#1a1a26] shadow-xl overflow-hidden sm:w-auto sm:max-w-none"
+            >
             <button
               type="button"
               role="menuitem"
@@ -74,6 +75,7 @@ export function ProfileVisitorActionsMenu({
             >
               {t('profile.report')}
             </button>
+            </div>
           </div>
         </>
       )}

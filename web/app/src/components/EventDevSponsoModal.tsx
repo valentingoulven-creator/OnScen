@@ -142,12 +142,12 @@ export function EventDevSponsoModal({ open, onClose, post }: EventDevSponsoModal
 
   return (
     <div
-      className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-[130] flex items-center justify-center ms-modal-overlay bg-black/70 backdrop-blur-sm"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="w-full max-w-lg max-h-[90dvh] overflow-y-auto overscroll-y-contain rounded-t-2xl sm:rounded-2xl border border-purple-500/30 bg-[#12121a] shadow-[0_0_32px_rgba(168,85,247,0.18)] pb-[env(safe-area-inset-bottom)]"
+        className="w-full max-w-lg max-h-[90dvh] overflow-y-auto overscroll-y-contain rounded-2xl ms-modal-panel border border-purple-500/30 bg-[#12121a] shadow-[0_0_32px_rgba(168,85,247,0.18)] pb-[env(safe-area-inset-bottom)]"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

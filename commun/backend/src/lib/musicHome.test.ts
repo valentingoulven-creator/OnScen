@@ -144,3 +144,49 @@ describe('musicHome weeklyTrend', () => {
     expect(home.popular.tracks[1]?.weeklyPlayCount).toBe(1);
   });
 });
+
+describe('musicHome recommended', () => {
+  const now = Date.now();
+
+  beforeEach(() => {
+    db.users.clear();
+    db.albums.length = 0;
+    db.compositions.length = 0;
+    db.compositionUpvotes.length = 0;
+    db.compositionPlays.length = 0;
+    db.users.set('artist_a', seedUser('artist_a', 'alpha'));
+    db.users.set('artist_b', seedUser('artist_b', 'beta'));
+    db.users.set('fan', seedUser('fan', 'fan_one'));
+  });
+
+  it('suggests tracks from creators the fan upvoted or listened to', () => {
+    db.compositions.push(
+      {
+        id: 'comp_liked',
+        userId: 'artist_a',
+        title: 'Liked',
+        fileUrl: '/liked.mp3',
+        createdAt: now,
+      },
+      {
+        id: 'comp_same_artist_new',
+        userId: 'artist_a',
+        title: 'Fresh',
+        fileUrl: '/fresh.mp3',
+        createdAt: now + 1000,
+      },
+      {
+        id: 'comp_other',
+        userId: 'artist_b',
+        title: 'Other',
+        fileUrl: '/other.mp3',
+        createdAt: now,
+      },
+    );
+    db.compositionUpvotes.push({ compositionId: 'comp_liked', userId: 'fan', votedAt: now });
+
+    const home = buildMusicHome('fan');
+    expect(home.recommended.tracks.map((t) => t.id)).toEqual(['comp_same_artist_new']);
+    expect(home.recommended.tracks.some((t) => t.id === 'comp_liked')).toBe(false);
+  });
+});

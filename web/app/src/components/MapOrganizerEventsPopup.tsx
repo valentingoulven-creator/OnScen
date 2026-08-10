@@ -38,7 +38,7 @@ export function MapOrganizerEventsPopup({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/65 backdrop-blur-sm"
+      className="fixed inset-0 z-[110] flex items-center justify-center ms-modal-overlay bg-black/65 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label={t('map.organizerEventsTitle', {
@@ -48,7 +48,7 @@ export function MapOrganizerEventsPopup({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-md max-h-[90dvh] flex flex-col overflow-hidden rounded-t-2xl sm:rounded-2xl bg-[#12121a] border border-[#2d2d3d] pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+        className="relative w-full max-w-md max-h-[90dvh] flex flex-col overflow-hidden rounded-2xl ms-modal-panel bg-[#12121a] border border-[#2d2d3d] pb-[max(0.5rem,env(safe-area-inset-bottom))]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-2 border-b border-[#2d2d3d]/80 shrink-0">

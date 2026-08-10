@@ -741,14 +741,14 @@ export function CreateSalonSetupChatModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 p-3 sm:p-4 backdrop-blur-[2px] pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      className="fixed inset-0 z-[100] flex items-center justify-center ms-modal-overlay bg-black/70 backdrop-blur-[2px]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="create-salon-chat-title"
       onClick={handleBackdropClose}
     >
       <div
-        className="w-full max-w-[min(100%,19rem)] sm:max-w-[21rem] bg-[#12121a] border border-[#2d2d3d] rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col min-h-0 max-h-[min(88dvh,calc(100dvh-1.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom)))]"
+        className="w-full max-w-[min(100%,19rem)] sm:max-w-[21rem] bg-[#12121a] border border-[#2d2d3d] rounded-2xl ms-modal-panel shadow-2xl overflow-hidden flex flex-col min-h-0 max-h-[min(88dvh,calc(100dvh-1.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom)))]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="h-1 bg-gradient-to-r from-purple-600 via-violet-500 to-purple-600 shrink-0" />

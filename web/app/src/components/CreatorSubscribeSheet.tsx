@@ -79,7 +79,7 @@ export function CreatorSubscribeSheet({
 
   if (nativeApp) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={onClose}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center ms-modal-overlay bg-black/60" onClick={onClose}>
         <div
           className="w-full max-w-md bg-[#12121a] rounded-2xl border border-[#2d2d3d] shadow-2xl p-6 pb-8"
           onClick={(e) => e.stopPropagation()}
@@ -147,7 +147,7 @@ export function CreatorSubscribeSheet({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center ms-modal-overlay bg-black/60" onClick={onClose}>
       <div
         className="w-full max-w-md bg-[#12121a] rounded-2xl border border-[#2d2d3d] shadow-2xl p-4 pb-6 max-h-[90dvh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}

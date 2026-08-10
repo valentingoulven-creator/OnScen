@@ -12,6 +12,7 @@ import { ensureMapBotsForNearby, isLocalDevEnvironment } from '../seed-bots';
 import { getNearbyPeople } from '../lib/nearbyPeople';
 import { loadNearbyGeoCandidates } from '../lib/pgGeoNearby';
 import { getPublicMapCoords } from '../lib/locationPrivacy';
+import { resolveUserAge } from '../lib/ageGates';
 import {
   DEFAULT_NEARBY_RADIUS_KM,
   parseDistanceFilterQuery,
@@ -100,6 +101,14 @@ geoRouter.post('/update', authenticateJWT, geoUpdateLimiter, (req: Request, res:
   const locale = parseRequestLocale(req.headers['accept-language']);
   if (!isValidLatLng(lat, lon)) {
     res.status(400).json({ error: geoError('invalidCoords', locale) });
+    return;
+  }
+  const age = resolveUserAge(user);
+  if (typeof age === 'number' && age < 18) {
+    res.status(403).json({
+      error: 'La géolocalisation précise est réservée aux comptes de 18 ans et plus.',
+      code: 'GEO_MINOR_RESTRICTED',
+    });
     return;
   }
   user.latitude = lat;

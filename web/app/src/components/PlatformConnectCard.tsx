@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
 import {
@@ -9,6 +9,7 @@ import {
 } from '../lib/platformConnect';
 import { PLATFORM_STATUS_REFRESH_EVENT } from '../lib/platformStatusEvents';
 import type { User } from '../types';
+import { ConfirmModal } from './ConfirmModal';
 
 type PlatformLink = {
   platform: ConnectPlatform;
@@ -66,6 +67,7 @@ export function PlatformConnectCard({
   const [youtubeMockConnectAvailable, setYoutubeMockConnectAvailable] = useState(false);
   const [instagramOAuthAvailable, setInstagramOAuthAvailable] = useState(false);
   const [platformLink, setPlatformLink] = useState<PlatformLink | undefined>();
+  const [disconnectConfirmOpen, setDisconnectConfirmOpen] = useState(false);
 
   const mergedPlatformLinks: PlatformLinkSummary[] = [
     ...(platformLinks ?? []),
@@ -76,6 +78,30 @@ export function PlatformConnectCard({
     mergedPlatformLinks.length ? mergedPlatformLinks : undefined
   );
   const meta = PLATFORM_LABELS[platform];
+
+  const linkFromUser = platformLinks?.find((l) => l.platform === platform);
+
+  const activeLink = useMemo((): PlatformLink | undefined => {
+    if (!linkFromUser && !platformLink) return undefined;
+    const name =
+      platformLink?.displayName?.trim() ||
+      linkFromUser?.displayName?.trim() ||
+      platformLink?.email?.trim() ||
+      linkFromUser?.email?.trim();
+    return {
+      platform,
+      externalUserId: platformLink?.externalUserId ?? linkFromUser?.externalUserId ?? '',
+      connectedAt: platformLink?.connectedAt ?? linkFromUser?.connectedAt ?? 0,
+      ...(name ? { displayName: name } : {}),
+      ...((platformLink?.avatarUrl ?? linkFromUser?.avatarUrl)
+        ? { avatarUrl: platformLink?.avatarUrl ?? linkFromUser?.avatarUrl }
+        : {}),
+      ...((platformLink?.email ?? linkFromUser?.email)
+        ? { email: platformLink?.email ?? linkFromUser?.email }
+        : {}),
+      isRealOAuth: platformLink?.isRealOAuth ?? linkFromUser?.isRealOAuth,
+    };
+  }, [linkFromUser, platform, platformLink]);
 
   const loadStatus = useCallback(() => {
     setStatusLoading(true);
@@ -142,18 +168,14 @@ export function PlatformConnectCard({
     }
   };
 
-  const disconnect = async () => {
-    const msg =
-      platform === 'instagram'
-        ? t('platform.disconnectConfirmInstagram', { label: meta.label })
-        : t('platform.disconnectConfirmHost', { label: meta.label });
-    if (!confirm(msg)) return;
+  const performDisconnect = async () => {
     setBusy(true);
     setError(null);
     try {
       const r = await api.disconnectPlatform(token, platform);
       onUserUpdated?.(r.user);
       loadStatus();
+      setDisconnectConfirmOpen(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : t('platform.disconnectError'));
     } finally {
@@ -161,9 +183,9 @@ export function PlatformConnectCard({
     }
   };
 
-  const linkedDisplayName = linked ? platformLink?.displayName?.trim() : undefined;
-  const displayName = linked
-    ? linkedDisplayName ??
+  const linkedAccountName = linked ? activeLink?.displayName?.trim() : undefined;
+  const accountSubtitle = linked
+    ? linkedAccountName ??
       (platform === 'youtube'
         ? t('platform.linkedYoutube')
         : platform === 'instagram'
@@ -172,15 +194,13 @@ export function PlatformConnectCard({
     : platform === 'instagram'
       ? t('platform.instagramHint')
       : t('platform.hostRequired');
-  const accountSubtitle =
-    linked && linkedDisplayName ? t('platform.connectedAccount', { name: linkedDisplayName }) : displayName;
 
-  const avatarUrl = linked ? platformLink?.avatarUrl : undefined;
+  const avatarUrl = linked ? activeLink?.avatarUrl : undefined;
 
   if (compact && linked) {
     return (
       <span
-        title={linkedDisplayName ? accountSubtitle : undefined}
+        title={linkedAccountName ? accountSubtitle : undefined}
         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border ${platformCompactClasses(platform)}`}
       >
         {avatarUrl ? (
@@ -188,7 +208,7 @@ export function PlatformConnectCard({
         ) : (
           meta.emoji
         )}{' '}
-        {displayName}
+        {accountSubtitle}
       </span>
     );
   }
@@ -211,8 +231,12 @@ export function PlatformConnectCard({
           <div className="min-w-0">
             <p className="text-sm font-bold text-white">{meta.label}</p>
             <p
-              className={`text-[10px] mt-0.5 truncate ${
-                linked && linkedDisplayName ? 'text-gray-300' : 'text-gray-500'
+              className={`mt-0.5 truncate ${
+                linked && linkedAccountName
+                  ? 'text-sm font-semibold text-gray-100'
+                  : linked
+                    ? 'text-[10px] text-gray-500'
+                    : 'text-[10px] text-gray-500'
               }`}
             >
               {accountSubtitle}
@@ -229,7 +253,7 @@ export function PlatformConnectCard({
         {linked ? (
           <button
             type="button"
-            onClick={disconnect}
+            onClick={() => setDisconnectConfirmOpen(true)}
             disabled={busy}
             className="w-full py-2 rounded-lg border border-[#2d2d3d] text-xs text-gray-400 hover:text-white disabled:opacity-50"
           >
@@ -311,6 +335,32 @@ export function PlatformConnectCard({
       {platform === 'instagram' && !linked && !instagramOAuthAvailable && !statusLoading && !statusError && (
         <p className="text-[10px] text-gray-500 mt-2 leading-snug">{t('platform.instagramEnvHint')}</p>
       )}
+      <ConfirmModal
+        open={disconnectConfirmOpen}
+        title={t('platform.disconnectConfirmTitle', {
+          label: meta.label,
+          defaultValue: 'Déconnecter {{label}} ?',
+        })}
+        description={
+          platform === 'instagram'
+            ? t('platform.disconnectConfirmInstagramDesc', {
+                defaultValue: 'Votre profil n’affichera plus ce compte lié.',
+              })
+            : t('platform.disconnectConfirmHostDesc', {
+                label: meta.label,
+                defaultValue: 'Vous ne pourrez plus héberger de salon {{label}}.',
+              })
+        }
+        cancelLabel={t('common.cancel', { defaultValue: 'Annuler' })}
+        confirmLabel={t('platform.disconnect')}
+        destructive
+        loading={busy}
+        loadingLabel={t('platform.disconnecting', { defaultValue: 'Déconnexion…' })}
+        onCancel={() => {
+          if (!busy) setDisconnectConfirmOpen(false);
+        }}
+        onConfirm={() => void performDisconnect()}
+      />
     </div>
   );
 }

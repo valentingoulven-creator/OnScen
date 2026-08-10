@@ -42,6 +42,8 @@ Point d'entrée pour tout agent Cursor Cloud :
 | [`mobile-responsive.mdc`](../.cursor/rules/mobile-responsive.mdc) | — | **true** | Mobile-first Tailwind v4, `dvh`, touch 44px, modals |
 | [`modification-log.mdc`](../.cursor/rules/modification-log.mdc) | — | **true** | Entrée obligatoire dans `modification.txt` |
 | [`onscen-dev-agent.mdc`](../.cursor/rules/onscen-dev-agent.mdc) | `@onscen-dev-agent` | false | Ingénieur implémentation, RACI, rapport session |
+| [`onscen-dev.mdc`](../.cursor/rules/onscen-dev.mdc) | `@onscen-dev` | false | Alias court Dev (même rôle) |
+| [`00-onscen-agents.mdc`](../.cursor/rules/00-onscen-agents.mdc) | `@onscen` (index) | false | Liste des mentions agents |
 | [`onscen-cto.mdc`](../.cursor/rules/onscen-cto.mdc) | `@onscen-cto` | false | CTO virtuel : architecture, audits, sécurité/légal/UX/infra |
 | [`onscen-ceo-ia.mdc`](../.cursor/rules/onscen-ceo-ia.mdc) | `@onscen-ceo-ia` | false | CEO virtuel stratégie, brief exécutif, RACI |
 
