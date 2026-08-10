@@ -37524,7 +37524,30 @@ BUILD / OPS (vérifié)
  prod    : curl 127.0.0.1:3000/health → ✅ db ok
 
 ================================================================================
-Fin MODIF 1347 — 2026-08-10
+MODIF 1348 — Domaine onscen.com (Caddy, .env VPS, DNS, mobile) — OnScen Dev
+Date : 2026-08-10
+================================================================================
+
+OBJECTIF
+----
+ Configurer onscen.com comme domaine web canonique (TLS, WEB_APP_URL, CORS)
+ tout en conservant getsoundy.com en parallèle (emails, OAuth legacy).
+
+CHANGEMENTS
+-----
+ • Caddy prod/staging : blocs onscen.com, www, staging.onscen.com
+ • VPS : patch-env-onscen-domain.sh exécuté (WEB_APP_URL, CORS, WebAuthn)
+ • Script configure-onscen-dns-ovh.ps1 + doc ONSCEN-DOMAINE.md
+ • Capacitor / deep links / entitlements iOS + Android : onscen.com ajouté
+
+MANUEL (fondateur)
+-----
+ DNS OVH : onscen.com pointe encore vers parking (213.186.33.5) — créer token
+ API zone onscen.com puis lancer configure-onscen-dns-ovh.ps1 ou A records manuels.
+ Consoles OAuth : ajouter callbacks https://onscen.com/api/auth/...
+
+================================================================================
+Fin MODIF 1348 — 2026-08-10
 ================================================================================
 
 ================================================================================
@@ -37581,4 +37604,67 @@ BUILD (si verifie)
 
 ================================================================================
 Fin MODIF 1346 — 2026-08-10
+================================================================================
+
+================================================================================
+MODIF 1347 — Correctifs audit technique 2026-08-07 (texte/légal uniquement)
+Date : 2026-08-10
+================================================================================
+
+CONTEXTE
+----
+Suite à "fais tout les points en attente", revue de commun/docs/audit/2026-08-audit-
+technique-complet/00-synthese.md. Constat : la plupart des points CRITIQUE/ÉLEVÉ
+techniques (rate limiting lives/search/follow/like, modèles Sightengine gore/weapon,
+détection mineur face-age, scan modération uploads sponsors, alertes admin
+csam_risk_detected/urgent_content_report, filtre lexical commentaires reels) sont
+DÉJÀ implémentés (commit fced2778, MODIF 1343) — l'audit du 2026-08-07 est antérieur
+à ces correctifs et donc partiellement obsolète. Vérifié fichier par fichier avant
+de conclure "déjà fait" (voir abuseRateLimits.ts, sightengineConfig.ts,
+alertNotifier.ts, adminSponsors.ts, reels.ts).
+
+CE QUI RESTAIT RÉELLEMENT OUVERT ET CORRIGÉ ICI
+----
+ • #17 — Incohérence commission pourboires : texte utilisateur affichait "30 %
+   OnScen / 70 % créateur" (LiveLegalAcceptanceModal.tsx, fr.json, en.json) alors que
+   la config réelle (DONATION_PLATFORM_FEE_PERCENT, defaut 50) et le doc légal
+   MENTIONS-LEGALES-DONS.md indiquent 50/50 depuis le début. Corrigé vers 50/50
+   partout (texte uniquement, aucun changement de comportement de paiement).
+ • #16 — Rétention logs annoncée 12 mois (privacy.ts, rgpd.ts) vs réellement
+   implémentée ~5 mois (dataRetention.ts, RETENTION_INTERVAL). Corrigé le texte
+   légal à "6 mois" (marge de sécurité) plutôt que d'étendre la rétention réelle —
+   plus conforme au principe de minimisation RGPD (recommandation audit RGPD-2).
+
+CE QUI RESTE BLOQUÉ (décision utilisateur / accès externe / tiers)
+----
+ • #1 Clé Stripe live (sk_live_) — toujours sk_test_ en prod ET staging, vérifié
+   par SSH ce jour. Nécessite la clé réelle fournie par l'utilisateur.
+ • #2 Validation avocat runbook CSAM — RDV avocat non encore tenu
+   (RENDEZ-VOUS-AVOCAT.md vierge).
+ • #4 Purge historique Git (secrets commit 72370fc8) — action destructive,
+   nécessite confirmation explicite.
+ • #6 Processus soundy-auth fantôme en prod — à investiguer avant d'y toucher.
+ • #8 Rôle DB onscen sur-privilégié (CREATEROLE/CREATEDB) — décision infra.
+ • #11 Cloudflare CDN/WAF — bloqué par accès DNS OVH (note : accès OVH semble
+   désormais disponible, voir commun/scripts/configure-onscen-dns-ovh.ps1 apparu
+   en parallèle — cf. note domaine ci-dessous).
+ • #20 Google OAuth app en mode Testing — process de review Google, hors contrôle.
+ • Comptes externes (Stripe display name, LiveKit, Google OAuth consent screen,
+   App Store/Play Store) — nécessite accès dashboard non disponible pour moi.
+
+NOTE — TRAVAUX PARALLÈLES DÉTECTÉS (non commités par cette session)
+----
+ Des fichiers non commités liés à une migration de domaine vers onscen.com sont
+ apparus dans l'arbre de travail pendant cette session (commun/docs/ONSCEN-DOMAINE.md,
+ commun/scripts/configure-onscen-dns-ovh.ps1, Caddyfile, etc.) — probablement une
+ autre session/agent en parallèle. Volontairement NON touchés/commités ici (hors
+ scope de cette demande, risque de conflit avec un travail en cours ailleurs).
+
+BUILD
+-----
+ web/app → npx tsc --noEmit → ✅ (0 erreur)
+ JSON locales fr/en → valide
+
+================================================================================
+Fin MODIF 1347 — 2026-08-10
 ================================================================================
