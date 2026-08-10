@@ -22,8 +22,8 @@ if [ ! -f "$SOURCE" ]; then
   exit 1
 fi
 
-if ! grep -q 'getsoundy.com' "$SOURCE"; then
-  log "ERREUR — source invalide (getsoundy.com absent) : $SOURCE"
+if ! grep -qE 'onscen\.com|getsoundy\.com' "$SOURCE"; then
+  log "ERREUR — source invalide (onscen.com / getsoundy.com absent) : $SOURCE"
   exit 1
 fi
 

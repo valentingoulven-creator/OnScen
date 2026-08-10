@@ -39,7 +39,17 @@
 	encode zstd gzip
 }
 
-# Production — domaine principal (HTTPS automatique Let's Encrypt)
+# Production — domaine principal OnScen (HTTPS automatique Let's Encrypt)
+onscen.com {
+	import onscen_handlers
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+}
+
+www.onscen.com {
+	redir https://onscen.com{uri} permanent
+}
+
+# Legacy — même app (OAuth / liens existants) ; pas de redirect 301 tant que consoles tierces migrent
 getsoundy.com {
 	import onscen_handlers
 	header Strict-Transport-Security "max-age=31536000; includeSubDomains"

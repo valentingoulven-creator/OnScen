@@ -8,6 +8,6 @@
   "server": {
     "androidScheme": "https",
     "cleartext": false,
-    "hostname": "getsoundy.com"
+    "hostname": "onscen.com"
   }
 }

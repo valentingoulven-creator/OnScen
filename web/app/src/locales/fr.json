@@ -637,7 +637,7 @@
     "giftOtherAmount": "Autre montant",
     "giftTierLabel": "Pourboire {{amount}} euros",
     "donationSheetTitle": "Cadeaux & pourboires",
-    "nativeIapDonation": "Les pourboires ne sont pas disponibles dans l'app mobile. Utilisez getsoundy.com dans votre navigateur pour soutenir les créateurs.",
+    "nativeIapDonation": "Les pourboires ne sont pas disponibles dans l'app mobile. Utilisez onscen.com dans votre navigateur pour soutenir les créateurs.",
     "donationThanks": "Merci pour votre pourboire !",
     "streamEnded": "Stream terminé",
     "streamEndedHost": "L'hôte a coupé le live.",
@@ -1525,8 +1525,8 @@
     "ageConfirm": "Je certifie avoir 18 ans ou plus et être autorisé à utiliser un moyen de paiement.",
     "simulationNotice": "Simulation — aucun paiement réel en mode développement.",
     "renewsOn": "Renouvellement le {{date}}",
-    "nativeIapNotice": "Les abonnements ne sont pas disponibles dans l'app mobile. Utilisez getsoundy.com dans votre navigateur pour gérer votre abonnement.",
-    "iosIapNotice": "Les abonnements ne sont pas disponibles dans l'app iOS. Utilisez la version web sur getsoundy.com pour gérer votre abonnement."
+    "nativeIapNotice": "Les abonnements ne sont pas disponibles dans l'app mobile. Utilisez onscen.com dans votre navigateur pour gérer votre abonnement.",
+    "iosIapNotice": "Les abonnements ne sont pas disponibles dans l'app iOS. Utilisez la version web sur onscen.com pour gérer votre abonnement."
   },
   "support": {
     "title": "Contacter OnScen",
@@ -1634,8 +1634,8 @@
       "agents": "Agents IA internes (CEO, dev, ops)",
       "integrations": "Clés d'API tierces (sans SSH)",
       "environmentDev": "Statut du backend local (msdev)",
-      "environmentPreprod": "Statut de staging.getsoundy.com",
-      "environmentProd": "Statut de getsoundy.com"
+      "environmentPreprod": "Statut de staging.onscen.com",
+      "environmentProd": "Statut de onscen.com"
     },
     "environments": {
       "loading": "Chargement…",
@@ -1658,13 +1658,13 @@
       },
       "preprod": {
         "title": "Préproduction (staging)",
-        "hint": "Statut public de staging.getsoundy.com — ping /health, aucune clé SSH utilisée depuis cette page.",
+        "hint": "Statut public de staging.onscen.com — ping /health, aucune clé SSH utilisée depuis cette page.",
         "howToTitle": "Déployer en préproduction",
         "howToNote": "Peut aussi être relancé manuellement depuis GitHub → Actions → Deploy Preprod (workflow_dispatch). Déploiement automatique après chaque CI verte sur main."
       },
       "prod": {
         "title": "Production",
-        "hint": "Statut public de getsoundy.com — ping /health, lecture seule.",
+        "hint": "Statut public de onscen.com — ping /health, lecture seule.",
         "warning": "Aucune action de déploiement n'est disponible depuis cette page par sécurité — le déploiement prod reste un geste manuel délibéré.",
         "howToTitle": "Déployer en production",
         "howToNote": "À exécuter uniquement sur demande explicite du fondateur — voir commun/deploy/RUNBOOK-PROD.md."
@@ -2720,7 +2720,7 @@
         "colCount": "Transactions",
         "donationsAllTime": "Tout temps",
         "donationsMonth": "Mois en cours",
-        "footer": "OnScen · getsoundy.com · Document généré automatiquement."
+        "footer": "OnScen · onscen.com · Document généré automatiquement."
       },
       "csv": {
         "export": "Exporter CSV",
@@ -3343,8 +3343,8 @@
     "demoDisabledProd": "Connexion démo désactivée en production. Configurez OAuth Google/YouTube sur le serveur.",
     "youtubeScopesHint": "Autorisation youtube.readonly : lister vos playlists privées pour animer un salon.",
     "retryStatus": "Réessayer",
-    "youtubeEnvHint": "Configurez GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET et YOUTUBE_CALLBACK_URL (ex. https://getsoundy.com/api/auth/youtube/callback) dans le .env du serveur. La connexion démo permet d'héberger avec des playlists publiques uniquement.",
-    "instagramEnvHint": "Configurez FACEBOOK_APP_ID, FACEBOOK_APP_SECRET et INSTAGRAM_CALLBACK_URL (ex. https://getsoundy.com/api/auth/instagram/callback) dans le .env du serveur. Nécessite un compte Instagram Business/Creator lié à une page Facebook."
+    "youtubeEnvHint": "Configurez GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET et YOUTUBE_CALLBACK_URL (ex. https://onscen.com/api/auth/youtube/callback) dans le .env du serveur. La connexion démo permet d'héberger avec des playlists publiques uniquement.",
+    "instagramEnvHint": "Configurez FACEBOOK_APP_ID, FACEBOOK_APP_SECRET et INSTAGRAM_CALLBACK_URL (ex. https://onscen.com/api/auth/instagram/callback) dans le .env du serveur. Nécessite un compte Instagram Business/Creator lié à une page Facebook."
   },
   "user": {
     "devBadge": "Dev",

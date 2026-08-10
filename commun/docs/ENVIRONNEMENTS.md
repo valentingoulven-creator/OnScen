@@ -5,8 +5,8 @@
 | Env | Cible | `APP_ENV` | Données | URL | Deploy |
 |-----|-------|-----------|---------|-----|--------|
 | **Dev** | PC local | `msdev` | `msdev/data/store.json` | `http://localhost:5173` | `npm run dev` |
-| **Pré-prod** | VPS `soundly-staging` | `preproduction` | PostgreSQL `onscen_staging` | `https://staging.getsoundy.com` | `commun/scripts/deploy-preprod.ps1` ou **GitHub Actions** (auto) |
-| **Prod** | VPS `soundly` | `production` | PostgreSQL `onscen-prod` | `https://getsoundy.com` | `commun/scripts/deploy-prod.ps1` |
+| **Pré-prod** | VPS `soundly-staging` | `preproduction` | PostgreSQL `onscen_staging` | `https://staging.onscen.com` (legacy `staging.getsoundy.com`) | `commun/scripts/deploy-preprod.ps1` ou **GitHub Actions** (auto) |
+| **Prod** | VPS `soundly` | `production` | PostgreSQL `onscen-prod` | `https://onscen.com` (legacy `getsoundy.com`) | `commun/scripts/deploy-prod.ps1` |
 
 ## Infra
 
@@ -32,7 +32,17 @@ localhost:5173       51.159.170.181                 51.159.164.100
 
 ### DNS
 
-Enregistrement **A** actif (OVH) :
+Canonique : **`commun/docs/ONSCEN-DOMAINE.md`**
+
+| FQDN | IP |
+|------|-----|
+| `onscen.com` / `www.onscen.com` | `51.159.164.100` (prod) |
+| `staging.onscen.com` | `51.159.170.181` (preprod) |
+| `getsoundy.com` / `staging.getsoundy.com` | legacy — même VPS, Caddy dual-host |
+
+Script OVH : `commun/scripts/configure-onscen-dns-ovh.ps1` (token zone **`onscen.com`**).
+
+Enregistrement **A** legacy (OVH) :
 
 ```
 staging.getsoundy.com  →  51.159.170.181
@@ -88,7 +98,7 @@ npm run deploy:prod
 | Service | Preprod | Prod |
 |---------|---------|------|
 | Stripe | `sk_test_` (clés test) | `sk_live_` |
-| Google OAuth | Redirect URIs `staging.getsoundy.com/api/auth/...` | `getsoundy.com` |
+| Google OAuth | Redirect URIs `staging.onscen.com` + legacy `staging.getsoundy.com` | `onscen.com` + legacy `getsoundy.com` |
 | Sightengine | Mêmes clés (modération active) | prod |
 | LiveKit / Cloudflare | Projet partagé ou test | prod |
 
