@@ -1,5 +1,5 @@
 # ============================================================
-# commun/deploy/deploy_zero_downtime.ps1 - Soundy deploy (prod / preprod)
+# commun/deploy/deploy_zero_downtime.ps1 - OnScen deploy (prod / preprod)
 # Executer depuis la racine du repo :
 #   powershell -ExecutionPolicy Bypass -File commun/deploy/deploy_zero_downtime.ps1
 #   powershell -ExecutionPolicy Bypass -File commun/deploy/deploy_zero_downtime.ps1 -Environment preprod
@@ -22,7 +22,7 @@ $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 Set-Location $RepoRoot
 
 . (Join-Path $PSScriptRoot "environments.ps1")
-$cfg = Get-SoundyDeployEnvironment $Environment
+$cfg = Get-OnScenDeployEnvironment $Environment
 
 $VPS     = $cfg.Vps
 $SSH_HOST = $cfg.SshHost
@@ -89,7 +89,7 @@ function Invoke-Remote([string]$cmd) {
 }
 
 # VPS : preferer le repertoire actif (PM2 + .env)
-$REMOTE = (Invoke-Remote "if [ -f /opt/soundly/.env ]; then echo /opt/soundly; elif [ -f /opt/soundy/.env ]; then echo /opt/soundy; elif [ -d /opt/soundly ]; then echo /opt/soundly; else echo /opt/soundy; fi").Trim()
+$REMOTE = (Invoke-Remote "if [ -f /opt/onscen/.env ]; then echo /opt/onscen; elif [ -f /opt/onscen/.env ]; then echo /opt/onscen; elif [ -d /opt/onscen ]; then echo /opt/onscen; else echo /opt/onscen; fi").Trim()
 
 function Invoke-Scp([string[]]$ScpArgs) {
     $prev = $ErrorActionPreference
@@ -109,7 +109,7 @@ function FileHash([string]$path) {
 
 Write-Host ""
 Write-Host "==============================================" -ForegroundColor Cyan
-Write-Host "  Soundy - Deploiement zero-downtime ($ENV_LABEL)" -ForegroundColor Cyan
+Write-Host "  OnScen - Deploiement zero-downtime ($ENV_LABEL)" -ForegroundColor Cyan
 Write-Host "==============================================" -ForegroundColor Cyan
 Write-Host "  Env    : $Environment ($ENV_LABEL)"
 Write-Host "  VPS    : $VPS"
@@ -391,7 +391,7 @@ if (Test-Path $deployLibDir) {
     Invoke-Scp @("-r", (Join-Path $deployLibDir "/."), "${sshTarget}:${REMOTE}/deploy/lib/")
 }
 
-$migrateCmd = 'sed -i ''s/\r$//'' ' + $REMOTE + '/deploy/migrate-remote.sh ' + $REMOTE + '/deploy/lib/*.sh 2>/dev/null; chmod +x ' + $REMOTE + '/deploy/migrate-remote.sh 2>/dev/null; if [ -f ' + $REMOTE + '/deploy/migrate-remote.sh ]; then SOUNDY_ROOT=' + $REMOTE + ' bash ' + $REMOTE + '/deploy/migrate-remote.sh 2>&1; else echo MIGRATE_SKIP=1; fi'
+$migrateCmd = 'sed -i ''s/\r$//'' ' + $REMOTE + '/deploy/migrate-remote.sh ' + $REMOTE + '/deploy/lib/*.sh 2>/dev/null; chmod +x ' + $REMOTE + '/deploy/migrate-remote.sh 2>/dev/null; if [ -f ' + $REMOTE + '/deploy/migrate-remote.sh ]; then ONSCEN_ROOT=' + $REMOTE + ' bash ' + $REMOTE + '/deploy/migrate-remote.sh 2>&1; else echo MIGRATE_SKIP=1; fi'
 $migrateOut = Invoke-Remote $migrateCmd
 Write-Host $migrateOut
 if ("$migrateOut" -match "MIGRATE_OK") {
@@ -429,7 +429,7 @@ if ($gitCommit) {
     $deployCommitEnv = "DEPLOY_COMMIT=$gitCommit "
 }
 
-$markIntentionalFlag = 'printf ''%s\n%s\n'' "$(date +%s)" "deploy" > /tmp/soundy-pm2-reload-intentional'
+$markIntentionalFlag = 'printf ''%s\n%s\n'' "$(date +%s)" "deploy" > /tmp/onscen-pm2-reload-intentional'
 Invoke-Remote $markIntentionalFlag | Out-Null
 
 $pm2ExistsCmd = 'pm2 describe ' + $PM2_APP + ' >/dev/null 2>&1 && echo PM2_EXISTS || echo PM2_MISSING'

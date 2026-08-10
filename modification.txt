@@ -37437,5 +37437,148 @@ BUILD (si verifie)
  web/app → vitest (storyAppLink, reelAlbumLinkPlatform, storyLink) → ✅ 15/15
 
 ================================================================================
-Fin MODIF 1345 — 2026-08-08
+MODIF 1346 — Rebranding phase 2 : infra scripts + docs stratégie — OnScen Dev
+Date : 2026-08-10
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Poursuite du renommage Soundy → OnScen (décision fondateur) après MODIF 1345 :
+ aligner deploy/scripts sur identifiants `onscen-*`, finaliser docs stratégie
+ encore nommées SOUNDY, corriger liens agents Cursor et sauvegardes VPS.
+
+CHANGEMENTS / FIX
+-----
+ commun/scripts/rebrand-onscen-phase2.mjs
+ ─────────────────
+ • Script batch (481 fichiers) : PM2 `onscen-backend*`, DB `onscen-prod` /
+   `onscen_staging`, `/opt/onscen`, SSH `onscen-prod`/`onscen-staging`,
+   agents `@onscen-*`, docs ONSCEN-* — domaine getsoundy.com protégé.
+
+ commun/deploy/*
+ ─────────────────
+ • Caddyfile : snippet `onscen_handlers` ; backup-db → `onscen-*.sql.gz`
+   (rétention legacy `soundy-*.sql.gz`) ; flags PM2 /tmp/onscen-* ;
+   setup-staging-db OWNER `onscen` ; S3 prefix `onscen/`.
+
+ commun/docs/strategie + presentations
+ ─────────────────
+ • Renommages git / disque : pitch deck, budget emprunt, tarifs sponsor,
+   lettres soutien, présentations HTML ; scripts PDF/export mis à jour.
+
+ commun/scripts/setup-stripe-msdev.ps1 + msdev/.env.example
+ ─────────────────
+ • Clés Stripe `STRIPE_PRICE_ID_ONSCEN_*`, `SUBSCRIPTION_ONSCEN_*`.
+
+NON FAIT / MANUEL
+-----
+ • Migration live VPS/PostgreSQL (renommer dossier, PM2, bases, rôle DB,
+   alias SSH locaux) — le repo est prêt ; exécuter avant prochain deploy.
+ • PDF binaire juridique `JUSTIFICATION-TARIFS-SPONSOR-SOUNDY.pdf` (regénérer
+   via generate-tarifs-sponsor-pdf.mjs si besoin).
+
+FICHIERS MODIFIÉS
+-----
+ ~500 fichiers (phase 2 script + correctifs deploy + docs stratégie + règles)
+
+BUILD (si vérifié)
+-----
+ web/app → npx tsc --noEmit → ✅
+ commun/backend → npx tsc --noEmit → ✅
+
+================================================================================
+MODIF 1347 — Migration infra live OnScen (VPS + PostgreSQL + PDF sponsor) — OnScen Dev
+Date : 2026-08-10
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Finaliser le rebranding : aligner l’infra réelle (staging + prod) avec le repo
+ (`/opt/onscen`, PM2 `onscen-backend*`, bases `onscen-prod` / `onscen_staging`),
+ regénérer le PDF tarifs sponsor pour le dossier avocat.
+
+CHANGEMENTS / FIX
+-----
+ commun/deploy/migrate-onscen-postgres.sh, patch-env-onscen-db.sh, migrate-onscen-live.sh
+ ─────────────────
+ • Exécutés sur VPS : bases renommées, `.env` patchés, `/opt/soundly` → `/opt/onscen`,
+   PM2 basculés ; crons root mis à jour vers `/opt/onscen`.
+
+ commun/docs/MIGRATION-ONSCEN-INFRA.md
+ ─────────────────
+ • Runbook post-migration (rôle PG `soundy` conservé, domaine getsoundy.com).
+
+ commun/docs/strategie/commercial/pdf + juridique
+ ─────────────────
+ • PDF `JUSTIFICATION-TARIFS-SPONSOR-ONSCEN.pdf` généré ; ancien PDF SOUNDY retiré
+   du dossier avocat versionné.
+
+FICHIERS MODIFIÉS
+-----
+ commun/deploy/* (scripts migration), commun/docs/MIGRATION-ONSCEN-INFRA.md,
+ commun/scripts/ssh-config-snippet.txt, PDF juridique, generate-tarifs-sponsor-pdf.mjs
+
+BUILD / OPS (vérifié)
+-----
+ staging : curl 127.0.0.1:3000/health → ✅ db ok
+ prod    : curl 127.0.0.1:3000/health → ✅ db ok
+
+================================================================================
+Fin MODIF 1347 — 2026-08-10
+================================================================================
+
+================================================================================
+MODIF 1346 — Rebranding OnScen phase 2 (infra live + docs restants) — catch-up
+Date : 2026-08-10
+================================================================================
+
+OBJECTIF / PROBLEME
+----
+ Suite de MODIF 1345. Entre les deux sessions, la migration infra live (PM2,
+ dossier VPS, bases PostgreSQL) a ete executee sur STAGING et PROD — voir
+ commun/docs/MIGRATION-ONSCEN-INFRA.md pour le detail. Ce commit fait
+ correspondre le code versionne a l'etat reel du VPS (sinon un futur deploy
+ depuis Git aurait redemande les anciens noms et recree un mismatch).
+
+VERIFICATION AVANT COMMIT
+-----
+ • SSH prod  : PM2 `onscen-backend` online (3h), /opt/onscen present,
+   DATABASE_URL -> onscen-prod, https://getsoundy.com/health -> 200
+ • SSH staging : PM2 `onscen-backend-staging` online (3h), /opt/onscen present,
+   https://staging.getsoundy.com/health -> 200
+ • tsc --noEmit web/app, backend, apptel -> OK (0 erreur)
+ • Echantillon de fichiers "suspects" verifie individuellement : migrations
+   SQL (commentaires uniquement), workflows GitHub Actions (commentaires
+   uniquement), capacitor.config*/Info.plist (CFBundleIdentifier/appId
+   inchanges, seuls appName/CFBundleDisplayName/textes de permission changes)
+
+PERIMETRE
+-----
+ • commun/deploy/*, commun/scripts/* : PM2, chemin VPS, noms DB alignes sur
+   l'infra reelle (onscen-backend[-staging], /opt/onscen, onscen-prod/onscen_staging)
+ • .cursor/rules/soundy-*.mdc renommes en onscen-*.mdc (activer desormais avec
+   @onscen-cto / @onscen-dev-agent / @onscen-ceo-ia)
+ • .github/workflows/*.yml, migrations SQL : commentaires uniquement
+ • ios/apptel : appName/CFBundleDisplayName -> OnScen (appId/CFBundleIdentifier
+   INCHANGES — pas d'impact store/push)
+ • Documents historiques dates (audits, rapports dev-agent), dossier e-Soleau,
+   brevet, strategie : renommes cette fois (contrairement a MODIF 1345) — fait
+   par le processus qui a prepare cette phase 2, avant depot officiel (aucun
+   depot e-Soleau/marque n'avait encore ete effectue sous l'ancien nom)
+ • Reconstruction du bundle front (commun/backend/public/assets/*) via build
+
+FICHIERS MODIFIES
+-----
+ 525 fichiers avec changement de contenu reel (hors bruit CRLF) + renommages
+ (voir commun/docs/MIGRATION-ONSCEN-INFRA.md et git log pour le detail)
+
+BUILD (si verifie)
+-----
+ web/app → npx tsc --noEmit → ✅
+ commun/backend → npx tsc --noEmit → ✅
+ ios/apptel → npx tsc --noEmit → ✅
+ VPS prod/staging → /health → ✅ 200/200
+
+================================================================================
+Fin MODIF 1346 — 2026-08-10
 ================================================================================

@@ -1,5 +1,5 @@
 /**
- * Copie le build apptel (backend/public/tel) vers android/MeloSong-Mobile/www/
+ * Copie le build apptel (backend/public/tel) vers android/OnScen-Mobile/www/
  * Usage : node commun/scripts/sync-mobile-export.js
  */
 import fs from 'fs';
@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const src = path.join(root, 'commun', 'backend', 'public', 'tel');
-const dest = path.join(root, 'android', 'MeloSong-Mobile', 'www');
+const dest = path.join(root, 'android', 'OnScen-Mobile', 'www');
 
 function copyDir(from, to) {
   fs.mkdirSync(to, { recursive: true });
@@ -42,4 +42,4 @@ copyDir(src, dest);
 
 const bytes = dirSizeBytes(dest);
 const kb = (bytes / 1024).toFixed(1);
-console.log(`[mobile-export] OK → android/MeloSong-Mobile/www/ (${kb} Ko, ${bytes} octets)`);
+console.log(`[mobile-export] OK → android/OnScen-Mobile/www/ (${kb} Ko, ${bytes} octets)`);

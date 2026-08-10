@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-07-21 — Reels : cache classement feed + pagination additive
 
-**Agent :** @soundy-dev-agent
+**Agent :** @onscen-dev-agent
 **Date :** 2026-07-21
 **Durée estimée :** 1 h
 **Statut global :** ✅ Terminé
@@ -9,7 +9,7 @@
 
 ## Mission
 
-Implémenter la recommandation prioritaire de l'audit `@soundy-cto` sur l'onglet Reels : réduire le coût de recalcul du classement du flux (`GET /api/reels/`) et poser les bases d'une pagination, sans casser le comportement client actuel.
+Implémenter la recommandation prioritaire de l'audit `@onscen-cto` sur l'onglet Reels : réduire le coût de recalcul du classement du flux (`GET /api/reels/`) et poser les bases d'une pagination, sans casser le comportement client actuel.
 
 ---
 
@@ -99,4 +99,4 @@ Frontend non touché (changement additif, backward-compatible côté API) — pa
 
 ---
 
-*Généré par Soundy Dev Agent*
+*Généré par OnScen Dev Agent*

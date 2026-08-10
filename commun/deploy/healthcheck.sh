@@ -4,7 +4,7 @@
 set -euo pipefail
 
 LOG="/var/log/melosong-healthcheck.log"
-APP="melosong-backend"
+APP="onscen-backend"
 URL="http://127.0.0.1:3000/health"
 MIN_UPTIME_SEC=30
 

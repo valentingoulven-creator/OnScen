@@ -7,7 +7,7 @@ $credFile = Join-Path $root 'commun/docs/youtube-audit-demo-credentials.local.tx
 
 Write-Host ''
 Write-Host '==============================================' -ForegroundColor Cyan
-Write-Host '  Soundy - prep demo audit YouTube API' -ForegroundColor Cyan
+Write-Host '  OnScen - prep demo audit YouTube API' -ForegroundColor Cyan
 Write-Host '==============================================' -ForegroundColor Cyan
 Write-Host ''
 
@@ -33,7 +33,7 @@ Write-Host ''
 Write-Host '[2/4] OAuth YouTube prod...' -ForegroundColor Yellow
 if (Test-Path $credFile) {
   $content = Get-Content $credFile -Raw
-  if ($content -match 'Email Soundy\s*:\s*(.+)') { $email = $Matches[1].Trim() }
+  if ($content -match 'Email OnScen\s*:\s*(.+)') { $email = $Matches[1].Trim() }
   if ($content -match 'Mot de passe\s*:\s*(.+)') { $pass = $Matches[1].Trim() }
   try {
     $loginBody = @{ email = $email; password = $pass } | ConvertTo-Json

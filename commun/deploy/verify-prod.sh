@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
 # verify-prod.sh — Contrôles ops production (sans SSH, à lancer sur le VPS)
 # Usage :
-#   bash /opt/soundly/deploy/verify-prod.sh
+#   bash /opt/onscen/deploy/verify-prod.sh
 # Variables optionnelles :
-#   SOUNDY_ROOT=/opt/soundy  HEALTH_URL=http://127.0.0.1:3000/health  PM2_APP=melosong-backend
+#   ONSCEN_ROOT=/opt/onscen  HEALTH_URL=http://127.0.0.1:3000/health  PM2_APP=onscen-backend
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/soundy-root.sh
-source "${SCRIPT_DIR}/lib/soundy-root.sh"
+# shellcheck source=lib/onscen-root.sh
+source "${SCRIPT_DIR}/lib/onscen-root.sh"
 ENV_FILE="${ROOT}/.env"
 LEGAL_FILE="${ROOT}/legal-publisher.json"
 BACKUP_DIR="${BACKUP_DIR:-${ROOT}/backups}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3000/health}"
-PM2_APP="${PM2_APP:-melosong-backend}"
+PM2_APP="${PM2_APP:-onscen-backend}"
 
 FAIL=0
 warn() { echo "⚠ $*"; }
 ok() { echo "✓ $*"; }
 fail() { echo "✗ $*"; FAIL=1; }
 
-echo "=== Soundy — vérification production ==="
+echo "=== OnScen — vérification production ==="
 echo "Racine : $ROOT"
 echo ""
 
@@ -97,13 +97,13 @@ fi
 
 # Espace disque backups
 if [[ -d "$BACKUP_DIR" ]]; then
-  COUNT="$(find "$BACKUP_DIR" -maxdepth 1 -name 'soundy-*.sql.gz' 2>/dev/null | wc -l | tr -d ' ')"
+  COUNT="$(find "$BACKUP_DIR" -maxdepth 1 \( -name 'onscen-*.sql.gz' -o -name 'soundy-*.sql.gz' \) 2>/dev/null | wc -l | tr -d ' ')"
   AVAIL="$(df -h "$BACKUP_DIR" 2>/dev/null | awk 'NR==2 {print $4}' || echo "?")"
   ok "Backups DB : ${COUNT} fichier(s) dans $BACKUP_DIR (disponible : ${AVAIL})"
   if [[ "${COUNT:-0}" -eq 0 ]]; then
     warn "Aucune sauvegarde pg_dump locale — lancer commun/deploy/backup-db.sh ou vérifier cron"
   else
-    LATEST_DB="$(find "$BACKUP_DIR" -maxdepth 1 -name 'soundy-*.sql.gz' -type f -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2- || true)"
+    LATEST_DB="$(find "$BACKUP_DIR" -maxdepth 1 \( -name 'onscen-*.sql.gz' -o -name 'soundy-*.sql.gz' \) -type f -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2- || true)"
     if [[ -n "$LATEST_DB" ]]; then
       DB_AGE_H=$(( ($(date +%s) - $(stat -c %Y "$LATEST_DB" 2>/dev/null || echo 0)) / 3600 ))
       if [[ "${DB_AGE_H:-999}" -gt 26 ]]; then

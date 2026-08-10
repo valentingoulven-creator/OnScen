@@ -42,7 +42,7 @@ const vite = loadEnvKeys(VITEENV);
 
 console.log('');
 console.log('══════════════════════════════════════════════════════════');
-console.log('  Soundy — Checklist secrets Cursor Cloud Agents');
+console.log('  OnScen — Checklist secrets Cursor Cloud Agents');
 console.log('  Dashboard : https://cursor.com/dashboard/cloud-agents');
 console.log('  Environnement : soundy-msdev');
 console.log('══════════════════════════════════════════════════════════');

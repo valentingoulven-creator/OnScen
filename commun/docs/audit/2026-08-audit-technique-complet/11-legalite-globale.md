@@ -1,7 +1,7 @@
-# Audit légal Soundy — Phase 11 : Légalité globale de l'application
+# Audit légal OnScen — Phase 11 : Légalité globale de l'application
 
 **Date :** 2026-08-07
-**Méthode :** revue de `lib/ageGates.ts`, `donations.ts`, `locationPrivacy.ts`, `commun/docs/INFRA-SOUNDY.md`, `content/legal/{dpa,dpia,rgpd,privacy,mentions,moderationAppeals}.ts`, `commun/docs/juridique/COMPARATIF-JURIDIQUE-TIKTOK-INSTAGRAM.md`, `commun/docs/audit/AUDIT-mobile-ios-android.md`, `TODO-MANUAL.md`.
+**Méthode :** revue de `lib/ageGates.ts`, `donations.ts`, `locationPrivacy.ts`, `commun/docs/INFRA-ONSCEN.md`, `content/legal/{dpa,dpia,rgpd,privacy,mentions,moderationAppeals}.ts`, `commun/docs/juridique/COMPARATIF-JURIDIQUE-TIKTOK-INSTAGRAM.md`, `commun/docs/audit/AUDIT-mobile-ios-android.md`, `TODO-MANUAL.md`.
 **Convention risque :** 🔴 critique · 🟠 élevé · 🟡 moyen · 🟢 faible
 
 ---
@@ -30,7 +30,7 @@
 | Transparence de la recommandation (art. 27 — logique du feed) | ❌ Absent — pas de page « comment fonctionne votre feed » |
 | Rapport de transparence sur la modération | ❌ Absent — confirmé absent par le comparatif juridique interne lui-même |
 
-**Risque : 🟡 Moyen** — Soundy n'est probablement pas une VLOP (Very Large Online Platform) au sens du DSA vu son échelle actuelle, donc les obligations renforcées (rapport de transparence, audit indépendant) ne sont pas encore applicables ; les obligations de base (notice-and-action, point de contact) existent mais restent incomplètes (contact autorités non séparé, transparence algorithmique absente).
+**Risque : 🟡 Moyen** — OnScen n'est probablement pas une VLOP (Very Large Online Platform) au sens du DSA vu son échelle actuelle, donc les obligations renforcées (rapport de transparence, audit indépendant) ne sont pas encore applicables ; les obligations de base (notice-and-action, point de contact) existent mais restent incomplètes (contact autorités non séparé, transparence algorithmique absente).
 
 **Recommandation :** séparer le contact autorités du contact éditeur générique ; ajouter une page de transparence sur le fonctionnement du feed (obligation qui s'applique dès qu'une recommandation algorithmique existe, indépendamment du statut VLOP) ; préparer un modèle de rapport de transparence même sommaire, à activer si le seuil d'utilisateurs actifs venait à être atteint.
 
@@ -65,7 +65,7 @@
 ## 11.4 RGPD — localisation des serveurs
 
 **Constat : ✅ conforme.**
-- VPS de production et de staging hébergés chez **Scaleway, zone `fr-par-2`** (France) — confirmé (`commun/docs/INFRA-SOUNDY.md`).
+- VPS de production et de staging hébergés chez **Scaleway, zone `fr-par-2`** (France) — confirmé (`commun/docs/INFRA-ONSCEN.md`).
 - PostgreSQL managé et Object Storage également en région `fr-par` (France).
 - Sous-traitants hors UE identifiés et documentés dans le registre (`dpa.ts`) : Cloudflare, LiveKit, Stripe (partiellement, entité IE), Sentry, potentiellement ACRCloud — tous mentionnés avec clauses contractuelles types (CCT) prévues, mais **DPA non encore signés** (voir Phase 9 §9.3, `LEG-5`).
 
@@ -77,7 +77,7 @@
 
 **Constat :**
 - **Pas de jeu d'argent déguisé** : les pourboires sont des montants directs en euros via Stripe (Payment Intents), sans conversion préalable vers une monnaie virtuelle interne. Un champ `meloCoins` existe dans le schéma utilisateur mais n'est **pas utilisé** dans le flux de don actuel (initialisé à 0, aucune dépense/achat identifié dans `lib/donations.ts`/`routes/donations.ts`) — pas de mécanique de type loot box ou pari.
-- **PCI-DSS** : conforme par délégation — aucun numéro de carte/CVV ne transite ni n'est stocké côté Soundy, la saisie passe exclusivement par Stripe.js/Checkout (confirmé code + documentation légale).
+- **PCI-DSS** : conforme par délégation — aucun numéro de carte/CVV ne transite ni n'est stocké côté OnScen, la saisie passe exclusivement par Stripe.js/Checkout (confirmé code + documentation légale).
 - **TVA** : ❌ **aucune mention de TVA/facturation** dans les CGU/CGV de monétisation créateurs (`creatorMonetization.ts`) — sujet resté ouvert dans le dossier avocat (DAC7, TVA, KYC créateurs — `RENDEZ-VOUS-AVOCAT.md`, `CHECKLIST-VALIDATION-AVOCAT.md`).
 - **Incohérence de taux de commission documentée** entre `creatorMonetization.ts` (30 %) et la configuration réelle/`MENTIONS-LEGALES-DONS.md` (50 %) — traitée en détail Phase 9 §9.4.
 - **Point opérationnel critique distinct, toujours ouvert (`STR-11`, reconfirmé ce jour) :** `STRIPE_SECRET_KEY` en mode **test** (`sk_test_...`) dans la configuration de production locale (`commun/backend/.env.production`) alors que `APP_ENV=production` et `DONATIONS_ENABLED=1`. Un don réel effectué aujourd'hui avec cette configuration produirait une confirmation de succès fictive côté Stripe **sans aucun mouvement d'argent réel**. Ce point avait déjà été investigué en détail par l'audit consolidé du 22/07 (aucune clé live trouvée nulle part dans l'infrastructure accessible) et reste, à la vérification de ce jour, **inchangé**.

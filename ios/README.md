@@ -1,4 +1,4 @@
-# Stack iOS — Soundy
+# Stack iOS — OnScen
 
 Projet Capacitor + Xcode pour iPhone/iPad.
 

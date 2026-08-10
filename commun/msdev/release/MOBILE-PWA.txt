@@ -1,4 +1,4 @@
-MeloSong — Smartphone (PWA + réseau local)
+OnScen — Smartphone (PWA + réseau local)
 ==========================================
 
 ## Accès navigateur (recommandé en msdev)
@@ -16,15 +16,15 @@ MeloSong — Smartphone (PWA + réseau local)
 
 ### Android (Chrome)
 
-1. Ouvrez l'URL MeloSong sur le téléphone
+1. Ouvrez l'URL OnScen sur le téléphone
 2. Menu ⋮ → « Ajouter à l'écran d'accueil » ou « Installer l'application »
-3. L'icône MeloSong apparaît comme une app
+3. L'icône OnScen apparaît comme une app
 
 ### iPhone (Safari)
 
 1. Ouvrez l'URL dans Safari (pas dans une webview tierce)
 2. Partager → « Sur l'écran d'accueil »
-3. Validez le nom « MeloSong »
+3. Validez le nom « OnScen »
 
 Conditions : service worker actif (build production / msdev avec app:build),
 manifest et icônes servis par le même hôte (localhost ou IP LAN).

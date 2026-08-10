@@ -1,10 +1,10 @@
 ## Résumé exécutif
 
-Soundy est le **réseau social** pensé comme un **promoteur d'artistes et d'événements** (application mobile-first, [getsoundy.com](https://getsoundy.com)). Le modèle économique priorise les **sponsors natifs** (45 à 55 % du revenu cible à 24 mois), complétés par les commissions créateurs (pourboires live, abonnements créateurs — **non actifs au lancement**) et les forfaits plateforme **Soundy+ / SoundyUltra** (**roadmap, non effectifs au démarrage**).
+OnScen est le **réseau social** pensé comme un **promoteur d'artistes et d'événements** (application mobile-first, [getsoundy.com](https://getsoundy.com)). Le modèle économique priorise les **sponsors natifs** (45 à 55 % du revenu cible à 24 mois), complétés par les commissions créateurs (pourboires live, abonnements créateurs — **non actifs au lancement**) et les forfaits plateforme **OnScen+ / OnScenUltra** (**roadmap, non effectifs au démarrage**).
 
-**Opportunité** : les annonceurs musique et nightlife cherchent des alternatives aux CPM Meta et Instagram (6 à 18 € en France — voir §7 · benchmarks CPM). Soundy propose un inventaire vertical et géolocalisé, dès **~150 € pour 7 jours** (Carte · Sponso, palier 50 000 inscrits).
+**Opportunité** : les annonceurs musique et nightlife cherchent des alternatives aux CPM Meta et Instagram (6 à 18 € en France — voir §7 · benchmarks CPM). OnScen propose un inventaire vertical et géolocalisé, dès **~150 € pour 7 jours** (Carte · Sponso, palier 50 000 inscrits).
 
-**Vision** : ancrage **France → Europe → international** — devenir la référence du réseau social musique live. Soundy **met en visibilité les événements musicaux** sur la carte géolocalisée : concerts, soirées et festivals découverts près de l'utilisateur, du quartier à l'échelle continentale puis mondiale.
+**Vision** : ancrage **France → Europe → international** — devenir la référence du réseau social musique live. OnScen **met en visibilité les événements musicaux** sur la carte géolocalisée : concerts, soirées et festivals découverts près de l'utilisateur, du quartier à l'échelle continentale puis mondiale.
 
 **Objectifs à 12 mois**
 
@@ -23,14 +23,14 @@ Soundy est le **réseau social** pensé comme un **promoteur d'artistes et d'év
 
 Les fans dispersent leur attention entre TikTok (découverte), Instagram (social), Shotgun et Resident Advisor (sorties), Spotify et YouTube (écoute). Aucun acteur ne combine **social, carte géolocalisée, écoute partagée, live et monétisation créateur** dans une application verticale pensée pour le mobile.
 
-**Proposition Soundy** : unifier découverte → écoute ensemble → live → événements, avec des formats sponsorisés natifs et non intrusifs. La **carte géolocalisée** assure la **visibilité des événements** : pins concerts et festivals, clusters par ville, découverte par zone — le lien entre communauté en ligne et vie événementielle.
+**Proposition OnScen** : unifier découverte → écoute ensemble → live → événements, avec des formats sponsorisés natifs et non intrusifs. La **carte géolocalisée** assure la **visibilité des événements** : pins concerts et festivals, clusters par ville, découverte par zone — le lien entre communauté en ligne et vie événementielle.
 
 ### 1.2 Taille de marché (France)
 
 <div class="funnel">
 <div class="funnel-row"><div class="funnel-bar">TAM · ~8 à 10 Md€ / an</div><span class="funnel-meta">Dépenses publicitaires digitales France</span></div>
 <div class="funnel-row"><div class="funnel-bar">SAM · ~400 à 600 M€ / an</div><span class="funnel-meta">Pub musique, événementiel et lifestyle 16–35 ans</span></div>
-<div class="funnel-row"><div class="funnel-bar">SOM (3 ans) · 0,5 à 2 M€ ARR</div><span class="funnel-meta">Part capturable par l'inventaire natif Soundy</span></div>
+<div class="funnel-row"><div class="funnel-bar">SOM (3 ans) · 0,5 à 2 M€ ARR</div><span class="funnel-meta">Part capturable par l'inventaire natif OnScen</span></div>
 </div>
 
 **Marché adressable utilisateurs** : 8 à 12 millions de personnes de 16 à 35 ans sensibles à la musique, aux réseaux sociaux et aux sorties en France ; 500 000 à 1 million d'early adopters visés à 24 mois.
@@ -39,8 +39,8 @@ Les fans dispersent leur attention entre TikTok (découverte), Instagram (social
 <p class="source-block-title">Sources &amp; dates</p>
 <ul class="source-list">
 <li><strong>TAM</strong> — SRI &amp; UDECAM, <em>Observatoire de l'e-pub</em> FY 2024 (publié le <strong>6 février 2025</strong>) : 10,97&nbsp;Md€ de dépenses publicitaires digitales en France. Fourchette retenue 8–10&nbsp;Md€ (ordre de grandeur conservateur vs. trajectoire 2024). <a href="https://www.sri-france.org/wp-content/uploads/2025/02/2025_02_06_Observatoire-E-Pub-FY-2024-VFinale.pdf">sri-france.org</a> · <a href="https://www.udecam.fr/evenements/33eme-observatoire-de-lepub/">udecam.fr</a></li>
-<li><strong>SAM</strong> — Estimation Soundy (<strong>juillet 2026</strong>), calibrée sur le TAM et les budgets pub musique / événementiel / lifestyle 16–35&nbsp;ans (≈ 4–6&nbsp;% du digital).</li>
-<li><strong>SOM (3 ans)</strong> — Projection interne Soundy (<strong>juillet 2026</strong>), scénario de pénétration de l'inventaire sponsor natif.</li>
+<li><strong>SAM</strong> — Estimation OnScen (<strong>juillet 2026</strong>), calibrée sur le TAM et les budgets pub musique / événementiel / lifestyle 16–35&nbsp;ans (≈ 4–6&nbsp;% du digital).</li>
+<li><strong>SOM (3 ans)</strong> — Projection interne OnScen (<strong>juillet 2026</strong>), scénario de pénétration de l'inventaire sponsor natif.</li>
 <li><strong>Population 16–35 ans</strong> — INSEE, estimations au 1<sup>er</sup> janvier 2024 (reprise INJEP, <em>Chiffres clés jeunesse 2024</em>, <strong>juillet 2024</strong>) : 12,0&nbsp;M de 15–29&nbsp;ans ; fourchette 8–12&nbsp;M pour la cible 16–35&nbsp;ans selon périmètre. <a href="https://injep.fr/publication/les-chiffres-cles-de-la-jeunesse-2024/">injep.fr</a> · <a href="https://www.insee.fr/fr/statistiques/7752095">insee.fr</a></li>
 </ul>
 </div>
@@ -59,7 +59,7 @@ Les fans dispersent leur attention entre TikTok (découverte), Instagram (social
 
 ### 1.4 Concurrence
 
-| Acteur | Force | Limite face à Soundy |
+| Acteur | Force | Limite face à OnScen |
 |--------|-------|----------------------|
 | Instagram / TikTok | Portée, algorithme | Pas de carte événements musique, pas d'écoute synchronisée |
 | SoundCloud | Hébergement artistes, communauté créateurs, découverte | Pas de carte ni événements géolocalisés, monétisation limitée côté fan |
@@ -68,7 +68,7 @@ Les fans dispersent leur attention entre TikTok (découverte), Instagram (social
 | Audius | Social musique décentralisé, rémunération créateurs | Audience niche, pas de carte événements ni salons synchronisés |
 | Spotify | Écoute | Social limité, pas d'événements géolocalisés |
 
-**Atouts différenciants Soundy** : salons d'écoute YouTube synchronisés · **visibilité des événements** sur la carte géolocalisée · salons actifs sur la carte · live vidéo · sponsors natifs · pourboires et abonnements créateurs intégrés.
+**Atouts différenciants OnScen** : salons d'écoute YouTube synchronisés · **visibilité des événements** sur la carte géolocalisée · salons actifs sur la carte · live vidéo · sponsors natifs · pourboires et abonnements créateurs intégrés.
 
 ### 1.5 Tendances 2026–2028
 
@@ -223,24 +223,24 @@ Les fans dispersent leur attention entre TikTok (découverte), Instagram (social
 |--------|----------------|--------|
 | Sponsors natifs | 45–55 % | 7 emplacements en production |
 | Commissions créateurs | 25–35 % | Stripe Connect opérationnel (pourboires live) |
-| Soundy+ / SoundyUltra | 10–15 % | Roadmap — **non actif au lancement** |
+| OnScen+ / OnScenUltra | 10–15 % | Roadmap — **non actif au lancement** |
 | B2B lieux (Pro Lieu) | 5–15 % | Roadmap M4–M6 |
 
 **Forfaits plateforme** *(écran « Comparer les forfaits » — tarifs produit)*
 
 <div class="pricing-grid">
 <div class="price-card"><span class="price-tier">Gratuit</span><span class="price-value">0 €</span><span class="price-note">Forfait par défaut · 30 spectateurs · 2 h/j</span></div>
-<div class="price-card is-highlight"><span class="price-tier">Soundy+</span><span class="price-value">9,99 €</span><span class="price-note">/ mois · 400 spectateurs · 4 h/j · LiveKit</span></div>
-<div class="price-card"><span class="price-tier">SoundyUltra</span><span class="price-value">19,99 €</span><span class="price-note">/ mois · illimité · OBS Cloudflare</span></div>
+<div class="price-card is-highlight"><span class="price-tier">OnScen+</span><span class="price-value">9,99 €</span><span class="price-note">/ mois · 400 spectateurs · 4 h/j · LiveKit</span></div>
+<div class="price-card"><span class="price-tier">OnScenUltra</span><span class="price-value">19,99 €</span><span class="price-note">/ mois · illimité · OBS Cloudflare</span></div>
 </div>
 
 | Forfait | Prix | Spectateurs live | Durée live / jour | Diffusion |
 |---------|------|------------------|-------------------|-----------|
 | **Gratuit** | **0 €** | Jusqu'à **30** spectateurs | **2 h** | LiveKit (sans OBS) |
-| **Soundy+** | **9,99 €/mois** | Jusqu'à **400** spectateurs (LiveKit) | **4 h** | LiveKit — **sans** diffusion OBS / Cloudflare |
-| **SoundyUltra** | **19,99 €/mois** | **Illimités** | **Illimité** | **OBS** via **Cloudflare Stream** |
+| **OnScen+** | **9,99 €/mois** | Jusqu'à **400** spectateurs (LiveKit) | **4 h** | LiveKit — **sans** diffusion OBS / Cloudflare |
+| **OnScenUltra** | **19,99 €/mois** | **Illimités** | **Illimité** | **OBS** via **Cloudflare Stream** |
 
-*Soundy+ et SoundyUltra incluent aussi l'accès aux **rediffusions de lives archivés** sur le profil. Paiement Stripe Billing · résiliation à tout moment · 18 ans minimum.*
+*OnScen+ et OnScenUltra incluent aussi l'accès aux **rediffusions de lives archivés** sur le profil. Paiement Stripe Billing · résiliation à tout moment · 18 ans minimum.*
 
 **Abonnements créateurs** *(soutien récurrent fan → artiste, distinct des forfaits plateforme)*
 
@@ -271,7 +271,7 @@ Les fans dispersent leur attention entre TikTok (découverte), Instagram (social
 
 </div>
 
-Répartition revenus M12 : sponsors 60 % · pourboires 30 % · Soundy+ 10 % *(abonnements créateurs et Soundy+ non effectifs avant cette phase)*.
+Répartition revenus M12 : sponsors 60 % · pourboires 30 % · OnScen+ 10 % *(abonnements créateurs et OnScen+ non effectifs avant cette phase)*.
 
 ### 2.4 Phase 2 — Croissance (M13–M24)
 
@@ -305,7 +305,7 @@ Coût fixe infrastructure MVP : ~24–28 € / mois. Marge brute sur les sponsor
 
 ### 2.7 Coûts d'infrastructure & projection de performance
 
-Soundy fonctionne sur une infrastructure cloud managée (hébergement, base de données, streaming vidéo) facturée à l'usage — **pas de licence logicielle ni de coût fixe par utilisateur**. Le coût technique croît par paliers, bien plus lentement que le revenu.
+OnScen fonctionne sur une infrastructure cloud managée (hébergement, base de données, streaming vidéo) facturée à l'usage — **pas de licence logicielle ni de coût fixe par utilisateur**. Le coût technique croît par paliers, bien plus lentement que le revenu.
 
 **Postes de coûts techniques actuels**
 
@@ -445,18 +445,18 @@ Budget : <span class="tier-budget">800–5 000 € / mois</span>
 ## 6. Glossaire
 
 <div class="glossary-grid">
-<div class="glossary-group-title">Produit Soundy</div>
+<div class="glossary-group-title">Produit OnScen</div>
 <div class="glossary-item"><span class="glossary-term">Carte · Sponso</span><span class="glossary-def">Pin sponsorisé sur la carte géolocalisée — emplacement d'entrée de gamme (~150 € / 7 j au palier 50 K inscrits).</span></div>
 <div class="glossary-item"><span class="glossary-term">Sponsors natifs</span><span class="glossary-def">Formats publicitaires intégrés au produit (carte, fil, stories, Reels), identifiés « Sponsorisé », non intrusifs.</span></div>
-<div class="glossary-item"><span class="glossary-term">Emplacements sponsorisés</span><span class="glossary-def">Inventaire publicitaire Soundy : carte, fil, stories, Reels, etc. — 7 emplacements en production.</span></div>
+<div class="glossary-item"><span class="glossary-term">Emplacements sponsorisés</span><span class="glossary-def">Inventaire publicitaire OnScen : carte, fil, stories, Reels, etc. — 7 emplacements en production.</span></div>
 <div class="glossary-item"><span class="glossary-term">Takeover</span><span class="glossary-def">Format premium : un annonceur occupe temporairement tous les emplacements sponsorisés visibles sur une zone (ville ou région), durée définie (ex. 7 jours).</span></div>
 <div class="glossary-item"><span class="glossary-term">Fil · Stories · Reels</span><span class="glossary-def">Fil = flux social principal · Stories = contenus éphémères verticaux · Reels = vidéos courtes, format sponsor abordable.</span></div>
 <div class="glossary-item"><span class="glossary-term">Salon (d'écoute)</span><span class="glossary-def">Espace d'écoute YouTube synchronisée entre plusieurs utilisateurs — découverte et partage musical en temps réel.</span></div>
 <div class="glossary-item"><span class="glossary-term">Visibilité des événements</span><span class="glossary-def">Mise en avant des concerts, soirées et festivals sur la <strong>carte géolocalisée</strong> — pins, clusters par ville, découverte par zone, lien social → événements musicaux.</span></div>
 <div class="glossary-group-title">Forfaits plateforme</div>
 <div class="glossary-item"><span class="glossary-term">Gratuit</span><span class="glossary-def">Forfait par défaut — jusqu'à <strong>30 spectateurs</strong> en live, <strong>2 h/jour</strong>, diffusion <strong>LiveKit</strong> (sans OBS).</span></div>
-<div class="glossary-item"><span class="glossary-term">Soundy+</span><span class="glossary-def"><strong>9,99 €/mois</strong> — jusqu'à <strong>400 spectateurs</strong> (LiveKit), <strong>4 h/jour</strong>, sans OBS/Cloudflare · rediffusions archivées · <strong>non actif au lancement</strong>.</span></div>
-<div class="glossary-item"><span class="glossary-term">SoundyUltra</span><span class="glossary-def"><strong>19,99 €/mois</strong> — spectateurs <strong>illimités</strong>, temps de live <strong>illimité</strong>, diffusion <strong>OBS via Cloudflare</strong> · rediffusions archivées · <strong>non actif au lancement</strong>.</span></div>
+<div class="glossary-item"><span class="glossary-term">OnScen+</span><span class="glossary-def"><strong>9,99 €/mois</strong> — jusqu'à <strong>400 spectateurs</strong> (LiveKit), <strong>4 h/jour</strong>, sans OBS/Cloudflare · rediffusions archivées · <strong>non actif au lancement</strong>.</span></div>
+<div class="glossary-item"><span class="glossary-term">OnScenUltra</span><span class="glossary-def"><strong>19,99 €/mois</strong> — spectateurs <strong>illimités</strong>, temps de live <strong>illimité</strong>, diffusion <strong>OBS via Cloudflare</strong> · rediffusions archivées · <strong>non actif au lancement</strong>.</span></div>
 <div class="glossary-group-title">Abonnements créateurs</div>
 <div class="glossary-item"><span class="glossary-term">Supporter</span><span class="glossary-def">Soutien récurrent créateur <strong>4,99 €/mois</strong> — badge, chat abonnés (option hôte), Stripe Connect · commission ~10 % · <strong>non actif au lancement</strong>.</span></div>
 <div class="glossary-item"><span class="glossary-term">Super fan</span><span class="glossary-def">Palier créateur <strong>9,99 €/mois</strong> — badge Super fan · <strong>non actif au lancement</strong>.</span></div>
@@ -472,7 +472,7 @@ Budget : <span class="tier-budget">800–5 000 € / mois</span>
 <div class="glossary-item"><span class="glossary-term">Stripe Connect</span><span class="glossary-def">Infrastructure de paiement pour créateurs (pourboires, abonnements) et commissions plateforme.</span></div>
 <div class="glossary-group-title">Marché &amp; finance</div>
 <div class="glossary-item"><span class="glossary-term">TAM</span><span class="glossary-def">Total Addressable Market — taille totale du marché adressable (opportunité maximale théorique).</span></div>
-<div class="glossary-item"><span class="glossary-term">SAM</span><span class="glossary-def">Serviceable Addressable Market — part du marché accessible avec le modèle et l'offre Soundy.</span></div>
+<div class="glossary-item"><span class="glossary-term">SAM</span><span class="glossary-def">Serviceable Addressable Market — part du marché accessible avec le modèle et l'offre OnScen.</span></div>
 <div class="glossary-item"><span class="glossary-term">SOM</span><span class="glossary-def">Serviceable Obtainable Market — part réellement capturable à horizon donné (objectif réaliste).</span></div>
 <div class="glossary-item"><span class="glossary-term">ARR</span><span class="glossary-def">Annual Recurring Revenue — revenu récurrent annualisé.</span></div>
 <div class="glossary-item"><span class="glossary-term">CPM</span><span class="glossary-def">Coût Pour Mille — prix payé pour 1 000 affichages publicitaires.</span></div>
@@ -506,7 +506,7 @@ Budget : <span class="tier-budget">800–5 000 € / mois</span>
 
 <div class="references-section">
 
-<p class="references-intro">Sites et publications utilisés pour les chiffres de marché, la démographie, les benchmarks publicitaires et les références institutionnelles citées dans ce document. Les projections financières, grilles tarifaires Soundy et hypothèses de pénétration sont des <strong>estimations internes Soundy (juillet 2026)</strong>, sauf mention contraire.</p>
+<p class="references-intro">Sites et publications utilisés pour les chiffres de marché, la démographie, les benchmarks publicitaires et les références institutionnelles citées dans ce document. Les projections financières, grilles tarifaires OnScen et hypothèses de pénétration sont des <strong>estimations internes OnScen (juillet 2026)</strong>, sauf mention contraire.</p>
 
 ### Marché publicitaire (TAM)
 
@@ -541,7 +541,7 @@ Budget : <span class="tier-budget">800–5 000 € / mois</span>
 <li><strong>Talyco</strong> — <em>Observatoire prix publicité en ligne France 2026</em> · benchmark CPM Meta France 5–15 € — <a href="https://www.talyco.io/blog/media/observatoire-prix-publicite-en-ligne-france-2026/">talyco.io/observatoire-prix-publicite-en-ligne-france-2026</a></li>
 <li><strong>ANODE</strong> — <em>Combien coûte une pub sur Instagram&nbsp;?</em> · CPM Stories/Reels 6–18 € — <a href="https://agence-anode.fr/blog/marketing-digital/combien-coute-publicite-instagram/">agence-anode.fr/combien-coute-publicite-instagram</a></li>
 <li><strong>Meta Business</strong> — plateforme publicitaire Meta (Facebook / Instagram) — <a href="https://www.facebook.com/business">facebook.com/business</a></li>
-<li><strong>Document interne Soundy</strong> — <em>PLAN-SPONSORING-PAYANT.md</em> · référence CPM marché FR Instagram/Meta 6–14 €, TikTok 5–12 €, Spotify Audio 15–25 € (calibrage grille Soundy).</li>
+<li><strong>Document interne OnScen</strong> — <em>PLAN-SPONSORING-PAYANT.md</em> · référence CPM marché FR Instagram/Meta 6–14 €, TikTok 5–12 €, Spotify Audio 15–25 € (calibrage grille OnScen).</li>
 </ul>
 </div>
 
@@ -560,9 +560,9 @@ Budget : <span class="tier-budget">800–5 000 € / mois</span>
 ### Partenaires techniques & infrastructure
 
 <div class="source-block">
-<p class="source-block-title">Stack produit Soundy (§2.7 · one-pager)</p>
+<p class="source-block-title">Stack produit OnScen (§2.7 · one-pager)</p>
 <ul class="source-list">
-<li><strong>Soundy</strong> — application en production — <a href="https://getsoundy.com">getsoundy.com</a></li>
+<li><strong>OnScen</strong> — application en production — <a href="https://getsoundy.com">getsoundy.com</a></li>
 <li><strong>Stripe Connect</strong> — paiements créateurs &amp; sponsors — <a href="https://stripe.com/connect">stripe.com/connect</a></li>
 <li><strong>LiveKit Cloud</strong> — lives caméra navigateur — <a href="https://livekit.io/">livekit.io</a> · <a href="https://livekit.io/pricing">livekit.io/pricing</a></li>
 <li><strong>Cloudflare Stream</strong> — diffusion vidéo / OBS — <a href="https://www.cloudflare.com/products/cloudflare-stream/">cloudflare.com/products/cloudflare-stream</a></li>
@@ -602,12 +602,12 @@ Budget : <span class="tier-budget">800–5 000 € / mois</span>
 </ul>
 </div>
 
-### Projections & tarification internes Soundy
+### Projections & tarification internes OnScen
 
 <div class="source-block">
 <p class="source-block-title">Estimations produit · non issues de sources externes</p>
 <ul class="source-list">
-<li><strong>SAM, SOM, phases M0–M36, packages sponsors, CPM paliers 50 K–1 M</strong> — modèle interne Soundy (juillet 2026), calibré sur TAM Observatoire e-pub et benchmarks CPM.</li>
+<li><strong>SAM, SOM, phases M0–M36, packages sponsors, CPM paliers 50 K–1 M</strong> — modèle interne OnScen (juillet 2026), calibré sur TAM Observatoire e-pub et benchmarks CPM.</li>
 <li><strong>Coûts infrastructure &amp; paliers A–D</strong> — estimations directionnelles basées sur tarifs Scaleway, LiveKit et Cloudflare Stream + consommation projetée.</li>
 <li><strong>Documents internes complémentaires</strong> — <code>commun/docs/PLAN-SPONSORING-PAYANT.md</code> · <code>commun/docs/strategie/ONE-PAGER-SPONSOR-COMMERCIAL.md</code> · <code>commun/docs/strategie/BUSINESS-PLAN-PREMIUM.md</code>.</li>
 </ul>
@@ -617,4 +617,4 @@ Budget : <span class="tier-budget">800–5 000 € / mois</span>
 
 ---
 
-*Document confidentiel · Soundy · Juillet 2026 · [getsoundy.com](https://getsoundy.com)*
+*Document confidentiel · OnScen · Juillet 2026 · [getsoundy.com](https://getsoundy.com)*

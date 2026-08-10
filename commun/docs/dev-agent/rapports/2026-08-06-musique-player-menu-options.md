@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-08-06 — Menu « ⋯ » du lecteur audio (playlist, file d'attente, partage, signalement)
 
-**Agent :** @soundy-dev-agent
+**Agent :** @onscen-dev-agent
 **Date :** 2026-08-06
 **Durée estimée :** 1 h 30
 **Statut global :** ✅ Terminé
@@ -129,4 +129,4 @@ Aucun bloquant.
 
 ---
 
-*Généré par Soundy Dev Agent*
+*Généré par OnScen Dev Agent*

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# setup-staging-db.sh — Cree la base soundy_staging sur PostgreSQL Scaleway (depuis VPS prod)
+# setup-staging-db.sh — Cree la base onscen_staging sur PostgreSQL Scaleway (depuis VPS prod)
 # Usage (sur VPS prod avec acces DATABASE_URL) :
-#   bash /opt/soundly/deploy/setup-staging-db.sh
+#   bash /opt/onscen/deploy/setup-staging-db.sh
 #   STAGING_VPS_IP=51.159.170.181 bash setup-staging-db.sh
 set -euo pipefail
 
-ENV_FILE="${ENV_FILE:-/opt/soundy/.env}"
-STAGING_DB="${STAGING_DB:-soundy_staging}"
+ENV_FILE="${ENV_FILE:-/opt/onscen/.env}"
+STAGING_DB="${STAGING_DB:-onscen_staging}"
 
 if [[ -f "$ENV_FILE" ]]; then
   set -a
@@ -23,7 +23,7 @@ fi
 # Connexion admin via base postgres ou soundy existante
 ADMIN_URL="${DATABASE_URL}"
 ADMIN_URL="${ADMIN_URL//\/soundy?/\/postgres?}"
-ADMIN_URL="${ADMIN_URL//\/soundy-prod?/\/postgres?}"
+ADMIN_URL="${ADMIN_URL//\/onscen-prod?/\/postgres?}"
 ADMIN_URL="${ADMIN_URL//\/soundy\?/\/postgres?}"
 
 echo ">> Verification base $STAGING_DB..."
@@ -33,7 +33,7 @@ if [[ "$EXISTS" == "1" ]]; then
   echo "OK base $STAGING_DB deja presente"
 else
   echo ">> Creation base $STAGING_DB..."
-  psql "$ADMIN_URL" -c "CREATE DATABASE ${STAGING_DB} OWNER soundy;" 2>/dev/null \
+  psql "$ADMIN_URL" -c "CREATE DATABASE ${STAGING_DB} OWNER onscen;" 2>/dev/null \
     || psql "$ADMIN_URL" -c "CREATE DATABASE ${STAGING_DB};"
   echo "OK base $STAGING_DB creee"
 fi

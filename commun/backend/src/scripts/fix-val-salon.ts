@@ -3,12 +3,12 @@
  * - désactive les salons fantômes (Paris)
  * - réactive le salon public le plus récent au Crès
  *
- * Usage : cd /opt/soundly && node scripts/fix-val-salon.js
+ * Usage : cd /opt/onscen && node scripts/fix-val-salon.js
  */
 import dotenv from 'dotenv';
 import { Pool } from 'pg';
 
-dotenv.config({ path: '/opt/soundly/.env' });
+dotenv.config({ path: '/opt/onscen/.env' });
 
 const VAL_ID = 'user_1781025111633_ipv5l';
 

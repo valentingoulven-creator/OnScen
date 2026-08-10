@@ -1,4 +1,4 @@
-# Documents commerciaux — Sponsoring Soundy
+# Documents commerciaux — Sponsoring OnScen
 
 Modèles professionnels pour la vente managed de campagnes sponsoring sur [getsoundy.com](https://getsoundy.com).
 
@@ -12,7 +12,7 @@ Modèles professionnels pour la vente managed de campagnes sponsoring sur [getso
 
 | Document | Fichier | Usage |
 |----------|---------|-------|
-| **Justification tarifs (coûts, point mort)** | [`JUSTIFICATION-TARIFS-SPONSOR-SOUNDY.md`](./JUSTIFICATION-TARIFS-SPONSOR-SOUNDY.md) · PDF [`pdf/`](./pdf/) | BIC, banque — infra, dev, point mort |
+| **Justification tarifs (coûts, point mort)** | [`JUSTIFICATION-TARIFS-SPONSOR-ONSCEN.md`](./JUSTIFICATION-TARIFS-SPONSOR-ONSCEN.md) · PDF [`pdf/`](./pdf/) | BIC, banque — infra, dev, point mort |
 | **Synthèse BIC (1 page)** | [`JUSTIFICATION-TARIFS-SPONSOR-SYNTHESE-BIC.md`](./JUSTIFICATION-TARIFS-SPONSOR-SYNTHESE-BIC.md) · PDF [`pdf/`](./pdf/) | Pièce jointe dossier BIC |
 | **Modèle de devis** | [`MODELE-DEVIS-SPONSOR.md`](./MODELE-DEVIS-SPONSOR.md) | Proposition commerciale chiffrée (devis seul) |
 | **Devis & contrat type** | [`CONTRAT-TYPE-SPONSOR.md`](./CONTRAT-TYPE-SPONSOR.md) | Devis + CGV / conditions contractuelles combinés |
@@ -48,7 +48,7 @@ Les grilles et formats référencés dans ces modèles proviennent de :
 
 ---
 
-## Emplacements Soundy (offre commerciale lancement · 5 + packs)
+## Emplacements OnScen (offre commerciale lancement · 5 + packs)
 
 | Code | Nom commercial |
 |------|----------------|
@@ -97,4 +97,4 @@ Sortie : `commercial/pdf/` (document complet + synthèse BIC). Les mêmes source
 
 ---
 
-*Soundy · Dossier commercial sponsors · Juillet 2026*
+*OnScen · Dossier commercial sponsors · Juillet 2026*

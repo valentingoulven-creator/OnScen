@@ -1,6 +1,6 @@
 'use strict';
-require('/opt/soundly/node_modules/dotenv').config({ path: '/opt/soundly/.env' });
-const { Pool } = require('/opt/soundly/node_modules/pg');
+require('/opt/onscen/node_modules/dotenv').config({ path: '/opt/onscen/.env' });
+const { Pool } = require('/opt/onscen/node_modules/pg');
 const VAL = 'user_1781025111633_ipv5l';
 
 (async () => {
@@ -13,12 +13,12 @@ const VAL = 'user_1781025111633_ipv5l';
   console.log('=== PG salons ===');
   console.log(JSON.stringify(salons.rows, null, 2));
 
-  const { loadPersistedStoreAsync } = require('/opt/soundly/dist/lib/persist');
+  const { loadPersistedStoreAsync } = require('/opt/onscen/dist/lib/persist');
   await loadPersistedStoreAsync();
-  const { loadSalonsLivesFromPostgres } = require('/opt/soundly/dist/lib/pgSalonsLives');
+  const { loadSalonsLivesFromPostgres } = require('/opt/onscen/dist/lib/pgSalonsLives');
   await loadSalonsLivesFromPostgres();
-  const { db } = require('/opt/soundly/dist/models/schema');
-  const { getActiveSalonForHost } = require('/opt/soundly/dist/lib/profile');
+  const { db } = require('/opt/onscen/dist/models/schema');
+  const { getActiveSalonForHost } = require('/opt/onscen/dist/lib/profile');
   const mem = [...db.salons.values()].filter((s) => s.hostId === VAL);
   console.log('=== Memory salons ===', mem.length);
   for (const s of mem) {

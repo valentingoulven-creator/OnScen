@@ -1,4 +1,4 @@
-# Audit technique Soundy — Phase 8 : API externes
+# Audit technique OnScen — Phase 8 : API externes
 
 **Date :** 2026-08-07
 **Méthode :** inventaire exhaustif via `commun/backend/.env.production.example`, `package.json`, croisement avec `API-1` à `API-10` de `commun/docs/audit/AUDIT-CONSOLIDE.md` (2026-07-22), vérification du monitoring de quota existant.
@@ -51,7 +51,7 @@
 
 **Risque : 🟡 Moyen** — l'absence de politique de rotation planifiée est une dette de posture de sécurité classique, à corriger progressivement, pas une vulnérabilité active.
 
-**Recommandation :** définir une politique de rotation (ex. annuelle, ou immédiate en cas de départ d'un collaborateur ayant eu accès) pour l'ensemble des clés API tierces, documentée dans `commun/docs/INFRA-SOUNDY.md`.
+**Recommandation :** définir une politique de rotation (ex. annuelle, ou immédiate en cas de départ d'un collaborateur ayant eu accès) pour l'ensemble des clés API tierces, documentée dans `commun/docs/INFRA-ONSCEN.md`.
 
 ---
 

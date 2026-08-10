@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # stats-app-db.sh — Exécute les requêtes statistiques sur PostgreSQL production
 # Usage (sur le VPS) :
-#   bash /opt/soundly/deploy/stats-app-db.sh
+#   bash /opt/onscen/deploy/stats-app-db.sh
 # Usage (local, URL explicite) :
 #   DATABASE_URL='postgresql://...' ./commun/deploy/stats-app-db.sh
 # Options :
@@ -10,7 +10,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SQL_FILE="${SCRIPT_DIR}/stats-app-db.sql"
-ENV_FILE="${ENV_FILE:-/opt/soundy/.env}"
+ENV_FILE="${ENV_FILE:-/opt/onscen/.env}"
 
 if [[ -z "${DATABASE_URL:-}" ]] && [[ -f "$ENV_FILE" ]]; then
   set -a
@@ -37,7 +37,7 @@ fi
 TIMESTAMP="$(date '+%Y%m%d-%H%M%S')"
 OUT="${OUT:-}"
 
-echo "Soundy — statistiques base de données"
+echo "OnScen — statistiques base de données"
 echo "Fichier : $SQL_FILE"
 echo "Horodatage : $TIMESTAMP"
 echo ""
@@ -49,7 +49,7 @@ run_stats() {
 if [[ -n "$OUT" ]]; then
   mkdir -p "$(dirname "$OUT")"
   {
-    echo "# Soundy stats — $TIMESTAMP"
+    echo "# OnScen stats — $TIMESTAMP"
     echo "# DATABASE_URL host : $(echo "$DATABASE_URL" | sed -E 's#.*@([^/:]+).*#\1#')"
     echo ""
     run_stats

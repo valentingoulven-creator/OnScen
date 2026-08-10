@@ -1,13 +1,13 @@
 #!/bin/bash
 set -eu
 set -a
-source /opt/soundy/.env
+source /opt/onscen/.env
 set +a
 API_BASE="http://127.0.0.1:3000/api"
 DONOR_ID="user_1781027715573_dtyhk"
 LIVE_ID="live_stripe_test_1781371257"
 
-TOKEN=$(cd /opt/soundy && node -e "
+TOKEN=$(cd /opt/onscen && node -e "
 const jwt = require('jsonwebtoken');
 console.log(jwt.sign({ id: '${DONOR_ID}', username: 'keval' }, process.env.JWT_SECRET, { expiresIn: '1h' }));
 ")

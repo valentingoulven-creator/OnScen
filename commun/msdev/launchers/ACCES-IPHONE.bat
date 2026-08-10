@@ -1,14 +1,14 @@
 @echo off
 chcp 65001 >nul 2>&1
 setlocal enabledelayedexpansion
-title MeloSong - Acces iPhone
+title OnScen - Acces iPhone
 
 set "ROOT=%~dp0..\..\.."
 cd /d "%ROOT%"
 
 echo.
 echo  ============================================================
-echo    MeloSong - Acces depuis partout (iPhone / Internet)
+echo    OnScen - Acces depuis partout (iPhone / Internet)
 echo  ============================================================
 echo.
 
@@ -51,8 +51,8 @@ if not defined NGROK_DOMAIN (
 echo  [OK] Domaine : %NGROK_DOMAIN%
 echo.
 
-:: -- 3. Serveur MeloSong ---------------------------------------
-echo  [3/4] Verification du serveur MeloSong (port 4080)...
+:: -- 3. Serveur OnScen ---------------------------------------
+echo  [3/4] Verification du serveur OnScen (port 4080)...
 
 netstat -ano | findstr /C:":4080" | findstr /I "LISTENING" >nul 2>&1
 if not errorlevel 1 (
@@ -60,12 +60,12 @@ if not errorlevel 1 (
 ) else (
     echo  [INFO] Demarrage du serveur...
     set "_D=%ROOT%"
-    start "MeloSong Server" /min cmd /c "cd /d ""%_D%"" && set MSDEV_HTTPS=0 && npm run msdev:server"
+    start "OnScen Server" /min cmd /c "cd /d ""%_D%"" && set MSDEV_HTTPS=0 && npm run msdev:server"
     echo  [INFO] Attente max 45s...
     powershell -NoProfile -Command "$ok=$false;for($i=0;$i-lt 45;$i++){Start-Sleep 1;try{$c=New-Object Net.Sockets.TcpClient;$c.Connect('127.0.0.1',4080);$c.Close();$ok=$true;break}catch{Write-Host -NoNewline '.'}} ;if($ok){Write-Host ' OK'}else{Write-Host ' TIMEOUT'}"
     netstat -ano | findstr /C:":4080" | findstr /I "LISTENING" >nul 2>&1
     if errorlevel 1 (
-        echo  [ERREUR] Serveur non demarre. Voir fenetre MeloSong Server.
+        echo  [ERREUR] Serveur non demarre. Voir fenetre OnScen Server.
         echo.
         pause
         exit /b 1
@@ -87,7 +87,7 @@ echo.
 echo  Identifiants de test : listener@msdev.local / msdev123
 echo.
 echo  Laissez cette fenetre ouverte.
-echo  Fermez-la pour couper l acces internet a MeloSong.
+echo  Fermez-la pour couper l acces internet a OnScen.
 echo.
 
 "%NGROK_EXE%" http --url="%NGROK_DOMAIN%" 4080

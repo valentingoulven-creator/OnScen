@@ -1,4 +1,4 @@
-﻿MeloSong msdev â€” DÃ©bloquer l'exÃ©cutable sous Windows
+﻿OnScen msdev â€” DÃ©bloquer l'exÃ©cutable sous Windows
 ===================================================
 
 Windows peut afficher Â« Application dangereuse Â», bloquer msdev.exe ou
@@ -7,8 +7,8 @@ avec pkg (runtime Node embarquÃ©), sans certificat de signature Authenticode.
 
 â”€â”€â”€ MÃ©thode la plus rapide AUJOURD'HUI â”€â”€â”€
 
-A) Vous avez Node.js 18+ et le dossier source du projet MeloSong Dev :
-   â†’ Double-cliquez : msdev\Lancer-MeloSong.bat (ou msdev\Lancer-msdev-node.bat)
+A) Vous avez Node.js 18+ et le dossier source du projet OnScen Dev :
+   â†’ Double-cliquez : msdev\Lancer-OnScen.bat (ou msdev\Lancer-msdev-node.bat)
    (ou Ã  la racine du projet : npm run msdev:server)
    Pas d'exe : Smart App Control ne s'applique pas Ã  node.exe (signÃ© Microsoft).
 
@@ -42,7 +42,7 @@ Si Windows Defender bloque encore aprÃ¨s SmartScreen :
 1. ParamÃ¨tres â†’ ConfidentialitÃ© et sÃ©curitÃ© â†’ SÃ©curitÃ© Windows
 2. Protection contre les virus et menaces â†’ GÃ©rer les paramÃ¨tres
 3. Exclusions â†’ Ajouter une exclusion â†’ Dossier
-4. Choisir le dossier complet :  ...\MeloSong Dev\msdev\release
+4. Choisir le dossier complet :  ...\OnScen Dev\msdev\release
 
 Ne dÃ©sactivez pas toute la protection du PC : une exclusion de dossier suffit.
 
@@ -81,9 +81,9 @@ Test technique (PowerShell) :
 
 â”€â”€â”€ 5. Recompiler aprÃ¨s mise Ã  jour â”€â”€â”€
 
-Ã€ la racine MeloSong Dev :  npm run build:exe
+Ã€ la racine OnScen Dev :  npm run build:exe
 
-Le script de build applique Unblock-File et les mÃ©tadonnÃ©es Â« MeloSong Â»
+Le script de build applique Unblock-File et les mÃ©tadonnÃ©es Â« OnScen Â»
 sur l'exe (remplace l'affichage Â« Node.js Â» dans les propriÃ©tÃ©s du fichier).
 
 Voir aussi : msdev\BUILD-EXE.txt
@@ -95,18 +95,18 @@ Symptôme : double-clic sur un .bat, un flash noir, rien à lire.
 Cause fréquente : erreur au démarrage (Node absent, mauvais dossier, port 4080
 occupé, msdev.exe bloqué) alors que l'ancien script ne faisait pas « pause ».
 
-Fichier à utiliser en priorité (dossier source MeloSong Dev) :
-  msdev\Lancer-MeloSong.bat
+Fichier à utiliser en priorité (dossier source OnScen Dev) :
+  msdev\Lancer-OnScen.bat
 
 Il affiche l'URL (http/https localhost:4080), le compte démo, et la fenêtre
 reste ouverte avec « Appuyez sur une touche… » en cas d'erreur.
 
-Si le message indique que le port 4080 est déjà utilisé : MeloSong tourne
+Si le message indique que le port 4080 est déjà utilisé : OnScen tourne
 déjà — ouvrez https://localhost:4080 dans le navigateur ou fermez l'autre instance.
 
 —————————— Redémarrer le serveur (server.exe) ——————————
 
-Racine MeloSong Dev :
+Racine OnScen Dev :
   server.exe   — double-clic : libère le port 4080 puis relance le serveur HTTP
   server.bat   — même chose si server.exe manque ou est bloqué par Windows
 

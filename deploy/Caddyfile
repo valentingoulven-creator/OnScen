@@ -1,13 +1,13 @@
-# Soundy — Caddyfile CANONIQUE (source de vérité)
-# Repo : deploy/Caddyfile  →  VPS : /opt/soundy/deploy/Caddyfile  →  /etc/caddy/Caddyfile
+# OnScen — Caddyfile CANONIQUE (source de vérité)
+# Repo : deploy/Caddyfile  →  VPS : /opt/onscen/deploy/Caddyfile  →  /etc/caddy/Caddyfile
 #
 # ⚠ NE JAMAIS écrire un bloc minimal `:80 { ... }` à la main sur le VPS.
 #    Utiliser : ./deploy/sync-caddy.sh  ou  deploy-scaleway.ps1
 #
 # Basic Auth (pré-lancement) — optionnel, fichier VPS uniquement (jamais commité).
-# Copier deploy/caddy-basic-auth.caddy.example → /opt/soundly/deploy/caddy-basic-auth.caddy
+# Copier deploy/caddy-basic-auth.caddy.example → /opt/onscen/deploy/caddy-basic-auth.caddy
 # et décommenter la ligne import ci-dessous pour réactiver la protection UI.
-# import /opt/soundly/deploy/caddy-basic-auth.caddy
+# import /opt/onscen/deploy/caddy-basic-auth.caddy
 
 (soundy_handlers) {
 	@allowed_ips client_ip 195.36.171.84/32

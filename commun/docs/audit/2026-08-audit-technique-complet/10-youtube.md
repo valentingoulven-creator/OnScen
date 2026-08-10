@@ -1,4 +1,4 @@
-# Audit légal Soundy — Phase 10 : Conditions d'utilisation YouTube
+# Audit légal OnScen — Phase 10 : Conditions d'utilisation YouTube
 
 **Date :** 2026-08-07
 **Méthode :** croisement avec `LEG-6` à `LEG-10` de `AUDIT-CONSOLIDE.md` (recherche exhaustive `ytdl-core`/`yt-dlp`/scraping/ffmpeg-sur-YouTube reproduite historiquement sur tout le monorepo), revue de `lib/youtubeRemote.ts`, `components/SalonYouTubePlayer.tsx`, `commun/docs/GOOGLE-OAUTH-TEST-USERS.md`.
@@ -12,7 +12,7 @@
 
 - Recherche exhaustive de bibliothèques d'extraction (`ytdl-core`, `yt-dlp`, scraping HTML, `ffmpeg` appliqué à des flux YouTube) reproduite à l'identique sur l'ensemble du monorepo, y compris tous les fichiers créés depuis l'audit initial — **aucune occurrence trouvée** (`LEG-10`, statut « confirmé propre, sans régression »).
 - Un **code mort de fallback** vers des proxies non officiels (Piped/Invidious — eux-mêmes construits sur de l'extraction non autorisée) avait été identifié dans `lib/youtubeRemote.ts` lors d'un audit précédent ; sa **suppression physique du build de production** a été **confirmée par exécution réelle** de `npm run build:prod` (absence du fichier dans `dist/`), avec un garde-fou runtime + try/catch en défense en profondeur (`LEG-7 ✅`).
-- Soundy utilise YouTube **exclusivement via lecture intégrée** (player officiel embarqué) et l'**API YouTube Data v3** (recherche, import de playlists publiques) — pas d'extraction de flux média.
+- OnScen utilise YouTube **exclusivement via lecture intégrée** (player officiel embarqué) et l'**API YouTube Data v3** (recherche, import de playlists publiques) — pas d'extraction de flux média.
 
 **Risque : 🟢 Faible — point fort confirmé du produit, à maintenir en vigilance à chaque nouvelle intégration touchant YouTube.**
 
@@ -37,7 +37,7 @@
 ## 10.3 Musique YouTube utilisée dans les reels/lives — risque de droits d'auteur
 
 **Constat :**
-- Soundy ne permet **pas** l'extraction de pistes audio YouTube pour les intégrer dans des reels/compositions utilisateur (confirmé §10.1).
+- OnScen ne permet **pas** l'extraction de pistes audio YouTube pour les intégrer dans des reels/compositions utilisateur (confirmé §10.1).
 - La protection anti-upload de musique commerciale non autorisée repose sur **ACRCloud** (empreinte audio, voir Phase 8) pour les **compositions/reels uploadés directement** par les utilisateurs (fichiers audio propres), pas sur un mécanisme lié à YouTube.
 - **Point de vigilance opérationnel (recoupement Phase 8) :** le compte/les clés ACRCloud en production restent, selon `TODO-MANUAL.md`, à finaliser — si cette protection anti-copyright musical n'est pas activement configurée, le risque de droits d'auteur sur les uploads audio directs (indépendamment de YouTube) reste ouvert.
 

@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-07-22 — Bouton "Configurer" mal placé (carte provider Intégrations)
 
-**Agent :** @soundy-dev-agent
+**Agent :** @onscen-dev-agent
 **Date :** 2026-07-22
 **Durée estimée :** 0.5 h
 **Statut global :** ✅ Terminé
@@ -86,4 +86,4 @@ cd web/app && npm run build   → ✅
 
 ---
 
-*Généré par Soundy Dev Agent — ne pas éditer le template `_TEMPLATE.md`*
+*Généré par OnScen Dev Agent — ne pas éditer le template `_TEMPLATE.md`*

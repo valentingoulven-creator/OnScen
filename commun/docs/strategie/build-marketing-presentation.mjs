@@ -1,5 +1,5 @@
 /**
- * Génère SOUNDY-MARKETING-PRESENTATION.pptx — deck marketing Soundy (FR).
+ * Génère ONSCEN-MARKETING-PRESENTATION.pptx — deck marketing OnScen (FR).
  * Usage: npm run pptx  (depuis commun/docs/strategie)
  */
 import pptxgen from 'pptxgenjs';
@@ -9,9 +9,9 @@ import fs from 'fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DOCS_DIR = path.resolve(__dirname, '..');
-const OUT_FILE = path.join(__dirname, 'SOUNDY-MARKETING-PRESENTATION.pptx');
+const OUT_FILE = path.join(__dirname, 'ONSCEN-MARKETING-PRESENTATION.pptx');
 const SHOTS = path.join(DOCS_DIR, 'presentation-screenshots', 'mobile');
-const LOGO = path.join(DOCS_DIR, '..', 'backend', 'public', 'soundy-logo.png');
+const LOGO = path.join(DOCS_DIR, '..', 'backend', 'public', 'onscen-logo.png');
 
 const C = {
   bg: '07070B',
@@ -27,10 +27,10 @@ const C = {
 
 const pptx = new pptxgen();
 pptx.layout = 'LAYOUT_16x9';
-pptx.author = 'Soundy';
-pptx.company = 'Soundy · getsoundy.com';
+pptx.author = 'OnScen';
+pptx.company = 'OnScen · getsoundy.com';
 pptx.subject = 'Présentation marketing — réseau social musique live & sorties';
-pptx.title = 'Soundy — Présentation marketing';
+pptx.title = 'OnScen — Présentation marketing';
 
 function shot(name) {
   const p = path.join(SHOTS, name);
@@ -42,7 +42,7 @@ function addBg(slide) {
 }
 
 function addFooter(slide, n, total) {
-  slide.addText('Soundy · getsoundy.com · Juillet 2026', {
+  slide.addText('OnScen · getsoundy.com · Juillet 2026', {
     x: 0.4,
     y: 5.25,
     w: 6,
@@ -218,7 +218,7 @@ slide((s) => {
     charSpacing: 4,
     margin: 0,
   });
-  s.addText('Soundy', {
+  s.addText('OnScen', {
     x: 0.55,
     y: 1.35,
     w: 12,
@@ -260,7 +260,7 @@ slide((s) => {
   addTitle(s, 'EXECUTIF', 'En une minute', 'La plateforme qui fait connaître artistes & événements');
   addHighlight(
     s,
-    'Soundy = réseau social musique + carte + salons synchronisés + lives — où la communauté écoute et sort.',
+    'OnScen = réseau social musique + carte + salons synchronisés + lives — où la communauté écoute et sort.',
   );
   addBullets(s, [
     'Audience ciblée : musique live, sorties, événements — pas du scroll généraliste',
@@ -280,7 +280,7 @@ slide((s) => {
     'Créateurs mid-tier : pas de hub simple entre live, communauté et revenus',
     'Promoteurs locaux : budgets pub généralistes, CPM élevés, ciblage imprécis',
   ]);
-  s.addText('→ Soundy reconnecte écoute sociale, carte et événements.', {
+  s.addText('→ OnScen reconnecte écoute sociale, carte et événements.', {
     x: 0.55,
     y: 4.85,
     w: 11,
@@ -294,7 +294,7 @@ slide((s) => {
 
 // ── 4 · Solution ──
 slide((s) => {
-  addTitle(s, 'PRODUIT', 'La solution Soundy', 'Un seul endroit pour découvrir, écouter et sortir');
+  addTitle(s, 'PRODUIT', 'La solution OnScen', 'Un seul endroit pour découvrir, écouter et sortir');
   addHighlight(
     s,
     'Écouter la même musique au même moment — sur une carte, en salon ou en live vidéo.',
@@ -430,14 +430,14 @@ function bodyCell(text, bold = false) {
 
 // ── 10 · Différenciation ──
 slide((s) => {
-  addTitle(s, 'POSITIONNEMENT', 'Pourquoi Soundy ?', 'Vs réseaux généralistes et apps events seules');
+  addTitle(s, 'POSITIONNEMENT', 'Pourquoi OnScen ?', 'Vs réseaux généralistes et apps events seules');
   s.addTable(
     [
       [
         headerCell('Critère'),
         headerCell('Instagram / TikTok'),
         headerCell('Apps events'),
-        headerCell('Soundy'),
+        headerCell('OnScen'),
       ],
       [
         bodyCell('Audience'),
@@ -587,7 +587,7 @@ slide((s) => {
   addBullets(s, [
     'Profil public : reels, abonnés, favoris, événements à venir',
     'Live + pourboires + abonnements Supporter / Super fan',
-    'Stripe Connect · Soundy+ en production',
+    'Stripe Connect · OnScen+ en production',
     '13+ compte · 16+ live · 18+ monétisation',
     'Visibilité : carte, fil, reels — effet réseau local',
   ]);
@@ -600,7 +600,7 @@ slide((s) => {
   addBullets(s, [
     'Web PWA + apps natives iOS / Android (Capacitor)',
     'Hébergement Scaleway · données France · RGPD',
-    'Paiements Stripe — aucune carte stockée chez Soundy',
+    'Paiements Stripe — aucune carte stockée chez OnScen',
     'Modération : signalement, bannissement, CGU · transparence DSA',
     'Âge minimum 13 ans · autorisation parentale 13–18',
   ], { w: 6.0 });

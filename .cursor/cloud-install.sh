@@ -6,7 +6,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "[cloud-install] Soundy — deps + env msdev"
+echo "[cloud-install] OnScen — deps + env msdev"
 
 # Fichiers env de base (sans secrets) si absents
 if [[ ! -f commun/msdev/.env ]] && [[ -f commun/msdev/.env.example ]]; then

@@ -59,7 +59,7 @@ $script:remoteProdEnv = @{}
 
 function Load-ProdEnvFromVps {
     if ($script:remoteProdEnv.Count -gt 0) { return $script:remoteProdEnv }
-    $cfg = Get-SoundyDeployEnvironment 'prod'
+    $cfg = Get-OnScenDeployEnvironment 'prod'
     $tmp = Join-Path $env:TEMP 'soundy-sync-prod-source.env'
     scp ($cfg.SshHost + ':' + $cfg.Remote + '/.env') $tmp 2>$null
     if (Test-Path $tmp) {
@@ -138,7 +138,7 @@ function Write-EnvFile([string]$path, [hashtable]$map, [string[]]$originalLines)
 }
 
 function Sync-Target([string]$envName) {
-    $cfg = Get-SoundyDeployEnvironment $envName
+    $cfg = Get-OnScenDeployEnvironment $envName
     $sshHost = $cfg.SshHost
     $remoteEnv = $cfg.Remote + '/.env'
     $tmp = Join-Path $env:TEMP ('soundy-sync-' + $envName + '.env')

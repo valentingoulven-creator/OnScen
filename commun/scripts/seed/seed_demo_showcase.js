@@ -8,7 +8,7 @@
  * TOUTES les entités créées sont préfixées `demo_` (id) / `demo-` (email) pour permettre un
  * nettoyage ciblé ultérieur via cleanup_demo_showcase.js (même préfixe).
  *
- * ⚠️ IMPORTANT — architecture Soundy : le backend charge tout son état (users, follows,
+ * ⚠️ IMPORTANT — architecture OnScen : le backend charge tout son état (users, follows,
  * feed_posts/events, stories, sponsors, favorites) en mémoire au démarrage et re-synchronise
  * PÉRIODIQUEMENT (10 s) PostgreSQL depuis cette mémoire — y compris des DELETE des lignes
  * absentes de la mémoire du process pour plusieurs tables (user_follows, feed_posts, stories,
@@ -19,7 +19,7 @@
  *   2. node seed_demo_showcase.js   (ce script — écrit directement en PostgreSQL)
  *   3. pm2 start <process>          (recharge la mémoire depuis PostgreSQL, données visibles)
  *
- * Usage (depuis le répertoire de l'app, ex. /opt/soundly) :
+ * Usage (depuis le répertoire de l'app, ex. /opt/onscen) :
  *   APP_ENV=production node seed_demo_showcase.js
  *
  * Variables optionnelles :
@@ -158,7 +158,7 @@ function makeUser(id, username, email, opts = {}) {
     acceptedTermsVersion: TERMS_VERSION,
     ageConfirmedAt: WINDOW_START,
     favoriteGenres: pick(GENRES_POOL),
-    bio: opts.bio || 'Compte de démonstration Soundy.',
+    bio: opts.bio || 'Compte de démonstration OnScen.',
     profileType: 'artiste',
     listeningRole: 'les_deux',
   };
@@ -175,7 +175,7 @@ for (let i = 0; i < N_ALBUM_USERS; i++) {
     makeUser(`demo_user_alb_${pad(n, 2)}`, `demo_alb_${pad(n, 2)}`, `demo-alb-${pad(n, 2)}@getsoundy.com`, {
       i: n,
       n: N_ALBUM_USERS,
-      bio: 'Artiste démo Soundy — 1 album, 2 morceaux.',
+      bio: 'Artiste démo OnScen — 1 album, 2 morceaux.',
     })
   );
 }
@@ -206,7 +206,7 @@ const testUser = makeUser(TEST_ID, 'demo_test', TEST_EMAIL, {
   i: 0,
   n: 1,
   city: FR_CITIES[0],
-  bio: 'Compte de démonstration principal Soundy (showcase complet).',
+  bio: 'Compte de démonstration principal OnScen (showcase complet).',
 });
 
 const followedPool = [...albumUsers, ...genericUsers]; // 100 — suivis par le compte test
@@ -293,7 +293,7 @@ const lives = liveHosts.map((host, i) => {
 
 // ── Albums + compositions ──
 function makeAlbum(id, userId, title, ts) {
-  return { id, userId, title, description: 'Album de démonstration Soundy.', createdAt: ts, updatedAt: ts };
+  return { id, userId, title, description: 'Album de démonstration OnScen.', createdAt: ts, updatedAt: ts };
 }
 function makeComposition(id, userId, albumId, title, artist, fileUrl, durationSec, ts) {
   return { id, userId, albumId, title, artist, fileUrl, durationSec, createdAt: ts };
@@ -348,7 +348,7 @@ albumUsers.forEach((user, i) => {
 
 // ── Événements (feed_posts isEvent=true) ──
 function eventContent(city, venue) {
-  return `Événement démo Soundy — ${venue}, ${city}. Jeu de données de démonstration.`;
+  return `Événement démo OnScen — ${venue}, ${city}. Jeu de données de démonstration.`;
 }
 function makeEvent(id, authorId, ts, city, venue) {
   return {
@@ -448,7 +448,7 @@ storyFollowedPosters.forEach((user, i) => {
   stories.push({
     id: `demo_story_flw_${pad(i + 1, 2)}`,
     userId: user.id,
-    content: 'Story démo Soundy',
+    content: 'Story démo OnScen',
     imageUrl: pick(UNSPLASH_IMAGES),
     createdAt: ts,
     expiresAt: ts + DAY,
@@ -460,7 +460,7 @@ outerPool.forEach((user, i) => {
   stories.push({
     id: `demo_story_out_${pad(i + 1, 2)}`,
     userId: user.id,
-    content: 'Story démo Soundy',
+    content: 'Story démo OnScen',
     imageUrl: pick(UNSPLASH_IMAGES),
     createdAt: ts,
     expiresAt: ts + DAY,

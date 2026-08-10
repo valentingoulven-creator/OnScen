@@ -16,13 +16,13 @@ echo "[ios-ipa] Archive Xcode (release)..."
 xcodebuild -project ios/App/App.xcodeproj \
   -scheme App \
   -configuration Release \
-  -archivePath "$ROOT/android/MeloSong-Mobile/Soundy.xcarchive" \
+  -archivePath "$ROOT/android/OnScen-Mobile/OnScen.xcarchive" \
   archive
 
 echo "[ios-ipa] Export IPA (development/ad-hoc — ajuster ExportOptions.plist pour App Store)..."
 xcodebuild -exportArchive \
-  -archivePath "$ROOT/android/MeloSong-Mobile/Soundy.xcarchive" \
-  -exportPath "$ROOT/android/MeloSong-Mobile/ios-export" \
+  -archivePath "$ROOT/android/OnScen-Mobile/OnScen.xcarchive" \
+  -exportPath "$ROOT/android/OnScen-Mobile/ios-export" \
   -exportOptionsPlist "$ROOT/ios/apptel/ios/ExportOptions.plist"
 
-echo "IPA exporté dans android/MeloSong-Mobile/ios-export/"
+echo "IPA exporté dans android/OnScen-Mobile/ios-export/"

@@ -1,15 +1,15 @@
 'use strict';
-require('/opt/soundly/node_modules/dotenv').config({ path: '/opt/soundly/.env' });
+require('/opt/onscen/node_modules/dotenv').config({ path: '/opt/onscen/.env' });
 
 const VAL_ID = 'user_1781025111633_ipv5l';
 
 (async () => {
-  const { loadPersistedStoreAsync } = require('/opt/soundly/dist/lib/persist');
-  const { decryptPlatformTokens } = require('/opt/soundly/dist/lib/tokenEncryption');
-  const { getPlatformAccounts } = require('/opt/soundly/dist/lib/platformConnect');
+  const { loadPersistedStoreAsync } = require('/opt/onscen/dist/lib/persist');
+  const { decryptPlatformTokens } = require('/opt/onscen/dist/lib/tokenEncryption');
+  const { getPlatformAccounts } = require('/opt/onscen/dist/lib/platformConnect');
 
   await loadPersistedStoreAsync();
-  const { db } = require('/opt/soundly/dist/models/schema');
+  const { db } = require('/opt/onscen/dist/models/schema');
   const user = db.users.get(VAL_ID);
   const yt = getPlatformAccounts(user).find((a) => a.platform === 'youtube');
   const dec = decryptPlatformTokens(yt);

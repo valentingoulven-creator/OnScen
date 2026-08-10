@@ -1,5 +1,5 @@
 'use strict';
-require('dotenv').config({ path: '/opt/soundly/.env' });
+require('dotenv').config({ path: '/opt/onscen/.env' });
 const { Pool } = require('pg');
 const VAL_ID = 'user_1781025111633_ipv5l';
 (async () => {

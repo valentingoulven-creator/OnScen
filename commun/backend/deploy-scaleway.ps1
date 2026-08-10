@@ -1,6 +1,6 @@
 # ============================================================
-# deploy-scaleway.ps1  —  Soundy → Scaleway PostgreSQL
-# Exécuter depuis MeloSongv2/backend/ :
+# deploy-scaleway.ps1  —  OnScen → Scaleway PostgreSQL
+# Exécuter depuis OnScen/backend/ :
 #   powershell -ExecutionPolicy Bypass -File deploy-scaleway.ps1
 # ============================================================
 $ErrorActionPreference = "Stop"
@@ -8,8 +8,8 @@ Set-Location $PSScriptRoot
 
 $VPS     = "root@51.159.164.100"
 $KEY     = "$env:USERPROFILE\.ssh\id_ed25519"
-$REMOTE  = "/opt/soundly"
-$PM2_APP = "melosong-backend"
+$REMOTE  = "/opt/onscen"
+$PM2_APP = "onscen-backend"
 
 # Paramètres SSH/SCP de base
 $sshOpts = @("-i", $KEY, "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=20")
@@ -22,7 +22,7 @@ function SSH([string]$cmd) {
 
 Write-Host ""
 Write-Host "══════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "  Soundy → Scaleway PostgreSQL — Déploiement" -ForegroundColor Cyan
+Write-Host "  OnScen → Scaleway PostgreSQL — Déploiement" -ForegroundColor Cyan
 Write-Host "══════════════════════════════════════════════" -ForegroundColor Cyan
 
 

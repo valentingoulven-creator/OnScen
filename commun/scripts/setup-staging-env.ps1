@@ -9,7 +9,7 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 Set-Location $root
 
 . (Join-Path $root 'commun\deploy\environments.ps1')
-$cfg = Get-SoundyDeployEnvironment 'preprod'
+$cfg = Get-OnScenDeployEnvironment 'preprod'
 
 $prodEnv = Join-Path $root 'commun\backend\.env.production'
 $stagingEnv = Join-Path $root 'commun\backend\.env.preproduction'
@@ -48,10 +48,10 @@ if (-not $PushOnly) {
         if ($line -match '^\s*JWT_SECRET\s*=') { $out.Add("JWT_SECRET=$(New-RandomSecret 48)"); $seen['JWT_SECRET'] = $true; continue }
         if ($line -match '^\s*ENCRYPTION_KEY\s*=') { $out.Add("ENCRYPTION_KEY=$(New-RandomSecret 40)"); $seen['ENCRYPTION_KEY'] = $true; continue }
         if ($line -match '^\s*DATABASE_URL\s*=') {
-            $db = $line -replace '/soundy-prod(\?|$)', '/soundy_staging$1'
-            $db = $db -replace '/soundy(\?|$)', '/soundy_staging$1'
-            if ($db -notmatch 'soundy_staging') {
-                $db = $line -replace '/[^/?]+(\?|$)', '/soundy_staging$1'
+            $db = $line -replace '/onscen-prod(\?|$)', '/onscen_staging$1'
+            $db = $db -replace '/soundy(\?|$)', '/onscen_staging$1'
+            if ($db -notmatch 'onscen_staging') {
+                $db = $line -replace '/[^/?]+(\?|$)', '/onscen_staging$1'
             }
             $out.Add($db)
             $seen['DATABASE_URL'] = $true

@@ -1,16 +1,16 @@
 # Setup second Cursor — checklist rapide
 
-Bootstrap d’un **second poste** ou **second compte Cursor** avec accès dev local + deploy prod Soundy / MeloSongv2.
+Bootstrap d’un **second poste** ou **second compte Cursor** avec accès dev local + deploy prod OnScen / OnScen.
 
 ## Lancer le script
 
 ```powershell
-# Recommandé : clone hors iCloud vers C:\Dev\MeloSongv2
+# Recommandé : clone hors iCloud vers C:\Dev\OnScen
 powershell -ExecutionPolicy Bypass -File commun/scripts/setup-second-cursor.ps1
 
 # Options utiles
 powershell -ExecutionPolicy Bypass -File commun/scripts/setup-second-cursor.ps1 -SeedStories
-powershell -ExecutionPolicy Bypass -File commun/scripts/setup-second-cursor.ps1 -SkipClone -TargetDir "C:\Dev\MeloSongv2"
+powershell -ExecutionPolicy Bypass -File commun/scripts/setup-second-cursor.ps1 -SkipClone -TargetDir "C:\Dev\OnScen"
 ```
 
 ## Avant de lancer
@@ -20,20 +20,20 @@ powershell -ExecutionPolicy Bypass -File commun/scripts/setup-second-cursor.ps1 
 | Git | [Git for Windows](https://git-scm.com/download/win) |
 | Node | LTS 18+ ([nodejs.org](https://nodejs.org/)) |
 | SSH | Client OpenSSH Windows activé |
-| GitHub | Inviter le compte #2 sur `valentingoulven-creator/MeloSong` |
-| Emplacement | **Pas iCloud** — utiliser `C:\Dev\MeloSongv2` |
+| GitHub | Inviter le compte #2 sur `valentingoulven-creator/OnScen` |
+| Emplacement | **Pas iCloud** — utiliser `C:\Dev\OnScen` |
 
 ## À faire manuellement (secrets)
 
 1. **Clé SSH** — copier `~/.ssh/id_ed25519` (+ `.pub`) depuis la machine 1 (USB/SCP), **jamais dans Git**.
 2. **msdev/.env** — coller les secrets OAuth/YouTube/Stripe **dev** depuis la machine 1.
-3. **backend/.env.production** — référence locale uniquement ; la prod réelle est sur le VPS `/opt/soundy/.env`.
+3. **backend/.env.production** — référence locale uniquement ; la prod réelle est sur le VPS `/opt/onscen/.env`.
    - Admin prod : `PROD_ADMIN_EMAIL=admin@getsoundy.com` (pas `dev@soundy.local`).
    - Dev local : `ACCESS_ADMIN_EMAILS` dans `msdev/.env` (même email ou liste séparée par virgules).
 4. **VPS prod** — récupérer les variables critiques :
 
    ```bash
-   ssh root@51.159.164.100 "cat /opt/soundy/.env"
+   ssh root@51.159.164.100 "cat /opt/onscen/.env"
    ```
 
    Variables clés : `JWT_SECRET`, `ENCRYPTION_KEY`, `DATABASE_URL`, `PG_SSL`, Stripe, OAuth, Cloudflare Stream, LiveKit.
@@ -45,7 +45,7 @@ powershell -ExecutionPolicy Bypass -File commun/scripts/setup-second-cursor.ps1 
 ## Vérifications après setup
 
 ```powershell
-cd C:\Dev\MeloSongv2
+cd C:\Dev\OnScen
 npm run dev                    # http://localhost:5173
 ssh -i $env:USERPROFILE\.ssh\id_ed25519 root@51.159.164.100 "echo OK"
 curl https://getsoundy.com/health
@@ -62,7 +62,7 @@ powershell -ExecutionPolicy Bypass -File commun/deploy/deploy_zero_downtime.ps1 
 
 `commun/scripts/deploy-prod.ps1` reste un wrapper valide (appelle `commun/deploy/deploy_zero_downtime.ps1 -VerifyProd`).
 
-VPS : `51.159.164.100`, chemin `/opt/soundy`, health `https://getsoundy.com/health`. PostgreSQL : Scaleway Managed `51.15.132.229:14440`.
+VPS : `51.159.164.100`, chemin `/opt/onscen`, health `https://getsoundy.com/health`. PostgreSQL : Scaleway Managed `51.15.132.229:14440`.
 
 ## Références
 

@@ -1,4 +1,4 @@
-# RE-AUDIT SENIOR — RGPD / YouTube / Copyright — Soundy (v2, post-corrections)
+# RE-AUDIT SENIOR — RGPD / YouTube / Copyright — OnScen (v2, post-corrections)
 
 Date : 2026-07-08
 Portée : re-vérification de `commun/docs/audit/AUDIT-legal-youtube-copyright.md` (scores initiaux RGPD 72/100, YouTube 68/100, Copyright 93/100) après application de `modification.txt` — entrée **MODIF 964**.
@@ -152,7 +152,7 @@ Méthodologie : lecture directe du code (fichiers + numéros de ligne cités), e
 
 ## 4. Section Copyright — re-confirmation exhaustive (méthodologie identique à l'audit initial)
 
-Grep insensible à la casse sur l'intégralité du repo (`C:\Dev\Soundy`, tous dossiers confondus : `commun/backend`, `commun/msdev`, `web/app`, `ios/apptel`, `android`, tous les nouveaux fichiers créés depuis l'audit initial) :
+Grep insensible à la casse sur l'intégralité du repo (`C:\Dev\OnScen`, tous dossiers confondus : `commun/backend`, `commun/msdev`, `web/app`, `ios/apptel`, `android`, tous les nouveaux fichiers créés depuis l'audit initial) :
 
 | Pattern recherché | Résultat | Détail |
 |---|---|---|
@@ -187,7 +187,7 @@ Justification : re-confirmation exhaustive et négative de l'absence de toute vi
 
 ## 6. Impossible à vérifier avec les informations disponibles
 
-- Contenu réel de `/opt/soundy/legal-publisher.json` en production (et de sa copie sur le VPS staging) — seule la copie locale `commun/msdev/legal-publisher.json` a été auditée. `modification.txt` indique explicitement que l'adresse réelle n'a pas été renseignée par l'agent (« cette information n'est pas connue de l'agent et n'a pas été inventée »), mais aucun accès SSH/VPS n'a été effectué dans cet audit pour confirmer l'état exact du fichier distant.
+- Contenu réel de `/opt/onscen/legal-publisher.json` en production (et de sa copie sur le VPS staging) — seule la copie locale `commun/msdev/legal-publisher.json` a été auditée. `modification.txt` indique explicitement que l'adresse réelle n'a pas été renseignée par l'agent (« cette information n'est pas connue de l'agent et n'a pas été inventée »), mais aucun accès SSH/VPS n'a été effectué dans cet audit pour confirmer l'état exact du fichier distant.
 - Statut réel et actuel de la vérification de l'app OAuth Google dans la Google Cloud Console (YT-1) — le document `GOOGLE-OAUTH-TEST-USERS.md` n'a pas été modifié depuis l'audit initial ; aucun accès à la Google Cloud Console n'a été effectué.
 - Signature effective des DPA avec Scaleway, Cloudflare, Stripe, Resend (RGPD-5) — statut `'pending'` dans le code, mais l'état contractuel réel est hors du repo.
 - Exécution réelle et effective de `verify-prod.sh` avant chaque déploiement en production (le script existe et a été testé manuellement dans cet audit avec le fichier actuel, mais son exécution automatique/systématique lors des déploiements réels n'a pas été vérifiée en dehors de la lecture de `deploy_zero_downtime.ps1`).
@@ -199,7 +199,7 @@ Justification : re-confirmation exhaustive et négative de l'absence de toute vi
 
 ## 7. Actions manuelles externes toujours requises
 
-1. **[Obligatoire avant prod publique]** Renseigner l'adresse postale réelle de l'entrepreneur individuel dans `commun/msdev/legal-publisher.json` (champ `address`, L4) **et** dans la copie de production sur le VPS (`/opt/soundy/legal-publisher.json`) — action non exécutable par un agent (information non inventable), bloquée par conception par `verify-prod.sh` (confirmé fonctionnel dans cet audit) tant que non faite.
+1. **[Obligatoire avant prod publique]** Renseigner l'adresse postale réelle de l'entrepreneur individuel dans `commun/msdev/legal-publisher.json` (champ `address`, L4) **et** dans la copie de production sur le VPS (`/opt/onscen/legal-publisher.json`) — action non exécutable par un agent (information non inventable), bloquée par conception par `verify-prod.sh` (confirmé fonctionnel dans cet audit) tant que non faite.
 2. **[Priorité produit]** Soumettre l'application OAuth Google (scope `youtube.readonly`) à la vérification Google pour sortir du mode « Testing » — processus externe de revue Google (délai hors contrôle direct), bloque actuellement l'usage de la fonctionnalité YouTube pour tout utilisateur non explicitement whitelisté.
 3. **[Contractuel]** Finaliser la signature des DPA standards avec Scaleway, Cloudflare, Stripe, Resend (actuellement `dpaStatus: 'pending'` dans `web/app/src/content/legal/dpa.ts`).
 4. **[Optionnel, conformité produit]** Revue formelle des YouTube Branding Guidelines pour le choix `controls: 0` (`SalonYouTubePlayer.tsx` L505) si le volume d'utilisateurs devient significatif.

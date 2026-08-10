@@ -1,7 +1,7 @@
-# RE-AUDIT Database & Infrastructure — Soundy (v2, post-corrections)
+# RE-AUDIT Database & Infrastructure — OnScen (v2, post-corrections)
 
-Méthode : lecture statique du code (repo `C:\Dev\Soundy`) + lecture du contenu SQL des migrations 025-029
-+ accès SSH **lecture seule** sur `soundy-prod` (`ssh soundy-prod`) et `soundy-staging` (`ssh soundy-staging`)
+Méthode : lecture statique du code (repo `C:\Dev\OnScen`) + lecture du contenu SQL des migrations 025-029
++ accès SSH **lecture seule** sur `onscen-prod` (`ssh onscen-prod`) et `onscen-staging` (`ssh onscen-staging`)
 pour vérifier l'état **réellement déployé** (PM2 live, `.env` live, `psql` via `DATABASE_URL` sourcé du `.env`,
 `df -h`). Aucune commande d'écriture/modification exécutée sur les VPS ou la base de données. Aucun fichier
 de code source modifié — seul ce rapport et un script SQL/bash temporaire (créés puis supprimés) ont été écrits.
@@ -15,10 +15,10 @@ Rapport de référence : `commun/docs/audit/AUDIT-db-infra.md` (score initial **
 **Toutes les corrections de code de la session du 2026-07-08 (MODIF 960 à 965) existent dans le dépôt Git
 mais n'ont PAS été déployées en production au moment de cet audit.** Preuves :
 
-- Le build compilé en prod date d'avant la session de fixes : `ls -la --time-style=full-iso /opt/soundly/dist/index.js` → `2026-07-07 09:21:57 +0000` (la veille des corrections, datées 2026-07-08).
-- Le process PM2 réellement actif en prod tourne encore avec **2 workers cluster**, pas 1 : `pm2 list` → deux lignes `melosong-backend` (`pm_id 28` et `29`), `mode: cluster`, `uptime: 25h`, confirmé aussi par `pm2 describe melosong-backend` (`exec mode: cluster_mode` ×2) et par le JSON `pm2 jlist` (`"instances":2, "PM2_INSTANCES":"2"` dans l'env du process). Le fichier source `commun/deploy/ecosystem.config.cjs:38` dit pourtant `instances: 1` — **le fichier est corrigé, le process vivant ne l'est pas** (pas de `pm2 reload`/redeploy depuis le fix).
+- Le build compilé en prod date d'avant la session de fixes : `ls -la --time-style=full-iso /opt/onscen/dist/index.js` → `2026-07-07 09:21:57 +0000` (la veille des corrections, datées 2026-07-08).
+- Le process PM2 réellement actif en prod tourne encore avec **2 workers cluster**, pas 1 : `pm2 list` → deux lignes `onscen-backend` (`pm_id 28` et `29`), `mode: cluster`, `uptime: 25h`, confirmé aussi par `pm2 describe onscen-backend` (`exec mode: cluster_mode` ×2) et par le JSON `pm2 jlist` (`"instances":2, "PM2_INSTANCES":"2"` dans l'env du process). Le fichier source `commun/deploy/ecosystem.config.cjs:38` dit pourtant `instances: 1` — **le fichier est corrigé, le process vivant ne l'est pas** (pas de `pm2 reload`/redeploy depuis le fix).
 - La table `schema_migrations` en base de prod (requête `SELECT * FROM schema_migrations ORDER BY 1 DESC LIMIT 8` via `psql "$DATABASE_URL"`) s'arrête à la **version 27** (appliquée le 2026-07-01). Les migrations **028 et 029 ne sont pas appliquées** en prod : les CASCADE destructeurs sur les paiements sont donc **toujours actifs en base réelle** à l'heure de cet audit, malgré le fix SQL présent dans le dépôt.
-- Le script déployé `/opt/soundly/deploy/backup-db.sh` sur le VPS contient encore `BACKUP_DIR:-/opt/soundy/backups` (sans « ly », ancien chemin) — la correction du dépôt local n'est pas encore sur le VPS.
+- Le script déployé `/opt/onscen/deploy/backup-db.sh` sur le VPS contient encore `BACKUP_DIR:-/opt/onscen/backups` (sans « ly », ancien chemin) — la correction du dépôt local n'est pas encore sur le VPS.
 
 **Conséquence méthodologique pour ce rapport** : chaque problème est noté avec un statut **double** — *Code
 (dépôt)* et *Prod (live)* — car pour ce projet un fix commité n'est PAS un fix déployé (rappel : la règle du
@@ -31,8 +31,8 @@ anomalie du process de fix, juste un fait à documenter pour la priorisation du 
 
 - **Code (dépôt)** : ✅ Résolu. `commun/deploy/ecosystem.config.cjs:38` → `instances: 1` (commentaire
   explicatif lignes 31-37 référençant l'audit). Confirmé par lecture directe du fichier.
-- **Prod (live)** : ❌ Toujours ouvert. `pm2 list`/`pm2 jlist` sur `soundy-prod` montrent 2 processus
-  `melosong-backend` en `cluster_mode` actifs depuis 25h (donc démarrés avant le fix d'aujourd'hui). Le
+- **Prod (live)** : ❌ Toujours ouvert. `pm2 list`/`pm2 jlist` sur `onscen-prod` montrent 2 processus
+  `onscen-backend` en `cluster_mode` actifs depuis 25h (donc démarrés avant le fix d'aujourd'hui). Le
   risque d'incohérence de lecture entre workers documenté dans l'audit original **existe toujours en
   production** tant qu'un `pm2 reload`/redémarrage avec la nouvelle config n'a pas eu lieu.
 - **Statut global : PARTIELLEMENT RÉSOLU (mitigation codée, non déployée).**
@@ -99,9 +99,9 @@ anomalie du process de fix, juste un fait à documenter pour la priorisation du 
   `IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = ...)`, cohérent avec le pattern idempotent de
   `025_foreign_keys_not_valid.sql`. Reste ~25 tables encore sans FK (hors périmètre de cette session,
   documenté comme tel dans `modification.txt`).
-- **Rôle `soundy` sur-privilégié** : ❌ Toujours ouvert, confirmé en direct via
+- **Rôle `onscen` sur-privilégié** : ❌ Toujours ouvert, confirmé en direct via
   `psql "$DATABASE_URL" -c "SELECT rolname, rolcreaterole, rolcreatedb, rolsuper FROM pg_roles WHERE rolname='soundy';"`
-  sur `soundy-prod` → `soundy | t | t | f` (`rolcreaterole=true`, `rolcreatedb=true`). Documenté comme
+  sur `onscen-prod` → `soundy | t | t | f` (`rolcreaterole=true`, `rolcreatedb=true`). Documenté comme
   action manuelle restante dans `modification.txt` (lignes 20623-20627), volontairement non exécutée
   (« action destructive sur un rôle de prod »).
 - **Prod (live)** : migration 029 non appliquée en prod (idem §2, `schema_migrations` max = 27).
@@ -112,12 +112,12 @@ anomalie du process de fix, juste un fait à documenter pour la priorisation du 
 
 | # | Constat original | Statut | Preuve |
 |---|---|---|---|
-| a | Prod et staging partagent la même instance PostgreSQL (`51.15.132.229:14440`) | ❌ Toujours ouvert | `DATABASE_URL` de `soundy-staging` (`/opt/soundly/.env`) pointe vers le même hôte `51.15.132.229:14440` que la prod, confirmé par lecture directe SSH sur les deux VPS. Documenté comme action manuelle infra restante dans `modification.txt` (lignes 20628-20631). |
+| a | Prod et staging partagent la même instance PostgreSQL (`51.15.132.229:14440`) | ❌ Toujours ouvert | `DATABASE_URL` de `onscen-staging` (`/opt/onscen/.env`) pointe vers le même hôte `51.15.132.229:14440` que la prod, confirmé par lecture directe SSH sur les deux VPS. Documenté comme action manuelle infra restante dans `modification.txt` (lignes 20628-20631). |
 | b | Triple SPOF (1 VPS, 1 PG managé, 1 Redis local) | ❌ Toujours ouvert | Aucune modification de topologie infra dans MODIF 961/963 (hors scope, non traité). Impossible de re-vérifier la réplication Redis/PG sans accès console Scaleway — *impossible à vérifier au-delà de la topologie déjà connue*. |
-| c | `STRIPE_SECRET_KEY` en mode test sur `APP_ENV=production` | ❌ Toujours ouvert | `grep STRIPE_SECRET_KEY /opt/soundly/.env` sur `soundy-prod` → `sk_test_51Thv4p...` (clé de test), alors que `APP_ENV=production` et `DONATIONS_ENABLED=1`. Non traité par MODIF 962 (audit Stripe) ni MODIF 963 (audit DB/infra) — c'est une rotation de secret, hors périmètre code. |
-| d | Dérive de nommage `/opt/soundy` vs `/opt/soundly` sur les scripts de backup | ✅ Résolu en code / ❌ non déployé | `commun/deploy/backup-db.sh:12`, `verify-backup.sh:9`, `backup-offsite.sh:22-24` → tous `BACKUP_DIR:-/opt/soundly/backups` dans le dépôt. Mais le script **réellement présent sur le VPS** (`/opt/soundly/deploy/backup-db.sh`) contient encore `BACKUP_DIR:-/opt/soundy/backups` (ancien chemin, sans « ly ») — confirmé par `grep` SSH en direct. Le fix n'a pas encore été synchronisé sur le VPS (pas de `git pull`/déploiement depuis le fix). |
-| e | Process `soundy-auth` non documenté, absent du dépôt Git, hash de mot de passe en dur, sessions en RAM | ❌ Toujours ouvert | `pm2 list` sur `soundy-prod` montre `soundy-auth` toujours actif (`pm_id 1`, fork mode, uptime 7 jours). Recherche dans le dépôt (`Glob **/auth-server/**`) : aucun résultat — toujours absent de Git. Non traité par MODIF 961/963 (hors scope). |
-| f | Disque staging à 72% (2,5 Go restants sur 8,9 Go) | ⚠️ Quasiment inchangé | `df -h /` sur `soundy-staging` → `8.9G total, 6.4G used, 2.5G free, 73%` — situation identique (marge quasi nulle), non traité (infra pure). |
+| c | `STRIPE_SECRET_KEY` en mode test sur `APP_ENV=production` | ❌ Toujours ouvert | `grep STRIPE_SECRET_KEY /opt/onscen/.env` sur `onscen-prod` → `sk_test_51Thv4p...` (clé de test), alors que `APP_ENV=production` et `DONATIONS_ENABLED=1`. Non traité par MODIF 962 (audit Stripe) ni MODIF 963 (audit DB/infra) — c'est une rotation de secret, hors périmètre code. |
+| d | Dérive de nommage `/opt/onscen` vs `/opt/onscen` sur les scripts de backup | ✅ Résolu en code / ❌ non déployé | `commun/deploy/backup-db.sh:12`, `verify-backup.sh:9`, `backup-offsite.sh:22-24` → tous `BACKUP_DIR:-/opt/onscen/backups` dans le dépôt. Mais le script **réellement présent sur le VPS** (`/opt/onscen/deploy/backup-db.sh`) contient encore `BACKUP_DIR:-/opt/onscen/backups` (ancien chemin, sans « ly ») — confirmé par `grep` SSH en direct. Le fix n'a pas encore été synchronisé sur le VPS (pas de `git pull`/déploiement depuis le fix). |
+| e | Process `soundy-auth` non documenté, absent du dépôt Git, hash de mot de passe en dur, sessions en RAM | ❌ Toujours ouvert | `pm2 list` sur `onscen-prod` montre `soundy-auth` toujours actif (`pm_id 1`, fork mode, uptime 7 jours). Recherche dans le dépôt (`Glob **/auth-server/**`) : aucun résultat — toujours absent de Git. Non traité par MODIF 961/963 (hors scope). |
+| f | Disque staging à 72% (2,5 Go restants sur 8,9 Go) | ⚠️ Quasiment inchangé | `df -h /` sur `onscen-staging` → `8.9G total, 6.4G used, 2.5G free, 73%` — situation identique (marge quasi nulle), non traité (infra pure). |
 | g | Interpolation de nom de table dans `pgStoreSocialSync.ts` (`pruneCompositePairs`) | ❌ Toujours ouvert | Code inchangé, confirmé par lecture directe (`commun/backend/src/lib/pgStoreSocialSync.ts:21-42`) : `` `DELETE FROM ${table} ...` `` toujours présent. Pas d'injection active (paramètres internes uniquement), pattern à surveiller si réutilisé avec entrée externe. |
 | h | Table `gifts` sans FK ni purge à la suppression de compte | ✅ Résolu en code / ❌ non déployé | Migration 029 (lignes 57-68) ajoute `gifts_sender_fk` en `ON DELETE SET NULL NOT VALID`. Non appliqué en base prod (voir §5). |
 
@@ -152,7 +152,7 @@ Ces 3 points sont explicitement documentés comme volontairement non traités pa
 (`modification.txt` lignes 20621-20634, section « ACTIONS MANUELLES D'INFRA RESTANTES ») et restent ouverts
 selon la vérification live de ce re-audit :
 
-1. **Révocation des privilèges excessifs du rôle DB `soundy`** — `REVOKE CREATEROLE, CREATEDB FROM soundy;`
+1. **Révocation des privilèges excessifs du rôle DB `onscen`** — `REVOKE CREATEROLE, CREATEDB FROM soundy;`
    à exécuter manuellement en prod. Confirmé toujours actif via `psql` en direct
    (`rolcreaterole=t, rolcreatedb=t`). Action destructive sur un rôle de prod, nécessite validation explicite
    de l'utilisateur avant exécution — non exécutée par ce re-audit non plus (lecture seule).
@@ -192,7 +192,7 @@ non traité :
 - Contenu exhaustif de `monitor-alerts.sh` — non relu en intégralité dans cette session.
 - Réglages exacts des « Allowed IPs » et politique de rétention des backups automatiques Scaleway Managed
   Database — inchangé depuis l'audit original, non vérifiable sans accès console.
-- Date/heure exacte du dernier `git pull` sur le VPS prod — non trouvée (`/opt/soundly` n'est pas un dépôt
+- Date/heure exacte du dernier `git pull` sur le VPS prod — non trouvée (`/opt/onscen` n'est pas un dépôt
   git sur le VPS, `git log` y échoue avec `fatal: not a git repository`), le déploiement se fait
   probablement par transfert de build (rsync/scp) plutôt que par clone Git sur le serveur — cohérent avec
   l'horodatage du fichier `dist/index.js` utilisé comme preuve indirecte.
@@ -243,7 +243,7 @@ Justification : à l'heure de cet audit, la production tourne encore sur le buil
 toutes les corrections de la session. Concrètement, en prod aujourd'hui : 2 workers PM2 cluster (risque
 Critical #1 intact), CASCADE toujours actif sur les tables de paiement (risque Critical #2 intact),
 rate-limiters `nearby*` toujours non cluster-safe, chemins de backup encore sur l'ancien nommage
-`/opt/soundy/backups` (fonctionnels mais avec la même trappe potentielle qu'avant), rôle DB toujours
+`/opt/onscen/backups` (fonctionnels mais avec la même trappe potentielle qu'avant), rôle DB toujours
 sur-privilégié, PG toujours partagé prod/staging. Le seul delta réel et déjà visible en prod par rapport à
 l'audit initial est indirect : la migration 026 (antérieure à cette session) avait déjà validé les FK
 paiements sans orphelin, donc le risque de rollback de VALIDATE CONSTRAINT est nul — mais ce n'est pas un

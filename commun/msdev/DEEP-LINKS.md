@@ -1,4 +1,4 @@
-# Deep Links — Soundy (getsoundy.com)
+# Deep Links — OnScen (getsoundy.com)
 
 Universal Links (iOS) et App Links (Android) permettent d'ouvrir directement l'app Capacitor depuis une URL `getsoundy.com/salon/:id` ou `getsoundy.com/live/:id`.
 

@@ -1,4 +1,4 @@
-﻿# MeloSong msdev - lanceur avec debloquage Windows (SmartScreen / Zone.Identifier)
+﻿# OnScen msdev - lanceur avec debloquage Windows (SmartScreen / Zone.Identifier)
 $ErrorActionPreference = 'Stop'
 
 function Get-MsdevRoots {
@@ -52,7 +52,7 @@ if (-not (Test-Path -LiteralPath $exe)) {
   exit 1
 }
 
-Write-Host 'Lancement MeloSong msdev...' -ForegroundColor Cyan
+Write-Host 'Lancement OnScen msdev...' -ForegroundColor Cyan
 Write-Host 'URL attendue (HTTPS si MSDEV_HTTPS=1) : https://localhost:4080' -ForegroundColor Green
 Write-Host 'Ne pas utiliser http:// sur le port 4080 en mode HTTPS.' -ForegroundColor Yellow
 Write-Host 'Si Windows bloque l''exe, lisez DEBLOCAGE-WINDOWS.txt' -ForegroundColor Yellow

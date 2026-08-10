@@ -4,8 +4,8 @@
 
 | Env | Base | Instance |
 |-----|------|----------|
-| Prod | `soundy-prod` | Scaleway PG `51.15.132.229:14440` |
-| Staging | `soundy_staging` | **Même instance** |
+| Prod | `onscen-prod` | Scaleway PG `51.15.132.229:14440` |
+| Staging | `onscen_staging` | **Même instance** |
 
 Risque : charge staging / migration test impacte prod ; pas d'isolation réseau complète.
 
@@ -20,8 +20,8 @@ Risque : charge staging / migration test impacte prod ; pas d'isolation réseau 
 ```bash
 # 1. Créer instance staging Scaleway (console)
 # 2. pg_dump prod (readonly) → restore staging
-pg_dump "$PROD_DATABASE_URL" --no-owner --format=custom -f soundy-prod.dump
-pg_restore -d "$STAGING_DATABASE_URL" --no-owner soundy-prod.dump
+pg_dump "$PROD_DATABASE_URL" --no-owner --format=custom -f onscen-prod.dump
+pg_restore -d "$STAGING_DATABASE_URL" --no-owner onscen-prod.dump
 
 # 3. Anonymisation minimale
 psql "$STAGING_DATABASE_URL" -c "

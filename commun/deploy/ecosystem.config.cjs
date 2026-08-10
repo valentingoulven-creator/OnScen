@@ -1,31 +1,31 @@
 /**
- * PM2 — Soundy production
+ * PM2 — OnScen production
  * Usage (sur le VPS, une fois) :
- *   mkdir -p /opt/soundly/logs
- *   cd /opt/soundly && pm2 start deploy/ecosystem.config.cjs
+ *   mkdir -p /opt/onscen/logs
+ *   cd /opt/onscen && pm2 start deploy/ecosystem.config.cjs
  *   pm2 save && pm2 startup
  *
  * Mise à jour sans recréer le process :
- *   pm2 reload melosong-backend --update-env
+ *   pm2 reload onscen-backend --update-env
  */
 const fs = require('fs');
 const path = require('path');
 
-function resolveSoundyRoot() {
-  const fromEnv = process.env.SOUNDY_ROOT;
+function resolveOnScenRoot() {
+  const fromEnv = process.env.ONSCEN_ROOT;
   if (fromEnv && fs.existsSync(path.join(fromEnv, '.env'))) return fromEnv;
-  for (const root of ['/opt/soundly', '/opt/soundy']) {
+  for (const root of ['/opt/onscen', '/opt/soundly']) {
     if (fs.existsSync(path.join(root, '.env'))) return root;
   }
-  return '/opt/soundly';
+  return '/opt/onscen';
 }
 
-const ROOT = resolveSoundyRoot();
+const ROOT = resolveOnScenRoot();
 
 module.exports = {
   apps: [
     {
-      name: 'melosong-backend',
+      name: 'onscen-backend',
       script: 'dist/index.js',
       cwd: ROOT,
       // MITIGATION TEMPORAIRE (MODIF 961) : repassé à 1 worker tant que le store

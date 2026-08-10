@@ -1,6 +1,6 @@
-# Audit technique complet Soundy — Synthèse globale
+# Audit technique complet OnScen — Synthèse globale
 
-**Rédigé par :** auditeur technique senior (mode analyse — `@soundy-cto`), spécialisé applications sociales à fort trafic (live streaming, reels, musique, réseau social).
+**Rédigé par :** auditeur technique senior (mode analyse — `@onscen-cto`), spécialisé applications sociales à fort trafic (live streaming, reels, musique, réseau social).
 **Date :** 2026-08-07
 **Méthode :** revue de code exhaustive sur `commun/backend/src/`, `web/app/src/`, `ios/apptel/src/`, `commun/deploy/`, `commun/docs/` ; exécution réelle des suites de tests (489 backend + 576 frontend, 100 % vertes) et de `npm audit` ; recherches ciblées via 6 sous-agents d'exploration très approfondie sur les périmètres non couverts par les audits précédents (PostGIS, observabilité, modération/CSAM, anti-abus, légal DSA/mineurs/stores, divers) ; consolidation avec `commun/docs/audit/AUDIT-CONSOLIDE.md` (2026-07-22) dont les findings SEC/STR/DBI/LEG/API/ARC ont été revérifiés et actualisés à ce jour.
 
@@ -10,7 +10,7 @@
 
 ## Vue d'ensemble
 
-Soundy est un produit **techniquement mature pour son stade** : monolithe cohérent avec des composants scalables déjà externalisés (LiveKit, Cloudflare Stream, Stripe, S3), 489+576 tests automatisés tous verts, CI/CD avec déploiement continu vers staging et garde-fous prod, hashing de mots de passe conforme à l'état de l'art, 0 SQLi/XSS/IDOR trouvé sur plusieurs passes d'audit successives, PostGIS correctement indexé, RGPD documenté en profondeur (registre sous-traitants, DPIA, droits utilisateurs implémentés).
+OnScen est un produit **techniquement mature pour son stade** : monolithe cohérent avec des composants scalables déjà externalisés (LiveKit, Cloudflare Stream, Stripe, S3), 489+576 tests automatisés tous verts, CI/CD avec déploiement continu vers staging et garde-fous prod, hashing de mots de passe conforme à l'état de l'art, 0 SQLi/XSS/IDOR trouvé sur plusieurs passes d'audit successives, PostGIS correctement indexé, RGPD documenté en profondeur (registre sous-traitants, DPIA, droits utilisateurs implémentés).
 
 **Mais deux catégories de risques concentrent l'essentiel du danger réel :**
 1. **Modération de contenu en direct et protection des mineurs** — pour une plateforme combinant live streaming ouvert, upload UGC et géolocalisation, l'absence de toute détection automatique sur le flux vidéo live et l'absence totale de dispositif CSAM dédié (hash-matching, signalement PHAROS/NCMEC opérationnel) sont les points de risque légal et réputationnel les plus graves identifiés.
@@ -31,7 +31,7 @@ Aucun point de ce document n'a nécessité de modification de code — conformé
 | 5 | **Scaling horizontal bloqué** (`PM2 instances: 1` imposé par un store applicatif en mémoire non partagé) — aucun auto-scaling, SPOF applicatif complet en cas de pic de trafic significatif (live viral, croissance rapide). | DDoS/Scale (Phase 6), DB (Phase 2) | **Élevé** (XL — refonte du store) | Le goulot d'étranglement n'est pas le flux vidéo (externalisé, scalable) mais l'API/chat applicatif, qui plafonne à la capacité d'un seul process |
 | 6 | Processus `soundy-auth` fantôme en production, non versionné dans Git, hash de mot de passe de repli en dur, sessions perdues à chaque redémarrage. | Sécurité / Infra (hérité `AUDIT-CONSOLIDE.md`) | **Moyen** | Surface d'attaque non auditable, fonction exacte inconnue après plusieurs audits successifs |
 | 7 | Rotation du mot de passe du compte `yt.audit.demo2.soundy@gmail.com` (compte réel `getsoundy.com`) jamais confirmée. | Sécurité (hérité) | **Faible** (vérification manuelle) | Compte de production potentiellement toujours exposé |
-| 8 | Rôle DB applicatif `soundy` sur-privilégié (`CREATEROLE`/`CREATEDB`). | Base de données (Phase 2, hérité `DBI-5`) | **Faible** (`REVOKE`, décision requise) | En cas de compromission applicative, privilèges d'administration de la base hérités au lieu d'être cantonnés |
+| 8 | Rôle DB applicatif `onscen` sur-privilégié (`CREATEROLE`/`CREATEDB`). | Base de données (Phase 2, hérité `DBI-5`) | **Faible** (`REVOKE`, décision requise) | En cas de compromission applicative, privilèges d'administration de la base hérités au lieu d'être cantonnés |
 
 ---
 
@@ -70,7 +70,7 @@ Aucun point de ce document n'a nécessité de modification de code — conformé
 - **2FA (TOTP + WebAuthn/Passkeys) disponible**, secrets chiffrés AES-256-GCM, rate limiting brute-force conforme sur le login.
 - **Aucune extraction/téléchargement YouTube** — point fort confirmé, code mort de fallback non officiel supprimé physiquement du build.
 - **CI/CD mature** : build + lint + tests + typecheck sur chaque push, déploiement continu vers staging avec vérification de santé post-déploiement, prod jamais automatisée.
-- **PCI-DSS conforme par délégation totale à Stripe** — aucune donnée de carte ne transite ni n'est stockée côté Soundy.
+- **PCI-DSS conforme par délégation totale à Stripe** — aucune donnée de carte ne transite ni n'est stockée côté OnScen.
 - **RGPD documenté en profondeur** (registre sous-traitants avec localisation, DPIA, droits utilisateurs implémentés y compris suppression de compte avec purge de médias S3/local).
 
 ---
@@ -84,4 +84,4 @@ Ce document et les 12 rapports de phase associés constituent un audit **d'analy
 - Signature contractuelle effective des DPA.
 - Valeurs réelles des variables d'environnement sur le VPS de production (les fichiers `.env` locaux consultés sont des copies synchronisées, pas nécessairement identiques en temps réel au VPS).
 
-**Prochaine étape recommandée :** partager ce document avec l'avocat déjà mandaté (`commun/docs/juridique/RENDEZ-VOUS-AVOCAT.md`) en priorité sur les points #1, #2 et #9 de la section Critique/Élevé, qui relèvent autant d'une décision produit/juridique que d'une correction technique pure. Pour l'implémentation des correctifs purement techniques (rate limiting, Sentry mobile, logs structurés, activation de modèles Sightengine, etc.), transmettre ce document à `@soundy-dev-agent`.
+**Prochaine étape recommandée :** partager ce document avec l'avocat déjà mandaté (`commun/docs/juridique/RENDEZ-VOUS-AVOCAT.md`) en priorité sur les points #1, #2 et #9 de la section Critique/Élevé, qui relèvent autant d'une décision produit/juridique que d'une correction technique pure. Pour l'implémentation des correctifs purement techniques (rate limiting, Sentry mobile, logs structurés, activation de modèles Sightengine, etc.), transmettre ce document à `@onscen-dev-agent`.

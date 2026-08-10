@@ -1,4 +1,4 @@
-# URL MeloSong pour smartphone (lit commun/msdev/.env + compare a l'IP reelle)
+# URL OnScen pour smartphone (lit commun/msdev/.env + compare a l'IP reelle)
 $ErrorActionPreference = "Stop"
 $Msdev = Split-Path -Parent $PSScriptRoot
 $envFile = Join-Path $Msdev ".env"
@@ -22,7 +22,7 @@ $detected = @(
 )
 
 Write-Host ""
-Write-Host "MeloSong - URL smartphone" -ForegroundColor Cyan
+Write-Host "OnScen - URL smartphone" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  $url" -ForegroundColor White -BackgroundColor DarkBlue
 Write-Host ""

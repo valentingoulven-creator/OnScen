@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # backup-uploads.sh — Archive tar.gz des fichiers utilisateur (avatars, pièces jointes…)
 # Usage (sur le VPS) :
-#   bash /opt/soundly/deploy/backup-uploads.sh
+#   bash /opt/onscen/deploy/backup-uploads.sh
 # Variables optionnelles :
-#   UPLOADS_SRC=/opt/soundly/public/uploads
-#   UPLOADS_BACKUP_DIR=/opt/soundly/backups/uploads
+#   UPLOADS_SRC=/opt/onscen/public/uploads
+#   UPLOADS_BACKUP_DIR=/opt/onscen/backups/uploads
 #   UPLOADS_RETENTION_DAYS=14
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/soundy-root.sh
-source "${SCRIPT_DIR}/lib/soundy-root.sh"
+# shellcheck source=lib/onscen-root.sh
+source "${SCRIPT_DIR}/lib/onscen-root.sh"
 
 UPLOADS_SRC="${UPLOADS_SRC:-${ROOT}/public/uploads}"
 UPLOADS_BACKUP_DIR="${UPLOADS_BACKUP_DIR:-${ROOT}/backups/uploads}"

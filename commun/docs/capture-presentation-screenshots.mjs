@@ -1,5 +1,5 @@
 /**
- * Capture mobile screenshots for Soundy presentations.
+ * Capture mobile screenshots for OnScen presentations.
  * Compte prod showcase : demo-test@getsoundy.com (CAPTURE_LOGIN_PASSWORD requis).
  *
  * Usage :

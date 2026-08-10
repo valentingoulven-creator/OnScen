@@ -2103,7 +2103,7 @@
         "logTabPm2": "PM2 backend",
         "logTabSystem": "Système",
         "serverLogsLoadError": "Impossible de charger les logs serveur.",
-        "serverLogsPm2Hint": "Sortie PM2 du process Node (melosong-backend). Disponible sur le VPS.",
+        "serverLogsPm2Hint": "Sortie PM2 du process Node (onscen-backend). Disponible sur le VPS.",
         "serverLogsSystemHint": "journalctl / syslog système — accès root requis sur le VPS."
       },
       "logsHint": "Erreurs client capturées automatiquement (local + serveur). Conservation 5 mois.",

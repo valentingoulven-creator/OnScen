@@ -34,7 +34,7 @@ const DEMO_PINS = [
 let globeInstance = null;
 let mounted = false;
 
-function buildSoundyPinHtml(d) {
+function buildOnScenPinHtml(d) {
   if (d.kind === 'live') {
     return `<div class="map-marker-overview-pin map-marker-overview-pin--live" role="presentation"><span class="map-marker-overview-dot live"></span></div>`;
   }
@@ -54,7 +54,7 @@ function pinElement(d) {
   root.className = 'deck-globe-marker-host';
   root.setAttribute('role', 'img');
   root.setAttribute('aria-label', d.title);
-  root.innerHTML = buildSoundyPinHtml(d);
+  root.innerHTML = buildOnScenPinHtml(d);
   return root;
 }
 

@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-08-06 — Onglet Musique : onglets Actualité / Pour toi
 
-**Agent :** @soundy-dev-agent
+**Agent :** @onscen-dev-agent
 **Date :** 2026-08-06
 **Durée estimée :** 0.5 h
 **Statut global :** ✅ Terminé
@@ -106,4 +106,4 @@ Aucun. Note : le libellé « Pour toi » change de sens (ancien onglet par défa
 
 ---
 
-*Généré par Soundy Dev Agent*
+*Généré par OnScen Dev Agent*

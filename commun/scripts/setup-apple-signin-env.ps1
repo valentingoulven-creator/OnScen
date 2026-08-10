@@ -34,9 +34,9 @@ if (-not $vars['APPLE_PRIVATE_KEY'] -and -not $vars['APPLE_PRIVATE_KEY_PATH']) {
     Write-Error 'APPLE_PRIVATE_KEY ou APPLE_PRIVATE_KEY_PATH requis'
 }
 
-$sshHost = if ($Environment -eq 'preprod') { 'soundy-staging' } else { 'soundy-prod' }
-$remoteEnv = '/opt/soundly/.env'
-$pm2App = if ($Environment -eq 'preprod') { 'melosong-backend-staging' } else { 'melosong-backend' }
+$sshHost = if ($Environment -eq 'preprod') { 'onscen-staging' } else { 'onscen-prod' }
+$remoteEnv = '/opt/onscen/.env'
+$pm2App = if ($Environment -eq 'preprod') { 'onscen-backend-staging' } else { 'onscen-backend' }
 
 $tmpLocal = Join-Path $env:TEMP "soundy-apple-env-$Environment.txt"
 $lines = @()

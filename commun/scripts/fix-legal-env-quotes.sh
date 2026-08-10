@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
-ENV_FILE="/opt/soundly/.env"
-JSON_FILE="/opt/soundly/legal-publisher.json"
+ENV_FILE="/opt/onscen/.env"
+JSON_FILE="/opt/onscen/legal-publisher.json"
 python3 <<'PY'
 import json
 from pathlib import Path
 
-env_path = Path("/opt/soundly/.env")
-json_path = Path("/opt/soundly/legal-publisher.json")
+env_path = Path("/opt/onscen/.env")
+json_path = Path("/opt/onscen/legal-publisher.json")
 addr = json.loads(json_path.read_text(encoding="utf-8")).get("address", "")
 if not addr:
     raise SystemExit("No address in legal-publisher.json")
@@ -26,4 +26,4 @@ if not found:
 env_path.write_text("".join(out), encoding="utf-8")
 print("OK")
 PY
-bash -lc 'set -a; . /opt/soundly/.env; set +a; echo LEGAL_OK'
+bash -lc 'set -a; . /opt/onscen/.env; set +a; echo LEGAL_OK'

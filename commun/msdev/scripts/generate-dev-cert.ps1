@@ -27,7 +27,7 @@ if (-not $openssl) {
 }
 
 & openssl req -x509 -newkey rsa:2048 -keyout $keyPath -out $certPath -days 825 -nodes `
-    -subj "/CN=MeloSong msdev local" -addext "subjectAltName=$san"
+    -subj "/CN=OnScen msdev local" -addext "subjectAltName=$san"
 
 Write-Host "OK: $certPath" -ForegroundColor Green
 Write-Host "Lancez: npm run msdev:https" -ForegroundColor Yellow

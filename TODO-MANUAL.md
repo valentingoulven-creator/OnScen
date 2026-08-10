@@ -1,4 +1,4 @@
-# TODO-MANUAL.md — Tâches non automatisables (post-audit Soundy)
+# TODO-MANUAL.md — Tâches non automatisables (post-audit OnScen)
 
 Éléments nécessitant une **décision produit**, une **configuration externe**, une **validation humaine** (device, juriste, stores), ou un **sprint dédié**.
 
@@ -25,7 +25,7 @@
 |------|--------|--------|
 | **Pack avocat (PDF)** | ✅ Généré | `commun/docs/juridique/dossier-avocat-a-valider/` (22 PDF) · regénérer : `npm run dossier-avocat --prefix commun/docs/juridique` |
 | **Validation juriste** | ⏳ **Bloquant avant scale payant / sponsors signés** | Checklist : `commun/docs/juridique/CHECKLIST-VALIDATION-AVOCAT.md` · RDV : `commun/docs/juridique/RENDEZ-VOUS-AVOCAT.md` |
-| **C6 — Mentions légales LCEN** | ✅ **Complet (vérifié 2026-07-31)** | `GET https://getsoundy.com/api/legal/publisher` → `complete: true`. Source : `/opt/soundly/legal-publisher.json` (tous les champs LCEN art. 6 renseignés) |
+| **C6 — Mentions légales LCEN** | ✅ **Complet (vérifié 2026-07-31)** | `GET https://getsoundy.com/api/legal/publisher` → `complete: true`. Source : `/opt/onscen/legal-publisher.json` (tous les champs LCEN art. 6 renseignés) |
 | **Contrats / devis sponsors** | ⚠️ Modèles indicatifs | `commun/docs/strategie/commercial/` — **interdiction envoi définitif sans avocat** |
 | **Lettres de soutien (BIC, partenaires)** | ✅ Modèles | `.docx` : `commun/docs/strategie/lettres-soutien/` · `npm run lettres-soutien --prefix commun/docs/strategie` |
 | **C7 — URL privacy publique** | ✅ OK | `GET /privacy` sans auth |
@@ -79,17 +79,17 @@ Code livré ; valider sur **390 px**, **desktop**, **ios/apptel** si applicable.
 
 ### ELEV-07 — Stores OAuth en mémoire
 
-**Statut :** ✅ **Résolu (vérifié 2026-07-31)** — `oauthStates` (`routes/oauth.ts`) et `oauthExchangeCodes` (`lib/oauthExchange.ts`) sont **Redis-backed avec fallback mémoire** (`lib/optionalRedis.ts`). `REDIS_URL` est bien configuré en prod (confirmé via `ssh soundy-prod` — clé présente, non affichée). Doc précédente obsolète (le code avait déjà été fait ; il manquait juste la confirmation infra).
+**Statut :** ✅ **Résolu (vérifié 2026-07-31)** — `oauthStates` (`routes/oauth.ts`) et `oauthExchangeCodes` (`lib/oauthExchange.ts`) sont **Redis-backed avec fallback mémoire** (`lib/optionalRedis.ts`). `REDIS_URL` est bien configuré en prod (confirmé via `ssh onscen-prod` — clé présente, non affichée). Doc précédente obsolète (le code avait déjà été fait ; il manquait juste la confirmation infra).
 
 ### 🔴 NOUVEAU — Stripe en mode **TEST** malgré prod live + dons activés
 
-**Statut :** 🔴 **Confirmé 2026-07-31 (vérification read-only, aucune modif effectuée)** — sur `/opt/soundly/.env` prod : `APP_ENV=production`, `DONATIONS_ENABLED=1`, mais `STRIPE_SECRET_KEY=sk_test_...` (préfixe test, pas live).
+**Statut :** 🔴 **Confirmé 2026-07-31 (vérification read-only, aucune modif effectuée)** — sur `/opt/onscen/.env` prod : `APP_ENV=production`, `DONATIONS_ENABLED=1`, mais `STRIPE_SECRET_KEY=sk_test_...` (préfixe test, pas live).
 
 **Impact :** tout paiement/don/abonnement passé en prod est traité par le **compte test Stripe** — aucun encaissement réel, mais aussi aucune trace dans le dashboard Stripe **live** (comptabilité, réconciliation, Stripe Connect payouts sponsors faussés si activés).
 
 **Action requise (fondateur/CTO — décision produit, pas de code) :**
 1. Confirmer si c'est **volontaire** (soft-launch sans encaissement réel) ou un **oubli**.
-2. Si passage en live : récupérer `sk_live_...` + `pk_live_...` + webhook secret **live** depuis le dashboard Stripe, mettre à jour `/opt/soundly/.env` (`STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`), reconfigurer les endpoints webhook Stripe en mode live, puis `pm2 restart`.
+2. Si passage en live : récupérer `sk_live_...` + `pk_live_...` + webhook secret **live** depuis le dashboard Stripe, mettre à jour `/opt/onscen/.env` (`STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`), reconfigurer les endpoints webhook Stripe en mode live, puis `pm2 restart`.
 3. Ne pas basculer sans confirmation explicite — bascule = argent réel qui commence à circuler.
 
 ---
@@ -148,7 +148,7 @@ cd android; .\gradlew.bat assembleDebug
 
 **Ce qui existe déjà et peut être réutilisé :** `components/ConfirmModal.tsx` (dialog bottom-sheet mobile déjà conforme aux standards du projet) pour les `window.confirm()`. **Aucun système de toast** n'existe encore pour remplacer les `alert()` d'erreur — c'est le vrai chaînon manquant.
 
-**Plan recommandé (→ `@soundy-dev-agent`, par petits lots testables) :**
+**Plan recommandé (→ `@onscen-dev-agent`, par petits lots testables) :**
 1. Créer un `ToastProvider`/`useToast` léger (bottom-sheet safe-area mobile, cf. règle mobile-responsive).
 2. Convertir `window.confirm()` → `ConfirmModal` fichier par fichier (mécanique, risque faible).
 3. Convertir `alert()` → `useToast` en priorisant les flux **utilisateur** (DM, chat, live, reels) avant l'admin.
@@ -202,7 +202,7 @@ En réponse à « fait tout les todo que tu peux faire sans moi » : revue de `T
 
 - ✅ Corrigé : C6 LCEN, ELEV-07 Redis OAuth, LOOP-01, React Compiler (0 warning) — statuts obsolètes, code déjà correct.
 - 🔴 Détecté : Stripe `sk_test_` en prod avec dons activés — **nécessite ta décision**, aucune bascule effectuée.
-- ⏳ Non traité volontairement : F1 (alert/confirm) — scope réel = 80 appels / 20 fichiers, dont flux DM/live/chat critiques ; blast radius trop large pour une modif non supervisée sans QA visuelle mobile. Plan détaillé ajouté ci-dessus pour `@soundy-dev-agent`.
+- ⏳ Non traité volontairement : F1 (alert/confirm) — scope réel = 80 appels / 20 fichiers, dont flux DM/live/chat critiques ; blast radius trop large pour une modif non supervisée sans QA visuelle mobile. Plan détaillé ajouté ci-dessus pour `@onscen-dev-agent`.
 - Inchangé (bloqué sur compte/accès externe, pas actionnable sans toi) : C1 IAP, C3 Apple Developer, P1 Cloudflare zone, P2 ACRCloud, C5 `APPLE_TEAM_ID`/Firebase/AAB, C10 (décision produit).
 
 ---
@@ -211,8 +211,8 @@ En réponse à « fait tout les todo que tu peux faire sans moi » : revue de `T
 
 | Besoin | Agent |
 |--------|--------|
-| Implémenter IAP, OAuth Redis, fixes QA code | `@soundy-dev-agent` |
-| Arbitrage architecture / audit approfondi | `@soundy-cto` |
-| Priorisation business, BIC, financement | `@soundy-ceo-ia` |
+| Implémenter IAP, OAuth Redis, fixes QA code | `@onscen-dev-agent` |
+| Arbitrage architecture / audit approfondi | `@onscen-cto` |
+| Priorisation business, BIC, financement | `@onscen-ceo-ia` |
 
-*Soundy · TODO manuel · Ne remplace pas un avis juridique ou comptable.*
+*OnScen · TODO manuel · Ne remplace pas un avis juridique ou comptable.*

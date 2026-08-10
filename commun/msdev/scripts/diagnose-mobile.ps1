@@ -1,6 +1,6 @@
-# Diagnostic acces smartphone -> MeloSong
+# Diagnostic acces smartphone -> OnScen
 $port = 4080
-Write-Host "`n=== Diagnostic MeloSong (Ethernet) ===`n" -ForegroundColor Cyan
+Write-Host "`n=== Diagnostic OnScen (Ethernet) ===`n" -ForegroundColor Cyan
 
 # 1. Serveur
 $listen = netstat -ano | findstr ":$port.*LISTENING"
@@ -22,9 +22,9 @@ if ($eth) {
 }
 
 # 3. Pare-feu
-$fw = Get-NetFirewallRule -DisplayName "MeloSong msdev*" -ErrorAction SilentlyContinue
+$fw = Get-NetFirewallRule -DisplayName "OnScen msdev*" -ErrorAction SilentlyContinue
 if ($fw -and $fw.Enabled) {
-    Write-Host "[OK] Regle pare-feu MeloSong active" -ForegroundColor Green
+    Write-Host "[OK] Regle pare-feu OnScen active" -ForegroundColor Green
 } else {
     Write-Host "[!!] Pare-feu: executez open-firewall.ps1 en ADMIN" -ForegroundColor Red
 }

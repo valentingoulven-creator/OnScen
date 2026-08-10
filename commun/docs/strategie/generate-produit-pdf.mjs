@@ -1,5 +1,5 @@
 /**
- * Génère SOUNDY-PRESENTATION-PRODUIT.pdf via Edge headless (deck → pages print).
+ * Génère ONSCEN-PRESENTATION-PRODUIT.pdf via Edge headless (deck → pages print).
  * Usage: node generate-produit-pdf.mjs
  */
 import { readFileSync, writeFileSync } from 'fs';
@@ -8,9 +8,9 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SRC_HTML = join(__dirname, 'SOUNDY-PRESENTATION-PRODUIT.html');
-const PRINT_HTML = join(__dirname, 'SOUNDY-PRESENTATION-PRODUIT.print.html');
-const PDF_PATH = join(__dirname, 'SOUNDY-PRESENTATION-PRODUIT.pdf');
+const SRC_HTML = join(__dirname, 'ONSCEN-PRESENTATION-PRODUIT.html');
+const PRINT_HTML = join(__dirname, 'ONSCEN-PRESENTATION-PRODUIT.print.html');
+const PDF_PATH = join(__dirname, 'ONSCEN-PRESENTATION-PRODUIT.pdf');
 
 const EDGE =
   process.env.EDGE_PATH ??

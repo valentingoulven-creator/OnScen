@@ -38,7 +38,7 @@ flowchart LR
 
     Nginx["Nginx / HTTPS"]
 
-    PM2["PM2 melosong-backend\nAPP_ENV=production"]
+    PM2["PM2 onscen-backend\nAPP_ENV=production"]
 
     PG["PostgreSQL Scaleway"]
 

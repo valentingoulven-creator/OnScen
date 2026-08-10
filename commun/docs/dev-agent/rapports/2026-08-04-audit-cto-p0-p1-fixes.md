@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-08-04 — Correctifs audit CTO P0/P1
 
-**Agent :** @soundy-dev-agent
+**Agent :** @onscen-dev-agent
 **Date :** 2026-08-04
 **Durée estimée :** ~1h30
 **Statut global :** ✅ Terminé (périmètre technique) — ⚠️ 3 points restent des décisions fondateur/avocat, non actionnables par l'agent
@@ -41,7 +41,7 @@ Audit CTO du jour (voir chat) avait identifié :
 |---------|------------|
 | `commun/backend/package.json`, `package-lock.json` | `npm audit fix` → 0 vulnérabilité |
 | `web/app/package.json`, `package-lock.json` | `npm audit fix` → 0 vulnérabilité prod |
-| `web/app/src/components/globe3d/SoundyGlobeLiveMarkers.tsx` | Suppression variable inutilisée (fix build TS6133) |
+| `web/app/src/components/globe3d/OnScenGlobeLiveMarkers.tsx` | Suppression variable inutilisée (fix build TS6133) |
 | `web/app/src/lib/homeFeedFollowingWindow.test.ts` | Fixture `FeedPost` alignée sur le vrai type (fix build TS2352) |
 | `web/app/src/lib/settings.ts` | `safeStorage()` défensif + guards `typeof window` |
 | `web/app/src/i18n.ts` | Guards `typeof document`/`typeof window` au chargement module |
@@ -58,7 +58,7 @@ cd commun/backend && npm test             → ✅ 474/474 (97 fichiers)
 cd web/app && npm audit fix               → ✅ 0 vulnérabilité prod (sharp devDep restant)
 cd web/app && npm run build               → ✅ 0 erreur TS
 cd web/app && npm test -- --run           → ✅ 560/560 (88 fichiers)
-ssh soundy-prod (lecture seule)           → SENTRY_DSN réel + DONATIONS_ENABLED=0 confirmés
+ssh onscen-prod (lecture seule)           → SENTRY_DSN réel + DONATIONS_ENABLED=0 confirmés
 ```
 
 ## Tests & vérifications
@@ -95,4 +95,4 @@ ssh soundy-prod (lecture seule)           → SENTRY_DSN réel + DONATIONS_ENABL
 
 ---
 
-*Généré par Soundy Dev Agent*
+*Généré par OnScen Dev Agent*

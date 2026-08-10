@@ -1,5 +1,5 @@
-# Soundy — Caddyfile PREPROD (staging.getsoundy.com)
-# Deploy : deploy/Caddyfile.staging -> /opt/soundly/deploy/Caddyfile.staging -> /etc/caddy/Caddyfile
+# OnScen — Caddyfile PREPROD (staging.getsoundy.com)
+# Deploy : deploy/Caddyfile.staging -> /opt/onscen/deploy/Caddyfile.staging -> /etc/caddy/Caddyfile
 #
 # Preprod ouverte (UI + API) — pas d'indexation (X-Robots-Tag). Health/assets/API inchangés.
 

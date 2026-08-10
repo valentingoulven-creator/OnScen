@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-06-30 — CI + dette + warnings
 
-**Agent :** @soundy-dev-agent  
+**Agent :** @onscen-dev-agent  
 **Date :** 2026-06-30  
 **Statut global :** ✅ Terminé (CI débloquée ; dette React Compiler en warn)
 
@@ -37,11 +37,11 @@ GET /privacy               → 200 ✅
 
 ## Suite recommandée
 
-1. **Prod LCEN** : `LEGAL_PUBLISHER_ADDRESS=...` dans `/opt/soundly/.env`
+1. **Prod LCEN** : `LEGAL_PUBLISHER_ADDRESS=...` dans `/opt/onscen/.env`
 2. **Apple** : configurer `APPLE_CLIENT_ID` + callback prod
 3. **IAP** : StoreKit / Play Billing (semaines)
 4. **React Compiler** : migrer progressivement set-state-in-effect (212 warns) via useSyncRef / derived state
 
 ---
 
-*Généré par Soundy Dev Agent*
+*Généré par OnScen Dev Agent*

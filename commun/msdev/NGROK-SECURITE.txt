@@ -1,5 +1,5 @@
 ================================================================
-  MeloSong — Sécurité accès Internet (ngrok / tunnel)
+  OnScen — Sécurité accès Internet (ngrok / tunnel)
 ================================================================
 
 Ce guide complète msdev\TUNNEL-GUIDE.txt pour sécuriser l'exposition
@@ -7,7 +7,7 @@ publique de votre application de développement.
 
 
 ----------------------------------------------------------------
-1. CE QUI EST PROTEGE (controle applicatif MeloSong)
+1. CE QUI EST PROTEGE (controle applicatif OnScen)
 ----------------------------------------------------------------
 
 Quand ACCES-IPHONE.bat est utilisé, le serveur démarre avec :
@@ -66,7 +66,7 @@ Domaine statique (plan gratuit = 1 domaine)
 
 OAuth / Basic Auth ngrok (plans payants)
   Le plan gratuit n'inclut pas OAuth Google sur le tunnel.
-  Alternative gratuite : le contrôle d'accès MeloSong ci-dessus.
+  Alternative gratuite : le contrôle d'accès OnScen ci-dessus.
   Plans payants ngrok : OAuth, IP restrictions, Basic Auth avant
   d'atteindre l'application — voir dashboard.ngrok.com
 
@@ -114,7 +114,7 @@ le tunnel Internet.
 - La sécurité applicative ne remplace pas un pare-feu : le PC doit
   rester sous votre contrôle
 - cloudflared (fallback ACCES-IPHONE.bat) : URL temporaire, même
-  logique de contrôle d'accès MeloSong s'applique
+  logique de contrôle d'accès OnScen s'applique
 
 
 ================================================================

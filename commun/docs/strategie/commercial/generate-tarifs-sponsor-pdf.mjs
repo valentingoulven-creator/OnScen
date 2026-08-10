@@ -28,8 +28,8 @@ const TODAY = new Date().toLocaleDateString('fr-FR', {
 
 const DOCS = [
   {
-    md: join(COMMERCIAL, 'JUSTIFICATION-TARIFS-SPONSOR-SOUNDY.md'),
-    pdf: join(PDF_OUT, 'JUSTIFICATION-TARIFS-SPONSOR-SOUNDY.pdf'),
+    md: join(COMMERCIAL, 'JUSTIFICATION-TARIFS-SPONSOR-ONSCEN.md'),
+    pdf: join(PDF_OUT, 'JUSTIFICATION-TARIFS-SPONSOR-ONSCEN.pdf'),
     category: 'Stratégie · Tarifs sponsor',
   },
   {
@@ -55,7 +55,7 @@ function wrapHtml(mdContent, title, category) {
 </head>
 <body>
   <header class="doc-header">
-    <span class="doc-header__brand">SOUNDY <span>· stratégie commerciale</span></span>
+    <span class="doc-header__brand">OnScen <span>· stratégie commerciale</span></span>
     <span class="doc-header__category">${category}</span>
     <h1 class="doc-header__title" style="border:none;margin-top:10px;padding-bottom:0;">${title}</h1>
     <p class="doc-meta"><strong>getsoundy.com</strong> · Document interne · Généré le ${TODAY}</p>
@@ -64,7 +64,7 @@ function wrapHtml(mdContent, title, category) {
     <strong>⚠ Chiffres indicatifs.</strong> Recaler trimestriellement avec factures infra et expert-comptable. Ne constitue pas un audit financier.
   </div>
   ${mdContent}
-  <footer class="doc-footer">Soundy · ${category} · getsoundy.com · ${TODAY}</footer>
+  <footer class="doc-footer">OnScen · ${category} · getsoundy.com · ${TODAY}</footer>
 </body>
 </html>`;
 }

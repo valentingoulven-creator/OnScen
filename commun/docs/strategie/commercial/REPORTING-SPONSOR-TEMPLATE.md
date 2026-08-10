@@ -1,4 +1,4 @@
-# Rapport de campagne — Sponsoring Soundy
+# Rapport de campagne — Sponsoring OnScen
 
 > **Modèle indicatif** — rapport de confirmation de diffusion à remettre à l'annonceur en fin de campagne.
 > **Phase de lancement :** ce rapport atteste de la **diffusion effective** de l'Annonce (dates, emplacements, preuves visuelles). Il **ne repose pas sur un volume de vues/impressions garanti**, la plateforme étant en construction de son audience. La section analytique (§ "Indicateurs de mesure") reste **optionnelle** et n'est renseignée que si des données sont disponibles.
@@ -17,7 +17,7 @@
 | **Zone ciblée** | [ZONE_GEO] |
 | **Rapport n°** | [NUMERO_RAPPORT] |
 | **Date du rapport** | [DATE_RAPPORT] |
-| **Éditeur** | Soundy · [EMAIL_COMMERCIAL] |
+| **Éditeur** | OnScen · [EMAIL_COMMERCIAL] |
 
 ---
 
@@ -73,7 +73,7 @@
 
 ## Indicateurs de mesure *(optionnel — selon disponibilité analytics)*
 
-> Section renseignée uniquement si Soundy dispose d'un volume de trafic suffisant pour produire des statistiques exploitables. **Aucun engagement contractuel n'est attaché à ces chiffres** sur la formule forfaitaire hebdomadaire.
+> Section renseignée uniquement si OnScen dispose d'un volume de trafic suffisant pour produire des statistiques exploitables. **Aucun engagement contractuel n'est attaché à ces chiffres** sur la formule forfaitaire hebdomadaire.
 
 | Indicateur | Valeur (si disponible) |
 |------------|--------------------------|
@@ -89,11 +89,11 @@
 
 | Métrique | Valeur | Source |
 |----------|--------|--------|
-| Clics trackés (UTM Soundy) | [CLICS_UTM] | `utm_source=soundy&utm_medium=[placement]&utm_campaign=[id]` |
+| Clics trackés (UTM OnScen) | [CLICS_UTM] | `utm_source=soundy&utm_medium=[placement]&utm_campaign=[id]` |
 | Visites landing / billetterie | [VISITES_LANDING] | Analytics annonceur |
 | Conversions (billets, inscriptions) | [CONVERSIONS] | [SOURCE_CONV] |
 
-> Soundy ne garantit pas de ROI chiffré en phase de lancement. Les conversions downstream dépendent du tracking côté annonceur (UTM, pixels).
+> OnScen ne garantit pas de ROI chiffré en phase de lancement. Les conversions downstream dépendent du tracking côté annonceur (UTM, pixels).
 
 ---
 
@@ -138,4 +138,4 @@
 > engagement contractuel sur la formule forfaitaire hebdomadaire. Document non contractuel ;
 > les engagements de diffusion restent ceux du contrat signé (`CONTRAT-TYPE-SPONSOR.md`).
 
-*Soundy · Rapport de campagne sponsor · [DATE_RAPPORT]*
+*OnScen · Rapport de campagne sponsor · [DATE_RAPPORT]*

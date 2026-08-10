@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Audit .env keys for external services — prints OK/MISS (no values). */
 const fs = require('fs');
-const path = process.argv[2] || '/opt/soundly/.env';
+const path = process.argv[2] || '/opt/onscen/.env';
 
 const GROUPS = {
   infra: [

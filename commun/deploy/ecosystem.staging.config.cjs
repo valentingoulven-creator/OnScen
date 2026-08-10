@@ -1,28 +1,28 @@
 /**
- * PM2 — Soundy preproduction (staging)
+ * PM2 — OnScen preproduction (staging)
  * Usage (sur le VPS staging) :
- *   mkdir -p /opt/soundly/logs
- *   cd /opt/soundly && pm2 start deploy/ecosystem.staging.config.cjs
+ *   mkdir -p /opt/onscen/logs
+ *   cd /opt/onscen && pm2 start deploy/ecosystem.staging.config.cjs
  *   pm2 save && pm2 startup
  */
 const fs = require('fs');
 const path = require('path');
 
-function resolveSoundyRoot() {
-  const fromEnv = process.env.SOUNDY_ROOT;
+function resolveOnScenRoot() {
+  const fromEnv = process.env.ONSCEN_ROOT;
   if (fromEnv && fs.existsSync(path.join(fromEnv, '.env'))) return fromEnv;
-  for (const root of ['/opt/soundly', '/opt/soundy']) {
+  for (const root of ['/opt/onscen', '/opt/soundly']) {
     if (fs.existsSync(path.join(root, '.env'))) return root;
   }
-  return '/opt/soundly';
+  return '/opt/onscen';
 }
 
-const ROOT = resolveSoundyRoot();
+const ROOT = resolveOnScenRoot();
 
 module.exports = {
   apps: [
     {
-      name: 'melosong-backend-staging',
+      name: 'onscen-backend-staging',
       script: 'dist/index.js',
       cwd: ROOT,
       instances: 1,

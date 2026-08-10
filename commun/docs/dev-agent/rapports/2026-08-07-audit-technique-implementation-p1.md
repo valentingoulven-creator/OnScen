@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-08-07 — Implémentation audit technique (vague 1 : CSAM, live, modération, DDoS)
 
-**Agent :** @soundy-dev-agent
+**Agent :** @onscen-dev-agent
 **Date :** 2026-08-07
 **Durée estimée :** ~3 h
 **Statut global :** ⚠️ Partiel (par conception — voir « Bloquers / décisions requises »)
@@ -15,7 +15,7 @@ Implémenter un sous-ensemble priorisé, purement technique, des recommandations
 
 ## Contexte / problème
 
-Suite à l'audit 12 phases produit en amont (voir `00-synthese.md`), le fondateur a demandé de passer en implémentation (« vas y fais le », avec `@soundy-dev-agent`). L'audit liste ~40 findings ; cette session traite un sous-ensemble réalisable en une session, purement code (aucune décision business/légale/infra-prod), en priorisant :
+Suite à l'audit 12 phases produit en amont (voir `00-synthese.md`), le fondateur a demandé de passer en implémentation (« vas y fais le », avec `@onscen-dev-agent`). L'audit liste ~40 findings ; cette session traite un sous-ensemble réalisable en une session, purement code (aucune décision business/légale/infra-prod), en priorisant :
 
 1. **MOD-8 (critique)** — aucune détection CSAM technique, aucun runbook opérationnel.
 2. **MOD-3 (critique)** — aucune modération automatique du flux vidéo live.
@@ -124,4 +124,4 @@ cd web/app && npx eslint <fichiers>             → ✅ 0 erreur
 
 ---
 
-*Généré par Soundy Dev Agent*
+*Généré par OnScen Dev Agent*

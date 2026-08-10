@@ -92,14 +92,14 @@ function Set-CacheRules {
       action = 'set_cache_settings'
       action_parameters = @{ cache = $false }
       expression = '(starts_with(http.request.uri.path, "/api")) or (starts_with(http.request.uri.path, "/socket.io")) or (http.request.uri.path eq "/health") or (http.request.uri.path eq "/health/db")'
-      description = 'Soundy bypass API socket health'
+      description = 'OnScen bypass API socket health'
       enabled = $true
     },
     @{
       action = 'set_cache_settings'
       action_parameters = @{ cache = $false }
       expression = '(http.request.uri.path eq "/sw.js") or (http.request.uri.path eq "/") or (http.request.uri.path eq "/index.html")'
-      description = 'Soundy bypass SPA shell and service worker'
+      description = 'OnScen bypass SPA shell and service worker'
       enabled = $true
     },
     @{
@@ -109,14 +109,14 @@ function Set-CacheRules {
         edge_ttl = @{ mode = 'respect_origin' }
       }
       expression = 'starts_with(http.request.uri.path, "/assets/")'
-      description = 'Soundy cache hashed assets'
+      description = 'OnScen cache hashed assets'
       enabled = $true
     }
   )
 
   $body = @{
     rules = $rules
-    description = 'Soundy CDN cache rules'
+    description = 'OnScen CDN cache rules'
   }
 
   try {
@@ -126,7 +126,7 @@ function Set-CacheRules {
     Write-Host "CACHE rules WARN: $($_.Exception.Message)"
     try {
       $create = @{
-        name = 'Soundy CDN cache'
+        name = 'OnScen CDN cache'
         kind = 'zone'
         phase = 'http_request_cache_settings'
         rules = $rules

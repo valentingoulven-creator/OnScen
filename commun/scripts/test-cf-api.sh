@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-ENV_FILE="${1:-/opt/soundy/.env}"
+ENV_FILE="${1:-/opt/onscen/.env}"
 ACCOUNT=$(grep '^CLOUDFLARE_ACCOUNT_ID=' "$ENV_FILE" | cut -d= -f2-)
 TOKEN=$(grep '^CLOUDFLARE_STREAM_API_TOKEN=' "$ENV_FILE" | cut -d= -f2-)
 SUBDOMAIN=$(grep '^CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN=' "$ENV_FILE" | cut -d= -f2-)
@@ -35,7 +35,7 @@ CREATE_RESP=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
   -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"meta":{"name":"Soundy API test"},"recording":{"mode":"automatic"},"preferLowLatency":true}' \
+  -d '{"meta":{"name":"OnScen API test"},"recording":{"mode":"automatic"},"preferLowLatency":true}' \
   "https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/stream/live_inputs")
 
 CREATE_HTTP=$(echo "$CREATE_RESP" | tail -1 | cut -d: -f2)

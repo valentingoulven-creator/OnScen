@@ -2,7 +2,7 @@
 # Utilisé par server.bat, server.exe (build:server-exe) et npm run msdev:restart
 $ErrorActionPreference = 'Stop'
 
-function Get-MeloSongRoot {
+function Get-OnScenRoot {
   param([string]$StartDir)
   $dir = $StartDir
   while ($dir) {
@@ -25,9 +25,9 @@ function Get-MeloSongRoot {
 }
 
 $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
-$root = Get-MeloSongRoot -StartDir $scriptDir
+$root = Get-OnScenRoot -StartDir $scriptDir
 if (-not $root) {
-  Write-Host '[ERREUR] Racine MeloSong Dev introuvable (package.json).' -ForegroundColor Red
+  Write-Host '[ERREUR] Racine OnScen Dev introuvable (package.json).' -ForegroundColor Red
   Write-Host 'Placez server.exe ou server.bat a la racine du projet.' -ForegroundColor Yellow
   if ($Host.Name -eq 'ConsoleHost') { Read-Host 'Appuyez sur Entree pour fermer' }
   exit 1
@@ -37,7 +37,7 @@ Set-Location $root
 
 Write-Host ''
 Write-Host ' ==========================================' -ForegroundColor Cyan
-Write-Host '   MeloSong  -  Redemarrer le serveur' -ForegroundColor Cyan
+Write-Host '   OnScen  -  Redemarrer le serveur' -ForegroundColor Cyan
 Write-Host ' ==========================================' -ForegroundColor Cyan
 Write-Host "   URL    : http://localhost:4080"
 Write-Host '   Compte : listener@msdev.local / msdev123'
@@ -101,7 +101,7 @@ Start-Job -ScriptBlock {
 } | Out-Null
 
 Write-Host ' Demarrage du serveur... (navigateur a l ouverture du port 4080)' -ForegroundColor Green
-Write-Host ' Fermez cette fenetre pour arreter MeloSong.' -ForegroundColor DarkGray
+Write-Host ' Fermez cette fenetre pour arreter OnScen.' -ForegroundColor DarkGray
 Write-Host ''
 
 npm run msdev:server

@@ -1,9 +1,9 @@
 #!/bin/bash
-# Stripe Connect setup for a specific MeloSong host (production VPS).
+# Stripe Connect setup for a specific OnScen host (production VPS).
 # Usage: ./stripe-connect-setup.sh [user_id] [connect_account_id]
 set -euo pipefail
 set -a
-source /opt/soundy/.env
+source /opt/onscen/.env
 set +a
 
 TARGET_USER_ID="${1:-user_1781025111633_ipv5l}"
@@ -13,7 +13,7 @@ APP_BASE="${WEB_APP_URL:-https://getsoundy.com}"
 APP_BASE="${APP_BASE%/}"
 
 if [ -z "${STRIPE_SECRET_KEY:-}" ]; then
-  echo "ERROR: STRIPE_SECRET_KEY missing in /opt/soundy/.env"
+  echo "ERROR: STRIPE_SECRET_KEY missing in /opt/onscen/.env"
   exit 1
 fi
 
@@ -112,7 +112,7 @@ if [ "$CHARGES" != "True" ]; then
 fi
 
 echo "=== Stop backend before direct DB patch (avoid persist overwrite on reload) ==="
-pm2 stop melosong-backend >/dev/null 2>&1 || true
+pm2 stop onscen-backend >/dev/null 2>&1 || true
 sleep 2
 
 echo "=== Persist stripeConnectAccountId on target user (full payload merge) ==="
@@ -129,7 +129,7 @@ FROM users WHERE id = '${TARGET_USER_ID}';
 "
 
 echo "=== Start backend (fresh PostgreSQL load) ==="
-pm2 start melosong-backend --update-env >/dev/null 2>&1 || pm2 restart melosong-backend --update-env >/dev/null 2>&1 || true
+pm2 start onscen-backend --update-env >/dev/null 2>&1 || pm2 restart onscen-backend --update-env >/dev/null 2>&1 || true
 sleep 5
 
 echo "=== Active lives for host (payload.title, not column) ==="

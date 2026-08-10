@@ -1,4 +1,4 @@
-# verify-full-access.ps1 — Verification acces agent complet Soundy
+# verify-full-access.ps1 — Verification acces agent complet OnScen
 param([switch]$Quiet)
 
 $ErrorActionPreference = 'Continue'
@@ -23,7 +23,7 @@ function Test-EnvKey([string]$file, [string]$key) {
 }
 
 Write-Host ''
-Write-Host ' Soundy — Verification acces agent' -ForegroundColor Cyan
+Write-Host ' OnScen — Verification acces agent' -ForegroundColor Cyan
 Write-Host ''
 
 # Dev local
@@ -47,23 +47,23 @@ foreach ($k in @('DATABASE_URL','SIGHTENGINE_API_USER','LIVEKIT_URL','STRIPE_SEC
 }
 
 # SSH VPS
-$sshOut = & ssh.exe -o BatchMode=yes -o ConnectTimeout=12 soundy-prod 'echo PING_OK' 2>&1 | Out-String
-Add-Check 'SSH VPS' ($LASTEXITCODE -eq 0 -and ($sshOut -match 'PING_OK')) 'soundy-prod / 51.159.164.100'
+$sshOut = & ssh.exe -o BatchMode=yes -o ConnectTimeout=12 onscen-prod 'echo PING_OK' 2>&1 | Out-String
+Add-Check 'SSH VPS' ($LASTEXITCODE -eq 0 -and ($sshOut -match 'PING_OK')) 'onscen-prod / 51.159.164.100'
 
 if ($LASTEXITCODE -eq 0) {
-    $pm2 = & ssh.exe -o BatchMode=yes -o ConnectTimeout=15 soundy-prod 'pm2 jlist' 2>&1 | Out-String
-    Add-Check 'PM2 melosong-backend' ($pm2 -match 'melosong-backend' -and $pm2 -match 'online') ''
-    $envOk = & ssh.exe -o BatchMode=yes -o ConnectTimeout=12 soundy-prod "test -f /opt/soundly/.env && echo Y" 2>&1
-    Add-Check 'VPS /opt/soundly/.env' ("$envOk" -match 'Y') ''
+    $pm2 = & ssh.exe -o BatchMode=yes -o ConnectTimeout=15 onscen-prod 'pm2 jlist' 2>&1 | Out-String
+    Add-Check 'PM2 onscen-backend' ($pm2 -match 'onscen-backend' -and $pm2 -match 'online') ''
+    $envOk = & ssh.exe -o BatchMode=yes -o ConnectTimeout=12 onscen-prod "test -f /opt/onscen/.env && echo Y" 2>&1
+    Add-Check 'VPS /opt/onscen/.env' ("$envOk" -match 'Y') ''
 }
 
 # SSH staging
-$stgOut = & ssh.exe -o BatchMode=yes -o ConnectTimeout=12 soundy-staging 'echo PING_OK' 2>&1 | Out-String
-Add-Check 'SSH staging' ($LASTEXITCODE -eq 0 -and ($stgOut -match 'PING_OK')) 'soundy-staging / 51.159.170.181'
+$stgOut = & ssh.exe -o BatchMode=yes -o ConnectTimeout=12 onscen-staging 'echo PING_OK' 2>&1 | Out-String
+Add-Check 'SSH staging' ($LASTEXITCODE -eq 0 -and ($stgOut -match 'PING_OK')) 'onscen-staging / 51.159.170.181'
 
 if ($LASTEXITCODE -eq 0) {
-    $pm2stg = & ssh.exe -o BatchMode=yes -o ConnectTimeout=15 soundy-staging 'pm2 jlist' 2>&1 | Out-String
-    Add-Check 'PM2 melosong-backend-staging' ($pm2stg -match 'melosong-backend-staging' -and $pm2stg -match 'online') ''
+    $pm2stg = & ssh.exe -o BatchMode=yes -o ConnectTimeout=15 onscen-staging 'pm2 jlist' 2>&1 | Out-String
+    Add-Check 'PM2 onscen-backend-staging' ($pm2stg -match 'onscen-backend-staging' -and $pm2stg -match 'online') ''
 }
 
 # Prod publique

@@ -1,4 +1,4 @@
--- Soundy / MeloSong — index production v3
+-- OnScen / OnScen — index production v3
 -- Index composites, partiels et GIN pour les chemins chauds à grande échelle
 -- Compatible PostgreSQL 16 (Scaleway Managed Database)
 -- NOTE : ces index complètent ceux créés dans 001 et 002.

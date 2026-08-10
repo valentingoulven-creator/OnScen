@@ -3,9 +3,9 @@
 #
 # Sur le VPS :
 #   caddy hash-password
-#   cp deploy/caddy-basic-auth.caddy.example /opt/soundly/deploy/caddy-basic-auth.caddy
+#   cp deploy/caddy-basic-auth.caddy.example /opt/onscen/deploy/caddy-basic-auth.caddy
 #   éditer les utilisateurs, puis dans Caddyfile :
-#   import /opt/soundly/deploy/caddy-basic-auth.caddy
+#   import /opt/onscen/deploy/caddy-basic-auth.caddy
 #
 # Ce snippet remplace le bloc `handle { reverse_proxy ... }` catch-all.
 

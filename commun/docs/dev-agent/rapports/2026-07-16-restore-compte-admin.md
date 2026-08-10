@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-07-16 — Restauration de compte depuis l'admin
 
-**Agent :** @soundy-dev-agent
+**Agent :** @onscen-dev-agent
 **Date :** 2026-07-16
 **Durée estimée :** ~2h
 **Statut global :** ✅ Terminé (scope v1 réduit, dev only)
@@ -120,4 +120,4 @@ cd commun/backend && npx ts-node --transpile-only src/scripts/_tmp_test_account_
 
 ---
 
-*Généré par Soundy Dev Agent*
+*Généré par OnScen Dev Agent*

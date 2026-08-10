@@ -1,6 +1,6 @@
-# Audit Database & Infrastructure — Soundy
+# Audit Database & Infrastructure — OnScen
 
-Méthode : lecture statique (code + migrations SQL) + accès SSH lecture seule sur `soundy-prod`/`soundy-staging`.
+Méthode : lecture statique (code + migrations SQL) + accès SSH lecture seule sur `onscen-prod`/`onscen-staging`.
 
 ## Résumé exécutif
 
@@ -22,14 +22,14 @@ Fondations solides (requêtes paramétrées, index composites/partiels/GIN pens�
 
 4. **[High] Rate-limiters critiques non cluster-safe, y compris le brute-force login.** `server.ts:433-439` (`authLimiter`, 8 req/15 min) et `routes/geo.ts:94-116` (`nearbyAnonLimiter`/`nearbyAuthLimiter`) n'utilisent pas `store: createRateLimitStore(...)` (contrairement à `salons.ts`, `oauth.ts`, `webauthn.ts`) → chaque worker PM2 a son propre compteur mémoire, doublant de facto la limite réelle malgré Redis déjà disponible en prod (confirmé par SSH).
 
-5. **[High] Aucune contrainte FK sur ~90 % des tables + rôle DB sur-privilégié.** `001_init.sql`/`002_complete_schema.sql` : ~30 tables (`feed_posts`, `notifications`, `gifts`, `user_reels`, `heart_events`…) n'ont aucune `REFERENCES users(id)` — seules 4 tables (paiements) en ont depuis la migration 025. Vérifié en SSH (`psql`) : le rôle applicatif `soundy` a `rolcreaterole=t, rolcreatedb=t` — privilèges excessifs pour un compte d'appli.
+5. **[High] Aucune contrainte FK sur ~90 % des tables + rôle DB sur-privilégié.** `001_init.sql`/`002_complete_schema.sql` : ~30 tables (`feed_posts`, `notifications`, `gifts`, `user_reels`, `heart_events`…) n'ont aucune `REFERENCES users(id)` — seules 4 tables (paiements) en ont depuis la migration 025. Vérifié en SSH (`psql`) : le rôle applicatif `onscen` a `rolcreaterole=t, rolcreatedb=t` — privilèges excessifs pour un compte d'appli.
 
 ## Autres constats notables (High/Medium)
 
 - Prod et staging partagent la même instance PostgreSQL (hôte unique `51.15.132.229:14440`) — effet de bord possible entre environnements.
 - Triple SPOF confirmé en SSH : 1 VPS (`51.159.164.100`), 1 `postgres` managé, 1 process `redis-server` local — aucune réplication nulle part.
 - `STRIPE_SECRET_KEY` en mode test sur `APP_ENV=production` (confirmé via logs PM2) — dons/paiements réels désactivés.
-- Dérive de nommage `/opt/soundy` vs `/opt/soundly` : la racine réelle de l'app est `/opt/soundly`, mais `backup-db.sh` écrit dans `/opt/soundy/backups` (sans « ly »). Les sauvegardes fonctionnent (dump frais du 07/07/2026 vérifié), mais un dossier `/opt/soundly/backups/` abandonné contient des dumps figés au 30/06 — piège potentiel en cas de restauration d'urgence.
+- Dérive de nommage `/opt/onscen` vs `/opt/onscen` : la racine réelle de l'app est `/opt/onscen`, mais `backup-db.sh` écrit dans `/opt/onscen/backups` (sans « ly »). Les sauvegardes fonctionnent (dump frais du 07/07/2026 vérifié), mais un dossier `/opt/onscen/backups/` abandonné contient des dumps figés au 30/06 — piège potentiel en cas de restauration d'urgence.
 - Process `soundy-auth` tournant en prod (pm2, fork mode) : absent du dépôt Git, non documenté, hash de mot de passe de repli codé en dur dans le script, sessions en `Map` mémoire (perdues à chaque redeploy).
 - Disque staging à 72 % d'usage (2,5 Go restants sur 8,9 Go).
 - Interpolation de noms de table dans `pgStoreSocialSync.ts:31-40` (`pruneCompositePairs`) — pas d'injection active (params tous internes), mais pattern dangereux si réutilisé avec une entrée externe.

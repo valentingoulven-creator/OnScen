@@ -1,4 +1,4 @@
-# Stack Commun — Soundy
+# Stack Commun — OnScen
 
 Infrastructure et code partagé par web, iOS et Android.
 

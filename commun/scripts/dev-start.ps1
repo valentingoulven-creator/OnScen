@@ -32,7 +32,7 @@ function Get-ProjectRoot {
 
 $root = Get-ProjectRoot -StartDir $PSScriptRoot
 if (-not $root) {
-    Write-Host '[ERREUR] Racine MeloSongv2 introuvable.' -ForegroundColor Red
+    Write-Host '[ERREUR] Racine OnScen introuvable.' -ForegroundColor Red
     exit 1
 }
 

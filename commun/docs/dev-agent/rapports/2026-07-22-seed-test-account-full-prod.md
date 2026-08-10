@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-07-22 — Compte de test complet en production
 
-**Agent :** @soundy-cto (analyse rapide, requalification RACI) → @soundy-dev-agent (implémentation)
+**Agent :** @onscen-cto (analyse rapide, requalification RACI) → @onscen-dev-agent (implémentation)
 **Date :** 2026-07-22
 **Durée estimée :** ~2h30
 **Statut global :** ✅ Terminé
@@ -9,8 +9,8 @@
 
 ## Mission
 
-Demande explicite du fondateur (adressée en mode `@soundy-cto` mais reconnue comme tâche
-d'implémentation, RACI oblige → `@soundy-dev-agent`) : créer **en production** un compte de
+Demande explicite du fondateur (adressée en mode `@onscen-cto` mais reconnue comme tâche
+d'implémentation, RACI oblige → `@onscen-dev-agent`) : créer **en production** un compte de
 test complet (`demo_test_founder`) avec un cahier des charges chiffré précis — salons/lives/
 événements suivis, événements monde, albums/morceaux, 100 follows, publications, reels,
 stories, événements sponsorisés — étalé sur une fenêtre de 2 mois, pour valider l'app en
@@ -79,11 +79,11 @@ username `demo_test_founder`), cohérente avec les préfixes déjà en usage en 
   aucun contenu protégé par le droit d'auteur) pour les 86 lignes `user_compositions`.
 - [x] Build TypeScript local (`tsc --noEmit` + `npm run build`), déploiement du **seul fichier
   compilé** `dist/scripts/seed-test-account-full.js` + des 12 fichiers audio sur le VPS
-  `soundy-prod` (aucun autre fichier applicatif touché — pas de code métier déployé).
-- [x] Exécution contre la vraie base `soundy-prod` — échec à la 1ʳᵉ tentative (FK `user_reels`,
+  `onscen-prod` (aucun autre fichier applicatif touché — pas de code métier déployé).
+- [x] Exécution contre la vraie base `onscen-prod` — échec à la 1ʳᵉ tentative (FK `user_reels`,
   voir écueil ci-dessous), correction de l'ordre de persistance, rebuild, redéploiement,
   ré-exécution réussie.
-- [x] `pm2 restart melosong-backend` (nécessaire pour que l'app recharge les données depuis
+- [x] `pm2 restart onscen-backend` (nécessaire pour que l'app recharge les données depuis
   Postgres — sans code applicatif modifié).
 - [x] Vérification exhaustive par comptage SQL direct (`psql`) sur chaque table concernée.
 - [x] Test de connexion réel (`POST /api/auth/login`) avant (❌ échec attendu, RAM pas
@@ -210,7 +210,7 @@ compléter le quota exact de 100).
 - **URL de connexion :** https://getsoundy.com (email + mot de passe standard)
 - **Username :** `demo_test_founder`
 - **Email :** `demo.test.founder@getsoundy-demo.local`
-- **Mot de passe :** `Soundy-G29La4Z9rzBs!` *(généré aléatoirement, haché bcrypt en base — ne
+- **Mot de passe :** `OnScen-G29La4Z9rzBs!` *(généré aléatoirement, haché bcrypt en base — ne
   figure nulle part ailleurs que dans ce rapport ; à changer si le compte doit être communiqué
   à des tiers)*
 
@@ -224,9 +224,9 @@ compléter le quota exact de 100).
 | `commun/docs/dev-agent/rapports/2026-07-22-seed-test-account-full-prod.md` | **Nouveau** — ce rapport |
 | `commun/docs/dev-agent/INDEX.md` | Entrée ajoutée (en tête) |
 | `modification.txt` | Entrée MODIF 1205 ajoutée |
-| Production PostgreSQL (`soundy-prod`) | +221 users, +5 salons, +5 lives, +144 feed_posts, +30 stories, +10 reels, +42 albums, +86 compositions, +100 user_follows, +20 sponsors |
-| Production filesystem (`/opt/soundly/public/uploads/compositions/`) | +12 fichiers audio (`demo-seed-track-01..12.mp3`) |
-| Production process (`melosong-backend`, pm2) | Redémarré une fois (rechargement RAM depuis Postgres) |
+| Production PostgreSQL (`onscen-prod`) | +221 users, +5 salons, +5 lives, +144 feed_posts, +30 stories, +10 reels, +42 albums, +86 compositions, +100 user_follows, +20 sponsors |
+| Production filesystem (`/opt/onscen/public/uploads/compositions/`) | +12 fichiers audio (`demo-seed-track-01..12.mp3`) |
+| Production process (`onscen-backend`, pm2) | Redémarré une fois (rechargement RAM depuis Postgres) |
 
 ---
 
@@ -235,12 +235,12 @@ compléter le quota exact de 100).
 ```text
 cd commun/backend && npx tsc --noEmit -p tsconfig.json   → ✅
 cd commun/backend && npm run build                        → ✅
-scp dist/scripts/seed-test-account-full.js soundy-prod:... → ✅
-scp tmp-seed-audio/*.mp3 soundy-prod:.../compositions/     → ✅ (12 fichiers)
-ssh soundy-prod "node dist/scripts/seed-test-account-full.js"
+scp dist/scripts/seed-test-account-full.js onscen-prod:... → ✅
+scp tmp-seed-audio/*.mp3 onscen-prod:.../compositions/     → ✅ (12 fichiers)
+ssh onscen-prod "node dist/scripts/seed-test-account-full.js"
   1ʳᵉ exécution → ❌ FK user_reels_author_fk (voir écueil)
   2ᵉ exécution (après fix + rebuild + redeploy) → ✅ tous les compteurs corrects
-ssh soundy-prod "pm2 restart melosong-backend --update-env" → ✅
+ssh onscen-prod "pm2 restart onscen-backend --update-env" → ✅
 curl https://getsoundy.com/health                          → ✅ {"status":"OK",...}
 curl -X POST .../api/auth/login (avant restart)             → ❌ (attendu, RAM pas rechargée)
 curl -X POST .../api/auth/login (après restart)              → ✅ 200 OK, JWT + profil complets
@@ -255,7 +255,7 @@ psql (comptage SQL sur toutes les tables concernées)         → ✅ tous les c
 |--------------|----------|
 | Type-check backend (`tsc --noEmit`) | ✅ |
 | Build backend (`npm run build`) | ✅ |
-| Exécution script contre la vraie base `soundy-prod` | ✅ (après correction FK) |
+| Exécution script contre la vraie base `onscen-prod` | ✅ (après correction FK) |
 | Comptage SQL exact sur `users`, `salons`, `lives`, `feed_posts` (events + posts + sponso), `sponsors`, `stories`, `user_reels`, `user_albums`, `user_compositions`, `user_follows` | ✅ tous exacts |
 | Health check prod après redémarrage pm2 | ✅ `{"status":"OK","db":"ok"}` |
 | Login réel du nouveau compte (`POST /api/auth/login`) | ✅ 200 OK, JWT valide |
@@ -275,7 +275,7 @@ psql (comptage SQL sur toutes les tables concernées)         → ✅ tous les c
 | Sujet | Action fondateur |
 |-------|------------------|
 | **Deux comptes de test coexistent en prod** (`demo_test` et `demo_test_founder`) | Choisir lequel conserver ; demander le nettoyage de l'autre si besoin (script de cleanup existant pour `demo_test`, requête à écrire pour `demo_test_founder` si le fondateur préfère garder l'autre) |
-| Mot de passe démo (`Soundy-G29La4Z9rzBs!`) | Le changer si le compte doit être communiqué à des tiers externes |
+| Mot de passe démo (`OnScen-G29La4Z9rzBs!`) | Le changer si le compte doit être communiqué à des tiers externes |
 | Script de seed non committé | Le committer si utile pour ré-exécution future (par défaut laissé en local, voir note) |
 | Follow-up éventuel sur le flag `is_demo` | Si un besoin récurrent de comptes démo apparaît, envisager une vraie colonne dédiée (migration) plutôt que la convention par préfixe — hors périmètre ici |
 
@@ -295,10 +295,10 @@ psql (comptage SQL sur toutes les tables concernées)         → ✅ tous les c
 
 - **Emplacement du script** : `commun/backend/src/scripts/seed-test-account-full.ts` (local,
   non committé). Le fichier compilé déployé sur le VPS est à
-  `/opt/soundly/dist/scripts/seed-test-account-full.js` — **présent en prod** (pas retiré après
+  `/opt/onscen/dist/scripts/seed-test-account-full.js` — **présent en prod** (pas retiré après
   usage, contrairement au script de la session concurrente ; réexécuter sans risque grâce à la
   garde d'idempotence sur `demo-test-founder`).
-- **Fichiers audio déployés** : `/opt/soundly/public/uploads/compositions/demo-seed-track-01.mp3`
+- **Fichiers audio déployés** : `/opt/onscen/public/uploads/compositions/demo-seed-track-01.mp3`
   à `-12.mp3` (12 fichiers, ~1,4 Mo chacun, 180s, tonalités sinus). **Ne pas supprimer** sans
   supprimer aussi les 86 lignes `user_compositions` qui les référencent (dont 6 appartiennent
   au compte test).
@@ -308,4 +308,4 @@ psql (comptage SQL sur toutes les tables concernées)         → ✅ tous les c
 
 ---
 
-*Généré par Soundy Dev Agent — session hybride @soundy-cto (requalification RACI) → @soundy-dev-agent (implémentation)*
+*Généré par OnScen Dev Agent — session hybride @onscen-cto (requalification RACI) → @onscen-dev-agent (implémentation)*

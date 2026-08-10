@@ -1,13 +1,13 @@
-MeloSong — Navigateurs supportés (dont Opera)
+OnScen — Navigateurs supportés (dont Opera)
 =============================================
 
 ## Opera est-il compatible ?
 
 **Oui.** Opera et Opera GX utilisent le moteur **Chromium** (comme Chrome et Edge).
-MeloSong ne contient pas de blocage spécifique à Opera (pas de test userAgent qui
+OnScen ne contient pas de blocage spécifique à Opera (pas de test userAgent qui
 exclut « OPR »). Le même code que sur Chrome/Edge s’applique.
 
-Si MeloSong « ne marche pas » sur Opera, c’est en général la **même cause** que sur
+Si OnScen « ne marche pas » sur Opera, c’est en général la **même cause** que sur
 Chrome : certificat HTTPS, cache PWA, bloqueur de pub, ou caméra non autorisée.
 
 ---
@@ -40,7 +40,7 @@ Symptômes : écran noir, « Chargement de la session » infini, erreurs réseau
 
 ## PWA et écran noir (Opera comme Chrome)
 
-1. Fermer / désinstaller l’icône PWA MeloSong si elle existe.
+1. Fermer / désinstaller l’icône PWA OnScen si elle existe.
 2. Ouvrir le site dans un **onglet Opera** (pas l’icône installée).
 3. Purge cache SW : https://localhost:4080/?clear-pwa=1 puis Ctrl+Shift+R.
 
@@ -73,7 +73,7 @@ Si `msdev/.env` a `MSDEV_HTTPS=1`, seul **https://localhost:4080** répond.
 
 ## Résumé
 
-| Navigateur        | Support MeloSong msdev      |
+| Navigateur        | Support OnScen msdev      |
 |-------------------|-----------------------------|
 | Chrome            | Oui (référence)             |
 | Edge              | Oui                         |

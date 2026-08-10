@@ -5,8 +5,8 @@ set -euo pipefail
 LOG="/var/log/caddy-watchdog.log"
 CURRENT="/etc/caddy/Caddyfile"
 SOURCES=(
-  "/opt/soundly/deploy/Caddyfile"
-  "/opt/soundy/deploy/Caddyfile"
+  "/opt/onscen/deploy/Caddyfile"
+  "/opt/onscen/deploy/Caddyfile"
   "/root/Caddyfile.production.backup"
 )
 

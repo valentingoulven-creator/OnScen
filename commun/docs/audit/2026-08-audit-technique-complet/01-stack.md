@@ -1,4 +1,4 @@
-# Audit technique Soundy — Phase 1 : Stack technique
+# Audit technique OnScen — Phase 1 : Stack technique
 
 **Date :** 2026-08-07
 **Méthode :** lecture `package.json` (backend/frontend/mobile), `npm audit --json`, exécution réelle des suites de tests (`npm test`), lecture `.github/workflows/*.yml`.

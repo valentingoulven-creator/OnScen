@@ -1,9 +1,9 @@
-# Start MeloSong msdev local environment
+# Start OnScen msdev local environment
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $Msdev = Join-Path $Root "msdev"
 
-Write-Host "Starting MeloSong msdev on port 4080..." -ForegroundColor Cyan
+Write-Host "Starting OnScen msdev on port 4080..." -ForegroundColor Cyan
 Set-Location (Join-Path $Root "backend")
 
 $env:MSENV = "msdev"

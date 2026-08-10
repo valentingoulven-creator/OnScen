@@ -1,8 +1,8 @@
-# Audit RGPD / YouTube / Copyright — Soundy
+# Audit RGPD / YouTube / Copyright — OnScen
 
 ## Résumé exécutif
 
-Soundy n'utilise **pas** YouTube comme source de fichiers audio téléchargés : la musique est diffusée exclusivement via le **lecteur officiel YouTube IFrame Player API**, piloté par ses méthodes publiques (`playVideo`, `pauseVideo`, `seekTo`, `setVolume`, `setPlaybackRate`). Les métadonnées (titre, artiste, miniature) proviennent de la **YouTube Data API v3** officielle ou de l'**oEmbed** officiel. **Aucune trace de `ytdl-core`, `yt-dlp`, `youtube-dl`, de scraping `ytInitialData`, d'appel à `googlevideo.com`, ni de conversion ffmpeg d'un flux YouTube n'a été trouvée dans l'intégralité du monorepo** (recherche exhaustive sur tous les `package.json` et tout le code source). C'est le point le plus important du cahier des charges et il est **négatif avec preuve solide** (aucune violation de copyright constatée).
+OnScen n'utilise **pas** YouTube comme source de fichiers audio téléchargés : la musique est diffusée exclusivement via le **lecteur officiel YouTube IFrame Player API**, piloté par ses méthodes publiques (`playVideo`, `pauseVideo`, `seekTo`, `setVolume`, `setPlaybackRate`). Les métadonnées (titre, artiste, miniature) proviennent de la **YouTube Data API v3** officielle ou de l'**oEmbed** officiel. **Aucune trace de `ytdl-core`, `yt-dlp`, `youtube-dl`, de scraping `ytInitialData`, d'appel à `googlevideo.com`, ni de conversion ffmpeg d'un flux YouTube n'a été trouvée dans l'intégralité du monorepo** (recherche exhaustive sur tous les `package.json` et tout le code source). C'est le point le plus important du cahier des charges et il est **négatif avec preuve solide** (aucune violation de copyright constatée).
 
 Le seul point de vigilance copyright/ToS est la présence de **code mort** (`youtubeRemote.ts`) implémentant un fallback vers des proxys tiers non officiels (Piped/Invidious) — mais celui-ci ne récupère que des **métadonnées** (jamais de flux audio/vidéo), est explicitement documenté comme « non conforme aux ToS YouTube » dans le code lui-même, et est **bloqué en dur en production** par un garde-fou runtime vérifié.
 
@@ -60,7 +60,7 @@ Côté YouTube, l'intégration technique est propre (scope OAuth minimal `youtub
 | Métadonnées | Exclusivement via YouTube Data API v3 officielle (`googleapis.com/youtube/v3/*`) ou oEmbed officiel (`youtube.com/oembed`) | `youtubeDataApi.ts`, `youtubeSearch.ts` L28-44 |
 | Point de vigilance résiduel | Fallback métadonnées-only vers Piped/Invidious (voir YT-2), jamais de flux audio/vidéo, bloqué en dur en production | `youtubeRemote.ts`, `youtubeCompliance.ts` |
 
-**Conclusion Copyright : aucune preuve de téléchargement, extraction, cache permanent, conversion ou diffusion non autorisée de contenu YouTube.** Soundy respecte le mécanisme officiel (IFrame Player API + Data API v3). Le seul point à corriger par hygiène de code est la suppression du fallback Piped/Invidious mort (YT-2), qui n'est pas lui-même une violation de copyright (pas de média téléchargé) mais une dépendance de principe à des outils non-officiels.
+**Conclusion Copyright : aucune preuve de téléchargement, extraction, cache permanent, conversion ou diffusion non autorisée de contenu YouTube.** OnScen respecte le mécanisme officiel (IFrame Player API + Data API v3). Le seul point à corriger par hygiène de code est la suppression du fallback Piped/Invidious mort (YT-2), qui n'est pas lui-même une violation de copyright (pas de média téléchargé) mais une dépendance de principe à des outils non-officiels.
 
 ## Scores /100
 
@@ -75,7 +75,7 @@ Justification : aucune violation trouvée avec des preuves de recherche exhausti
 
 ## Impossible à vérifier avec les informations disponibles
 
-- Contenu réel du fichier `/opt/soundy/legal-publisher.json` en production (audité uniquement la copie locale `commun/msdev/legal-publisher.json`, utilisée en dev ; un script `verify-prod.sh` est censé bloquer le déploiement si des placeholders sont détectés, mais accès VPS non effectué pour cet audit).
+- Contenu réel du fichier `/opt/onscen/legal-publisher.json` en production (audité uniquement la copie locale `commun/msdev/legal-publisher.json`, utilisée en dev ; un script `verify-prod.sh` est censé bloquer le déploiement si des placeholders sont détectés, mais accès VPS non effectué pour cet audit).
 - Statut réel et actuel de vérification de l'app OAuth Google dans la Google Cloud Console (le document `GOOGLE-OAUTH-TEST-USERS.md` date d'une session antérieure, l'état a pu changer).
 - Signature effective des DPA avec Scaleway, Cloudflare, Stripe, Resend (le code documente un statut `'pending'`, mais l'état contractuel réel est hors du repo).
 - Durée de rétention réelle appliquée par Cloudflare sur ses logs (mentionnée « 7 jours par défaut » dans `dpa.ts`, non vérifiable techniquement depuis le code).

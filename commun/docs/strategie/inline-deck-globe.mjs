@@ -3,7 +3,7 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const htmlPath = join(__dirname, 'SOUNDY-PRESENTATION-PRODUIT.html');
+const htmlPath = join(__dirname, 'ONSCEN-PRESENTATION-PRODUIT.html');
 const globePath = join(__dirname, 'deck-globe.js');
 const globe = readFileSync(globePath, 'utf8');
 let html = readFileSync(htmlPath, 'utf8');
@@ -24,4 +24,4 @@ if (inlineRe.test(html)) {
 }
 
 writeFileSync(htmlPath, html);
-console.log('deck-globe synchronisé dans SOUNDY-PRESENTATION-PRODUIT.html');
+console.log('deck-globe synchronisé dans ONSCEN-PRESENTATION-PRODUIT.html');

@@ -1,9 +1,9 @@
-﻿MeloSong — msdev (Windows)
+﻿OnScen — msdev (Windows)
 ==========================
 
 LANCEMENT (double-clic) — UN SEUL FICHIER RECOMMANDÉ
 ----------------------------------------------------
-  LANCER-MELOSONG.bat  (à la racine du projet MeloSong Dev)
+  LANCER-MELOSONG.bat  (à la racine du projet OnScen Dev)
 
   Ce lanceur démarre le serveur en HTTP sur http://localhost:4080
   et ouvre le navigateur automatiquement.
@@ -17,14 +17,14 @@ LANCEMENT (double-clic) — UN SEUL FICHIER RECOMMANDÉ
   Alternatives (avancé) :
     npm run msdev:pc          — même chose, depuis un terminal
     npm run msdev:restart     — redémarrage depuis un terminal
-    msdev\Lancer-MeloSong.bat — redirige vers LANCER-MELOSONG.bat (racine)
+    msdev\Lancer-OnScen.bat — redirige vers LANCER-MELOSONG.bat (racine)
     Lancer-msdev-node.bat     — Node.js (contourne Smart App Control)
     release\Lancer-msdev.bat  — msdev.exe seul (sans Node)
 
   Raccourci Bureau (optionnel) :
     Clic droit sur LANCER-MELOSONG.bat → Afficher plus d'options →
     Envoyer vers → Bureau (créer un raccourci).
-    Renommez le raccourci « MeloSong ».
+    Renommez le raccourci « OnScen ».
 
 URL et compte
 -------------
@@ -33,7 +33,7 @@ URL et compte
 
   HTTPS / smartphone / LAN : optionnels, phase ultérieure (MOBILE-PWA.txt).
 
-La fenêtre noire doit rester ouverte tant que MeloSong tourne ; lisez le texte
+La fenêtre noire doit rester ouverte tant que OnScen tourne ; lisez le texte
 avant d'appuyer sur une touche en cas d'erreur.
 
 Voir aussi : PC-DEV.txt, DEBLOCAGE-WINDOWS.txt

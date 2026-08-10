@@ -1,11 +1,11 @@
-# Ouvre le port 4080 dans le pare-feu Windows pour MeloSong (admin requis)
+# Ouvre le port 4080 dans le pare-feu Windows pour OnScen (admin requis)
 # Clic droit PowerShell > Exécuter en tant qu'administrateur, puis:
 #   Set-ExecutionPolicy -Scope Process Bypass -Force
 #   & "C:\Users\valen\Projects\melosong\msdev\scripts\open-firewall.ps1"
 
 $ErrorActionPreference = "Stop"
 $port = 4080
-$ruleName = "MeloSong msdev (TCP $port)"
+$ruleName = "OnScen msdev (TCP $port)"
 
 $existing = Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
 if ($existing) {
@@ -17,7 +17,7 @@ if ($existing) {
         -LocalPort $port `
         -Action Allow `
         -Profile Any `
-        -Description "Autorise MeloSong msdev sur le réseau local"
+        -Description "Autorise OnScen msdev sur le réseau local"
     Write-Host "Règle pare-feu créée: $ruleName" -ForegroundColor Green
 }
 

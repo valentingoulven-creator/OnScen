@@ -1,4 +1,4 @@
-Design quick wins — activation locale (Soundy / MeloSong app)
+Design quick wins — activation locale (OnScen / OnScen app)
 ==============================================================
 
 Branche : design/quick-wins-local

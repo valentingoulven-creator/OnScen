@@ -42,7 +42,7 @@ export const PROD_SAAS_CATALOG: ProdSaasCatalogEntry[] = [
     category: 'infra',
     requiredInProd: true,
     indicativeCost: '~15 €/mo',
-    note: 'DB-DEV-S · soundy-prod · Paris',
+    note: 'DB-DEV-S · onscen-prod · Paris',
     dashboardUrl: 'https://console.scaleway.com/rdb/instances',
     docsUrl: 'https://www.scaleway.com/en/docs/managed-databases/postgresql-and-mysql/',
   },

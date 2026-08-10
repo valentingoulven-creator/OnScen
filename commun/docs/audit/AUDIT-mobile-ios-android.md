@@ -1,6 +1,6 @@
-# AUDIT-mobile-ios-android — Soundy
+# AUDIT-mobile-ios-android — OnScen
 
-> **CORRECTIF (2026-07-22, session `@soundy-dev-agent` ultérieure)** : le constat R1
+> **CORRECTIF (2026-07-22, session `@onscen-dev-agent` ultérieure)** : le constat R1
 > ci-dessous (« Projet Android natif absent ») est **erroné**. `ios/apptel/android/`
 > existe réellement sur le disque de dev (permissions, deep links, targetSdk déjà à
 > 36, keystore release) — l'inspection de cet audit a utilisé un outil qui respecte
@@ -16,7 +16,7 @@
 > Les autres constats de cet audit (R2 Apple Team ID, R3 targetSdk — déjà 36 en
 > réalité, IAP natif, TS non strict) restent valides.
 
-**Auditeur :** @soundy-cto (lecture seule, aucun fichier applicatif modifié)
+**Auditeur :** @onscen-cto (lecture seule, aucun fichier applicatif modifié)
 **Date :** 2026-07-22
 **Périmètre :** `ios/apptel/` (Capacitor iOS + Android), `android/` (build/keystore/export), `.well-known/*`, backend push natif, CI mobile, docs stores.
 **Méthode :** lecture intégrale des fichiers de config (`package.json`, `capacitor.config*.json`, `Info.plist`, `App.entitlements`, `project.pbxproj`, `Package.swift`, scripts `commun/scripts/*mobile*`, `android/*.ps1`), comparaison de taille/structure `ios/apptel/src` vs `web/app/src`, recherche web version Capacitor/exigences Google Play 2026, vérification `git ls-files` (aucun secret signing tracké), inspection disque du dossier `android/` généré (vide).
@@ -142,7 +142,7 @@ Ce qui existe malgré tout et reste valide :
 - 30/06/2026 : rapport dev-agent — corrections bloquantes (package Android, guard Stripe, Sign in with Apple), mais rebuild AAB/IPA **non réalisé** (JDK 21 absent, Mac requis).
 - 09/07/2026 : restructuration monorepo (`web/`, `ios/`, `android/`, `commun/`) — le dossier Android généré n'a apparemment pas survécu/été régénéré.
 - 15/07/2026 : `TODO-MANUAL.md` toujours à jour, `C5 — Projet Android manquant` toujours listé comme ouvert.
-- 22/07/2026 (ce jour) : confirmation — `android/` toujours vide, `APPLE_TEAM_ID` toujours placeholder dans l'AASA prod, aucun artefact `.apk`/`.aab` dans `android/MeloSong-Mobile/`.
+- 22/07/2026 (ce jour) : confirmation — `android/` toujours vide, `APPLE_TEAM_ID` toujours placeholder dans l'AASA prod, aucun artefact `.apk`/`.aab` dans `android/OnScen-Mobile/`.
 - CI iOS (`ios-capacitor.yml`) : capable de builder et sync le projet iOS sur runner macOS, mais **jamais signé** (étapes de signature commentées, en attente des secrets `APPLE_CERTIFICATE_BASE64` etc.). Aucune CI Android.
 
 **Conclusion : l'app est en développement actif, jamais soumise à TestFlight ni Play Console.** Le canal de distribution actuel réel pour les utilisateurs mobiles est la **PWA** (`getsoundy.com/tel/`), pas une app store — ce qui est cohérent avec le README qui présente la PWA comme « recommandé » et Capacitor comme « configuré » (mais pas déployé).
@@ -270,7 +270,7 @@ Résumé (détails en §2.5) :
 ## 12. Évolutions futures
 
 - Si le volume de trafic mobile natif croît significativement après publication : envisager un pin de secours + rotation documentée pour le cert pinning, et étendre le pinning à iOS si le profil de risque l'exige (paiements natifs notamment).
-- Si l'IAP natif est retenu : prévoir un audit dédié `@soundy-cto` avant implémentation (arbitrage StoreKit 2 vs RevenueCat/autre SDK tiers de gestion d'abonnements cross-store).
+- Si l'IAP natif est retenu : prévoir un audit dédié `@onscen-cto` avant implémentation (arbitrage StoreKit 2 vs RevenueCat/autre SDK tiers de gestion d'abonnements cross-store).
 - Une fois les deux apps publiées : ajouter un monitoring crash natif (Sentry a déjà un SDK mobile — `web/app/src/lib/sentry.ts` existe côté web, vérifier s'il couvre le contexte Capacitor ou s'il faut le SDK `@sentry/capacitor` dédié) — non vérifié dans cet audit, à couvrir dans un futur audit observabilité mobile.
 
 ---

@@ -1,4 +1,4 @@
-MeloSong — Générer l'exécutable Windows (msdev.exe)
+OnScen — Générer l'exécutable Windows (msdev.exe)
 ==================================================
 
 ## Prérequis (une seule fois)
@@ -16,7 +16,7 @@ MeloSong — Générer l'exécutable Windows (msdev.exe)
 
 ## Compiler
 
-À la racine du projet MeloSong Dev :
+À la racine du projet OnScen Dev :
 
    npm run build:exe
 

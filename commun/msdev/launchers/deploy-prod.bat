@@ -1,5 +1,5 @@
 @echo off
-REM Deploiement PRODUCTION Soundy -> getsoundy.com
+REM Deploiement PRODUCTION OnScen -> getsoundy.com
 set "ROOT=%~dp0..\..\.."
 cd /d "%ROOT%"
 powershell -ExecutionPolicy Bypass -File "%ROOT%\commun\scripts\deploy-prod.ps1" %*

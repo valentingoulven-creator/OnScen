@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="description" content="Formulaire — lettre de soutien BIC · projet Soundy · Valentin Goulven" />
-  <title>Lettre de soutien BIC — Soundy</title>
+  <meta name="description" content="Formulaire — lettre de soutien BIC · projet OnScen · Valentin Goulven" />
+  <title>Lettre de soutien BIC — OnScen</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -221,7 +221,7 @@
     <h1>Lettre de soutien — candidature BIC</h1>
     <p>
       Remplissez le formulaire : la lettre se génère automatiquement. Imprimez-la ou enregistrez-la en PDF
-      (Ctrl+P → « Enregistrer au format PDF »). Projet <strong>Soundy</strong> — Valentin Goulven, Le Crès.
+      (Ctrl+P → « Enregistrer au format PDF »). Projet <strong>OnScen</strong> — Valentin Goulven, Le Crès.
     </p>
   </header>
 
@@ -246,7 +246,7 @@
       <h2 style="margin-top: 1rem">Contenu</h2>
       <label for="relation">Lien avec le projet</label>
       <select id="relation">
-        <option value="discovered">J’ai découvert le projet Soundy et souhaite le soutenir</option>
+        <option value="discovered">J’ai découvert le projet OnScen et souhaite le soutenir</option>
         <option value="met">J’ai échangé avec Valentin Goulven et pris connaissance du projet</option>
         <option value="partner">Je suis en relation professionnelle avec le porteur du projet</option>
         <option value="local">Je suis acteur du territoire (culture, économie, innovation)</option>
@@ -306,14 +306,14 @@
       const customTrim = (custom || '').trim();
       const base = {
         discovered:
-          'J’ai pris connaissance du projet **Soundy** porté par M. Valentin Goulven et souhaite apporter mon soutien à sa démarche.',
+          'J’ai pris connaissance du projet **OnScen** porté par M. Valentin Goulven et souhaite apporter mon soutien à sa démarche.',
         met:
-          'J’ai eu l’occasion d’échanger avec **M. Valentin Goulven** et de découvrir le projet **Soundy** qu’il développe.',
+          'J’ai eu l’occasion d’échanger avec **M. Valentin Goulven** et de découvrir le projet **OnScen** qu’il développe.',
         partner:
-          'Dans le cadre de notre relation professionnelle, j’ai pu apprécier le travail et la vision de **M. Valentin Goulven** autour du projet **Soundy**.',
+          'Dans le cadre de notre relation professionnelle, j’ai pu apprécier le travail et la vision de **M. Valentin Goulven** autour du projet **OnScen**.',
         local:
-          'En tant qu’acteur du territoire, j’ai pris connaissance du projet **Soundy** porté par **M. Valentin Goulven**, domicilié au Crès.',
-        custom: customTrim || 'J’ai pris connaissance du projet **Soundy** porté par M. Valentin Goulven.',
+          'En tant qu’acteur du territoire, j’ai pris connaissance du projet **OnScen** porté par **M. Valentin Goulven**, domicilié au Crès.',
+        custom: customTrim || 'J’ai pris connaissance du projet **OnScen** porté par M. Valentin Goulven.',
       };
       let text = base[relation] || base.met;
       text = text.replace(/\*\*/g, '');
@@ -356,15 +356,15 @@
       const body = [
         headerLines.join('\n'),
         '',
-        `Objet : Lettre de soutien à la candidature de M. Valentin Goulven au BIC — projet Soundy`,
+        `Objet : Lettre de soutien à la candidature de M. Valentin Goulven au BIC — projet OnScen`,
         '',
         'Madame, Monsieur,',
         '',
-        `Par la présente, je soussigné(e) ${name}, ${role} au sein de ${org}, atteste mon soutien à la candidature de M. Valentin Goulven, domicilié au Crès (Hérault), au Business & Innovation Centre (BIC), pour le développement du projet Soundy.`,
+        `Par la présente, je soussigné(e) ${name}, ${role} au sein de ${org}, atteste mon soutien à la candidature de M. Valentin Goulven, domicilié au Crès (Hérault), au Business & Innovation Centre (BIC), pour le développement du projet OnScen.`,
         '',
         intro,
         '',
-        'Soundy est une application numérique dédiée à la promotion et à la visibilité des artistes et des événements musicaux. Le projet vise à faciliter la découverte de concerts, soirées, festivals et lives, à mettre en lumière les créateurs locaux et à valoriser les lieux qui accueillent la vie musicale. À mes yeux, cette initiative répond à un besoin concret de visibilité pour la filière musicale et l’attractivité culturelle de notre territoire.',
+        'OnScen est une application numérique dédiée à la promotion et à la visibilité des artistes et des événements musicaux. Le projet vise à faciliter la découverte de concerts, soirées, festivals et lives, à mettre en lumière les créateurs locaux et à valoriser les lieux qui accueillent la vie musicale. À mes yeux, cette initiative répond à un besoin concret de visibilité pour la filière musicale et l’attractivité culturelle de notre territoire.',
         '',
         'M. Valentin Goulven dispose, à mon sens, des qualités et de la détermination nécessaires pour mener ce projet. L’accompagnement proposé par le BIC lui permettrait de structurer le lancement, le modèle économique et le déploiement du produit dans de bonnes conditions.',
         '',

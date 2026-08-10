@@ -1,14 +1,14 @@
 @echo off
 chcp 65001 >nul 2>&1
 setlocal
-title MeloSong — Ouvrir sur telephone
+title OnScen — Ouvrir sur telephone
 
 set "ROOT=%~dp0..\..\.."
 cd /d "%ROOT%"
 
 echo.
 echo  ============================================================
-echo    MeloSong Mobile — build + serveur LAN + URL telephone
+echo    OnScen Mobile — build + serveur LAN + URL telephone
 echo    iPhone : ajouter a l'ecran d'accueil ^(PWA standalone^)
 echo    Android : Smartphone\TOUT-INSTALLER.bat pour l'APK
 echo  ============================================================

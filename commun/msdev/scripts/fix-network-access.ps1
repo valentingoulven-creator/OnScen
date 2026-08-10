@@ -1,10 +1,10 @@
-# Corrige l acces telephone -> MeloSong (ADMIN requis)
+# Corrige l acces telephone -> OnScen (ADMIN requis)
 # Clic droit PowerShell > Executer en tant qu administrateur
 
 $ErrorActionPreference = "Stop"
 $port = 4080
 
-Write-Host "`nMeloSong - Correction acces reseau local`n" -ForegroundColor Cyan
+Write-Host "`nOnScen - Correction acces reseau local`n" -ForegroundColor Cyan
 
 # 1. Reseau Ethernet en Prive (souvent bloque en Public)
 try {
@@ -20,7 +20,7 @@ try {
 }
 
 # 2. Pare-feu port 4080
-$ruleName = "MeloSong msdev (TCP $port)"
+$ruleName = "OnScen msdev (TCP $port)"
 if (-not (Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue)) {
     New-NetFirewallRule -DisplayName $ruleName -Direction Inbound -Protocol TCP -LocalPort $port -Action Allow -Profile Domain, Private, Public
     Write-Host "[OK] Regle pare-feu port $port creee" -ForegroundColor Green
@@ -32,7 +32,7 @@ if (-not (Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContin
 # 3. node.exe
 $nodePath = (Get-Command node -ErrorAction SilentlyContinue).Source
 if ($nodePath) {
-    $nodeRule = "MeloSong node.exe inbound"
+    $nodeRule = "OnScen node.exe inbound"
     if (-not (Get-NetFirewallRule -DisplayName $nodeRule -ErrorAction SilentlyContinue)) {
         New-NetFirewallRule -DisplayName $nodeRule -Direction Inbound -Program $nodePath -Action Allow -Profile Domain, Private, Public
         Write-Host "[OK] Regle pare-feu Node.js creee" -ForegroundColor Green

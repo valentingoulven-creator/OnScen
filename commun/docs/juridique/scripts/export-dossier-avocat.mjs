@@ -211,8 +211,8 @@ const staticCopies = [
     join(BUILD, '07-annexes-produit', 'ONE-PAGER-SPONSOR-COMMERCIAL.md'),
   ],
   [
-    join(REPO, 'commun', 'docs', 'strategie', 'commercial', 'JUSTIFICATION-TARIFS-SPONSOR-SOUNDY.md'),
-    join(BUILD, '07-annexes-produit', 'JUSTIFICATION-TARIFS-SPONSOR-SOUNDY.md'),
+    join(REPO, 'commun', 'docs', 'strategie', 'commercial', 'JUSTIFICATION-TARIFS-SPONSOR-ONSCEN.md'),
+    join(BUILD, '07-annexes-produit', 'JUSTIFICATION-TARIFS-SPONSOR-ONSCEN.md'),
   ],
   [
     join(REPO, 'commun', 'docs', 'strategie', 'commercial', 'JUSTIFICATION-TARIFS-SPONSOR-SYNTHESE-BIC.md'),

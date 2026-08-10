@@ -7,10 +7,10 @@ Copier-coller le bloc **PROMPT** ci-dessous dans un nouveau Cloud Agent (branche
 ## PROMPT (copier à partir d'ici)
 
 ```
-Mission : smoke test Soundy msdev sur la VM cloud — vérifier boot API + frontend + carte + salons YouTube.
+Mission : smoke test OnScen msdev sur la VM cloud — vérifier boot API + frontend + carte + salons YouTube.
 
 Contexte repo :
-- Monorepo Soundy (MeloSongv2) — msdev uniquement, JAMAIS prod/staging/deploy.
+- Monorepo OnScen (OnScen) — msdev uniquement, JAMAIS prod/staging/deploy.
 - Config cloud : .cursor/environment.json (terminals soundy-api + soundy-web).
 - Secrets déjà dans le dashboard (P0 boot + P1 YOUTUBE_API_KEY recommandé).
 

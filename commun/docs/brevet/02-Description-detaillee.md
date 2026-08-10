@@ -1,7 +1,7 @@
 # Description détaillée de l'invention
 
 > **Brouillon technique** structuré selon les usages de description de brevet  
-> Application : Soundly / MeloSong — juin 2026
+> Application : Soundly / OnScen — juin 2026
 
 ---
 

@@ -1,10 +1,10 @@
 @echo off
 chcp 65001 >nul 2>&1
-title MeloSong msdev (Node.js)
+title OnScen msdev (Node.js)
 cd /d "%~dp0\.."
 
 echo ========================================
-echo   MeloSong msdev - Node.js
+echo   OnScen msdev - Node.js
 echo ========================================
 echo.
 echo   URL : https://localhost:4080  (si MSDEV_HTTPS=1 dans msdev\.env)
@@ -16,13 +16,13 @@ if errorlevel 1 (
   echo [ERREUR] Node.js 18+ requis : https://nodejs.org
   echo.
   echo Sans Node : double-cliquez msdev\release\Lancer-msdev.bat
-  echo              ou msdev\Lancer-MeloSong.bat
+  echo              ou msdev\Lancer-OnScen.bat
   echo.
   goto erreur
 )
 
 if not exist "package.json" (
-  echo [ERREUR] package.json introuvable. Lancez depuis le dossier MeloSong Dev.
+  echo [ERREUR] package.json introuvable. Lancez depuis le dossier OnScen Dev.
   goto erreur
 )
 
@@ -46,7 +46,7 @@ if not errorlevel 1 (
 
 echo Demarrage du serveur ^(npm run %MSDEV_NPM%^)...
 echo Ouvrez : %MSDEV_URL%
-echo Fermez cette fenetre pour arreter MeloSong.
+echo Fermez cette fenetre pour arreter OnScen.
 echo.
 
 :: Ouvre le navigateur seulement quand le port 4080 repond (evite "Cette page ne fonctionne pas")

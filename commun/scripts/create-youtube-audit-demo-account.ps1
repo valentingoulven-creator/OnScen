@@ -1,4 +1,4 @@
-# Create Soundy prod account for YouTube API audit demo.
+# Create OnScen prod account for YouTube API audit demo.
 # Usage: powershell -ExecutionPolicy Bypass -File commun/scripts/create-youtube-audit-demo-account.ps1
 
 $ErrorActionPreference = 'Stop'
@@ -31,9 +31,9 @@ try {
 Write-Host 'Inscription OK — verification email en base...' -ForegroundColor Yellow
 
 $verifyScript = Join-Path $root 'commun/scripts/verify-demo-user-prod.js'
-scp $verifyScript soundy-prod:/tmp/verify-demo-user-prod.js | Out-Null
-ssh soundy-prod "cd /opt/soundly && node /tmp/verify-demo-user-prod.js $email" | Out-Null
-ssh soundy-prod 'pm2 reload melosong-backend' | Out-Null
+scp $verifyScript onscen-prod:/tmp/verify-demo-user-prod.js | Out-Null
+ssh onscen-prod "cd /opt/onscen && node /tmp/verify-demo-user-prod.js $email" | Out-Null
+ssh onscen-prod 'pm2 reload onscen-backend' | Out-Null
 Start-Sleep -Seconds 8
 
 $login = Invoke-RestMethod -Uri 'https://getsoundy.com/api/auth/login' -Method POST -ContentType 'application/json' -Body (@{ email = $email; password = $password } | ConvertTo-Json)
@@ -43,7 +43,7 @@ $content = @"
 # Compte demo audit YouTube — NE PAS COMMITTER (local only)
 # Genere le $(Get-Date -Format 'yyyy-MM-dd HH:mm')
 
-Email Soundy   : $email
+Email OnScen   : $email
 Mot de passe   : $password
 Pseudo         : $username
 User ID        : $($res.user.id)

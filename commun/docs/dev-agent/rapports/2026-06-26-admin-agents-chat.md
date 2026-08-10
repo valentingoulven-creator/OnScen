@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-06-26 — Admin Agents IA chat
 
-**Agent :** @soundy-dev-agent  
+**Agent :** @onscen-dev-agent  
 **Date :** 2026-06-26  
 **Statut global :** ✅ Terminé
 
@@ -8,7 +8,7 @@
 
 ## Mission
 
-Créer les agents CEO IA et Dev Agent avec interface chat dans le panneau admin Soundy.
+Créer les agents CEO IA et Dev Agent avec interface chat dans le panneau admin OnScen.
 
 ---
 
@@ -39,4 +39,4 @@ app npm run build → ❌ erreur préexistante GlobeView.tsx (hors scope)
 
 ---
 
-*Généré par Soundy Dev Agent*
+*Généré par OnScen Dev Agent*

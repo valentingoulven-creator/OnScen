@@ -42,7 +42,7 @@ async function main(): Promise<void> {
       2
     )
   );
-  console.log('\n⚡  Relancer pm2 : pm2 restart melosong-backend\n');
+  console.log('\n⚡  Relancer pm2 : pm2 restart onscen-backend\n');
 }
 
 main()

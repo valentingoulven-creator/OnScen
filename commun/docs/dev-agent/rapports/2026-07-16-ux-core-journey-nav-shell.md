@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-07-16 — UX Core Journey : coquille de navigation (dev)
 
-**Agent :** @soundy-dev-agent
+**Agent :** @onscen-dev-agent
 **Date :** 2026-07-16
 **Durée estimée :** ~1h30
 **Statut global :** ✅ Terminé (scope shell only)
@@ -108,4 +108,4 @@ Pas de `npm test` backend (aucun changement backend cette session).
 
 ---
 
-*Généré par Soundy Dev Agent*
+*Généré par OnScen Dev Agent*

@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-07-22 — Admin : onglet Intégrations (clés API tierces généralisées)
 
-**Agent :** @soundy-dev-agent
+**Agent :** @onscen-dev-agent
 **Date :** 2026-07-22
 **Durée estimée :** ~2 h30 + ~1 h (suivi alertes, MODIF 761)
 **Statut global :** ✅ Terminé
@@ -34,7 +34,7 @@ dans Donations.
 
 ---
 
-## Inventaire réalisé (grep `commun/backend/src`, `.env.production.example`, `INFRA-SOUNDY.md`)
+## Inventaire réalisé (grep `commun/backend/src`, `.env.production.example`, `INFRA-ONSCEN.md`)
 
 Providers réellement utilisés dans le code et couverts par le nouveau moteur
 (11 providers, en plus de Stripe qui garde son module dédié) :
@@ -405,4 +405,4 @@ existant, comme demandé).
 
 ---
 
-*Généré par Soundy Dev Agent — ne pas éditer le template `_TEMPLATE.md`*
+*Généré par OnScen Dev Agent — ne pas éditer le template `_TEMPLATE.md`*

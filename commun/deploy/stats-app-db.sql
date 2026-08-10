@@ -1,15 +1,15 @@
 -- =============================================================================
--- Soundy / MeloSong — Statistiques application & base PostgreSQL (production)
+-- OnScen / OnScen — Statistiques application & base PostgreSQL (production)
 -- =============================================================================
 -- Fichier : deploy/stats-app-db.sql
 -- Cible   : PostgreSQL 16 (Scaleway Managed Database)
 -- Schéma  : migrations 001–004 (backend/src/db/migrations/)
 --
 -- Usage local / VPS :
---   set -a && source /opt/soundy/.env && set +a
---   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /opt/soundy/deploy/stats-app-db.sql
+--   set -a && source /opt/onscen/.env && set +a
+--   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /opt/onscen/deploy/stats-app-db.sql
 --
--- Ou via le wrapper : bash /opt/soundy/deploy/stats-app-db.sh
+-- Ou via le wrapper : bash /opt/onscen/deploy/stats-app-db.sh
 --
 -- Notes :
 --   • Les horodatages applicatifs sont en millisecondes (epoch ms) sauf mention.
@@ -684,7 +684,7 @@ LIMIT 15;
 \echo '═══════════════════════════════════════════════════════════════════'
 
 \echo ''
-\echo '--- 8.1 Abonnements créateur / Soundy+ ---'
+\echo '--- 8.1 Abonnements créateur / OnScen+ ---'
 SELECT
   status,
   target_type,
@@ -795,8 +795,8 @@ FROM access_invite_codes;
 
 \echo ''
 \echo '--- 9.6 Signalements de contenu (hors base PostgreSQL) ---'
-\echo 'Les signalements sont stockés dans : /opt/soundy/data/content-reports.jsonl'
-\echo 'Comptage rapide sur le VPS : wc -l /opt/soundy/data/content-reports.jsonl'
+\echo 'Les signalements sont stockés dans : /opt/onscen/data/content-reports.jsonl'
+\echo 'Comptage rapide sur le VPS : wc -l /opt/onscen/data/content-reports.jsonl'
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 10. MÉTA & SANTÉ BASE

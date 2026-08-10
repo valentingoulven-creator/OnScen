@@ -9,13 +9,13 @@ commun/backend/       ← API + public/     (web + mobile)
 ## Structure du repo
 
 ```
-Soundy/
+OnScen/
 ├── web/              Stack web (Vite → commun/backend/public/)
 │   └── app/
 ├── ios/              Stack iOS (Capacitor + Xcode)
 │   └── apptel/
 ├── android/          Stack Android (APK/AAB + export PWA)
-│   └── MeloSong-Mobile/
+│   └── OnScen-Mobile/
 └── commun/           Partagé web / iOS / Android
     ├── backend/
     ├── scripts/

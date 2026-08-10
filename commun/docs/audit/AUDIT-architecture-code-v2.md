@@ -1,4 +1,4 @@
-# RE-AUDIT Senior — Stack & Qualité de Code — Soundy (v2, post-corrections)
+# RE-AUDIT Senior — Stack & Qualité de Code — OnScen (v2, post-corrections)
 
 Périmètre : identique au rapport original (`AUDIT-architecture-code.md`) — Sections 1 (Audit Stack) et 12 (Qualité du code) du cahier des charges.
 Méthode : re-lecture statique (Grep/Glob/Read) + ré-exécution en lecture seule de `npm outdated`, `npm audit`, `eslint`, `npm run build`, `npm test`, `sync-src.js --check`. **Aucun fichier de code source n'a été modifié pour produire ce rapport.**

@@ -1,11 +1,11 @@
-MeloSong — Développement PC (msdev)
+OnScen — Développement PC (msdev)
 ====================================
 
 Objectif : travailler sur le PC sans interruption (HTTP simple, pas de PWA, pas de LAN).
 
 DÉMARRER
 --------
-  Double-clic sur : LANCER-MELOSONG.bat  (à la racine du projet MeloSong Dev)
+  Double-clic sur : LANCER-MELOSONG.bat  (à la racine du projet OnScen Dev)
 
   Alternative terminal : npm run msdev:pc
 
@@ -37,7 +37,7 @@ COMPTE DÉMO
 
 CACHE / ÉCRAN NOIR
 ------------------
-  1. Ne pas ouvrir l’icône PWA « MeloSong » installée sur le bureau ou l’écran d’accueil.
+  1. Ne pas ouvrir l’icône PWA « OnScen » installée sur le bureau ou l’écran d’accueil.
   2. Ouvrir Chrome, Edge ou Opera et aller sur http://localhost:4080
   3. Actualisation forcée : Ctrl+Shift+R
   4. Si besoin : http://localhost:4080/?clear-pwa=1 puis Ctrl+Shift+R

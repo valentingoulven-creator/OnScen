@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-07-22 — Compte démo « showcase » complet en production
 
-**Agent :** @soundy-cto (analyse de risque) → @soundy-dev-agent (implémentation)
+**Agent :** @onscen-cto (analyse de risque) → @onscen-dev-agent (implémentation)
 **Date :** 2026-07-22
 **Durée estimée :** ~2 h
 **Statut global :** ✅ Terminé
@@ -33,7 +33,7 @@ Aucune de ces conventions ne couvre l'intégralité des types d'entités demand�
 compositions, reels, stories, sponsors). **Décision : nouveau préfixe dédié `demo_` (id) /
 `demo-` (email)**, distinct des préfixes existants, documenté ici et dans le code des scripts.
 
-### 2. Architecture Soundy — risque majeur identifié
+### 2. Architecture OnScen — risque majeur identifié
 
 Le backend (`commun/backend/src/lib/pgStore.ts`, `persist.ts`) charge **tout son état en
 mémoire au démarrage** (`loadPersistedStoreFromPostgres`) et le **re-synchronise
@@ -121,25 +121,25 @@ seulement 100 aurait rendu cette contrainte incohérente (tous auraient été su
 - `verify_demo_showcase.js` — script de vérification en lecture (comptages SQL), utilisé pour
   la validation ci-dessous.
 
-### Test préalable sur staging (`soundy-staging`)
+### Test préalable sur staging (`onscen-staging`)
 
-1. Copie des 4 masters audio + scripts vers `/opt/soundly/` (staging).
-2. `pm2 stop melosong-backend-staging` → `node seed_demo_showcase.js` → `pm2 start`.
+1. Copie des 4 masters audio + scripts vers `/opt/onscen/` (staging).
+2. `pm2 stop onscen-backend-staging` → `node seed_demo_showcase.js` → `pm2 start`.
 3. Vérification SQL : **tous les compteurs correspondent exactement** à la demande.
 4. Re-exécution du seed sans `FORCE` → confirmé idempotent (« existe déjà — rien à faire »).
 5. `pm2 stop` → `node cleanup_demo_showcase.js` → **tous les compteurs reviennent à 0** → `pm2 start`.
 6. Nettoyage des fichiers de test sur staging (scripts + masters audio) ; `/health` OK après
    chaque redémarrage.
 
-### Exécution en production (`soundy-prod`)
+### Exécution en production (`onscen-prod`)
 
-1. Copie des 4 masters audio + scripts vers `/opt/soundly/`.
-2. `pm2 stop melosong-backend` → `node seed_demo_showcase.js` → `pm2 start melosong-backend`
+1. Copie des 4 masters audio + scripts vers `/opt/onscen/`.
+2. `pm2 stop onscen-backend` → `node seed_demo_showcase.js` → `pm2 start onscen-backend`
    (fenêtre d'indisponibilité ≈ 15–20 s, mesurée sur les horodatages des commandes).
 3. `curl https://getsoundy.com/health` → `{"status":"OK",...}` (rétabli).
 4. Test de connexion réel : `POST /api/auth/login` avec `demo-test@getsoundy.com` /
    `DemoShowcase#2026!` → **200 OK**, JWT + profil complet retournés.
-5. Scripts `.js` retirés de `/opt/soundly/` après usage (seuls les 4 fichiers audio masters
+5. Scripts `.js` retirés de `/opt/onscen/` après usage (seuls les 4 fichiers audio masters
    restent, référencés par les 86 lignes `user_compositions`).
 
 ---
@@ -187,9 +187,9 @@ seulement 100 aurait rendu cette contrainte incohérente (tous auraient été su
 
 ## Nettoyage ultérieur (rollback complet)
 
-1. `scp commun/scripts/seed/cleanup_demo_showcase.js soundy-prod:/opt/soundly/`
-2. `ssh soundy-prod "pm2 stop melosong-backend && cd /opt/soundly && node cleanup_demo_showcase.js && pm2 start melosong-backend"`
-3. Optionnel : `ssh soundy-prod "rm -f /opt/soundly/public/uploads/compositions/demo_master_*.mp3 /opt/soundly/cleanup_demo_showcase.js"`
+1. `scp commun/scripts/seed/cleanup_demo_showcase.js onscen-prod:/opt/onscen/`
+2. `ssh onscen-prod "pm2 stop onscen-backend && cd /opt/onscen && node cleanup_demo_showcase.js && pm2 start onscen-backend"`
+3. Optionnel : `ssh onscen-prod "rm -f /opt/onscen/public/uploads/compositions/demo_master_*.mp3 /opt/onscen/cleanup_demo_showcase.js"`
 
 Testé et validé sur staging (tous compteurs → 0) avant d'être documenté ici pour la prod.
 
@@ -231,8 +231,8 @@ Testé et validé sur staging (tous compteurs → 0) avant d'être documenté ic
 | `commun/scripts/seed/cleanup_demo_showcase.js` | **Nouveau** — script de nettoyage symétrique |
 | `commun/scripts/seed/verify_demo_showcase.js` | **Nouveau** — script de vérification SQL (comptages) |
 | `modification.txt` | Entrée MODIF 1202 ajoutée |
-| Production PostgreSQL (`soundy-prod`) | +126 users, +5 salons, +5 lives, +42 albums, +86 compositions, +64 feed_posts, +20 sponsors, +10 reels, +30 stories, +100 user_follows, +10 user_favorites, +4 feed_post_favorites (toutes préfixées `demo_`) |
-| Production filesystem (`/opt/soundly/public/uploads/compositions/`) | +4 fichiers audio masters (`demo_master_*.mp3`, silencieux, générés ffmpeg) |
+| Production PostgreSQL (`onscen-prod`) | +126 users, +5 salons, +5 lives, +42 albums, +86 compositions, +64 feed_posts, +20 sponsors, +10 reels, +30 stories, +100 user_follows, +10 user_favorites, +4 feed_post_favorites (toutes préfixées `demo_`) |
+| Production filesystem (`/opt/onscen/public/uploads/compositions/`) | +4 fichiers audio masters (`demo_master_*.mp3`, silencieux, générés ffmpeg) |
 
 ---
 
@@ -242,8 +242,8 @@ Testé et validé sur staging (tous compteurs → 0) avant d'être documenté ic
 ffmpeg (local)                                    → 4 fichiers audio générés ✅
 node --check seed_demo_showcase.js / cleanup_*.js  → ✅ syntaxe OK
 Dry-run local (DB injoignable, logique pure)       → ✅ aucune exception
-scp + ssh soundy-staging (seed/verify/cleanup)     → ✅ tous les compteurs exacts, cleanup → 0
-scp + ssh soundy-prod (seed/verify)                → ✅ tous les compteurs exacts
+scp + ssh onscen-staging (seed/verify/cleanup)     → ✅ tous les compteurs exacts, cleanup → 0
+scp + ssh onscen-prod (seed/verify)                → ✅ tous les compteurs exacts
 curl https://getsoundy.com/health                  → ✅ status OK après redémarrage
 curl POST /api/auth/login (demo-test@getsoundy.com) → ✅ 200 OK
 ```
@@ -288,4 +288,4 @@ curl POST /api/auth/login (demo-test@getsoundy.com) → ✅ 200 OK
 
 ---
 
-*Généré par Soundy Dev Agent — session hybride @soundy-cto (risque) → @soundy-dev-agent (implémentation)*
+*Généré par OnScen Dev Agent — session hybride @onscen-cto (risque) → @onscen-dev-agent (implémentation)*

@@ -15,7 +15,7 @@ Rapports détaillés v2 :
 Deux re-audits indépendants (Sécurité et DB/Infra) ont découvert, avec preuve directe, que **les corrections de code sont réelles et de bonne qualité mais n'ont ni effet sur le dépôt distant, ni effet en production** :
 
 - **Sécurité** : la suppression du suivi Git des 4 fichiers sensibles (credentials, clé privée, données confidentielles) est faite en local (working tree/index) mais **jamais commitée**. `git cat-file -e HEAD:<fichier>` confirme que ces 4 fichiers existent toujours dans le dernier commit (`6838b70a`) et sur `origin/master`. Le dépôt GitHub est confirmé **privé**, ce qui limite l'exposition sans l'annuler.
-- **DB/Infra** : vérifié en direct par SSH lecture seule sur `soundy-prod` — `pm2 list` montre toujours **2 workers cluster** actifs malgré la correction locale (`instances: 1`), `schema_migrations` en base s'arrête à la version 27 (les migrations 028/029 ne sont pas appliquées, le `CASCADE DELETE` sur les paiements est donc toujours actif en prod), et `dist/index.js` sur le VPS date d'avant les corrections.
+- **DB/Infra** : vérifié en direct par SSH lecture seule sur `onscen-prod` — `pm2 list` montre toujours **2 workers cluster** actifs malgré la correction locale (`instances: 1`), `schema_migrations` en base s'arrête à la version 27 (les migrations 028/029 ne sont pas appliquées, le `CASCADE DELETE` sur les paiements est donc toujours actif en prod), et `dist/index.js` sur le VPS date d'avant les corrections.
 
 **Conséquence : tant qu'aucun commit + push + déploiement n'a lieu, l'état réel de production reste celui de l'audit initial (score global 64/100), quel que soit l'état du code local.**
 
@@ -76,7 +76,7 @@ Le score du code local progresse (72,6 → 79,0 en moyenne simple), mais la pén
 3. Renseigner l'adresse postale réelle dans `commun/msdev/legal-publisher.json` avant toute mise en production publique.
 4. Soumettre l'app OAuth Google (`youtube.readonly`) à la vérification Google (mode Testing → publié).
 5. Signer les DPA avec Scaleway/Cloudflare/Stripe/Resend.
-6. Révoquer les privilèges `CREATEROLE`/`CREATEDB` du rôle DB applicatif `soundy` (action SSH/psql).
+6. Révoquer les privilèges `CREATEROLE`/`CREATEDB` du rôle DB applicatif `onscen` (action SSH/psql).
 7. Séparer les instances PostgreSQL prod/staging (actuellement le même hôte).
 8. Vérifier/corriger la clé Stripe en mode test constatée sur `APP_ENV=production`.
 

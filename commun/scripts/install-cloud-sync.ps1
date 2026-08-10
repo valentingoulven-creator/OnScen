@@ -23,7 +23,7 @@ if (-not $SkipGitHook) {
         $hookPath = Join-Path $hookDir 'pre-push'
         $hookBody = @'
 #!/bin/sh
-# Soundy — sync Cloud Agents manifest avant push (auto)
+# OnScen — sync Cloud Agents manifest avant push (auto)
 node commun/scripts/sync-cloud-env.mjs --if-changed || exit 1
 '@
         [System.IO.File]::WriteAllText($hookPath, $hookBody + "`n")

@@ -1,9 +1,9 @@
 ---
-description: Mobile-first responsive development standards for Soundy (Vite + React + Tailwind v4)
+description: Mobile-first responsive development standards for OnScen (Vite + React + Tailwind v4)
 alwaysApply: true
 ---
 
-# Soundy — Mobile-First Responsive Standards
+# OnScen — Mobile-First Responsive Standards
 
 ## Breakpoint order (Tailwind v4 — mobile first)
 

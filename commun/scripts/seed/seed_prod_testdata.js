@@ -1,12 +1,12 @@
 'use strict';
 /**
  * Seed production PostgreSQL — autonome (pg + dotenv).
- * Usage VPS : cd /opt/soundly && APP_ENV=production node seed_prod_testdata.js
+ * Usage VPS : cd /opt/onscen && APP_ENV=production node seed_prod_testdata.js
  */
 const { Pool } = require('pg');
 const dotenv = require('dotenv');
 
-dotenv.config({ path: '/opt/soundly/.env' });
+dotenv.config({ path: '/opt/onscen/.env' });
 
 const ID_PREFIX = 'prod-seed-';
 const LE_CRES = { lat: 43.6489, lon: 3.9394 };
@@ -105,7 +105,7 @@ const POST_SEEDS = [
   {
     id: `${ID_PREFIX}post-6`,
     author: 'soundy_user5',
-    content: 'Soundy + weekend + bonne humeur = combo parfait ☀️🎵',
+    content: 'OnScen + weekend + bonne humeur = combo parfait ☀️🎵',
     imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600',
   },
   {

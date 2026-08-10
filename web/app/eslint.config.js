@@ -22,7 +22,7 @@ export default defineConfig([
       /*
        * React Compiler migration — désactivé tant que la migration n'est pas planifiée
        * (500+ avertissements set-state-in-effect/refs sans impact runtime).
-       * Réactiver progressivement : docs/SOUNDY-DEV-AGENT.md
+       * Réactiver progressivement : docs/ONSCEN-DEV-AGENT.md
        */
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/refs': 'off',

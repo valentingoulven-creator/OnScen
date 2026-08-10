@@ -1,18 +1,18 @@
 <#
 .SYNOPSIS
-  Déploie seed_soundy_server.js sur la prod Soundy et le lance.
+  Déploie seed_onscen_server.js sur la prod OnScen et le lance.
   Usage: .\run_seed.ps1
 #>
 
 $Key    = "$env:USERPROFILE\.ssh\id_ed25519"
 $Server = "root@51.159.164.100"
-$Local  = Join-Path $PSScriptRoot "seed_soundy_server.js"
-$Remote = "/tmp/seed_soundy_server.js"
-$PM2    = "melosong-backend"
+$Local  = Join-Path $PSScriptRoot "seed_onscen_server.js"
+$Remote = "/tmp/seed_onscen_server.js"
+$PM2    = "onscen-backend"
 
 Write-Host ""
 Write-Host "══════════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "  Soundy Production Seeder" -ForegroundColor Cyan
+Write-Host "  OnScen Production Seeder" -ForegroundColor Cyan
 Write-Host "══════════════════════════════════════════════════════" -ForegroundColor Cyan
 Write-Host ""
 

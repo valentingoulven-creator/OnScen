@@ -136,7 +136,7 @@ function getPm2LogFiles(appName: string, lines: number): SyslogLine[] {
 }
 
 async function getPm2Logs(lines: number): Promise<SyslogLine[]> {
-  const appName = process.env.PM2_APP_NAME ?? 'melosong-backend';
+  const appName = process.env.PM2_APP_NAME ?? 'onscen-backend';
 
   try {
     const { stdout, stderr } = await execAsync(

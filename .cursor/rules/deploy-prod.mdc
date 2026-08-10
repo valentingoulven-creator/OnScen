@@ -1,9 +1,9 @@
 ---
-description: Lancement dev local et deploiement production / preprod Soundy
+description: Lancement dev local et deploiement production / preprod OnScen
 alwaysApply: true
 ---
 
-# Dev vs Preprod vs Prod — Soundy / MeloSongv2
+# Dev vs Preprod vs Prod — OnScen / OnScen
 
 ## Environnements
 
@@ -67,4 +67,4 @@ ou `powershell -ExecutionPolicy Bypass -File commun/scripts/dev-start.ps1` ou `c
 
 ## Doc
 
-`docs/ENVIRONNEMENTS.md` · `docs/INFRA-SOUNDY.md`
+`docs/ENVIRONNEMENTS.md` · `docs/INFRA-ONSCEN.md`

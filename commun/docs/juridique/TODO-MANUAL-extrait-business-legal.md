@@ -27,7 +27,7 @@
 
 **Statut :** ⚠️ **Partiel** — SIREN, hébergeur, DPO email OK ; **adresse postale** via `LEGAL_PUBLISHER_ADDRESS` en prod (non versionnée).
 
-**Action fondateur :** Renseigner `LEGAL_PUBLISHER_ADDRESS` (et optionnellement autres `LEGAL_PUBLISHER_*`) dans `/opt/soundly/.env` prod.
+**Action fondateur :** Renseigner `LEGAL_PUBLISHER_ADDRESS` (et optionnellement autres `LEGAL_PUBLISHER_*`) dans `/opt/onscen/.env` prod.
 
 **Fichiers :** `msdev/legal-publisher.example.json`, `commun/deploy/legal-publisher.template.json`, `backend/src/lib/legalPublisher.ts`.
 

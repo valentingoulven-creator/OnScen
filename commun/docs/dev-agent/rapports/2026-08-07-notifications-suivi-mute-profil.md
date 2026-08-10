@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-08-07 — Notifications suivi + mute profil
 
-**Agent :** @soundy-dev-agent  
+**Agent :** @onscen-dev-agent  
 **Date :** 2026-08-07  
 **Statut global :** ✅ Terminé
 

@@ -5,22 +5,22 @@
 # Couche optionnelle : sync S3-compatible Scaleway Object Storage si SCW_BUCKET est défini.
 #
 # Usage (sur le VPS, après backup-db.sh) :
-#   set -a && source /opt/soundy/.env && set +a
-#   bash /opt/soundly/deploy/backup-offsite.sh
+#   set -a && source /opt/onscen/.env && set +a
+#   bash /opt/onscen/deploy/backup-offsite.sh
 #
 # Variables (.env ou export) :
-#   BACKUP_DIR=/opt/soundly/backups
-#   UPLOADS_BACKUP_DIR=/opt/soundly/backups/uploads
-#   BACKUP_OFFSITE_DIR=/opt/soundly/backups-offsite
+#   BACKUP_DIR=/opt/onscen/backups
+#   UPLOADS_BACKUP_DIR=/opt/onscen/backups/uploads
+#   BACKUP_OFFSITE_DIR=/opt/onscen/backups-offsite
 #   OFFSITE_RETENTION_DAYS=14
-#   SCW_BUCKET=soundy-backups          # optionnel — bucket Object Storage
+#   SCW_BUCKET=onscen-backups          # optionnel — bucket Object Storage
 #   SCW_REGION=fr-par                  # optionnel — défaut fr-par
 #   SCW_ACCESS_KEY / SCW_SECRET_KEY    # optionnel — ou AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/soundy-root.sh
-source "${SCRIPT_DIR}/lib/soundy-root.sh"
+# shellcheck source=lib/onscen-root.sh
+source "${SCRIPT_DIR}/lib/onscen-root.sh"
 
 BACKUP_DIR="${BACKUP_DIR:-${ROOT}/backups}"
 UPLOADS_BACKUP_DIR="${UPLOADS_BACKUP_DIR:-${ROOT}/backups/uploads}"
@@ -60,7 +60,20 @@ copy_latest() {
 }
 
 log "=== Début copie off-site → $OFFSITE_DIR ==="
-copy_latest 'soundy-*.sql.gz' "$BACKUP_DIR" 'db'
+LATEST_DB="$(find "$BACKUP_DIR" -maxdepth 1 \( -name 'onscen-*.sql.gz' -o -name 'soundy-*.sql.gz' \) -type f 2>/dev/null | sort | tail -1 || true)"
+if [[ -n "$LATEST_DB" ]]; then
+  base="$(basename "$LATEST_DB")"
+  dest="${OFFSITE_DIR}/db/${base}"
+  if [[ ! -f "$dest" ]] || ! cmp -s "$LATEST_DB" "$dest" 2>/dev/null; then
+    cp -a "$LATEST_DB" "$dest"
+    log "Copié — $base → db/"
+    COPIED=$((COPIED + 1))
+  else
+    log "Déjà à jour — db/$base"
+  fi
+else
+  log "SKIP — aucun dump onscen-*.sql.gz / soundy-*.sql.gz dans $BACKUP_DIR"
+fi
 copy_latest 'uploads-*.tar.gz' "$UPLOADS_BACKUP_DIR" 'uploads'
 
 # Rétention off-site
@@ -81,10 +94,10 @@ if [[ -n "${SCW_BUCKET:-}" ]]; then
   if [[ -z "${AWS_ACCESS_KEY_ID:-}" || -z "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
     log "WARN — SCW_BUCKET défini mais clés S3 absentes (SCW_ACCESS_KEY / SCW_SECRET_KEY)"
   elif command -v aws >/dev/null 2>&1; then
-    log "Sync S3 → s3://${SCW_BUCKET}/soundy/${TIMESTAMP}/"
-    aws s3 sync "$OFFSITE_DIR/db" "s3://${SCW_BUCKET}/soundy/${TIMESTAMP}/db/" \
+    log "Sync S3 → s3://${SCW_BUCKET}/onscen/${TIMESTAMP}/"
+    aws s3 sync "$OFFSITE_DIR/db" "s3://${SCW_BUCKET}/onscen/${TIMESTAMP}/db/" \
       --endpoint-url "$S3_ENDPOINT" --only-show-errors
-    aws s3 sync "$OFFSITE_DIR/uploads" "s3://${SCW_BUCKET}/soundy/${TIMESTAMP}/uploads/" \
+    aws s3 sync "$OFFSITE_DIR/uploads" "s3://${SCW_BUCKET}/onscen/${TIMESTAMP}/uploads/" \
       --endpoint-url "$S3_ENDPOINT" --only-show-errors
     log "OK — sync Object Storage terminée"
   else

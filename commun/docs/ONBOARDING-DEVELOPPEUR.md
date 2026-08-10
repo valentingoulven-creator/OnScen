@@ -278,8 +278,8 @@ Après toute modification **significative** (feature, bug fix, refonte UI, backe
 | Env | `APP_ENV` | URL | Données | Qui peut déployer |
 |-----|-----------|-----|---------|---------------------|
 | **Dev local** | `msdev` | localhost:5173 / :4080 | `commun/msdev/data/` | Vous (local) |
-| **Preprod** | `preproduction` | https://staging.getsoundy.com | PG `soundy_staging` | Fondateur / CI auto |
-| **Prod** | `production` | https://getsoundy.com | PG `soundy-prod` | Fondateur uniquement |
+| **Preprod** | `preproduction` | https://staging.getsoundy.com | PG `onscen_staging` | Fondateur / CI auto |
+| **Prod** | `production` | https://getsoundy.com | PG `onscen-prod` | Fondateur uniquement |
 
 Doc détaillée : [`commun/docs/ENVIRONNEMENTS.md`](./ENVIRONNEMENTS.md) · infra : [`commun/docs/INFRA-ONSCEN.md`](./INFRA-ONSCEN.md).
 
@@ -288,7 +288,7 @@ Doc détaillée : [`commun/docs/ENVIRONNEMENTS.md`](./ENVIRONNEMENTS.md) · infr
 | ✅ Autorisé | ❌ Interdit sans accord explicite |
 |------------|-----------------------------------|
 | Dev local (`npm run dev`) | Deploy prod |
-| Branches feature + PR | SSH prod (`soundy-prod`) |
+| Branches feature + PR | SSH prod (`onscen-prod`) |
 | Tests et build locaux | Modifier `.env` prod/preprod sur VPS |
 | Lire les docs infra | Push secrets dans Git |
 | Preprod si le fondateur vous l'accorde | Reset DB prod/staging |
@@ -500,7 +500,7 @@ Compléments :
 
 - **Secrets jamais dans Git** — `.env`, clés API, mots de passe VPS.
 - Fichiers `.env` listés dans `.gitignore` — vérifier avant tout commit.
-- SSH prod (`ssh soundy-prod`) : accès **sur demande et validation explicite**.
+- SSH prod (`ssh onscen-prod`) : accès **sur demande et validation explicite**.
 - En cas de doute sur un changement infra ou données prod : **stopper et escalader**.
 
 ---
