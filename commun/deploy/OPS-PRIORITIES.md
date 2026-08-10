@@ -6,6 +6,7 @@
 | P | Sujet | Effort | Coût | Statut |
 |---|-------|--------|------|--------|
 | **1** | Cloudflare CDN/WAF devant le site | ½ j | 0 € | ⏳ **Bloqué** — zone absente du compte CF (DNS OVH direct) |
+| **1b** | Turnstile (captcha register / forgot) | 15 min | 0 € | Script `commun/scripts/setup-turnstile-vps.ps1` — clés test OK preprod ; widgets réels via dashboard CF |
 | **2** | ACRCloud (copyright audio) | 1–2 h | ~€/mois | ⏳ **Bloqué** — compte + clés à créer |
 | **3** | Gaps backup (staging + PG + S3 uploads) | 2–4 h | quelques € | ✅ **Fait** (staging crons + 1er dump + S3 off-site) |
 | **4** | Monitoring uptime externe | 30 min | 0 € | ✅ **Fait** — `.github/workflows/uptime-health.yml` |
