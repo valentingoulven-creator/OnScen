@@ -255,7 +255,7 @@ function buildRecommendedSection(viewerId: string): MusicHomeSection {
     if (comp) artistIds.add(comp.userId);
   }
   for (const play of db.compositionPlays) {
-    if (play.userId !== viewerId) continue;
+    if (play.listenerId !== viewerId) continue;
     const comp = db.compositions.find((c) => c.id === play.compositionId);
     if (comp) artistIds.add(comp.userId);
   }
