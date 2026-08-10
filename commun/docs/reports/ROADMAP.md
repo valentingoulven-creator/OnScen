@@ -1,4 +1,4 @@
-# ROADMAP PRODUIT — Soundy / MeloSongv2
+# ROADMAP PRODUIT — OnScen / OnScen
 **Date :** 2026-06-22  
 **Version de référence :** MODIF 590  
 **Contexte :** Roadmap basée sur l'audit complet du 2026-06-22  
@@ -8,7 +8,7 @@
 
 ## POSITIONNEMENT
 
-Soundy est un **hybride unique** : salons d'écoute YouTube géolocalisés + plateforme de live streaming musicale. Ce positionnement n'existe nulle part ailleurs. La roadmap doit :
+OnScen est un **hybride unique** : salons d'écoute YouTube géolocalisés + plateforme de live streaming musicale. Ce positionnement n'existe nulle part ailleurs. La roadmap doit :
 
 1. **Résoudre les blocages actuels** (légal, scalabilité, bugs critiques)
 2. **Consolider l'USP** (salons + géo + live = trio différenciateur)
@@ -245,8 +245,8 @@ Soundy est un **hybride unique** : salons d'écoute YouTube géolocalisés + pla
 
 | ID | Fonctionnalité | Type | Impact |
 |----|---------------|------|--------|
-| V3-EXP-01 | **API publique** — les créateurs peuvent intégrer Soundy | Innovation | Très élevé |
-| V3-EXP-02 | **SDK embed** — un salon Soundy embarquable sur un site tiers | Innovation | Élevé |
+| V3-EXP-01 | **API publique** — les créateurs peuvent intégrer OnScen | Innovation | Très élevé |
+| V3-EXP-02 | **SDK embed** — un salon OnScen embarquable sur un site tiers | Innovation | Élevé |
 | V3-EXP-03 | **Programme partenaires label** — accès catalogue | Innovation | Très élevé |
 | V3-EXP-04 | **Desktop app** (Electron ou PWA Desktop améliorée) | Recommandé | Moyen |
 | V3-EXP-05 | **TV / Cast** — projeter un salon sur une TV | Innovation | Moyen |
@@ -287,7 +287,7 @@ Soundy est un **hybride unique** : salons d'écoute YouTube géolocalisés + pla
 - [ ] Dashboard analytics temps réel avancé
 - [ ] Extensions/widgets OBS avancés
 
-### Innovation (unique à Soundy)
+### Innovation (unique à OnScen)
 
 - [ ] Salon planétaire — voir en temps réel les salons qui écoutent le même artiste
 - [ ] Mode "Disco géo" — salons autour de soi sur la carte, rejoindre en 1 tap
@@ -311,7 +311,7 @@ Soundy est un **hybride unique** : salons d'écoute YouTube géolocalisés + pla
 
 ## POSITIONNEMENT FACE AUX CONCURRENTS
 
-| Dimension | TikTok Live | Instagram Live | Twitch | **Soundy** |
+| Dimension | TikTok Live | Instagram Live | Twitch | **OnScen** |
 |-----------|-------------|----------------|--------|-----------|
 | Audience musicale | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ |
 | Salons YouTube | ❌ | ❌ | ❌ | ⭐⭐⭐⭐⭐ |
@@ -321,7 +321,7 @@ Soundy est un **hybride unique** : salons d'écoute YouTube géolocalisés + pla
 | Découverte | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ (actuel) → ⭐⭐⭐⭐ (V2) |
 | Communauté musicale niche | ⭐⭐ | ⭐ | ⭐⭐ | ⭐⭐⭐⭐⭐ |
 
-**Verdict :** Soundy est actuellement à ~25% du niveau des leaders sur les fonctionnalités live core, mais possède un USP incomparable sur les salons géolocalisés. La roadmap V1 permet d'atteindre 70% de parité fonctionnelle tout en conservant et amplifiant cet avantage différentiel.
+**Verdict :** OnScen est actuellement à ~25% du niveau des leaders sur les fonctionnalités live core, mais possède un USP incomparable sur les salons géolocalisés. La roadmap V1 permet d'atteindre 70% de parité fonctionnelle tout en conservant et amplifiant cet avantage différentiel.
 
 ---
 

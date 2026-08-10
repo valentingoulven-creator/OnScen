@@ -1,14 +1,14 @@
 /* Web Push handlers — imported by the Workbox service worker (push-sw.js). */
 self.addEventListener('push', (event) => {
   if (!event.data) return;
-  let payload = { title: 'Soundy', body: '', url: '/', tag: 'soundy' };
+  let payload = { title: 'OnScen', body: '', url: '/', tag: 'soundy' };
   try {
     payload = { ...payload, ...event.data.json() };
   } catch {
     payload.body = event.data.text();
   }
   event.waitUntil(
-    self.registration.showNotification(payload.title || 'Soundy', {
+    self.registration.showNotification(payload.title || 'OnScen', {
       body: payload.body || '',
       tag: payload.tag || 'soundy',
       data: { url: payload.url || '/' },

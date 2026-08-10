@@ -19,7 +19,7 @@ Write-Host ''
 Write-Host ' ==============================================' -ForegroundColor Magenta
 Write-Host '   DEPLOY PREPROD -> staging.getsoundy.com' -ForegroundColor Magenta
 Write-Host ' ==============================================' -ForegroundColor Magenta
-Write-Host '   VPS    : 51.159.170.181 (/opt/soundy)'
+Write-Host '   VPS    : 51.159.170.181 (/opt/onscen)'
 Write-Host '   Health : https://staging.getsoundy.com/health'
 Write-Host '   Script : commun/deploy/deploy_zero_downtime.ps1 -Environment preprod'
 Write-Host ' ==============================================' -ForegroundColor Magenta

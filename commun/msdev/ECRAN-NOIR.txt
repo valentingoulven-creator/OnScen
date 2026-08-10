@@ -1,4 +1,4 @@
-MeloSong — Écran noir (navigateur ou PWA)
+OnScen — Écran noir (navigateur ou PWA)
 =========================================
 
 Symptôme : fond noir #0b0b0f, pas de formulaire de connexion, pas de carte.
@@ -18,11 +18,11 @@ Causes fréquentes
 -----------------
 1. Ancien service worker PWA qui sert un index.html avec un JS qui n'existe plus.
 2. Mauvaise URL : HTTPS vs HTTP sur le port 4080.
-3. Icône « MeloSong » installée (PWA) avec cache obsolète.
+3. Icône « OnScen » installée (PWA) avec cache obsolète.
 
 À faire MAINTENANT (dans l'ordre)
 ---------------------------------
-1. Fermer complètement la PWA MeloSong (désinstaller l'icône bureau / écran d'accueil).
+1. Fermer complètement la PWA OnScen (désinstaller l'icône bureau / écran d'accueil).
 2. Lancer le serveur : à la racine du projet, `npm run msdev:https` (ou laisser tourner si le port 4080 est déjà pris).
 3. Ouvrir https://localhost:4080 dans Chrome, Edge ou Opera (pas l'icône PWA).
    Opera GX : désactiver le bloqueur de pub pour localhost (voir msdev/NAVIGATEURS.txt).

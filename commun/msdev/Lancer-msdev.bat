@@ -1,8 +1,8 @@
 @echo off
 chcp 65001 >nul 2>&1
-title MeloSong msdev (exe)
+title OnScen msdev (exe)
 echo ========================================
-echo   MeloSong msdev (depuis msdev\)
+echo   OnScen msdev (depuis msdev\)
 echo ========================================
 echo.
 echo   URL : https://localhost:4080  (HTTPS si MSDEV_HTTPS=1)

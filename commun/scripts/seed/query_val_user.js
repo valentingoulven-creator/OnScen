@@ -1,6 +1,6 @@
 'use strict';
-require('/opt/soundly/node_modules/dotenv').config({ path: '/opt/soundly/.env' });
-const { Pool } = require('/opt/soundly/node_modules/pg');
+require('/opt/onscen/node_modules/dotenv').config({ path: '/opt/onscen/.env' });
+const { Pool } = require('/opt/onscen/node_modules/pg');
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },

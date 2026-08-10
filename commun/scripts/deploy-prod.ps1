@@ -22,7 +22,7 @@ Write-Host ''
 Write-Host ' ==============================================' -ForegroundColor Red
 Write-Host '   DEPLOY PRODUCTION -> getsoundy.com' -ForegroundColor Red
 Write-Host ' ==============================================' -ForegroundColor Red
-Write-Host '   VPS    : 51.159.164.100 (/opt/soundy)'
+Write-Host '   VPS    : 51.159.164.100 (/opt/onscen)'
 Write-Host '   Health : https://getsoundy.com/health'
 Write-Host '   Script : commun/deploy/deploy_zero_downtime.ps1 -VerifyProd'
 Write-Host ' ==============================================' -ForegroundColor Red

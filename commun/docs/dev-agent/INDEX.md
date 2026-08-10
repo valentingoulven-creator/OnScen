@@ -1,6 +1,6 @@
 # Dev Agent — Index des rapports
 
-Rapports produits par `@soundy-dev-agent` à chaque session de développement significative.
+Rapports produits par `@onscen-dev-agent` à chaque session de développement significative.
 
 | Date | Rapport | Mission | Statut |
 |------|---------|---------|--------|
@@ -33,5 +33,5 @@ Rapports produits par `@soundy-dev-agent` à chaque session de développement si
 ## Utilisation
 
 - Template : [`rapports/_TEMPLATE.md`](./rapports/_TEMPLATE.md)
-- Guide : [`docs/SOUNDY-DEV-AGENT.md`](../SOUNDY-DEV-AGENT.md)
-- Règle Cursor : [`.cursor/rules/soundy-dev-agent.mdc`](../../.cursor/rules/soundy-dev-agent.mdc)
+- Guide : [`docs/ONSCEN-DEV-AGENT.md`](../ONSCEN-DEV-AGENT.md)
+- Règle Cursor : [`.cursor/rules/onscen-dev-agent.mdc`](../../.cursor/rules/onscen-dev-agent.mdc)

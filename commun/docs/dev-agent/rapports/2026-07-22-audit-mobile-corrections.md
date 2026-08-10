@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-07-22 — Corrections audit mobile iOS/Android
 
-**Agent :** @soundy-dev-agent
+**Agent :** @onscen-dev-agent
 **Date :** 2026-07-22
 **Durée estimée :** ~2 h
 **Statut global :** ⚠️ Partiel (tout ce qui est techniquement faisable a été corrigé ; plusieurs points restent bloqués par une action humaine hors code)
@@ -9,7 +9,7 @@
 
 ## Mission
 
-Suite à l'audit `@soundy-cto` du même jour (`commun/docs/audit/AUDIT-mobile-ios-android.md`, jamais commité), le fondateur a demandé « corrige tout ».
+Suite à l'audit `@onscen-cto` du même jour (`commun/docs/audit/AUDIT-mobile-ios-android.md`, jamais commité), le fondateur a demandé « corrige tout ».
 
 ---
 
@@ -32,7 +32,7 @@ Les vrais gaps restants, corrigés dans cette session :
 - [x] Créé `ios/apptel/scripts/patch-android-native.mjs` : réapplique automatiquement après `npx cap add android` les personnalisations natives (permissions, deep links, `targetSdk` 36, FileProvider) qui n'existaient que sur ce poste — rend le projet reproductible ailleurs/en CI (corrige la partie « pas de trace écrite » de R1/R7).
 - [x] Créé `.github/workflows/android-capacitor.yml` (miroir `ubuntu-latest` de `ios-capacitor.yml`) — corrige une partie de R7 (CI Android absente).
 - [x] Ajouté un commentaire d'en-tête « PARITÉ WEB » sur les 8 gros overrides mobiles (`HomePage`, `DmPage`, `ActualiteTabPage`, `LivePage`, `SalonPage`, `ChatPanel`, `RoomTheaterLayout`, `NotificationBell`) — corrige R5 (recommandation #2 de l'audit).
-- [x] Build APK debug réel exécuté et vérifié (`android/MeloSong-Mobile/Soundy-debug-prod.apk`, 12 Mo).
+- [x] Build APK debug réel exécuté et vérifié (`android/OnScen-Mobile/OnScen-debug-prod.apk`, 12 Mo).
 - [x] Mis à jour `TODO-MANUAL.md` (C5) et ajouté un correctif en tête de l'audit erroné (sans réécrire son historique).
 - [x] Vérifié l'absence de régression : build apptel ✅, lint apptel identique avant/après (baseline via `git stash`).
 - [ ] TS strict sur `ios/apptel/tsconfig.app.json` (R8) — **non fait**, risque de régler un grand nombre d'erreurs d'un coup sur un projet non testé en profondeur ; à traiter en session dédiée.
@@ -53,7 +53,7 @@ Les vrais gaps restants, corrigés dans cette session :
 | `ios/apptel/src/components/{ChatPanel,RoomTheaterLayout,NotificationBell}.tsx` | Commentaire parité web |
 | `TODO-MANUAL.md` | C5 marqué corrigé, détails |
 | `commun/docs/audit/AUDIT-mobile-ios-android.md` | Correctif ajouté en tête (non committé) |
-| `android/MeloSong-Mobile/Soundy-debug-prod.apk` | Rebuild de vérification (non committé, binaire) |
+| `android/OnScen-Mobile/OnScen-debug-prod.apk` | Rebuild de vérification (non committé, binaire) |
 
 ---
 
@@ -116,8 +116,8 @@ cd ios/apptel && npm test                                 → ✅ (aucun fichier
 
 - **Leçon méthodologique importante** : les outils de recherche de fichiers (`Glob`, et probablement `git ls-files`) respectent `.gitignore` par défaut. Pour auditer un dossier volontairement gitignoré (comme `ios/apptel/android/`), il faut une inspection disque explicite (`Get-ChildItem`/`ls` via `Shell`), jamais `Glob` seul — sinon on conclut à tort à une absence.
 - Le pin TLS Android committé était déjà périmé (cert Cloudflare déjà rotaté entre sa génération et cet audit) — preuve concrète que l'absence de pin de secours + l'absence de process de renouvellement documenté est un risque réel, pas seulement théorique.
-- `android/MeloSong-Mobile/Soundy-debug-prod.apk` régénéré à titre de preuve de fonctionnement ; pas destiné à être committé (binaire, déjà géré par le process existant).
+- `android/OnScen-Mobile/OnScen-debug-prod.apk` régénéré à titre de preuve de fonctionnement ; pas destiné à être committé (binaire, déjà géré par le process existant).
 
 ---
 
-*Généré par Soundy Dev Agent*
+*Généré par OnScen Dev Agent*

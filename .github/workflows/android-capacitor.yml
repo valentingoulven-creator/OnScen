@@ -1,4 +1,4 @@
-# Soundy — build Android Capacitor dans le cloud (ubuntu, pas de macOS requis).
+# OnScen — build Android Capacitor dans le cloud (ubuntu, pas de macOS requis).
 #
 # `ios/apptel/android/` est entièrement gitignoré : ce workflow régénère le projet natif
 # à chaque run via `npx cap add android` + `scripts/patch-android-native.mjs` (permissions,

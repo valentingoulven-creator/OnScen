@@ -1,4 +1,4 @@
-# Lettres de soutien Soundy (.docx)
+# Lettres de soutien OnScen (.docx)
 
 Dix modèles Word, **un fichier par registre d’écriture**, utilisables par tout type d’artiste (personnaliser les `[…]`).
 
@@ -15,7 +15,7 @@ Dix modèles Word, **un fichier par registre d’écriture**, utilisables par to
 | `09-registre-associatif.docx` | Associatif |
 | `10-registre-journalistique.docx` | Journalistique |
 
-Source Markdown : [`../LETTRES-SOUTIEN-SOUNDY-MODELES.md`](../LETTRES-SOUTIEN-SOUNDY-MODELES.md).
+Source Markdown : [`../LETTRES-SOUTIEN-ONSCEN-MODELES.md`](../LETTRES-SOUTIEN-ONSCEN-MODELES.md).
 
 ## Régénérer les .docx
 

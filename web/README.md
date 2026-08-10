@@ -1,4 +1,4 @@
-# Stack Web — Soundy
+# Stack Web — OnScen
 
 Frontend web (Vite + React). Source partagée avec iOS/Android via `web/app/src/`.
 

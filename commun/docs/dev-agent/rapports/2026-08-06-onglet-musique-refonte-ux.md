@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-08-06 — Onglet Musique : refonte UX/design
 
-**Agent :** @soundy-dev-agent
+**Agent :** @onscen-dev-agent
 **Date :** 2026-08-06
 **Durée estimée :** 0.5 h
 **Statut global :** ✅ Terminé
@@ -9,7 +9,7 @@
 
 ## Mission
 
-Suite à un audit `@soundy-cto`, corriger le design/UX de l'onglet Musique jugé « pas pro » et implémenter les correctifs.
+Suite à un audit `@onscen-cto`, corriger le design/UX de l'onglet Musique jugé « pas pro » et implémenter les correctifs.
 
 ---
 
@@ -85,4 +85,4 @@ Aucun.
 
 ---
 
-*Généré par Soundy Dev Agent*
+*Généré par OnScen Dev Agent*

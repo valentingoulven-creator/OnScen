@@ -1,4 +1,4 @@
-# Audit technique/légal Soundy — Phase 7 : Modération de contenu (NSFW et au-delà)
+# Audit technique/légal OnScen — Phase 7 : Modération de contenu (NSFW et au-delà)
 
 **Date :** 2026-08-07
 **Méthode :** revue exhaustive de `lib/sightengineConfig.ts`, `sightengineModeration.ts`, `contentModeration.ts`, `chatModerationPolicy.ts`, `chatModerationTerms.ts`, `sanitizeUserText.ts`, `contentReports.ts`, `routes/{stories,feed,reels,auth,dm,chat,legal,adminReports,adminContent}.ts`, `socket.ts`, `commun/docs/juridique/*.md`, `legalDocumentsApp.json`.
@@ -145,9 +145,9 @@ Le dossier juridique interne du projet **admet lui-même** ce trou, noir sur bla
 
 ### Sightengine — capacité native non exploitée
 
-Sightengine propose commercialement une détection d'âge/mineur (modèle `face-attributes`/estimation d'âge sur les visages détectés), utilisable en complément de la nudité pour flaguer une combinaison « personne mineure + contenu suggestif ». **Soundy n'appelle que `nudity-2.1,offensive-2.0`** — le modèle de détection de mineurs n'est **pas activé**, et même s'il l'était par accident, `evaluateSightenginePayload` ne lit que les champs `nudity`/`offensive` et ignorerait un score de détection de mineur.
+Sightengine propose commercialement une détection d'âge/mineur (modèle `face-attributes`/estimation d'âge sur les visages détectés), utilisable en complément de la nudité pour flaguer une combinaison « personne mineure + contenu suggestif ». **OnScen n'appelle que `nudity-2.1,offensive-2.0`** — le modèle de détection de mineurs n'est **pas activé**, et même s'il l'était par accident, `evaluateSightenginePayload` ne lit que les champs `nudity`/`offensive` et ignorerait un score de détection de mineur.
 
-**Conclusion factuelle (sans minimisation ni exagération) :** Soundy dispose d'une politique déclarative CSAM, d'un signalement utilisateur générique, et d'une modération NSFW générique. Il n'existe **aucune détection technique spécifique au CSAM**, ni **aucun processus automatisé ou runbook opérationnel de signalement aux autorités compétentes** (PHAROS en France, NCMEC si opération aux USA). L'écart entre l'engagement écrit (« signalement immédiat aux autorités ») et l'implémentation réelle est **matériel et non ambigu**.
+**Conclusion factuelle (sans minimisation ni exagération) :** OnScen dispose d'une politique déclarative CSAM, d'un signalement utilisateur générique, et d'une modération NSFW générique. Il n'existe **aucune détection technique spécifique au CSAM**, ni **aucun processus automatisé ou runbook opérationnel de signalement aux autorités compétentes** (PHAROS en France, NCMEC si opération aux USA). L'écart entre l'engagement écrit (« signalement immédiat aux autorités ») et l'implémentation réelle est **matériel et non ambigu**.
 
 **Risque : 🔴 CRITIQUE** — c'est le point de risque légal et réputationnel le plus élevé de l'ensemble de cet audit, pour une plateforme qui héberge de l'upload de médias par des utilisateurs et du live streaming ouvert.
 

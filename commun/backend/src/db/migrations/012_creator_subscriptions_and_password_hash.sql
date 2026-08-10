@@ -1,6 +1,6 @@
 -- 012: Table abonnements créateurs + colonne password_hash sécurisée
 
--- Table dédiée pour les abonnements créateurs / Soundy+
+-- Table dédiée pour les abonnements créateurs / OnScen+
 -- (remplace le stockage en RAM uniquement, permet de restaurer après redémarrage)
 CREATE TABLE IF NOT EXISTS creator_subscriptions (
   id                    TEXT PRIMARY KEY,

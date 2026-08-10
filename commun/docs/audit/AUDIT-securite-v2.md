@@ -1,4 +1,4 @@
-# RE-AUDIT SÉCURITÉ SENIOR — Soundy (v2, post-corrections)
+# RE-AUDIT SÉCURITÉ SENIOR — OnScen (v2, post-corrections)
 
 Périmètre : vérification des corrections de `MODIF 960` (voir `modification.txt` lignes 20442-20533) + repasse OWASP complète (régression). Méthode : `git ls-files`, `git check-ignore -v`, `git status`, `git diff`, `git cat-file`, `git ls-tree`, `gh repo view`, lecture de code ligne à ligne, exécution des tests unitaires (`vitest`).
 
@@ -52,7 +52,7 @@ commun/msdev/legal-publisher.json
 3. Un `git reset --hard`, `git checkout HEAD -- <fichier>`, ou tout autre opérateur/agent qui clone/pull le dépôt récupère les credentials réels en clair.
 4. Le fix `.gitignore` (essentiel pour que la ré-écriture n'échoue pas à nouveau) n'est même pas stagé : un `git add -A` sans revue pourrait omettre cette modification.
 
-Point positif vérifié : le repo GitHub est **privé** (`gh repo view valentingoulven-creator/MeloSong --json isPrivate,visibility` → `{"isPrivate":true,"visibility":"PRIVATE"}`), ce qui réduit (sans l'annuler) la surface d'exposition tant que l'accès au repo reste restreint à l'équipe.
+Point positif vérifié : le repo GitHub est **privé** (`gh repo view valentingoulven-creator/OnScen --json isPrivate,visibility` → `{"isPrivate":true,"visibility":"PRIVATE"}`), ce qui réduit (sans l'annuler) la surface d'exposition tant que l'accès au repo reste restreint à l'équipe.
 
 **Conclusion** : la fuite Critical n'est **pas résolue** au sens strict de « ne plus être présente dans l'historique Git consultable/clonable ». Elle est **résolue dans l'état de travail local (index)**, ce qui est une étape nécessaire mais insuffisante. Il manque un `git commit` (a minima) pour que la correction ait un effet réel sur le dépôt versionné.
 
@@ -127,7 +127,7 @@ Comme documenté explicitement dans `modification.txt` (« ATTENTION : l'histori
 
 ### Action manuelle non vérifiable
 
-« Rotation effective du mot de passe `SoundyYtDemo2026!Secure` / du compte `yt.audit.demo2.soundy@gmail.com` » — **Impossible à vérifier avec les informations disponibles** (nécessite un accès au compte Google/getsoundy.com hors périmètre de cet audit statique).
+« Rotation effective du mot de passe `OnScenYtDemo2026!Secure` / du compte `yt.audit.demo2.soundy@gmail.com` » — **Impossible à vérifier avec les informations disponibles** (nécessite un accès au compte Google/getsoundy.com hors périmètre de cet audit statique).
 
 ---
 
@@ -283,7 +283,7 @@ Client Stripe partagé (`commun/backend/src/lib/stripeClient.ts`, nouveau fichie
 
 ## Impossible à vérifier avec les informations disponibles
 
-- Rotation effective du mot de passe `SoundyYtDemo2026!Secure` / du compte Gmail associé.
+- Rotation effective du mot de passe `OnScenYtDemo2026!Secure` / du compte Gmail associé.
 - Purge de l'historique Git antérieur (non traitée, décision explicitement différée par l'agent précédent — nécessite validation utilisateur pour une opération destructive de type BFG/`git filter-repo`).
 - Revue XSS ligne-à-ligne exhaustive des ~35 fichiers frontend (`web/app/src`, `ios/apptel/src`) modifiés dans cette session (hors scope : ce sont des changements de fonctionnalité live/chat, sans lien avec les corrections sécurité auditées).
 - Contenu réel de la base PostgreSQL de production / secrets effectivement déployés sur le VPS.

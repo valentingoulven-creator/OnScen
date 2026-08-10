@@ -1,7 +1,7 @@
-# Audit technique Soundy — Phase 12 : Points supplémentaires
+# Audit technique OnScen — Phase 12 : Points supplémentaires
 
 **Date :** 2026-08-07
-**Méthode :** revue de l'accessibilité frontend (`web/app/eslint.config.js`, composants `.tsx`), documentation infra (`INFRA-SOUNDY.md`, `RUNBOOK-PROD.md`, `STACK-CIBLE.md`), comptes de démo/admin (`msdevDemoAccounts.ts`, `seed-production.ts`), rétention des logs (`userLoginRetention.ts`, `appDiagnosticLogs.ts`), licences des dépendances npm.
+**Méthode :** revue de l'accessibilité frontend (`web/app/eslint.config.js`, composants `.tsx`), documentation infra (`INFRA-ONSCEN.md`, `RUNBOOK-PROD.md`, `STACK-CIBLE.md`), comptes de démo/admin (`msdevDemoAccounts.ts`, `seed-production.ts`), rétention des logs (`userLoginRetention.ts`, `appDiagnosticLogs.ts`), licences des dépendances npm.
 **Convention risque :** 🔴 critique · 🟠 élevé · 🟡 moyen · 🟢 faible
 
 ---
@@ -20,7 +20,7 @@
 | `eslint-plugin-jsx-a11y` dans les dépendances | ❌ Absent |
 | Outil d'audit contraste/axe-core | ❌ Absent |
 
-**Bons patterns identifiés :** navigation principale avec `aria-label`/`aria-current` (`MainTabNav.tsx`), modales avec `role="dialog"` + `aria-modal` (`ConfirmModal.tsx`), lecteur audio avec labels explicites (`MusicPlayerBar.tsx`), logo avec `alt` correctement géré (`SoundyLogo.tsx`).
+**Bons patterns identifiés :** navigation principale avec `aria-label`/`aria-current` (`MainTabNav.tsx`), modales avec `role="dialog"` + `aria-modal` (`ConfirmModal.tsx`), lecteur audio avec labels explicites (`MusicPlayerBar.tsx`), logo avec `alt` correctement géré (`OnScenLogo.tsx`).
 
 **Mauvais patterns identifiés :** images de contenu informatif avec `alt=""` vide (bannière d'événement `EventCard.tsx:296-299`, miniature de live `UserLivesSection.tsx:76`) — devraient porter un texte alternatif descriptif. Piège focus trap quasi inexistant : ~50 surfaces `role="dialog"` pour seulement 2 consommateurs de `useFocusTrap`.
 
@@ -33,7 +33,7 @@
 ## 12.2 Disaster Recovery
 
 **Constat :**
-- Un plan existe, **embarqué** dans `INFRA-SOUNDY.md` et `RUNBOOK-PROD.md` (pas un document DR dédié séparé) : RPO ≤ 24h, RTO 30 min – 2h (restore base de test), procédure de restauration PostgreSQL documentée pas à pas (`gunzip | psql`), test de restauration **trimestriel recommandé** mais **non prouvé exécuté** dans le dépôt (cf. Phase 2 §2.3).
+- Un plan existe, **embarqué** dans `INFRA-ONSCEN.md` et `RUNBOOK-PROD.md` (pas un document DR dédié séparé) : RPO ≤ 24h, RTO 30 min – 2h (restore base de test), procédure de restauration PostgreSQL documentée pas à pas (`gunzip | psql`), test de restauration **trimestriel recommandé** mais **non prouvé exécuté** dans le dépôt (cf. Phase 2 §2.3).
 - Scénarios de panne documentés avec RTO estimé : perte VPS complète (2-4h), corruption DB dump VPS (1-3h), corruption DB Scaleway (15min-1h via snapshot console).
 - **Lacune ouverte dans la politique de confidentialité elle-même** : la mention « sauvegardes chiffrées et plan de reprise » est encore marquée comme un point à compléter (`rgpd.ts:43`).
 - Pas de second VPS hot-standby — la bascule décrite implique de **provisionner un nouveau VPS** en cas de panne totale, pas un failover automatique.

@@ -2,7 +2,7 @@
   "name": "msdev",
   "version": "1.0.0",
   "private": true,
-  "description": "MeloSong local development environment (msdev)",
+  "description": "OnScen local development environment (msdev)",
   "scripts": {
     "dev": "npm run dev --prefix ../backend",
     "build": "npm run build --prefix ../backend",

@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-08-08 — Audit compatibilité web ↔ iOS Capacitor / APK Android
 
-**Agent :** @soundy-dev-agent
+**Agent :** @onscen-dev-agent
 **Date :** 2026-08-08
 **Durée estimée :** ~1h30
 **Statut global :** ⚠️ Partiel — **audit uniquement, aucun code modifié**. Finding majeur remontant au-delà du périmètre live (MODIF 1341).
@@ -167,7 +167,7 @@ cd ios/apptel && npm run build                   → ✅ (build complet, artefac
 ## Prochaines étapes
 
 1. Trancher la décision produit ci-dessus (item Bloquers #1).
-2. Si portage décidé : nouvelle session dédiée (`@soundy-dev-agent`) pour créer un `LiveHostPanel` mobile ou brancher `LivePinnedAnnouncementBanner`/`LivePollWidget` côté viewer apptel.
+2. Si portage décidé : nouvelle session dédiée (`@onscen-dev-agent`) pour créer un `LiveHostPanel` mobile ou brancher `LivePinnedAnnouncementBanner`/`LivePollWidget` côté viewer apptel.
 3. Fix rapide et à faible risque, indépendant de la décision produit : `LiveKitPeerTile` safe-area (plan E #4).
 4. Test manuel sur device réel dès qu'un Mac (iOS) ou un poste avec Android Studio/JDK 21 est disponible.
 
@@ -181,4 +181,4 @@ cd ios/apptel && npm run build                   → ✅ (build complet, artefac
 
 ---
 
-*Généré par Soundy Dev Agent — ne pas éditer le template `_TEMPLATE.md`*
+*Généré par OnScen Dev Agent — ne pas éditer le template `_TEMPLATE.md`*

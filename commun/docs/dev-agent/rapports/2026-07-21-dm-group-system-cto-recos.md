@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-07-21 — Messages groupe recommandations CTO
 
-**Agent :** @soundy-dev-agent  
+**Agent :** @onscen-dev-agent  
 **Date :** 2026-07-21  
 **Durée estimée :** 0.5 h  
 **Statut global :** ✅ Terminé
@@ -75,4 +75,4 @@ cd commun/backend && npm test -- groupSystem groupMessageValidation groupMembers
 
 ---
 
-*Généré par Soundy Dev Agent*
+*Généré par OnScen Dev Agent*

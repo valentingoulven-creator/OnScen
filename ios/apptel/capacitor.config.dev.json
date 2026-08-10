@@ -1,6 +1,6 @@
 {
   "appId": "com.soundy.app",
-  "appName": "Soundy",
+  "appName": "OnScen",
   "webDir": "dist",
   "android": {
     "allowMixedContent": true

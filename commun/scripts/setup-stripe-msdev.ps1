@@ -64,19 +64,19 @@ if ($existing.data.Count -gt 0) {
     Write-Host 'Pour recreer, supprimez les products/prices dans le Dashboard Stripe test.' -ForegroundColor DarkGray
 } else {
     Write-Host 'Creation des products/prices...'
-    $tier1 = New-StripeRecurringPrice -ApiKey $apiKey -ProductName 'Soundy Supporter (tier1)' -AmountCents 499
-    $tier2 = New-StripeRecurringPrice -ApiKey $apiKey -ProductName 'Soundy Super fan (tier2)' -AmountCents 999
-    $plus = New-StripeRecurringPrice -ApiKey $apiKey -ProductName 'Soundy+ (platform)' -AmountCents 999
-    $ultra = New-StripeRecurringPrice -ApiKey $apiKey -ProductName 'SoundyUltra (platform)' -AmountCents 1999
+    $tier1 = New-StripeRecurringPrice -ApiKey $apiKey -ProductName 'OnScen Supporter (tier1)' -AmountCents 499
+    $tier2 = New-StripeRecurringPrice -ApiKey $apiKey -ProductName 'OnScen Super fan (tier2)' -AmountCents 999
+    $plus = New-StripeRecurringPrice -ApiKey $apiKey -ProductName 'OnScen+ (platform)' -AmountCents 999
+    $ultra = New-StripeRecurringPrice -ApiKey $apiKey -ProductName 'OnScenUltra (platform)' -AmountCents 1999
 
     Set-EnvVar -Path $envFile -Key 'STRIPE_PRICE_ID_TIER1' -Value $tier1
     Set-EnvVar -Path $envFile -Key 'STRIPE_PRICE_ID_TIER2' -Value $tier2
-    Set-EnvVar -Path $envFile -Key 'STRIPE_PRICE_ID_SOUNDY_PLUS' -Value $plus
-    Set-EnvVar -Path $envFile -Key 'STRIPE_PRICE_ID_SOUNDY_ULTRA' -Value $ultra
+    Set-EnvVar -Path $envFile -Key 'STRIPE_PRICE_ID_ONSCEN_PLUS' -Value $plus
+    Set-EnvVar -Path $envFile -Key 'STRIPE_PRICE_ID_ONSCEN_ULTRA' -Value $ultra
     Write-Host "  tier1=$tier1"
     Write-Host "  tier2=$tier2"
-    Write-Host "  soundy_plus=$plus"
-    Write-Host "  soundy_ultra=$ultra"
+    Write-Host "  onscen_plus=$plus"
+    Write-Host "  onscen_ultra=$ultra"
 }
 
 Write-Host 'Webhook signing secret (stripe listen)...'
@@ -90,8 +90,8 @@ Set-EnvVar -Path $envFile -Key 'STRIPE_WEBHOOK_SECRET' -Value $whsec
 Set-EnvVar -Path $envFile -Key 'STRIPE_SUBSCRIPTION_WEBHOOK_SECRET' -Value $whsec
 Set-EnvVar -Path $envFile -Key 'SUBSCRIPTION_TIER1_AMOUNT_EUR' -Value '4.99'
 Set-EnvVar -Path $envFile -Key 'SUBSCRIPTION_TIER2_AMOUNT_EUR' -Value '9.99'
-Set-EnvVar -Path $envFile -Key 'SUBSCRIPTION_SOUNDY_PLUS_AMOUNT_EUR' -Value '9.99'
-Set-EnvVar -Path $envFile -Key 'SUBSCRIPTION_SOUNDY_ULTRA_AMOUNT_EUR' -Value '19.99'
+Set-EnvVar -Path $envFile -Key 'SUBSCRIPTION_ONSCEN_PLUS_AMOUNT_EUR' -Value '9.99'
+Set-EnvVar -Path $envFile -Key 'SUBSCRIPTION_ONSCEN_ULTRA_AMOUNT_EUR' -Value '19.99'
 Set-EnvVar -Path $envFile -Key 'SUBSCRIPTIONS_ENABLED' -Value '1'
 
 Write-Host ''

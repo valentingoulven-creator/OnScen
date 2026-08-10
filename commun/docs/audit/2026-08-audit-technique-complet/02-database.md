@@ -1,4 +1,4 @@
-# Audit technique Soundy — Phase 2 : Base de données
+# Audit technique OnScen — Phase 2 : Base de données
 
 **Date :** 2026-08-07
 **Méthode :** lecture des 34 migrations (`commun/backend/src/db/migrations/*.sql`), `schema.ts`, `pgStore*.ts`, scripts de backup/déploiement, vérification ponctuelle des faits déjà établis par `commun/docs/audit/AUDIT-CONSOLIDE.md` (2026-07-22, DBI-1 à DBI-12) avec mise à jour des éléments datés.
@@ -40,11 +40,11 @@
 
 | Élément | Valeur | Source |
 |---|---|---|
-| Fréquence | Quotidienne, cron **03:15** | `commun/deploy/backup-db.sh`, `INFRA-SOUNDY.md` |
+| Fréquence | Quotidienne, cron **03:15** | `commun/deploy/backup-db.sh`, `INFRA-ONSCEN.md` |
 | Méthode | `pg_dump` + `gzip -9` | `backup-db.sh:41` |
 | Rétention locale VPS | **14 jours** (`RETENTION_DAYS=14`) | `backup-db.sh:17` |
-| RPO documenté | ≤ 24 h | `INFRA-SOUNDY.md` |
-| RTO documenté | 30 min – 2 h (restore sur base test) | `INFRA-SOUNDY.md` |
+| RPO documenté | ≤ 24 h | `INFRA-ONSCEN.md` |
+| RTO documenté | 30 min – 2 h (restore sur base test) | `INFRA-ONSCEN.md` |
 | Procédure de restauration | Documentée (`gunzip \| psql`) | `commun/deploy/RUNBOOK-PROD.md:236-248` |
 | Test de restauration réel effectué | 🔍 **Non prouvé** — recommandé trimestriel dans le runbook, mais aucune trace d'exécution/journal de test dans le dépôt | `RUNBOOK-PROD.md:254` |
 | Backups managés Scaleway (2ᵉ couche) | Rappel explicite dans le script (« activer aussi les sauvegardes automatiques Scaleway ») ; rétention/config réelle **non vérifiable depuis le code** (console Scaleway) | `backup-db.sh` (commentaire final), `DBI-12` |
@@ -78,7 +78,7 @@
 | Codes de secours 2FA | ✅ `bcrypt`, coût **8** | `routes/twoFactor.ts:180` — coût plus faible car codes à usage unique de forte entropie, compromis raisonnable |
 | Secrets TOTP (2FA) | ✅ **AES-256-GCM** via `TOTP_ENCRYPTION_KEY` | `routes/twoFactor.ts:31-48`, obligatoire en prod (`productionStartup.ts`) |
 | Tokens OAuth plateforme (YouTube/Instagram) | ✅ Chiffrés via `ENCRYPTION_KEY` au repos | `.env.production.example:9-11` |
-| Numéros de carte bancaire | ✅ **Jamais stockés côté Soundy** — délégué à Stripe (Stripe.js/Checkout), confirmé dans le code des routes de paiement et la doc légale | `creatorMonetization.ts:37-38`, `donations.ts` |
+| Numéros de carte bancaire | ✅ **Jamais stockés côté OnScen** — délégué à Stripe (Stripe.js/Checkout), confirmé dans le code des routes de paiement et la doc légale | `creatorMonetization.ts:37-38`, `donations.ts` |
 | Chiffrement au repos de la base PostgreSQL elle-même (disque) | 🔍 Dépend de l'offre Scaleway Managed Database — non vérifiable depuis le code (à confirmer console Scaleway) | — |
 
 **Risque : 🟢 Faible** — le hashing des mots de passe et le chiffrement des secrets sensibles applicatifs sont conformes à l'état de l'art (bcrypt coût 12, AES-256-GCM). Point résiduel faible : cohérence du coût bcrypt entre scripts (8/10/12 selon contexte, tous acceptables mais non uniformes).
@@ -90,7 +90,7 @@
 ## 2.6 Séparation des environnements (prod / staging / dev)
 
 **Constat :**
-- **Staging et production partagent la même instance PostgreSQL managée Scaleway** (`51.15.132.229:14440`), avec des bases logiques distinctes (`soundy-prod` / `soundy_staging`) — reconfirmé par `AUDIT-CONSOLIDE.md` (**DBI-6**, toujours ouvert au 22/07).
+- **Staging et production partagent la même instance PostgreSQL managée Scaleway** (`51.15.132.229:14440`), avec des bases logiques distinctes (`onscen-prod` / `onscen_staging`) — reconfirmé par `AUDIT-CONSOLIDE.md` (**DBI-6**, toujours ouvert au 22/07).
 - Le développement local (msdev) utilise par défaut un **store en mémoire/fichier local**, pas une copie de la base de production — pas de risque direct de données de production exposées en dev par défaut.
 - Aucune preuve dans le dépôt d'un processus d'anonymisation de données de production copiées vers staging/dev (le sujet ne se pose pas activement puisque staging utilise une base logique séparée, mais **alimentée par des scripts de seed synthétiques**, pas par un dump anonymisé de prod — bon point, mais à confirmer qu'aucun export manuel de prod n'est jamais fait vers staging).
 
@@ -102,7 +102,7 @@
 
 ## 2.7 Rôle applicatif de base de données
 
-**Constat (reconfirmé) :** le rôle `soundy` utilisé par l'application dispose des privilèges `rolcreaterole=t, rolcreatedb=t` — bien plus que le strict nécessaire pour un compte applicatif (`DBI-5`/plan d'action `AUDIT-CONSOLIDE.md`, item 5).
+**Constat (reconfirmé) :** le rôle `onscen` utilisé par l'application dispose des privilèges `rolcreaterole=t, rolcreatedb=t` — bien plus que le strict nécessaire pour un compte applicatif (`DBI-5`/plan d'action `AUDIT-CONSOLIDE.md`, item 5).
 
 **Risque : 🟡 Moyen** — en cas de compromission de la couche applicative (ex. injection SQL réussie, secret DB exfiltré), l'attaquant hériterait de privilèges d'administration de la base au lieu d'être cantonné aux tables applicatives.
 

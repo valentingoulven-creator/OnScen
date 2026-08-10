@@ -1,12 +1,12 @@
 @echo off
 chcp 65001 >nul 2>&1
-title MeloSong
+title OnScen
 
 cd /d "%~dp0..\..\.."
 
 echo.
 echo  ==========================================
-echo    MeloSong  -  Lancer localement (HTTP)
+echo    OnScen  -  Lancer localement (HTTP)
 echo  ==========================================
 echo    URL    : http://localhost:4080
 echo    Compte : listener@msdev.local / msdev123
@@ -50,7 +50,7 @@ if not exist "commun\backend\src\lib\msdevLanConfig.ts" (
 start /b powershell -NoProfile -WindowStyle Hidden -Command "for($i=0;$i-lt 45;$i++){Start-Sleep 1;try{$c=New-Object Net.Sockets.TcpClient;$c.Connect('127.0.0.1',4080);$c.Close();Start-Process 'http://localhost:4080';break}catch{}}"
 
 echo  Demarrage du serveur... (le navigateur s'ouvrira automatiquement)
-echo  Fermez cette fenetre pour arreter MeloSong.
+echo  Fermez cette fenetre pour arreter OnScen.
 echo.
 
 :: 5. Serveur en avant-plan (logs visibles, fenetre reste ouverte tant que le serveur tourne)

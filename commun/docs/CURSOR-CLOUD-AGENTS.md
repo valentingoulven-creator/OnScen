@@ -50,7 +50,7 @@ npm run cloud:sync:install-hook
 |-------|--------|-------|
 | `npm run dev` + secrets `.env` | ✅ | ✅ (après secrets dashboard) |
 | Deploy `deploy-prod.ps1` | ✅ | ❌ |
-| SSH `soundy-prod` | ✅ | ❌ (tunnel requis) |
+| SSH `onscen-prod` | ✅ | ❌ (tunnel requis) |
 | PR draft + tests autonomes | manuel | ✅ |
 
 ## Terminals cloud

@@ -16,8 +16,8 @@ if ($Address -match 'acompleter|renseigner|completer|\[A') {
   throw "Adresse invalide - fournissez une adresse postale reelle (LCEN art. 6)."
 }
 
-$sshHost = if ($Staging) { "soundy-staging" } else { "soundy-prod" }
-$pm2App = if ($Staging) { "melosong-backend-staging" } else { "melosong-backend" }
+$sshHost = if ($Staging) { "onscen-staging" } else { "onscen-prod" }
+$pm2App = if ($Staging) { "onscen-backend-staging" } else { "onscen-backend" }
 $remoteScript = "/tmp/soundy-setup-legal.sh"
 $localScript = Join-Path $env:TEMP "soundy-setup-legal.sh"
 
@@ -26,7 +26,7 @@ $bash = @"
 #!/usr/bin/env bash
 set -euo pipefail
 ADDR="$escaped"
-ENV_FILE="/opt/soundly/.env"
+ENV_FILE="/opt/onscen/.env"
 if grep -q '^LEGAL_PUBLISHER_ADDRESS=' "`$ENV_FILE" 2>/dev/null; then
   sed -i "s|^LEGAL_PUBLISHER_ADDRESS=.*|LEGAL_PUBLISHER_ADDRESS=\"`$ADDR\"|" "`$ENV_FILE"
 else
@@ -35,7 +35,7 @@ fi
 python3 - <<PY
 import json
 addr = "$escaped"
-path = "/opt/soundly/legal-publisher.json"
+path = "/opt/onscen/legal-publisher.json"
 with open(path, encoding="utf-8") as f:
     data = json.load(f)
 data["address"] = addr

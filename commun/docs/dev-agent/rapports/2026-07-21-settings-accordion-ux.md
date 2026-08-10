@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-07-21 — Settings accordion UX
 
-**Agent :** @soundy-dev-agent  
+**Agent :** @onscen-dev-agent  
 **Date :** 2026-07-21  
 **Durée estimée :** 1 h  
 **Statut global :** ✅ Terminé

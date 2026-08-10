@@ -70,7 +70,7 @@ or the account is not eligible for designation as a test user
 
 ## Si le lien direct échoue
 
-Le paramètre `project=` accepte le **numéro** (`522947046161`) ou l'**ID** texte du projet (ex. `soundy-prod`). Si la console affiche « projet introuvable » :
+Le paramètre `project=` accepte le **numéro** (`522947046161`) ou l'**ID** texte du projet (ex. `onscen-prod`). Si la console affiche « projet introuvable » :
 
 1. Console → sélecteur de projet (barre du haut) → choisir le projet qui contient le Client ID ci-dessus.
 2. Menu **Google Auth Platform** → **Audience** → ajouter le test user.
@@ -93,7 +93,7 @@ Si l’OAuth Google n’est pas encore autorisé pour un testeur, vous pouvez ac
 MOCK_PLATFORM_CONNECT_USERNAMES=dye,val
 ```
 
-Sur le VPS : ajouter la ligne dans `/opt/onscen/.env`, puis `pm2 reload melosong-backend --update-env`.
+Sur le VPS : ajouter la ligne dans `/opt/onscen/.env`, puis `pm2 reload onscen-backend --update-env`.
 
 Le compte **Val** (`Val`, id `user_1781025111633_ipv5l`) verra alors le bouton « Connexion démo (sans Google) » sous « Connecter YouTube ».
 

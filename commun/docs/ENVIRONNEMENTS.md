@@ -5,8 +5,8 @@
 | Env | Cible | `APP_ENV` | Données | URL | Deploy |
 |-----|-------|-----------|---------|-----|--------|
 | **Dev** | PC local | `msdev` | `msdev/data/store.json` | `http://localhost:5173` | `npm run dev` |
-| **Pré-prod** | VPS `soundly-staging` | `preproduction` | PostgreSQL `soundy_staging` | `https://staging.getsoundy.com` | `commun/scripts/deploy-preprod.ps1` ou **GitHub Actions** (auto) |
-| **Prod** | VPS `soundly` | `production` | PostgreSQL `soundy-prod` | `https://getsoundy.com` | `commun/scripts/deploy-prod.ps1` |
+| **Pré-prod** | VPS `soundly-staging` | `preproduction` | PostgreSQL `onscen_staging` | `https://staging.getsoundy.com` | `commun/scripts/deploy-preprod.ps1` ou **GitHub Actions** (auto) |
+| **Prod** | VPS `soundly` | `production` | PostgreSQL `onscen-prod` | `https://getsoundy.com` | `commun/scripts/deploy-prod.ps1` |
 
 ## Infra
 
@@ -14,11 +14,11 @@
 Dev (local)          Preprod VPS                    Prod VPS
 localhost:5173       51.159.170.181                 51.159.164.100
      │                      │                              │
-     └─ msdev :4080         └─ PM2 melosong-backend-staging └─ PM2 melosong-backend
+     └─ msdev :4080         └─ PM2 onscen-backend-staging └─ PM2 onscen-backend
                                    │                              │
                                    └────────── Scaleway PG ───────┘
                                         51.15.132.229:14440
-                                        soundy_staging | soundy-prod
+                                        onscen_staging | onscen-prod
 ```
 
 ### VPS staging (Scaleway)
@@ -27,8 +27,8 @@ localhost:5173       51.159.170.181                 51.159.164.100
 - **ID** : `05d0cabc-cd09-4d7a-8341-e4758d0d00c8`
 - **Zone** : `fr-par-2`
 - **Type** : DEV1-S
-- **Chemin app** : `/opt/soundly`
-- **SSH** : `ssh soundy-staging` (alias → `51.159.170.181`)
+- **Chemin app** : `/opt/onscen`
+- **SSH** : `ssh onscen-staging` (alias → `51.159.170.181`)
 
 ### DNS
 
@@ -75,7 +75,7 @@ npm run deploy:prod
 | `backend/.env.preproduction.example` | oui | Template staging |
 | `app/.env.production` | oui (sans secrets) | Build prod |
 | `app/.env.preproduction` | non | Build staging |
-| `/opt/soundly/.env` (VPS) | non | Runtime prod ou staging |
+| `/opt/onscen/.env` (VPS) | non | Runtime prod ou staging |
 
 ## Code backend — `APP_ENV=preproduction`
 
@@ -100,8 +100,8 @@ Configurer les redirect URIs staging dans chaque console OAuth avant tests login
 # Health staging (IP ou domaine)
 curl http://51.159.170.181/health
 
-ssh soundy-staging "pm2 status"
-ssh soundy-staging "pm2 logs melosong-backend-staging --lines 30"
+ssh onscen-staging "pm2 status"
+ssh onscen-staging "pm2 logs onscen-backend-staging --lines 30"
 ```
 
 Réponse attendue : `"env":"preproduction"`, `"db":"ok"`.
@@ -111,6 +111,6 @@ Réponse attendue : `"env":"preproduction"`, `"db":"ok"`.
 - `commun/deploy/environments.ps1` — config prod / preprod
 - `commun/deploy/deploy_zero_downtime.ps1 -Environment preprod|prod`
 - `commun/deploy/Caddyfile.staging` — HTTPS staging, preprod ouverte (`noindex`, pas d'allowlist IP)
-- `commun/deploy/ecosystem.staging.config.cjs` — PM2 `melosong-backend-staging`
+- `commun/deploy/ecosystem.staging.config.cjs` — PM2 `onscen-backend-staging`
 
 Voir aussi : `docs/INFRA-ONSCEN.md`, `commun/deploy/RUNBOOK-PROD.md`.

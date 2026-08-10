@@ -1,4 +1,4 @@
-# setup-scw.ps1 - Configure Scaleway CLI + SSH VPS Soundy + sync .env prod
+# setup-scw.ps1 - Configure Scaleway CLI + SSH VPS OnScen + sync .env prod
 #
 # Usage :
 #   powershell -ExecutionPolicy Bypass -File commun/scripts/setup-scw.ps1
@@ -72,7 +72,7 @@ Option C : scw login (si politique org le permet)
 }
 Write-Ok "Config : $ScwConfig"
 
-Write-Step '2/5 - Recherche instance VPS Soundy'
+Write-Step '2/5 - Recherche instance VPS OnScen'
 $serversJson = & scw instance server list zone=$Zone -o json 2>&1 | Out-String
 if ($LASTEXITCODE -ne 0) { throw "scw instance server list echoue : $serversJson" }
 $servers = $serversJson | ConvertFrom-Json
@@ -123,6 +123,6 @@ if (-not $sshOk) {
 }
 Write-Ok 'SSH OK'
 
-Write-Step '5/5 - Sync /opt/soundy/.env'
+Write-Step '5/5 - Sync /opt/onscen/.env'
 & powershell -ExecutionPolicy Bypass -File (Join-Path $RepoRoot 'scripts\setup-infra-access.ps1') -PullProdEnv -SyncMsdevFromProd
 Write-Ok 'Setup Scaleway + infra termine'

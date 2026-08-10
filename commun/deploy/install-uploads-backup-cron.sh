@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # install-uploads-backup-cron.sh — Cron quotidien backup-uploads.sh (04:30, après pg_dump 03:15)
-# Usage : sudo bash /opt/soundly/deploy/install-uploads-backup-cron.sh
+# Usage : sudo bash /opt/onscen/deploy/install-uploads-backup-cron.sh
 set -euo pipefail
 
-sed -i 's/\r$//' /opt/soundly/deploy/*.sh 2>/dev/null || true
+sed -i 's/\r$//' /opt/onscen/deploy/*.sh 2>/dev/null || true
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/soundy-root.sh
-source "${SCRIPT_DIR}/lib/soundy-root.sh"
+# shellcheck source=lib/onscen-root.sh
+source "${SCRIPT_DIR}/lib/onscen-root.sh"
 SCRIPT="$DEPLOY_DIR/backup-uploads.sh"
 CRON_LOG="${ROOT}/backups/uploads/cron.log"
 CRON_MARKER="backup-uploads.sh"

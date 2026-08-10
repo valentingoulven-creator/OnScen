@@ -2,7 +2,7 @@
  * Seed 10 lives actifs — grandes villes françaises (PostgreSQL production).
  *
  * Usage sur le VPS :
- *   cd /opt/soundly && APP_ENV=production node dist/scripts/seed-production-france-random-lives.js
+ *   cd /opt/onscen && APP_ENV=production node dist/scripts/seed-production-france-random-lives.js
  *
  * Usage local (dev avec DATABASE_URL) :
  *   cd commun/backend && npm run build && node dist/scripts/seed-production-france-random-lives.js
@@ -45,7 +45,7 @@ async function main(): Promise<void> {
       2
     )
   );
-  console.log('\n⚡  Relancer pm2 : pm2 restart melosong-backend\n');
+  console.log('\n⚡  Relancer pm2 : pm2 restart onscen-backend\n');
 }
 
 main()

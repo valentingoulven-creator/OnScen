@@ -4,14 +4,14 @@
 #
 # ⚠ Ne jamais committer de mots de passe DB dans ce dépôt.
 # Définir DB_PASS (et optionnellement DB_HOST, DB_PORT, DB_USER) dans l'environnement
-# du VPS ou dans /opt/soundy/.env avant d'exécuter ce script.
+# du VPS ou dans /opt/onscen/.env avant d'exécuter ce script.
 set -euo pipefail
 
 DB_HOST="${DB_HOST:-51.15.132.229}"
 DB_PORT="${DB_PORT:-14440}"
 DB_USER="${DB_USER:-soundy}"
 DB_PASS="${DB_PASS:?DB_PASS must be set — use secrets from VPS .env, never commit passwords}"
-ENV_FILE="/opt/soundy/.env"
+ENV_FILE="/opt/onscen/.env"
 
 # URL-encode password for DATABASE_URL (requires python3 on VPS)
 DB_PASS_URL="$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$DB_PASS")"
@@ -43,13 +43,13 @@ if echo "$TEST" | grep -q "ok"; then
     echo "✓ Connexion PostgreSQL OK"
 else
     echo "✖ CONNEXION ÉCHOUÉE — IP non whitelistée sur Scaleway ?"
-    echo "  Ajouter 51.159.164.100/32 dans Scaleway Console → RDB → soundy-db → Network"
+    echo "  Ajouter 51.159.164.100/32 dans Scaleway Console → RDB → onscen-db → Network"
     exit 1
 fi
 
 echo ""
 echo "=== [VPS] Mise à jour $ENV_FILE ==="
-mkdir -p /opt/soundy
+mkdir -p /opt/onscen
 
 if [ ! -f "$ENV_FILE" ]; then
     cat > "$ENV_FILE" << 'EOF'

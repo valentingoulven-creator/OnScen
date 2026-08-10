@@ -182,7 +182,7 @@ if (Test-StagingDns $TargetIp) {
         Write-Host ('  [OK] https://' + $SubDomain + '.' + $Zone + '/health env=' + $health.env) -ForegroundColor Green
     } catch {
         Write-Host '  [!] HTTPS not ready yet — Caddy will request Let''s Encrypt after DNS propagation' -ForegroundColor Yellow
-        Write-Host '      ssh soundy-staging "systemctl reload caddy"' -ForegroundColor DarkGray
+        Write-Host '      ssh onscen-staging "systemctl reload caddy"' -ForegroundColor DarkGray
     }
 }
 

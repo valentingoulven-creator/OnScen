@@ -1,4 +1,4 @@
-﻿MeloSong msdev â€” DÃ©bloquer l'exÃ©cutable sous Windows
+﻿OnScen msdev â€” DÃ©bloquer l'exÃ©cutable sous Windows
 ===================================================
 
 Windows peut afficher Â« Application dangereuse Â», bloquer msdev.exe ou
@@ -7,7 +7,7 @@ avec pkg (runtime Node embarquÃ©), sans certificat de signature Authenticode.
 
 â”€â”€â”€ MÃ©thode la plus rapide AUJOURD'HUI â”€â”€â”€
 
-A) Vous avez Node.js 18+ et le dossier source du projet MeloSong Dev :
+A) Vous avez Node.js 18+ et le dossier source du projet OnScen Dev :
    â†’ Double-cliquez : msdev\Lancer-msdev-node.bat
    (ou Ã  la racine du projet : npm run msdev:server)
    Pas d'exe : Smart App Control ne s'applique pas Ã  node.exe (signÃ© Microsoft).
@@ -43,7 +43,7 @@ Si Windows Defender bloque encore aprÃ¨s SmartScreen :
 1. ParamÃ¨tres â†’ ConfidentialitÃ© et sÃ©curitÃ© â†’ SÃ©curitÃ© Windows
 2. Protection contre les virus et menaces â†’ GÃ©rer les paramÃ¨tres
 3. Exclusions â†’ Ajouter une exclusion â†’ Dossier
-4. Choisir le dossier complet :  ...\MeloSong Dev\msdev\release
+4. Choisir le dossier complet :  ...\OnScen Dev\msdev\release
 
 Ne dÃ©sactivez pas toute la protection du PC : une exclusion de dossier suffit.
 
@@ -82,11 +82,11 @@ Test technique (PowerShell) :
 
 â”€â”€â”€ 5. Recompiler aprÃ¨s mise Ã  jour â”€â”€â”€
 
-Ã€ la racine MeloSong Dev :  npm run build:exe
+Ã€ la racine OnScen Dev :  npm run build:exe
 
-Le script de build applique Unblock-File et les mÃ©tadonnÃ©es Â« MeloSong Â»
+Le script de build applique Unblock-File et les mÃ©tadonnÃ©es Â« OnScen Â»
 sur l'exe (remplace l'affichage Â« Node.js Â» dans les propriÃ©tÃ©s du fichier).
 
 Voir aussi : msdev\BUILD-EXE.txt
 
-Fenetre qui se ferme : utilisez msdev\Lancer-MeloSong.bat (dossier parent) ou ce Lancer-msdev.bat — pause en fin de script.
+Fenetre qui se ferme : utilisez msdev\Lancer-OnScen.bat (dossier parent) ou ce Lancer-msdev.bat — pause en fin de script.

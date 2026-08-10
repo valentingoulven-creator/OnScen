@@ -1,11 +1,11 @@
 # setup-second-cursor.ps1 - Bootstrap second poste / second compte Cursor
-# MeloSongv2 / Soundy - acces dev local + deploy prod (VPS getsoundy.com)
+# OnScen / OnScen - acces dev local + deploy prod (VPS getsoundy.com)
 #
 # Usage (depuis n'importe ou, ou apres clone) :
 #   powershell -ExecutionPolicy Bypass -File commun/scripts/setup-second-cursor.ps1
 #
 # Options :
-#   -TargetDir "C:\Dev\MeloSongv2"   Dossier cible (hors iCloud recommande)
+#   -TargetDir "C:\Dev\OnScen"   Dossier cible (hors iCloud recommande)
 #   -SkipClone                        Ne pas cloner (depot deja present)
 #   -SkipNpmInstall                   Ignorer npm install
 #   -SeedStories                      Lance npm run msdev:seed-stories (backend)
@@ -15,7 +15,7 @@
 # Voir commun/scripts/SETUP-SECOND-CURSOR.md et commun/scripts/secrets-checklist.template.txt
 
 param(
-    [string]$TargetDir = 'C:\Dev\MeloSongv2',
+    [string]$TargetDir = 'C:\Dev\OnScen',
     [switch]$SkipClone,
     [switch]$SkipNpmInstall,
     [switch]$SeedStories,
@@ -25,11 +25,11 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # --- Constantes projet -------------------------------------------------------
-$RepoUrl     = 'https://github.com/valentingoulven-creator/MeloSong.git'
+$RepoUrl     = 'https://github.com/valentingoulven-creator/OnScen.git'
 $VpsHost     = '51.159.164.100'
 $VpsUser     = 'root'
 $VpsTarget   = "${VpsUser}@${VpsHost}"
-$RemotePath  = '/opt/soundly'
+$RemotePath  = '/opt/onscen'
 $HealthUrl   = 'https://getsoundy.com/health'
 $SshDir      = Join-Path $env:USERPROFILE '.ssh'
 $PrimaryKey  = Join-Path $SshDir 'id_ed25519'
@@ -134,7 +134,7 @@ function Test-SshConnection([string]$keyPath) {
 # --- Banniere ----------------------------------------------------------------
 Write-Host ''
 Write-Host ' ============================================================' -ForegroundColor Magenta
-Write-Host '  Soundy / MeloSongv2 - Setup second Cursor' -ForegroundColor Magenta
+Write-Host '  OnScen / OnScen - Setup second Cursor' -ForegroundColor Magenta
 Write-Host ' ============================================================' -ForegroundColor Magenta
 Write-Host "  Depot cible : $TargetDir"
 Write-Host "  GitHub      : $RepoUrl"
@@ -208,7 +208,7 @@ Write-Step '2/8 - Depot Git (hors iCloud recommande)'
 
 if ($TargetDir -match 'iCloudDrive') {
     Write-Warn 'Le chemin cible est sous iCloud - risque de lenteur et verrouillage (msdev/data).'
-    Write-Info 'Recommande : C:\Dev\MeloSongv2'
+    Write-Info 'Recommande : C:\Dev\OnScen'
 }
 
 $repoRoot = $null
@@ -226,7 +226,7 @@ if ($SkipClone -and (Test-Path $TargetDir)) {
         Write-Ok "Dossier parent cree : $parent"
     }
     if (Test-Path $TargetDir) {
-        Write-Fail "Le dossier existe mais n'est pas un depot MeloSongv2 valide : $TargetDir"
+        Write-Fail "Le dossier existe mais n'est pas un depot OnScen valide : $TargetDir"
         exit 1
     }
     Write-Info "Clonage en cours : $RepoUrl -> $TargetDir"
@@ -248,10 +248,10 @@ Set-Location $repoRoot
 # Remote GitHub
 $remoteUrl = (& git remote get-url origin 2>$null)
 if ($LASTEXITCODE -eq 0) {
-    if ($remoteUrl -match 'valentingoulven-creator/MeloSong') {
+    if ($remoteUrl -match 'valentingoulven-creator/OnScen') {
         Write-Ok "Remote origin : $remoteUrl"
     } else {
-        Write-Warn "Remote inattendu : $remoteUrl (attendu MeloSong)"
+        Write-Warn "Remote inattendu : $remoteUrl (attendu OnScen)"
     }
 } else {
     Write-Warn 'Remote origin absent'
@@ -357,11 +357,11 @@ if ($createdEnvFiles.Count -gt 0) {
     if (Test-Path $checklist) {
         Write-Info "Checklist : commun/scripts/secrets-checklist.template.txt"
     }
-    Write-Info 'Recuperer prod : ssh root@51.159.164.100 puis cat /opt/soundly/.env (sans committer)'
+    Write-Info 'Recuperer prod : ssh root@51.159.164.100 puis cat /opt/onscen/.env (sans committer)'
     Write-Info 'PostgreSQL prod = Scaleway Managed (51.15.132.229:14440) — DATABASE_URL dans .env VPS, pas sur le VPS lui-meme'
     Write-Info 'Admin prod : PROD_ADMIN_EMAIL=admin@getsoundy.com ; msdev : ACCESS_ADMIN_EMAILS (pas dev@soundy.local)'
     Write-Info '(Ne copiez que les variables necessaires - jamais dans Git)'
-    $manualActions.Add('Remplir commun/msdev/.env (ACCESS_ADMIN_EMAILS) et commun/backend/.env.production (PROD_ADMIN_EMAIL=admin@getsoundy.com) depuis machine 1 ou VPS /opt/soundly/.env')
+    $manualActions.Add('Remplir commun/msdev/.env (ACCESS_ADMIN_EMAILS) et commun/backend/.env.production (PROD_ADMIN_EMAIL=admin@getsoundy.com) depuis machine 1 ou VPS /opt/onscen/.env')
 }
 
 # --- 6. npm install --------------------------------------------------------

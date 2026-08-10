@@ -1,4 +1,4 @@
-# Déclaration d'invention — Soundly / MeloSong
+# Déclaration d'invention — Soundly / OnScen
 
 > **Formulaire de divulgation** — à compléter par l'inventeur avant consultation CPI  
 > **Statut :** BROUILLON — champs `[À COMPLÉTER]` à renseigner
@@ -10,7 +10,7 @@
 | Champ | Valeur |
 |---|---|
 | **Titre provisoire de l'invention** | Système de synchronisation d'écoute musicale multi-clients avec cartographie géolocalisée et relais audiovisuel en direct |
-| **Nom commercial** | Soundly / MeloSong |
+| **Nom commercial** | Soundly / OnScen |
 | **Inventeur(s)** | `[À COMPLÉTER : nom, prénom, adresse, nationalité]` |
 | **Demandeur / titulaire envisagé** | `[À COMPLÉTER : personne physique ou morale, SIREN si société]` |
 | **Date de conception** | `[À COMPLÉTER]` |
@@ -126,7 +126,7 @@ Endpoint `GET /api/geo/nearby` :
 
 ## 6. État de l'art et différenciation
 
-| Produit / service | Similitudes | Différences techniques MeloSong |
+| Produit / service | Similitudes | Différences techniques OnScen |
 |---|---|---|
 | **Spotify** / Jam | Écoute partagée | Jam = écosystème Spotify fermé ; pas de carte géo + double UI ; pas de YouTube natif |
 | **Discord** | Activités, voix, écran | Pas de salons géolocalisés synchronisés sur carte ; sync via activités tierces |

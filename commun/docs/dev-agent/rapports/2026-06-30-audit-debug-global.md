@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-06-30 — Audit debug global
 
-**Agent :** @soundy-dev-agent  
+**Agent :** @onscen-dev-agent  
 **Date :** 2026-06-30  
 **Durée estimée :** ~1 h  
 **Statut global :** ⚠️ Partiel (build/tests OK, CI lint bloquée, script msdev corrigé)
@@ -9,7 +9,7 @@
 
 ## Mission
 
-Audit de santé de l'ensemble de l'application Soundy : builds, tests, lint, infra, scripts dev.
+Audit de santé de l'ensemble de l'application OnScen : builds, tests, lint, infra, scripts dev.
 
 ---
 
@@ -138,4 +138,4 @@ Le job CI exécute `npm run lint` → **CI rouge sur main** tant que non traité
 
 ---
 
-*Généré par Soundy Dev Agent*
+*Généré par OnScen Dev Agent*

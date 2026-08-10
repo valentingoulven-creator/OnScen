@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-07-22 — Config Stripe live depuis l'admin
 
-**Agent :** @soundy-dev-agent
+**Agent :** @onscen-dev-agent
 **Date :** 2026-07-22
 **Durée estimée :** ~2 h
 **Statut global :** ✅ Terminé
@@ -178,7 +178,7 @@ cd web/app && npm run build             → ❌ bloqué par src/lib/mapMarkersKe
 - Pas de stockage chiffré en base dédié — écriture directe dans le `.env`
   serveur (cohérent avec **tous** les autres secrets du projet :
   `SIGHTENGINE_*`, `SCW_*`, `ANTHROPIC_API_KEY`… il n'existe aucun
-  mécanisme de secrets chiffrés en DB dans Soundy à ce jour). Le `.env`
+  mécanisme de secrets chiffrés en DB dans OnScen à ce jour). Le `.env`
   reste protégé par les permissions filesystem du VPS (`chmod`, accès SSH
   root uniquement).
 - `applyStripeConfig()` exige qu'un `.env` existe déjà à l'emplacement
@@ -208,4 +208,4 @@ cd web/app && npm run build             → ❌ bloqué par src/lib/mapMarkersKe
 
 ---
 
-*Généré par Soundy Dev Agent — ne pas éditer le template `_TEMPLATE.md`*
+*Généré par OnScen Dev Agent — ne pas éditer le template `_TEMPLATE.md`*

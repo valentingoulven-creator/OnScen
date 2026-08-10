@@ -23,14 +23,14 @@ flowchart TB
 
   subgraph VPS["VPS Scaleway — 51.159.164.100"]
     Caddy["Caddy — HTTPS / reverse proxy"]
-    PM2["PM2 — melosong-backend"]
+    PM2["PM2 — onscen-backend"]
     Node["Node.js — backend/"]
     Coturn["Coturn TURN — port 3478"]
     Data["/opt/onscen/.env + legal-publisher.json"]
   end
 
   subgraph DB["Scaleway Managed Database"]
-    PG["PostgreSQL 16 — soundy-prod"]
+    PG["PostgreSQL 16 — onscen-prod"]
   end
 
   subgraph External["Services externes (optionnels)"]
@@ -84,7 +84,7 @@ Coûts récurrents indépendants du volume de spectateurs live (hors bande passa
 | Poste | Estimation mensuelle | Détail |
 |-------|---------------------|--------|
 | **VPS Scaleway** | ~8–12 € | Instance type DEV1-S ou équivalent (Paris `fr-par`) — Node, Caddy, PM2, Coturn, backups locaux. Réf. deploy : DEV1-S ~1,9 Go RAM suffisant pour app seule ; Postgres sur le même VPS déconseillé en prod. |
-| **PostgreSQL Managed Scaleway** | ~15 € | Plan **DB-DEV-S** (1 vCPU, 2 Go RAM, 10 Go SSD) — instance `soundy-prod`, région Paris. Whitelist IP VPS `51.159.164.100/32`. |
+| **PostgreSQL Managed Scaleway** | ~15 € | Plan **DB-DEV-S** (1 vCPU, 2 Go RAM, 10 Go SSD) — instance `onscen-prod`, région Paris. Whitelist IP VPS `51.159.164.100/32`. |
 | **Domaine getsoundy.com** | ~1 € | Renouvellement annuel ~10–15 €/an (registrar variable). DNS géré côté registrar / Cloudflare selon config. |
 | **Gmail Pro (Google Workspace)** | **16,90 €** | Messagerie professionnelle équipe `@getsoundy.com` (forfait Google Workspace). |
 | **Coturn (TURN WebRTC)** | **Inclus** | Service Coturn sur le même VPS (`51.159.164.100:3478`) — pas de coût SaaS séparé ; consomme CPU/bande passante VPS. |
@@ -394,7 +394,7 @@ Les bots simulent des **salons YouTube** et des **marqueurs LIVE** sur la carte 
 | **VPS SSH** | `ssh root@51.159.164.100` (clé `~/.ssh/id_ed25519`) |
 | **Chemin application** | `/opt/onscen` |
 | **Console Scaleway** | https://console.scaleway.com |
-| **Managed Database** | Console → Managed Databases → `soundy-prod` |
+| **Managed Database** | Console → Managed Databases → `onscen-prod` |
 | **GitHub (dépôt)** | https://github.com/valentingoulven-creator/Melo |
 
 ### Streaming live

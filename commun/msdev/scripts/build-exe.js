@@ -232,7 +232,7 @@ if (fs.existsSync(storeJson)) {
 
 
 
-const readme = `MeloSong — msdev (Windows)
+const readme = `OnScen — msdev (Windows)
 
 ========================
 
@@ -280,7 +280,7 @@ for (const doc of ['BUILD-EXE.txt', 'MOBILE-PWA.txt', 'DEBLOCAGE-WINDOWS.txt']) 
 
 const launcherBat = `@echo off
 
-title MeloSong msdev
+title OnScen msdev
 
 cd /d "%~dp0"
 
@@ -298,7 +298,7 @@ if not exist msdev.exe (
 
 )
 
-start "MeloSong msdev" /MAX msdev.exe
+start "OnScen msdev" /MAX msdev.exe
 
 `;
 
@@ -318,10 +318,10 @@ if (fs.existsSync(launcherPs1)) {
 
 fs.writeFileSync(
   path.join(releaseDir, 'Lancer-msdev-node-INFO.txt'),
-  `Pour lancer MeloSong SANS msdev.exe (contourne Smart App Control) :
+  `Pour lancer OnScen SANS msdev.exe (contourne Smart App Control) :
 
 1. Installez Node.js 18+ : https://nodejs.org
-2. Ouvrez le dossier source MeloSong Dev (pas seulement release/)
+2. Ouvrez le dossier source OnScen Dev (pas seulement release/)
 3. Double-cliquez : msdev\\Lancer-msdev-node.bat
 
 Ou en ligne de commande à la racine du projet :

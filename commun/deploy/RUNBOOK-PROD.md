@@ -1,6 +1,6 @@
-# Runbook production â€” Soundy / MeloSong
+# Runbook production â€” OnScen / OnScen
 
-Guide ops pour le VPS (`51.159.164.100`, `/opt/soundly`) et la base PostgreSQL Scaleway.
+Guide ops pour le VPS (`51.159.164.100`, `/opt/onscen`) et la base PostgreSQL Scaleway.
 
 > **Priorités infra :** [`OPS-PRIORITIES.md`](./OPS-PRIORITIES.md) · **Cloudflare CDN/WAF :** [`CLOUDFLARE-CDN-WAF.md`](./CLOUDFLARE-CDN-WAF.md)
 
@@ -12,15 +12,15 @@ Guide ops pour le VPS (`51.159.164.100`, `/opt/soundly`) et la base PostgreSQL S
 
 | Fichier | Emplacement | RÃ´le |
 |---------|-------------|------|
-| `.env` | `/opt/soundly/.env` | Variables d'environnement production |
-| `legal-publisher.json` | `/opt/soundly/legal-publisher.json` | Mentions lÃ©gales / CGU (Ã©diteur, hÃ©bergeur) |
-| Sauvegardes DB | `/opt/soundly/backups/` | Dumps `pg_dump` locaux |
+| `.env` | `/opt/onscen/.env` | Variables d'environnement production |
+| `legal-publisher.json` | `/opt/onscen/legal-publisher.json` | Mentions lÃ©gales / CGU (Ã©diteur, hÃ©bergeur) |
+| Sauvegardes DB | `/opt/onscen/backups/` | Dumps `pg_dump` locaux |
 
 Ces fichiers **ne sont pas** dans le dÃ©pÃ´t Git. Les crÃ©er / Ã©diter **uniquement sur le VPS** (ou localement pour test, sans commit).
 
 ---
 
-## Checklist `/opt/soundly/.env`
+## Checklist `/opt/onscen/.env`
 
 ModÃ¨le complet : `backend/.env.production.example` (rÃ©fÃ©rence) et `commun/deploy/.env.production.example`.
 
@@ -55,7 +55,7 @@ OAuth Google / Facebook / Apple / Instagram, Stripe, contrÃ´le d'accÃ¨s â�
 | Variable | Description |
 |----------|-------------|
 | `DONATIONS_ENABLED` | `1` pour activer les pourboires en production |
-| `DONATION_PLATFORM_FEE_PERCENT` | Commission Soundy sur chaque pourboire (dÃ©faut **50**) |
+| `DONATION_PLATFORM_FEE_PERCENT` | Commission OnScen sur chaque pourboire (dÃ©faut **50**) |
 | `STRIPE_SECRET_KEY` / `STRIPE_PUBLISHABLE_KEY` | ClÃ©s Stripe |
 | `STRIPE_WEBHOOK_SECRET` | Secret webhook (`/api/donations/webhook`, Ã©vÃ©nement `payment_intent.succeeded`) |
 
@@ -76,16 +76,16 @@ Active la diffusion live via RTMP â†’ HLS/CDN (spectateurs illimitÃ©s). S
 CrÃ©ation du token : [dash.cloudflare.com/profile/api-tokens](https://dash.cloudflare.com/profile/api-tokens) â†’ **Create Token** â†’ **Custom token** â†’ Permissions : Account / Stream / Edit â†’ Create Token (copier une seule fois).
 
 
-**Mettre a jour un token existant (Analytics Read)** : [API Tokens](https://dash.cloudflare.com/profile/api-tokens) -> **Edit** sur le token reference par `CLOUDFLARE_STREAM_API_TOKEN` -> ajouter **Account -> Analytics -> Read** (garder **Account -> Stream -> Edit**) -> **Save**. Si vous editez le meme token, ne changez pas `/opt/soundly/.env`.
+**Mettre a jour un token existant (Analytics Read)** : [API Tokens](https://dash.cloudflare.com/profile/api-tokens) -> **Edit** sur le token reference par `CLOUDFLARE_STREAM_API_TOKEN` -> ajouter **Account -> Analytics -> Read** (garder **Account -> Stream -> Edit**) -> **Save**. Si vous editez le meme token, ne changez pas `/opt/onscen/.env`.
 
 **Verification prod** : REST Stream `/stream/live_inputs` = HTTP 200 ; GraphQL minutes livrees echoue avec `not authorized for that account` tant que **Analytics Read** manque. Apres dashboard : admin **Cout** ou `GET /api/admin/cloudflare-usage` (JWT admin) -> `minutesDeliveredSource: graphql`.
 
 AprÃ¨s ajout sur le VPS :
 
 ```bash
-nano /opt/soundly/.env
+nano /opt/onscen/.env
 # Ajouter CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_STREAM_API_TOKEN, CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN
-pm2 reload melosong-backend --update-env
+pm2 reload onscen-backend --update-env
 ```
 
 Le sous-domaine customer peut Ãªtre lu aprÃ¨s le premier live input (Stream â†’ Live Inputs) ou dÃ©fini manuellement depuis lâ€™URL HLS.
@@ -119,26 +119,26 @@ Google STUN (`stun:stun.l.google.com:19302`) est toujours renvoyé en fallback. 
 Après ajout sur le VPS :
 
 ```bash
-nano /opt/soundly/.env
+nano /opt/onscen/.env
 # LIVEKIT_URL=wss://xxx.livekit.cloud
 # LIVEKIT_API_KEY=...
 # LIVEKIT_API_SECRET=...
-pm2 reload melosong-backend --update-env
+pm2 reload onscen-backend --update-env
 ```
 
 ### Ã‰dition sur le VPS
 
 ```bash
-nano /opt/soundly/.env
-pm2 reload melosong-backend --update-env
+nano /opt/onscen/.env
+pm2 reload onscen-backend --update-env
 ```
 
 ### âš  DATABASE_URL absent au dÃ©marrage
 
-Si `APP_ENV=production` sans `DATABASE_URL`, le backend **avertit** et bascule sur **`/opt/soundly/data/store.json`** (fichier local, non recommandÃ© en prod). Voir logs PM2 :
+Si `APP_ENV=production` sans `DATABASE_URL`, le backend **avertit** et bascule sur **`/opt/onscen/data/store.json`** (fichier local, non recommandÃ© en prod). Voir logs PM2 :
 
 ```bash
-pm2 logs melosong-backend --lines 30
+pm2 logs onscen-backend --lines 30
 # [soundy] DATABASE_URL absent — repli sur store.json local ...
 ```
 
@@ -149,21 +149,21 @@ pm2 logs melosong-backend --lines 30
 ### CrÃ©ation sur le VPS
 
 ```bash
-bash /opt/soundly/deploy/setup-legal-publisher.sh
-nano /opt/soundly/legal-publisher.json
-bash /opt/soundly/deploy/setup-legal-publisher.sh   # revÃ©rifie champs obligatoires
-pm2 reload melosong-backend --update-env
+bash /opt/onscen/deploy/setup-legal-publisher.sh
+nano /opt/onscen/legal-publisher.json
+bash /opt/onscen/deploy/setup-legal-publisher.sh   # revÃ©rifie champs obligatoires
+pm2 reload onscen-backend --update-env
 ```
 
 Ã‰tapes dÃ©taillÃ©es :
 
 1. Remplir `acompleter.txt` (dépôt local, ne pas committer si infos sensibles).
-2. Copier `commun/deploy/legal-publisher.template.json` → `/opt/soundly/legal-publisher.json` (ou le script `setup-legal-publisher.sh` depuis l'exemple).
+2. Copier `commun/deploy/legal-publisher.template.json` → `/opt/onscen/legal-publisher.json` (ou le script `setup-legal-publisher.sh` depuis l'exemple).
 3. **Manuel obligatoire** : renseigner `siren`, `address` (postale complète éditeur) et `rcs`/`capital` si société — voir `acompleter.txt`.
 4. Vérifier qu'**aucun** champ ne contient `[À compléter]`.
-5. Redémarrer : `pm2 reload melosong-backend --update-env`
+5. Redémarrer : `pm2 reload onscen-backend --update-env`
 
-Le backend charge ce fichier depuis le **mÃªme rÃ©pertoire que `.env`** (`/opt/soundly/`).
+Le backend charge ce fichier depuis le **mÃªme rÃ©pertoire que `.env`** (`/opt/onscen/`).
 
 ---
 
@@ -178,42 +178,42 @@ Le backend charge ce fichier depuis le **mÃªme rÃ©pertoire que `.env`** (`/o
 
 ```bash
 # PrÃ©requis : postgresql-client (apt install postgresql-client)
-mkdir -p /opt/soundly/backups
-set -a && source /opt/soundly/.env && set +a
-bash /opt/soundly/deploy/backup-db.sh
+mkdir -p /opt/onscen/backups
+set -a && source /opt/onscen/.env && set +a
+bash /opt/onscen/deploy/backup-db.sh
 ```
 
-- Sortie : `/opt/soundly/backups/soundy-YYYYMMDD-HHMMSS.sql.gz`
+- Sortie : `/opt/onscen/backups/soundy-YYYYMMDD-HHMMSS.sql.gz`
 - Rétention locale : **14 jours (2 semaines)** — `RETENTION_DAYS` pour override
-- Log : `/opt/soundly/backups/backup.log`
+- Log : `/opt/onscen/backups/backup.log`
 
 ### Cron quotidien (03:15)
 
 ```bash
-sudo bash /opt/soundly/deploy/install-backup-cron.sh
+sudo bash /opt/onscen/deploy/install-backup-cron.sh
 ```
 
 Ã‰quivalent manuel (`crontab -e`) :
 
 ```bash
-15 3 * * * set -a && . /opt/soundly/.env && set +a && /bin/bash /opt/soundly/deploy/backup-db.sh >> /opt/soundly/backups/cron.log 2>&1
+15 3 * * * set -a && . /opt/onscen/.env && set +a && /bin/bash /opt/onscen/deploy/backup-db.sh >> /opt/onscen/backups/cron.log 2>&1
 ```
 
 ### Sauvegarde uploads utilisateur
 
-Fichiers : `/opt/soundly/public/uploads/` (avatars, sponsors, pièces jointes).
+Fichiers : `/opt/onscen/public/uploads/` (avatars, sponsors, pièces jointes).
 
 ```bash
-bash /opt/soundly/deploy/backup-uploads.sh
-sudo bash /opt/soundly/deploy/install-uploads-backup-cron.sh   # quotidien 04:30
+bash /opt/onscen/deploy/backup-uploads.sh
+sudo bash /opt/onscen/deploy/install-uploads-backup-cron.sh   # quotidien 04:30
 ```
 
 ### Copie off-site (second chemin + Object Storage optionnel)
 
 ```bash
-set -a && source /opt/soundly/.env && set +a
-bash /opt/soundly/deploy/backup-offsite.sh
-sudo bash /opt/soundly/deploy/install-offsite-backup-cron.sh   # 04:00 quotidien
+set -a && source /opt/onscen/.env && set +a
+bash /opt/onscen/deploy/backup-offsite.sh
+sudo bash /opt/onscen/deploy/install-offsite-backup-cron.sh   # 04:00 quotidien
 ```
 
 Variables optionnelles `.env` : `BACKUP_OFFSITE_DIR`, `SCW_BUCKET`, `SCW_ACCESS_KEY`, `SCW_SECRET_KEY`.
@@ -221,16 +221,16 @@ Variables optionnelles `.env` : `BACKUP_OFFSITE_DIR`, `SCW_BUCKET`, `SCW_ACCESS_
 ### Checklist Scaleway (manuelle)
 
 ```bash
-bash /opt/soundly/deploy/verify-scaleway-backup.sh
-bash /opt/soundly/deploy/snapshot-vps-reminder.sh   # avant upgrade majeur
+bash /opt/onscen/deploy/verify-scaleway-backup.sh
+bash /opt/onscen/deploy/snapshot-vps-reminder.sh   # avant upgrade majeur
 ```
 
 ### VÃ©rifier un dump
 
 ```bash
-bash /opt/soundly/deploy/verify-backup.sh
+bash /opt/onscen/deploy/verify-backup.sh
 # ou avec un fichier prÃ©cis :
-bash /opt/soundly/deploy/verify-backup.sh /opt/soundly/backups/soundy-20260610-031500.sql.gz
+bash /opt/onscen/deploy/verify-backup.sh /opt/onscen/backups/soundy-20260610-031500.sql.gz
 ```
 
 ### Restauration PostgreSQL (procÃ©dure test)
@@ -238,18 +238,18 @@ bash /opt/soundly/deploy/verify-backup.sh /opt/soundly/backups/soundy-20260610-0
 > **Ne pas restaurer sur la base prod sans fenÃªtre de maintenance.** Tester d'abord sur une base vide.
 
 ```bash
-export DATABASE_URL='postgresql://soundy:SECRET@host:5432/soundy_restore_test?sslmode=require'
-createdb -h HOST -U soundy soundy_restore_test   # ou via console Scaleway
-gunzip -c /opt/soundly/backups/soundy-XXXX.sql.gz | psql "$DATABASE_URL"
-bash /opt/soundly/deploy/verify-backup.sh /opt/soundly/backups/soundy-XXXX.sql.gz
-dropdb -h HOST -U soundy soundy_restore_test
+export DATABASE_URL='postgresql://soundy:SECRET@host:5432/onscen_restore_test?sslmode=require'
+createdb -h HOST -U soundy onscen_restore_test   # ou via console Scaleway
+gunzip -c /opt/onscen/backups/soundy-XXXX.sql.gz | psql "$DATABASE_URL"
+bash /opt/onscen/deploy/verify-backup.sh /opt/onscen/backups/soundy-XXXX.sql.gz
+dropdb -h HOST -U soundy onscen_restore_test
 ```
 
 Restauration prod : crÃ©er une **nouvelle** instance DB Scaleway ou contacter le support pour restore snapshot, puis mettre Ã  jour `DATABASE_URL` dans `.env`.
 
 ### Console Scaleway â€” actions manuelles
 
-1. [console.scaleway.com](https://console.scaleway.com) â†’ **Managed Databases** â†’ instance `soundy-prod`.
+1. [console.scaleway.com](https://console.scaleway.com) â†’ **Managed Databases** â†’ instance `onscen-prod`.
 2. Onglet **Backups** : activer les **sauvegardes automatiques** (frÃ©quence selon plan, typ. quotidien).
 3. Noter la **rÃ©tention** (7â€“30 j selon plan) ; tester un **restore** sur une instance de test au moins une fois par trimestre.
 4. Onglet **Allowed IPs** : VPS `51.159.164.100/32` toujours autorisÃ©.
@@ -260,18 +260,18 @@ Restauration prod : crÃ©er une **nouvelle** instance DB Scaleway ou contacter 
 ## VÃ©rification ops (`verify-prod.sh`)
 
 ```bash
-bash /opt/soundly/deploy/verify-prod.sh
+bash /opt/onscen/deploy/verify-prod.sh
 ```
 
-ContrÃ´les : `/health`, `.env` + `DATABASE_URL` (hÃ´te masquÃ©), `legal-publisher.json`, PM2 `melosong-backend`, espace disque et inventaire backups.
+ContrÃ´les : `/health`, `.env` + `DATABASE_URL` (hÃ´te masquÃ©), `legal-publisher.json`, PM2 `onscen-backend`, espace disque et inventaire backups.
 
 ### Cron hebdomadaire (optionnel)
 
 ```bash
-sudo bash /opt/soundly/deploy/install-health-cron.sh
+sudo bash /opt/onscen/deploy/install-health-cron.sh
 ```
 
-Log : `/opt/soundly/logs/verify-prod.log` (dimanche 06:00).
+Log : `/opt/onscen/logs/verify-prod.log` (dimanche 06:00).
 
 Depuis le PC, aprÃ¨s deploy : `commun/deploy/deploy_zero_downtime.ps1 -VerifyProd` exÃ©cute la mÃªme checklist via SSH.
 
@@ -279,19 +279,19 @@ Depuis le PC, aprÃ¨s deploy : `commun/deploy/deploy_zero_downtime.ps1 -VerifyP
 
 ## PM2 (`ecosystem.config.cjs`)
 
-Fichier : `commun/deploy/ecosystem.config.cjs` â€” `autorestart`, `max_memory_restart: 512M`, logs dans `/opt/soundly/logs/`.
+Fichier : `commun/deploy/ecosystem.config.cjs` â€” `autorestart`, `max_memory_restart: 512M`, logs dans `/opt/onscen/logs/`.
 
 PremiÃ¨re installation ou recrÃ©ation du process :
 
 ```bash
-mkdir -p /opt/soundly/logs
-cd /opt/soundly
+mkdir -p /opt/onscen/logs
+cd /opt/onscen
 pm2 start commun/deploy/ecosystem.config.cjs
 pm2 save
 pm2 startup   # suivre les instructions affichÃ©es
 ```
 
-Mises Ã  jour courantes (zero-downtime) : `pm2 reload melosong-backend --update-env` (via `commun/deploy/deploy_zero_downtime.ps1`).
+Mises Ã  jour courantes (zero-downtime) : `pm2 reload onscen-backend --update-env` (via `commun/deploy/deploy_zero_downtime.ps1`).
 
 Au dÃ©marrage prod, le backend logue une ligne JSON structurÃ©e (`event: startup`, version, `DEPLOY_COMMIT` si dÃ©fini).
 
@@ -299,7 +299,7 @@ Au dÃ©marrage prod, le backend logue une ligne JSON structurÃ©e (`event: sta
 
 ## Workflow dÃ©veloppement
 
-Voir [`docs/DEV-WORKFLOW.md`](../docs/DEV-WORKFLOW.md) â€” clone hors iCloud (`C:\Dev\MeloSongv2`), push rÃ©gulier, CI GitHub Actions.
+Voir [`docs/DEV-WORKFLOW.md`](../docs/DEV-WORKFLOW.md) â€” clone hors iCloud (`C:\Dev\OnScen`), push rÃ©gulier, CI GitHub Actions.
 
 ---
 
@@ -307,7 +307,7 @@ Voir [`docs/DEV-WORKFLOW.md`](../docs/DEV-WORKFLOW.md) â€” clone hors iClou
 
 | Script | Usage |
 |--------|--------|
-| `commun/deploy/backup-db.sh` | Dump PostgreSQL â†’ `/opt/soundly/backups/` |
+| `commun/deploy/backup-db.sh` | Dump PostgreSQL â†’ `/opt/onscen/backups/` |
 | `commun/deploy/backup-uploads.sh` | Archive uploads quotidienne |
 | `commun/deploy/backup-offsite.sh` | Copie secondaire + S3 optionnel |
 | `commun/deploy/verify-backup.sh` | IntÃ©gritÃ© d'un dump `.sql.gz` |
@@ -327,8 +327,8 @@ Voir [`docs/DEV-WORKFLOW.md`](../docs/DEV-WORKFLOW.md) â€” clone hors iClou
 AprÃ¨s dÃ©ploiement Git sur le VPS :
 
 ```bash
-sed -i 's/\r$//' /opt/soundly/deploy/*.sh
-chmod +x /opt/soundly/deploy/*.sh
+sed -i 's/\r$//' /opt/onscen/deploy/*.sh
+chmod +x /opt/onscen/deploy/*.sh
 ```
 
 ---

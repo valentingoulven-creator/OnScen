@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-08-06 — Titre musique invisible sur l'onglet Album (BeatCastel)
 
-**Agent :** @soundy-dev-agent
+**Agent :** @onscen-dev-agent
 **Date :** 2026-08-06
 **Durée estimée :** 30 min
 **Statut global :** ✅ Terminé
@@ -94,4 +94,4 @@ Aucun bloquant. Note pour suite éventuelle :
 
 ---
 
-*Généré par Soundy Dev Agent*
+*Généré par OnScen Dev Agent*

@@ -1,4 +1,4 @@
-# Audit technique Soundy — Phase 4 : Sentry & Observabilité
+# Audit technique OnScen — Phase 4 : Sentry & Observabilité
 
 **Date :** 2026-08-07
 **Méthode :** revue de `commun/backend/src/lib/errorMonitoring.ts`, `bootstrap.ts`, `server.ts`, `web/app/src/lib/sentry.ts`, `main.tsx`, `ios/apptel/`, scripts de monitoring (`serverMonitor.ts`, `systemMonitor.ts`, `externalUptimeMonitor.ts`), `commun/docs/STACK-CIBLE.md`.

@@ -1,6 +1,6 @@
-# Synthèse BIC — Tarifs sponsoring Soundy
+# Synthèse BIC — Tarifs sponsoring OnScen
 
-**Valentin Goulven · Soundy · getsoundy.com · 3 août 2026**  
+**Valentin Goulven · OnScen · getsoundy.com · 3 août 2026**  
 Document interne · chiffres indicatifs · recaler avec expert-comptable.
 
 ---
@@ -29,7 +29,7 @@ Pas de facturation au nombre de vues (phase lancement) · badge « Sponsorisé �
 | **Total à couvrir (fourchette)** | **≈ 1 400 – 2 300 €** |
 | **Référence de travail** | **≈ 2 000 € HT / mois** |
 
-Sources infra : documentation interne Soundy (Scaleway fr-par-2, prod + staging, PG managé).
+Sources infra : documentation interne OnScen (Scaleway fr-par-2, prod + staging, PG managé).
 
 ---
 
@@ -68,6 +68,6 @@ Pour couvrir **~2 000 € HT / mois** avec la grille actuelle :
 
 ---
 
-**Document complet :** `JUSTIFICATION-TARIFS-SPONSOR-SOUNDY.md` (infra détaillée, sensibilité, règles de décision).
+**Document complet :** `JUSTIFICATION-TARIFS-SPONSOR-ONSCEN.md` (infra détaillée, sensibilité, règles de décision).
 
-*Soundy · Synthèse tarifs sponsor · usage BIC / financement / partenaires*
+*OnScen · Synthèse tarifs sponsor · usage BIC / financement / partenaires*

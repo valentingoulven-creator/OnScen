@@ -12,7 +12,7 @@ $appEnv = Join-Path $root "web\app\.env.$Environment"
 $appExample = Join-Path $root "web\app\.env.$Environment.example"
 
 if (-not (Test-Path $backendEnv)) {
-    throw "Missing file: $backendEnv (run: scp soundy-prod:/opt/soundly/.env commun/backend/.env.production)"
+    throw "Missing file: $backendEnv (run: scp onscen-prod:/opt/onscen/.env commun/backend/.env.production)"
 }
 
 $backendLines = Get-Content $backendEnv

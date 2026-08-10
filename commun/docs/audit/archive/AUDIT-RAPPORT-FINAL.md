@@ -21,11 +21,11 @@ Rapports détaillés sources :
 
 ## 1. Executive Summary
 
-Soundy est un produit fonctionnellement riche et globalement bien construit sur le plan applicatif (sécurité HTTP, auth, paiements Stripe, intégration YouTube, LiveKit) — mais présente **un problème architectural transversal qui touche plusieurs domaines d'audit à la fois** : le backend utilise un store de données **en mémoire (RAM)** comme source de vérité, alors que la production tourne en **PM2 cluster à 2 workers** sans synchronisation entre eux. Ce même problème a été détecté indépendamment par l'audit Architecture *et* l'audit DB/Infra — c'est le risque n°1 du projet, avant même la sécurité applicative.
+OnScen est un produit fonctionnellement riche et globalement bien construit sur le plan applicatif (sécurité HTTP, auth, paiements Stripe, intégration YouTube, LiveKit) — mais présente **un problème architectural transversal qui touche plusieurs domaines d'audit à la fois** : le backend utilise un store de données **en mémoire (RAM)** comme source de vérité, alors que la production tourne en **PM2 cluster à 2 workers** sans synchronisation entre eux. Ce même problème a été détecté indépendamment par l'audit Architecture *et* l'audit DB/Infra — c'est le risque n°1 du projet, avant même la sécurité applicative.
 
 Le deuxième axe de risque est **la fiabilité financière** : absence d'idempotence sur les appels Stripe, un risque de double-crédit de dons en environnement cluster, aucun mécanisme de remboursement alors que les CGU en promettent un, et `ON DELETE CASCADE` sur les tables de paiement qui détruit l'historique financier à la suppression d'un compte.
 
-Le troisième axe est la **fuite de secrets Git** (section 0 ci-dessus) — un incident de sécurité réel et actionnable immédiatement, distinct des failles applicatives classiques (dont Soundy est globalement exempt : 0 XSS, 0 injection SQL, 0 SSRF trouvé, CSRF/CORS/headers corrects).
+Le troisième axe est la **fuite de secrets Git** (section 0 ci-dessus) — un incident de sécurité réel et actionnable immédiatement, distinct des failles applicatives classiques (dont OnScen est globalement exempt : 0 XSS, 0 injection SQL, 0 SSRF trouvé, CSRF/CORS/headers corrects).
 
 **Point positif majeur, à souligner** : l'audit copyright — le point le plus sensible légalement pour ce produit — est **négatif avec preuve exhaustive**. Aucune trace de téléchargement, extraction, scraping ou cache de contenu YouTube n'a été trouvée dans l'intégralité du monorepo ; la musique est diffusée exclusivement via les mécanismes officiels (IFrame Player API + Data API v3).
 
@@ -108,7 +108,7 @@ Points clés : mode WebRTC mesh P2P legacy expose les IP publiques par défaut e
 | 6 | High | Pas d'idempotence Stripe (double charge possible) | Stripe | Élimine le risque de double facturation | S | Faible | Test de retry réseau simulé sur PaymentIntent |
 | 7 | High | Dédup webhook Stripe en mémoire locale (double crédit) | Stripe | Cohérence financière en cluster | M | Moyen | Test webhook livré 2x sur 2 workers différents |
 | 8 | High | 0 remboursement implémenté (promis dans les CGU) | Stripe | Conformité CGU + support client | M | Faible | Test remboursement admin sur don/abonnement test |
-| 9 | High | Bug nommage env `SOUNDY`/`SOUNDLY` | Stripe | Fiabilise les montants Soundy+ | S | Faible | Vérifier montant affiché = montant Stripe réel |
+| 9 | High | Bug nommage env `SOUNDY`/`SOUNDLY` | Stripe | Fiabilise les montants OnScen+ | S | Faible | Vérifier montant affiché = montant Stripe réel |
 | 10 | High | Rate-limiters login non cluster-safe | DB/Infra / Sécurité | Vraie protection anti-bruteforce | S | Faible | Test brute-force simulé multi-worker |
 | 11 | High | ~90% tables sans FK + rôle DB sur-privilégié | DB/Infra | Intégrité référentielle + moindre privilège | L | Moyen | Test de migration FK sur environnement de test d'abord |
 | 12 | High | TS `strict` désactivé front/mobile | Architecture | Réduit bugs `null`/`undefined` en prod | L | Élevé (pic d'erreurs initial) | Activer par étapes, corriger fichier par fichier |
@@ -144,9 +144,9 @@ Points clés : mode WebRTC mesh P2P legacy expose les IP publiques par défaut e
 | Qualité du code | 60 |
 | **État de préparation à la production** | **58** *(pénalisé par les 5 Critical actifs, notamment la fuite de secrets et le risque RAM/cluster)* |
 
-## 13. Conclusion — Soundy est-il prêt pour une mise en production ?
+## 13. Conclusion — OnScen est-il prêt pour une mise en production ?
 
-**Soundy est déjà en production** (getsoundy.com) et fonctionne, mais **des corrections sont indispensables avant un lancement à plus grande échelle ou une croissance significative du trafic** :
+**OnScen est déjà en production** (getsoundy.com) et fonctionne, mais **des corrections sont indispensables avant un lancement à plus grande échelle ou une croissance significative du trafic** :
 
 1. **Immédiat (avant tout autre chose, quelques heures)** : traiter la fuite de credentials Git (section 0) — c'est un incident de sécurité actif, pas une dette technique.
 2. **Avant scaling (semaines)** : résoudre le risque architectural RAM/cluster (au minimum revenir à `instances: 1` en mitigation immédiate), sécuriser la fiabilité des paiements Stripe (idempotence, dédup webhook, remboursements), corriger le `CASCADE DELETE` sur les paiements.

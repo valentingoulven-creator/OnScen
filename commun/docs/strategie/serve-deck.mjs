@@ -32,7 +32,7 @@ export function createStaticServer(rootDir = COMMUN_ROOT) {
       const url = new URL(req.url ?? '/', 'http://127.0.0.1');
       let rel = decodeURIComponent(url.pathname);
       if (rel === '/' || rel === '') {
-        rel = '/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.html';
+        rel = '/docs/strategie/ONSCEN-PRESENTATION-PRODUIT.html';
       }
       const safe = path.normalize(rel).replace(/^(\.\.(\/|\\|$))+/, '');
       const filePath = path.join(rootDir, safe.replace(/^\//, ''));
@@ -72,7 +72,7 @@ export function startStaticServer(port = 0, rootDir = COMMUN_ROOT) {
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   const port = Number(process.argv[2]) || 8765;
   const { baseUrl } = await startStaticServer(port);
-  const deckUrl = `${baseUrl}/docs/strategie/SOUNDY-PRESENTATION-PRODUIT.html`;
+  const deckUrl = `${baseUrl}/docs/strategie/ONSCEN-PRESENTATION-PRODUIT.html`;
   console.log('Présentation produit:', deckUrl);
   console.log('Ctrl+C pour arrêter.');
 }

@@ -15,7 +15,7 @@ const PDF_PATH = path.join(
 );
 const SIG_SRC = path.join(__dirname, 'assets', 'signature-valentin-goulven.png');
 const SIG_FALLBACK = path.join(
-  'C:/Users/vivia/.cursor/projects/c-Dev-Soundy/assets/c__Users_vivia_AppData_Roaming_Cursor_User_workspaceStorage_419acbc9cbd4685a40a517f5f5dcb476_images_image-e735f785-7a43-4a38-b2c2-e5decf0029e3.png'
+  'C:/Users/vivia/.cursor/projects/c-Dev-OnScen/assets/c__Users_vivia_AppData_Roaming_Cursor_User_workspaceStorage_419acbc9cbd4685a40a517f5f5dcb476_images_image-e735f785-7a43-4a38-b2c2-e5decf0029e3.png'
 );
 const OUT_PATH = process.argv.includes('--in-place')
   ? PDF_PATH

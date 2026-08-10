@@ -42,7 +42,7 @@ Write-Host ''
 Write-Host '  iPhone SANS Mac — PWA standalone (une fois) :' -ForegroundColor White
 Write-Host '    1. Safari : ouvrir l''URL ci-dessus' -ForegroundColor Gray
 Write-Host '    2. Partager -> Sur l''ecran d''accueil -> Ajouter' -ForegroundColor Gray
-Write-Host '    3. Ensuite : lancer l''ICONE MeloSong (plein ecran, pas Safari)' -ForegroundColor Gray
+Write-Host '    3. Ensuite : lancer l''ICONE OnScen (plein ecran, pas Safari)' -ForegroundColor Gray
 Write-Host ''
 Write-Host "  QR code (PC) : $pcQrPage" -ForegroundColor Gray
 Write-Host "  Compte demo : listener@msdev.local / msdev123" -ForegroundColor Gray

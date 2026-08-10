@@ -1,4 +1,4 @@
-# Audit légal Soundy — Phase 9 : CGU / CGV / Politique de confidentialité
+# Audit légal OnScen — Phase 9 : CGU / CGV / Politique de confidentialité
 
 **Date :** 2026-08-07
 **Méthode :** revue de `web/app/src/content/legal/*.ts` (terms, privacy, rgpd, dpa, dpia, mentions, creatorMonetization, communityGuidelines, moderationAppeals), `commun/backend/src/lib/legalDocumentsApp.json`, `commun/docs/juridique/*.md`, croisement avec `LEG-1` à `LEG-10` de `AUDIT-CONSOLIDE.md`.
@@ -65,7 +65,7 @@ Accessibilité in-app confirmée (Paramètres → section légale, `SettingsPage
 
 **Constat (nouveau, cette phase) :** deux documents légaux affichent des taux de commission **différents** pour la même fonctionnalité (pourboires live) :
 
-- `web/app/src/content/legal/creatorMonetization.ts:30-31` : *« Soundy prélève une commission plateforme de **30 %** par défaut […] Exemple pour un pourboire de 10 € : commission Soundy 3 €, part créateur estimée 7 € »* — inchangé depuis le dernier commit du fichier (`git log` : aucune modification depuis `72370fc8`, aucune modification en attente).
+- `web/app/src/content/legal/creatorMonetization.ts:30-31` : *« OnScen prélève une commission plateforme de **30 %** par défaut […] Exemple pour un pourboire de 10 € : commission OnScen 3 €, part créateur estimée 7 € »* — inchangé depuis le dernier commit du fichier (`git log` : aucune modification depuis `72370fc8`, aucune modification en attente).
 - `commun/docs/juridique/MENTIONS-LEGALES-DONS.md` et la configuration backend actuelle (`DEFAULT_DONATION_PLATFORM_FEE_PERCENT = 50` dans `commun/backend/src/config/donationLegal.ts`, `DONATION_PLATFORM_FEE_PERCENT=50` dans `commun/backend/.env.production`) : **50 %**.
 
 **Ce document est resté à 30 % alors que le taux réellement appliqué en configuration (backend + variable d'environnement de production) est désormais 50 %.** C'est exactement le type d'écart « documentation légale affichée à l'utilisateur vs comportement réel du système » qui expose à un risque de pratique commerciale trompeuse si un utilisateur consulte ce document précis avant de faire un don.

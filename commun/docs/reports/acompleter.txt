@@ -1,4 +1,4 @@
-MeloSong — Informations à compléter par l’éditeur
+OnScen — Informations à compléter par l’éditeur
 ================================================
 
 Copiez ce fichier une fois rempli vers :
@@ -12,7 +12,7 @@ Tant que legal-publisher.json n’est pas rempli, l’application affiche
 ── 1. ÉDITEUR (obligatoire pour mise en production France) ──
 
 Nom ou raison sociale :
-Ex. MeloSong SAS / Jean Dupont
+Ex. OnScen SAS / Jean Dupont
 
 Forme juridique :
 Ex. SAS, entrepreneur individuel, association loi 1901
@@ -93,7 +93,7 @@ IMPORTANT : ne pas activer ALLOW_YOUTUBE_REMOTE_FALLBACK en production
 Nom de domaine de production :
 Ex. https://app.melosong.fr
 
-MeloSong est-il une marque déposée ? oui / non
+OnScen est-il une marque déposée ? oui / non
 
 
 ── 7. STRIPE — POURBOIRES LIVE (production) ──
@@ -142,9 +142,9 @@ Palier Super fan (~9,99 €/mois) :
 → SUBSCRIPTION_TIER2_LABEL=Super fan (optionnel)
 → SUBSCRIPTION_TIER2_AMOUNT_EUR=9.99
 
-Soundy+ (abonnement plateforme, ~4,99 €/mois) :
+OnScen+ (abonnement plateforme, ~4,99 €/mois) :
 → STRIPE_PRICE_ID_SOUNDY_PLUS=price_...
-→ SUBSCRIPTION_SOUNDY_PLUS_LABEL=Soundy+ (optionnel)
+→ SUBSCRIPTION_SOUNDY_PLUS_LABEL=OnScen+ (optionnel)
 → SUBSCRIPTION_SOUNDY_PLUS_AMOUNT_EUR=4.99
 
 Commission plateforme sur abos créateurs (%, documentée dans l’app) :

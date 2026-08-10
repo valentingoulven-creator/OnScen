@@ -1,14 +1,14 @@
 'use strict';
-require('/opt/soundly/node_modules/dotenv').config({ path: '/opt/soundly/.env' });
+require('/opt/onscen/node_modules/dotenv').config({ path: '/opt/onscen/.env' });
 
 const VAL_ID = 'user_1781025111633_ipv5l';
 
 (async () => {
-  const { loadPersistedStoreAsync, savePersistedStore } = require('/opt/soundly/dist/lib/persist');
-  const { disconnectYoutubeOnAuthFailure } = require('/opt/soundly/dist/lib/youtubeOAuth');
+  const { loadPersistedStoreAsync, savePersistedStore } = require('/opt/onscen/dist/lib/persist');
+  const { disconnectYoutubeOnAuthFailure } = require('/opt/onscen/dist/lib/youtubeOAuth');
 
   await loadPersistedStoreAsync();
-  const { db } = require('/opt/soundly/dist/models/schema');
+  const { db } = require('/opt/onscen/dist/models/schema');
   const user = db.users.get(VAL_ID);
   if (!user) {
     console.log('User not found');

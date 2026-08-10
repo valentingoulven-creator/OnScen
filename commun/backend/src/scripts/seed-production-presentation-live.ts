@@ -2,7 +2,7 @@
  * Active le live présentation BeatCastel en production (HLS démo, chat, dons).
  *
  * Usage sur le VPS :
- *   cd /opt/soundly && APP_ENV=production node dist/scripts/seed-production-presentation-live.js
+ *   cd /opt/onscen && APP_ENV=production node dist/scripts/seed-production-presentation-live.js
  */
 import dotenv from 'dotenv';
 import path from 'path';
@@ -78,7 +78,7 @@ async function main(): Promise<void> {
       2
     )
   );
-  console.log('\n⚡  Relancer pm2 : pm2 restart melosong-backend\n');
+  console.log('\n⚡  Relancer pm2 : pm2 restart onscen-backend\n');
 }
 
 main()

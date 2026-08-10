@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-06-30 — Conformité stores mobile
 
-**Agent :** @soundy-dev-agent  
+**Agent :** @onscen-dev-agent  
 **Date :** 2026-06-30  
 **Durée estimée :** 1 h  
 **Statut global :** ⚠️ Partiel
@@ -111,4 +111,4 @@ android/build-android-aab-prod.ps1 → ❌ JDK 21 absent
 
 ---
 
-*Généré par Soundy Dev Agent*
+*Généré par OnScen Dev Agent*

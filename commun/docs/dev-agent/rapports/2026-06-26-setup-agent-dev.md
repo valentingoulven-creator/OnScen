@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-06-26 — Setup agent Dev + rapports
 
-**Agent :** @soundy-dev-agent  
+**Agent :** @onscen-dev-agent  
 **Date :** 2026-06-26  
 **Durée estimée :** 0,5 h  
 **Statut global :** ✅ Terminé
@@ -9,20 +9,20 @@
 
 ## Mission
 
-Créer l'agent Dev Soundy avec obligation de rapport de session à chaque intervention significative.
+Créer l'agent Dev OnScen avec obligation de rapport de session à chaque intervention significative.
 
 ---
 
 ## Contexte / problème
 
-Le fondateur souhaitait un agent **développement** (priorité #1 identifiée) avec traçabilité de ce qui est fait — distinct du CEO IA (`@soundy-ceo-ia`).
+Le fondateur souhaitait un agent **développement** (priorité #1 identifiée) avec traçabilité de ce qui est fait — distinct du CEO IA (`@onscen-ceo-ia`).
 
 ---
 
 ## Actions réalisées
 
-- [x] Règle Cursor `.cursor/rules/soundy-dev-agent.mdc` (workflow, RACI, format rapport)
-- [x] Guide `docs/SOUNDY-DEV-AGENT.md`
+- [x] Règle Cursor `.cursor/rules/onscen-dev-agent.mdc` (workflow, RACI, format rapport)
+- [x] Guide `docs/ONSCEN-DEV-AGENT.md`
 - [x] Dossier `docs/dev-agent/` avec template et index
 - [x] Mise à jour `AGENTS.md`
 - [x] Entrée `modification.txt`
@@ -33,8 +33,8 @@ Le fondateur souhaitait un agent **développement** (priorité #1 identifiée) a
 
 | Fichier | Changement |
 |---------|------------|
-| `.cursor/rules/soundy-dev-agent.mdc` | Nouvelle règle agent Dev |
-| `docs/SOUNDY-DEV-AGENT.md` | Guide utilisation |
+| `.cursor/rules/onscen-dev-agent.mdc` | Nouvelle règle agent Dev |
+| `docs/ONSCEN-DEV-AGENT.md` | Guide utilisation |
 | `docs/dev-agent/INDEX.md` | Index rapports |
 | `docs/dev-agent/rapports/_TEMPLATE.md` | Template rapport |
 | `docs/dev-agent/rapports/2026-06-26-setup-agent-dev.md` | Ce rapport |
@@ -76,9 +76,9 @@ Le fondateur souhaitait un agent **développement** (priorité #1 identifiée) a
 
 ## Prochaines étapes
 
-1. Lancer `@soundy-dev-agent` avec une mission concrète (ex. CRIT-01 JWT cookies).
+1. Lancer `@onscen-dev-agent` avec une mission concrète (ex. CRIT-01 JWT cookies).
 2. Vérifier que chaque session génère bien un rapport + ligne INDEX.
 
 ---
 
-*Généré par Soundy Dev Agent*
+*Généré par OnScen Dev Agent*

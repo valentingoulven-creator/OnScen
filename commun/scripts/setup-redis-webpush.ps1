@@ -40,7 +40,7 @@ function Setup-VpsRedis([string]$sshHost, [string]$pm2App) {
     Write-Host ">> Redis on $sshHost" -ForegroundColor Cyan
     $remote = @"
 set -e
-bash /opt/soundly/deploy/setup-redis-vps.sh
+bash /opt/onscen/deploy/setup-redis-vps.sh
 pm2 reload $pm2App --update-env
 pm2 logs $pm2App --lines 8 --nostream | grep -i redis | tail -3 || true
 curl -s http://127.0.0.1:3000/api/push/vapid-public-key | head -c 120
@@ -98,8 +98,8 @@ if (-not ($Staging -or $Prod -or $Msdev)) {
     exit 1
 }
 
-if ($Staging) { Setup-VpsRedis 'soundy-staging' 'melosong-backend-staging' }
-if ($Prod) { Setup-VpsRedis 'soundy-prod' 'melosong-backend' }
+if ($Staging) { Setup-VpsRedis 'onscen-staging' 'onscen-backend-staging' }
+if ($Prod) { Setup-VpsRedis 'onscen-prod' 'onscen-backend' }
 if ($Msdev) { Setup-MsdevEnv }
 
 Write-Host ''

@@ -1,4 +1,4 @@
-# Audit technique Soundy — Phase 3 : PostGIS & géolocalisation
+# Audit technique OnScen — Phase 3 : PostGIS & géolocalisation
 
 **Date :** 2026-08-07
 **Méthode :** revue exhaustive de `commun/backend/src/db/migrations/023_postgis_geo.sql`, `lib/{geo,postgisConfig,pgGeoNearby,pgGeoBackfill,locationPrivacy,nearbyPeople,pgUsers,pgSalonsLives}.ts`, `routes/{geo,salons,lives,feed}.ts`, `web/app/src/content/legal/{privacy,rgpd,dpia,terms}.ts`.

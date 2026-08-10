@@ -2,7 +2,7 @@
 const { Pool } = require('pg');
 const dotenv = require('dotenv');
 
-dotenv.config({ path: process.argv[2] || '/opt/soundly/.env' });
+dotenv.config({ path: process.argv[2] || '/opt/onscen/.env' });
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,

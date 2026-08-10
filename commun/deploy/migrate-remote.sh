@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # migrate-remote.sh — Applique les migrations PostgreSQL sur le VPS
-# Usage (sur le VPS) : bash /opt/soundly/deploy/migrate-remote.sh
+# Usage (sur le VPS) : bash /opt/onscen/deploy/migrate-remote.sh
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/soundy-root.sh
-source "$SCRIPT_DIR/lib/soundy-root.sh"
+# shellcheck source=lib/onscen-root.sh
+source "$SCRIPT_DIR/lib/onscen-root.sh"
 cd "$ROOT"
 
 if [ ! -f dist/db/migrate.js ]; then

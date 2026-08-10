@@ -37,13 +37,13 @@ vi.setProductVersion(major, minor, patch, 0, lang);
 vi.setStringValues(
   { lang, codepage },
   {
-    FileDescription: 'Soundy — serveur local msdev (Windows)',
-    ProductName: 'Soundy msdev',
-    CompanyName: 'Soundy',
+    FileDescription: 'OnScen — serveur local msdev (Windows)',
+    ProductName: 'OnScen msdev',
+    CompanyName: 'OnScen',
     ProductVersion: version,
     FileVersion: version,
     OriginalFilename: path.basename(exePath),
-    LegalCopyright: `Copyright ${new Date().getFullYear()} Soundy`,
+    LegalCopyright: `Copyright ${new Date().getFullYear()} OnScen`,
     InternalName: 'msdev',
   }
 );

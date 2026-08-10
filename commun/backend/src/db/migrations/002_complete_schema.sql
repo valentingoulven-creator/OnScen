@@ -1,4 +1,4 @@
--- Soundy / MeloSong — schéma complet v2
+-- OnScen / OnScen — schéma complet v2
 -- Entités manquantes depuis schema.ts + colonnes extraites pour performance
 -- Compatible PostgreSQL 16 (Scaleway Managed Database)
 
@@ -118,7 +118,7 @@ CREATE INDEX        IF NOT EXISTS donation_payments_live_idx    ON donation_paym
 CREATE INDEX        IF NOT EXISTS donation_payments_sender_idx  ON donation_payments (sender_id);
 
 -- ═══════════════════════════════════════════════════════════════════
--- ABONNEMENTS CRÉATEUR / SOUNDY+ (CreatorSubscription)
+-- ABONNEMENTS CRÉATEUR / ONSCEN+ (CreatorSubscription)
 -- ═══════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS creator_subscriptions (
   id                     TEXT    PRIMARY KEY,

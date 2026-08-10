@@ -9,7 +9,7 @@ $keys = @(
   'VAPID_PUBLIC_KEY','VAPID_PRIVATE_KEY','PROD_ADMIN_EMAIL','PROD_ADMIN_PASSWORD',
   'SCW_BUCKET','SCW_ACCESS_KEY','SCW_SECRET_KEY'
 )
-foreach ($f in @('c:\Dev\Soundy\msdev\.env','c:\Dev\Soundy\backend\.env.production')) {
+foreach ($f in @('c:\Dev\OnScen\msdev\.env','c:\Dev\OnScen\backend\.env.production')) {
   Write-Output "--- $(Split-Path $f -Leaf) ---"
   if (-not (Test-Path $f)) { Write-Output 'MISSING FILE'; continue }
   foreach ($k in $keys) {

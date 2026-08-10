@@ -1,12 +1,12 @@
-# Audit Stripe — Soundy
+# Audit Stripe — OnScen
 
 ## 1. Résumé exécutif
 
-L'intégration Stripe de Soundy est **fonctionnellement correcte et globalement bien architecturée** : webhooks signés avec `express.raw()` isolé avant le parseur JSON global, Stripe Connect en *destination charges* avec `application_fee_amount`, formulaire de paiement via `PaymentElement` (aucune donnée carte ne transite par le frontend/backend Soundy), secrets non commités, séparation claire simulation (msdev) / réel (prod).
+L'intégration Stripe de OnScen est **fonctionnellement correcte et globalement bien architecturée** : webhooks signés avec `express.raw()` isolé avant le parseur JSON global, Stripe Connect en *destination charges* avec `application_fee_amount`, formulaire de paiement via `PaymentElement` (aucune donnée carte ne transite par le frontend/backend OnScen), secrets non commités, séparation claire simulation (msdev) / réel (prod).
 
-Le contexte fourni est **confirmé par le code** : le split 70/30 (host/Soundy) sur les pourboires existe bien via `application_fee_amount` + `transfer_data.destination` dans `commun/backend/src/routes/donations.ts:369-376`, avec un défaut de **30 %** de commission plateforme (`commun/backend/src/config/donationLegal.ts:2`). La vérification `charges_enabled` avant création du PaymentIntent existe aussi, à `commun/backend/src/routes/donations.ts:351-366`. En revanche, les **abonnements créateurs utilisent un taux différent** (10 % par défaut via `application_fee_percent`, `commun/backend/src/lib/subscriptions.ts:57-63`) — ce n'est pas un 70/30 partout, seulement sur les dons.
+Le contexte fourni est **confirmé par le code** : le split 70/30 (host/OnScen) sur les pourboires existe bien via `application_fee_amount` + `transfer_data.destination` dans `commun/backend/src/routes/donations.ts:369-376`, avec un défaut de **30 %** de commission plateforme (`commun/backend/src/config/donationLegal.ts:2`). La vérification `charges_enabled` avant création du PaymentIntent existe aussi, à `commun/backend/src/routes/donations.ts:351-366`. En revanche, les **abonnements créateurs utilisent un taux différent** (10 % par défaut via `application_fee_percent`, `commun/backend/src/lib/subscriptions.ts:57-63`) — ce n'est pas un 70/30 partout, seulement sur les dons.
 
-Les lacunes les plus sérieuses ne sont pas des failles de sécurité classiques (pas de clé committée, pas de manipulation de carte côté app) mais des **problèmes de fiabilité financière et opérationnelle** : absence totale de clés d'idempotence Stripe, absence totale de remboursements programmatiques, une incohérence de nommage de variable d'environnement qui peut fausser silencieusement les montants affichés/enregistrés pour l'abonnement "Soundy+", et un risque réel de double-crédit d'un don/abonnement en environnement PM2 cluster (2 workers) du fait d'une déduplication de webhook uniquement en mémoire locale par process.
+Les lacunes les plus sérieuses ne sont pas des failles de sécurité classiques (pas de clé committée, pas de manipulation de carte côté app) mais des **problèmes de fiabilité financière et opérationnelle** : absence totale de clés d'idempotence Stripe, absence totale de remboursements programmatiques, une incohérence de nommage de variable d'environnement qui peut fausser silencieusement les montants affichés/enregistrés pour l'abonnement "OnScen+", et un risque réel de double-crédit d'un don/abonnement en environnement PM2 cluster (2 workers) du fait d'une déduplication de webhook uniquement en mémoire locale par process.
 
 ## 2. Tableau des problèmes
 
@@ -40,7 +40,7 @@ Les lacunes les plus sérieuses ne sont pas des failles de sécurité classiques
 | Gestion des erreurs | 75/100 | `try/catch` systématique, messages traduits ; pas de retry logic applicatif. |
 | Remboursements | 5/100 | Non implémentés du tout alors que promis conditionnellement dans les CGU. |
 | Stripe Connect | 80/100 | Onboarding Express + vérification `charges_enabled`/`details_submitted` avant paiement. |
-| PCI / frontend | 100/100 | `PaymentElement` exclusivement ; aucune manipulation de numéro de carte côté Soundy. |
+| PCI / frontend | 100/100 | `PaymentElement` exclusivement ; aucune manipulation de numéro de carte côté OnScen. |
 
 ## 4. Points impossibles à vérifier avec les informations disponibles
 

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # install-health-cron.sh — Cron hebdomadaire verify-prod.sh (dimanche 06:00)
-# Usage : sudo bash /opt/soundly/deploy/install-health-cron.sh
+# Usage : sudo bash /opt/onscen/deploy/install-health-cron.sh
 set -euo pipefail
 
-sed -i 's/\r$//' /opt/soundly/deploy/*.sh 2>/dev/null || true
+sed -i 's/\r$//' /opt/onscen/deploy/*.sh 2>/dev/null || true
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/soundy-root.sh
-source "${SCRIPT_DIR}/lib/soundy-root.sh"
+# shellcheck source=lib/onscen-root.sh
+source "${SCRIPT_DIR}/lib/onscen-root.sh"
 VERIFY_SCRIPT="$DEPLOY_DIR/verify-prod.sh"
 LOG_DIR="${ROOT}/logs"
 LOG_FILE="${LOG_DIR}/verify-prod.log"

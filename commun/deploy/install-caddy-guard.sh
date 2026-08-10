@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # install-caddy-guard.sh — Installe watchdog, backup immuable, cron (à lancer sur le VPS)
-# Usage : sudo bash /opt/soundly/deploy/install-caddy-guard.sh
+# Usage : sudo bash /opt/onscen/deploy/install-caddy-guard.sh
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/soundy-root.sh
-source "$SCRIPT_DIR/lib/soundy-root.sh"
+# shellcheck source=lib/onscen-root.sh
+source "$SCRIPT_DIR/lib/onscen-root.sh"
 
 # Scripts copiés depuis Windows peuvent avoir des CRLF
 sed -i 's/\r$//' "$DEPLOY_DIR/"*.sh 2>/dev/null || true

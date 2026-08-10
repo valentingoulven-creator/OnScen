@@ -1,32 +1,32 @@
 #!/usr/bin/env bash
 # db-health-check.sh — Vérifie PostgreSQL + contenu critique + sauvegardes récentes
 # Usage (VPS) :
-#   set -a && source /opt/soundy/.env && set +a
-#   bash /opt/soundly/deploy/db-health-check.sh
+#   set -a && source /opt/onscen/.env && set +a
+#   bash /opt/onscen/deploy/db-health-check.sh
 # Usage (local via API prod) :
 #   BASE_URL=https://getsoundy.com bash commun/deploy/db-health-check.sh
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/soundy-root.sh
-source "${SCRIPT_DIR}/lib/soundy-root.sh"
+# shellcheck source=lib/onscen-root.sh
+source "${SCRIPT_DIR}/lib/onscen-root.sh"
 BACKUP_DIR="${BACKUP_DIR:-${ROOT}/backups}"
 BASE_URL="${BASE_URL:-http://127.0.0.1:${PORT:-3000}}"
 MAX_BACKUP_AGE_HOURS="${MAX_BACKUP_AGE_HOURS:-36}"
 
 fail=0
 
-echo "=== Soundy DB health check ==="
+echo "=== OnScen DB health check ==="
 echo "Date : $(date -Iseconds)"
 echo ""
 
 # 1) API /health/db (comptes + drift)
 echo "--- API /health/db ---"
 if command -v curl >/dev/null 2>&1; then
-  HTTP_CODE="$(curl -sS -o /tmp/soundy-health-db.json -w '%{http_code}' "${BASE_URL}/health/db" || echo 000)"
+  HTTP_CODE="$(curl -sS -o /tmp/onscen-health-db.json -w '%{http_code}' "${BASE_URL}/health/db" || echo 000)"
   echo "HTTP ${HTTP_CODE}"
-  if [[ -f /tmp/soundy-health-db.json ]]; then
-    cat /tmp/soundy-health-db.json
+  if [[ -f /tmp/onscen-health-db.json ]]; then
+    cat /tmp/onscen-health-db.json
     echo ""
     if [[ "$HTTP_CODE" != "200" ]]; then
       echo "ERREUR — /health/db non OK" >&2
@@ -54,9 +54,9 @@ fi
 
 # 3) Sauvegardes pg_dump
 echo "--- Backups (${BACKUP_DIR}) ---"
-LATEST="$(find "$BACKUP_DIR" -maxdepth 1 -name 'soundy-*.sql.gz' -type f 2>/dev/null | sort -r | head -1 || true)"
+LATEST="$(find "$BACKUP_DIR" -maxdepth 1 \( -name 'onscen-*.sql.gz' -o -name 'soundy-*.sql.gz' \) -type f 2>/dev/null | sort -r | head -1 || true)"
 if [[ -z "$LATEST" ]]; then
-  echo "AVERTISSEMENT — aucune sauvegarde soundy-*.sql.gz trouvée" >&2
+  echo "AVERTISSEMENT — aucune sauvegarde onscen-*.sql.gz (ou legacy soundy-*) trouvée" >&2
   fail=1
 else
   AGE_SEC=$(( $(date +%s) - $(stat -c %Y "$LATEST" 2>/dev/null || stat -f %m "$LATEST") ))

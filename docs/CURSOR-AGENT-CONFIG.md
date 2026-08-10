@@ -1,6 +1,6 @@
-# Configuration Cursor Agent — Soundy
+# Configuration Cursor Agent — OnScen
 
-Documentation de la configuration agent Cursor pour le dépôt Soundy (`C:\Dev\Soundy`).
+Documentation de la configuration agent Cursor pour le dépôt OnScen (`C:\Dev\OnScen`).
 
 > **Note chemins :** plusieurs règles historiques mentionnent `app/`, `backend/`, `docs/` — la structure actuelle est `web/app/`, `commun/backend/`, `commun/docs/`. Voir [AGENTS.md](../AGENTS.md).
 
@@ -41,69 +41,69 @@ Point d'entrée pour tout agent Cursor Cloud :
 | [`infra-access.mdc`](../.cursor/rules/infra-access.mdc) | — | **true** | VPS, DB, SSH, scripts ops, health checks |
 | [`mobile-responsive.mdc`](../.cursor/rules/mobile-responsive.mdc) | — | **true** | Mobile-first Tailwind v4, `dvh`, touch 44px, modals |
 | [`modification-log.mdc`](../.cursor/rules/modification-log.mdc) | — | **true** | Entrée obligatoire dans `modification.txt` |
-| [`soundy-dev-agent.mdc`](../.cursor/rules/soundy-dev-agent.mdc) | `@soundy-dev-agent` | false | Ingénieur implémentation, RACI, rapport session |
-| [`soundy-cto.mdc`](../.cursor/rules/soundy-cto.mdc) | `@soundy-cto` | false | CTO virtuel : architecture, audits, sécurité/légal/UX/infra |
-| [`soundy-ceo-ia.mdc`](../.cursor/rules/soundy-ceo-ia.mdc) | `@soundy-ceo-ia` | false | CEO virtuel stratégie, brief exécutif, RACI |
+| [`onscen-dev-agent.mdc`](../.cursor/rules/onscen-dev-agent.mdc) | `@onscen-dev-agent` | false | Ingénieur implémentation, RACI, rapport session |
+| [`onscen-cto.mdc`](../.cursor/rules/onscen-cto.mdc) | `@onscen-cto` | false | CTO virtuel : architecture, audits, sécurité/légal/UX/infra |
+| [`onscen-ceo-ia.mdc`](../.cursor/rules/onscen-ceo-ia.mdc) | `@onscen-ceo-ia` | false | CEO virtuel stratégie, brief exécutif, RACI |
 
 ### Guides complémentaires
 
 | Document | Rôle |
 |----------|------|
-| [`commun/docs/SOUNDY-DEV-AGENT.md`](../commun/docs/SOUNDY-DEV-AGENT.md) | Guide d'activation Dev, exemples de missions, vérifications |
-| [`commun/docs/SOUNDY-CTO-PROMPT.md`](../commun/docs/SOUNDY-CTO-PROMPT.md) | Prompt complet CTO, format 14 sections, complémentarité agents |
-| [`commun/docs/SOUNDY-CEO-IA-PROMPT.md`](../commun/docs/SOUNDY-CEO-IA-PROMPT.md) | Prompt complet CEO IA, format brief, schéma `AiCeoBrief` |
+| [`commun/docs/ONSCEN-DEV-AGENT.md`](../commun/docs/ONSCEN-DEV-AGENT.md) | Guide d'activation Dev, exemples de missions, vérifications |
+| [`commun/docs/ONSCEN-CTO-PROMPT.md`](../commun/docs/ONSCEN-CTO-PROMPT.md) | Prompt complet CTO, format 14 sections, complémentarité agents |
+| [`commun/docs/ONSCEN-CEO-IA-PROMPT.md`](../commun/docs/ONSCEN-CEO-IA-PROMPT.md) | Prompt complet CEO IA, format brief, schéma `AiCeoBrief` |
 | [`commun/docs/dev-agent/INDEX.md`](../commun/docs/dev-agent/INDEX.md) | Index des rapports Dev |
 | [`commun/docs/ENVIRONNEMENTS.md`](../commun/docs/ENVIRONNEMENTS.md) | Environnements dev/staging/prod |
-| [`commun/docs/INFRA-SOUNDY.md`](../commun/docs/INFRA-SOUNDY.md) | Infra VPS, PostgreSQL, services |
+| [`commun/docs/INFRA-ONSCEN.md`](../commun/docs/INFRA-ONSCEN.md) | Infra VPS, PostgreSQL, services |
 | [`commun/docs/DEV-WORKFLOW.md`](../commun/docs/DEV-WORKFLOW.md) | Workflow développement |
 
 ### Workspace CEO IA
 
-[`Soundy-CEO-IA.code-workspace`](../Soundy-CEO-IA.code-workspace) — ouvre le repo complet avec exclusions `node_modules` / builds Android. Recommandé pour les sessions stratégie.
+[`OnScen-CEO-IA.code-workspace`](../OnScen-CEO-IA.code-workspace) — ouvre le repo complet avec exclusions `node_modules` / builds Android. Recommandé pour les sessions stratégie.
 
 ---
 
 ## Comment activer les modes
 
-### Agent Dev — `@soundy-dev-agent`
+### Agent Dev — `@onscen-dev-agent`
 
 1. Nouvelle conversation **Agent** dans Cursor.
-2. Mentionner `@soundy-dev-agent` + mission explicite (scope, contraintes).
+2. Mentionner `@onscen-dev-agent` + mission explicite (scope, contraintes).
 3. Les règles always-on restent actives en parallèle.
 
 **Exemple :**
 ```markdown
-@soundy-dev-agent
+@onscen-dev-agent
 Mission : fix bug globe — pins disparaissent au zoom street.
 Ne pas commit. Rapport en fin de session.
 ```
 
 **Usage :** bugs, features, refactors, tests, build local.
 
-### CEO IA — `@soundy-ceo-ia`
+### CEO IA — `@onscen-ceo-ia`
 
-1. Ouvrir [`Soundy-CEO-IA.code-workspace`](../Soundy-CEO-IA.code-workspace) (optionnel mais recommandé).
-2. Mentionner `@soundy-ceo-ia` pour stratégie, finances, croissance, priorités.
-3. Pour l'implémentation : basculer vers `@soundy-dev-agent`.
+1. Ouvrir [`OnScen-CEO-IA.code-workspace`](../OnScen-CEO-IA.code-workspace) (optionnel mais recommandé).
+2. Mentionner `@onscen-ceo-ia` pour stratégie, finances, croissance, priorités.
+3. Pour l'implémentation : basculer vers `@onscen-dev-agent`.
 
 **Usage :** brief exécutif, arbitrage priorités, modèle financier — **sans modifier le code** sans demande explicite.
 
-### CTO — `@soundy-cto`
+### CTO — `@onscen-cto`
 
 1. Nouvelle conversation **Agent** dans Cursor.
-2. Taper `@soundy-cto` puis décrire la mission (audit, choix technique, revue pré-feature).
-3. Le CTO **analyse et recommande** — pour coder la suite, ouvrir une nouvelle session `@soundy-dev-agent`.
+2. Taper `@onscen-cto` puis décrire la mission (audit, choix technique, revue pré-feature).
+3. Le CTO **analyse et recommande** — pour coder la suite, ouvrir une nouvelle session `@onscen-dev-agent`.
 
 **Exemple — audit auth :**
 ```markdown
-@soundy-cto
-Audit complet du flux d'authentification Soundy (JWT, OAuth, 2FA, WebAuthn).
+@onscen-cto
+Audit complet du flux d'authentification OnScen (JWT, OAuth, 2FA, WebAuthn).
 Citer les fichiers réels. Prioriser les risques OWASP. Ne pas coder.
 ```
 
 **Exemple — choix d'architecture :**
 ```markdown
-@soundy-cto
+@onscen-cto
 On veut ajouter des notifications push (iOS + Android + web).
 Compare FCM vs OneSignal vs Capacitor natif. Recommande une approche
 alignée sur notre stack Capacitor 8 + Express. Estime effort et risques.
@@ -111,16 +111,16 @@ alignée sur notre stack Capacitor 8 + Express. Estime effort et risques.
 
 **Exemple — revue pré-feature :**
 ```markdown
-@soundy-cto
+@onscen-cto
 Avant d'implémenter un cache Redis pour le feed géolocalisé :
 est-ce le bon moment ? Quelles alternatives (PostgreSQL, in-memory) ?
-Impacts RGPD sur la localisation. Plan de dev pour @soundy-dev-agent.
+Impacts RGPD sur la localisation. Plan de dev pour @onscen-dev-agent.
 ```
 
-**Quand NE PAS utiliser `@soundy-cto` :**
-- Bug simple à corriger → `@soundy-dev-agent`
-- Brief finances / croissance / sponsors → `@soundy-ceo-ia`
-- « Ajoute ce bouton » ou tâche d'implémentation directe → `@soundy-dev-agent`
+**Quand NE PAS utiliser `@onscen-cto` :**
+- Bug simple à corriger → `@onscen-dev-agent`
+- Brief finances / croissance / sponsors → `@onscen-ceo-ia`
+- « Ajoute ce bouton » ou tâche d'implémentation directe → `@onscen-dev-agent`
 
 ---
 
@@ -139,9 +139,9 @@ Injectées dans **chaque** conversation Agent :
 
 Chargées quand mentionnées ou quand la tâche correspond :
 
-- **`@soundy-dev-agent`** — workflow dev, priorités TODO-MANUAL, rapport obligatoire
-- **`@soundy-cto`** — persona CTO, audits, format 14 sections (demandes substantielles)
-- **`@soundy-ceo-ia`** — persona CEO, documents stratégiques, format brief
+- **`@onscen-dev-agent`** — workflow dev, priorités TODO-MANUAL, rapport obligatoire
+- **`@onscen-cto`** — persona CTO, audits, format 14 sections (demandes substantielles)
+- **`@onscen-ceo-ia`** — persona CEO, documents stratégiques, format brief
 
 ---
 
@@ -199,7 +199,7 @@ Après toute modif significative (feature, fix, refonte UI/backend) :
 2. Ligne dans `commun/docs/dev-agent/INDEX.md`
 3. Résumé 5–10 lignes dans le dernier message chat
 
-### Priorités Dev par défaut (`@soundy-dev-agent`)
+### Priorités Dev par défaut (`@onscen-dev-agent`)
 
 1. Sécurité (TODO-MANUAL CRIT/ELEV)
 2. Stores mobile (IAP, Sign in with Apple, Android)
@@ -219,7 +219,7 @@ Après toute modif significative (feature, fix, refonte UI/backend) :
    alwaysApply: true   # ou false pour règle @mention
    ---
    ```
-3. Pour une règle activable : `alwaysApply: false` + mention claire dans `description` (ex. `@soundy-dev-agent`).
+3. Pour une règle activable : `alwaysApply: false` + mention claire dans `description` (ex. `@onscen-dev-agent`).
 4. Référencer la nouvelle règle dans [`AGENTS.md`](../AGENTS.md) si elle est un mode agent ou un workflow majeur.
 5. Documenter dans `modification.txt` si changement significatif de process.
 
@@ -234,7 +234,7 @@ Skill Cursor utilisateur `create-rule` (`~/.cursor/skills-cursor/create-rule/SKI
 | Deploy prod | ❌ Sans demande explicite utilisateur |
 | Commit / push | ❌ Sans demande explicite |
 | Secrets `.env` prod/staging | ❌ Ne jamais committer ; ne pas modifier prod seul |
-| Décisions business / légal / pricing | ❌ Dev → escalade fondateur ou `@soundy-ceo-ia` |
+| Décisions business / légal / pricing | ❌ Dev → escalade fondateur ou `@onscen-ceo-ia` |
 | Bannir users / modifier DB / deploy (CEO IA) | ❌ Propositions seulement |
 | Contact users ou sponsors | ❌ Drafts seulement (CEO IA) |
 
@@ -250,13 +250,13 @@ Skill Cursor utilisateur `create-rule` (`~/.cursor/skills-cursor/create-rule/SKI
 
 | Besoin | Agent |
 |--------|-------|
-| Audit sécurité / architecture | `@soundy-cto` |
-| Choix technique avant feature | `@soundy-cto` |
-| Implémenter la recommandation | `@soundy-dev-agent` |
-| Prioriser la semaine (business) | `@soundy-ceo-ia` |
-| Brief finances / sponsors | `@soundy-ceo-ia` |
-| Bug fix / endpoint / admin tab | `@soundy-dev-agent` |
+| Audit sécurité / architecture | `@onscen-cto` |
+| Choix technique avant feature | `@onscen-cto` |
+| Implémenter la recommandation | `@onscen-dev-agent` |
+| Prioriser la semaine (business) | `@onscen-ceo-ia` |
+| Brief finances / sponsors | `@onscen-ceo-ia` |
+| Bug fix / endpoint / admin tab | `@onscen-dev-agent` |
 
 ---
 
-*Dernière synthèse : 2026-07-15 — sources lues : AGENTS.md, 7 règles .mdc, SOUNDY-DEV-AGENT.md, SOUNDY-CTO-PROMPT.md, SOUNDY-CEO-IA-PROMPT.md, Soundy-CEO-IA.code-workspace, TODO-MANUAL.md (intro).*
+*Dernière synthèse : 2026-07-15 — sources lues : AGENTS.md, 7 règles .mdc, ONSCEN-DEV-AGENT.md, ONSCEN-CTO-PROMPT.md, ONSCEN-CEO-IA-PROMPT.md, OnScen-CEO-IA.code-workspace, TODO-MANUAL.md (intro).*

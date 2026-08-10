@@ -1,4 +1,4 @@
-# Audit technique Soundy — Phase 6 : Protection DDoS et abus
+# Audit technique OnScen — Phase 6 : Protection DDoS et abus
 
 **Date :** 2026-08-07
 **Méthode :** revue de `commun/deploy/Caddyfile`, `ecosystem.config.cjs`, `lib/socketCluster.ts`, recherche exhaustive de mécanismes anti-bot/captcha, croisement avec `API-2` de `AUDIT-CONSOLIDE.md`.

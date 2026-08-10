@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-08-06 — Lecteur audio global façon Spotify
 
-**Agent :** @soundy-dev-agent
+**Agent :** @onscen-dev-agent
 **Date :** 2026-08-06
 **Durée estimée :** 1 h
 **Statut global :** ✅ Terminé
@@ -167,4 +167,4 @@ Aucun bloquant. Limitations connues, acceptées pour ce périmètre :
 
 ---
 
-*Généré par Soundy Dev Agent*
+*Généré par OnScen Dev Agent*

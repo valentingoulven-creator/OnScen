@@ -1,5 +1,5 @@
 # SETUP-NGROK.ps1
-# Configure ngrok avec domaine statique pour MeloSong Dev
+# Configure ngrok avec domaine statique pour OnScen Dev
 # Executez ce fichier une seule fois apres avoir cree votre compte ngrok.
 
 $NGROK = "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\Ngrok.Ngrok_Microsoft.Winget.Source_8wekyb3d8bbwe\ngrok.exe"
@@ -14,7 +14,7 @@ function Write-Info { param($msg) Write-Host "  [INFO]   $msg" -ForegroundColor 
 
 Write-Host ""
 Write-Host "  ============================================================" -ForegroundColor Cyan
-Write-Host "    MeloSong Dev - Configuration ngrok (domaine statique)" -ForegroundColor Cyan
+Write-Host "    OnScen Dev - Configuration ngrok (domaine statique)" -ForegroundColor Cyan
 Write-Host "  ============================================================" -ForegroundColor Cyan
 
 # ----------------------------------------------------------------

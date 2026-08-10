@@ -1,4 +1,4 @@
-# MeloSong — build iOS Capacitor dans le cloud (macOS)
+# OnScen — build iOS Capacitor dans le cloud (macOS)
 # Déclenchement manuel jusqu'à configuration des secrets Apple.
 #
 # Secrets GitHub requis (Settings → Secrets and variables → Actions) :
@@ -99,7 +99,7 @@ jobs:
           ls -la ios/App/
           # xcodebuild -workspace ios/App/App.xcworkspace \
           #   -scheme App -configuration Release \
-          #   -archivePath $RUNNER_TEMP/MeloSong.xcarchive archive \
+          #   -archivePath $RUNNER_TEMP/OnScen.xcarchive archive \
           #   CODE_SIGNING_ALLOWED=NO
 
       - name: Upload iOS workspace artifact

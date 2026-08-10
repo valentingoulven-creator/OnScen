@@ -1,4 +1,4 @@
-# Cloudflare CDN + WAF devant Soundy
+# Cloudflare CDN + WAF devant OnScen
 
 > **Priorité infra P1** — protéger `getsoundy.com` et `staging.getsoundy.com` sans remplacer Caddy sur le VPS.  
 > **Effort :** ~½ journée · **Coût :** 0 € (plan Free) · **Prérequis :** accès DNS (OVH ou Cloudflare).
@@ -30,7 +30,7 @@ Caddy reste l'origine TLS (`commun/deploy/Caddyfile`). Node expose déjà `trust
 | HTTP → HTTPS | **308** |
 | Cache assets `/assets/*` | **HIT** au 2ᵉ hit (origin `immutable`) |
 | WAF Free managed ruleset | **présent** |
-| Cache Rules explicites (dashboard) | **OK** — 3 règles `Soundy CDN cache` |
+| Cache Rules explicites (dashboard) | **OK** — 3 règles `OnScen CDN cache` |
 | SSL Full (strict) via API | **OK** — `strict` |
 
 Vérification locale :
@@ -90,8 +90,8 @@ Pour **staging** : ajouter `staging.getsoundy.com` comme enregistrement séparé
 2. Vérifier que Caddy sur le VPS a un certificat Let's Encrypt valide pour `getsoundy.com` :
 
 ```bash
-ssh soundy-prod "curl -sI https://127.0.0.1/health -H 'Host: getsoundy.com' --insecure | head -5"
-ssh soundy-prod "sudo caddy validate --config /etc/caddy/Caddyfile"
+ssh onscen-prod "curl -sI https://127.0.0.1/health -H 'Host: getsoundy.com' --insecure | head -5"
+ssh onscen-prod "sudo caddy validate --config /etc/caddy/Caddyfile"
 ```
 
 3. Optionnel (recommandé long terme) : **Origin Certificate** Cloudflare installé sur Caddy si rotation LE pose problème derrière proxy — pas obligatoire au départ.
@@ -172,8 +172,8 @@ Si un middleware de rate-limit par IP semble « tout venir de Cloudflare », vé
 3. Déployer :
 
 ```bash
-ssh soundy-staging
-sudo bash /opt/soundly/deploy/sync-caddy-staging.sh
+ssh onscen-staging
+sudo bash /opt/onscen/deploy/sync-caddy-staging.sh
 sudo systemctl reload caddy
 curl -sI https://staging.getsoundy.com/health   # doit être 200
 ```

@@ -20,10 +20,10 @@ function Invoke-Ssh([string]$target, [string]$cmd) {
 }
 
 if (-not $SkipSshConfig) {
-    Write-Host '>> SSH config soundy-staging' -ForegroundColor Cyan
+    Write-Host '>> SSH config onscen-staging' -ForegroundColor Cyan
     $block = @"
 
-Host soundy-staging
+Host onscen-staging
     HostName $stagingIp
     User root
     IdentityFile $key
@@ -32,11 +32,11 @@ Host soundy-staging
 "@
     if (Test-Path $sshConfig) {
         $content = Get-Content $sshConfig -Raw
-        if ($content -notmatch 'Host soundy-staging') {
+        if ($content -notmatch 'Host onscen-staging') {
             Add-Content -Path $sshConfig -Value $block
-            Write-Host '  [OK] Host soundy-staging ajoute' -ForegroundColor Green
+            Write-Host '  [OK] Host onscen-staging ajoute' -ForegroundColor Green
         } else {
-            Write-Host '  [OK] soundy-staging deja present' -ForegroundColor Green
+            Write-Host '  [OK] onscen-staging deja present' -ForegroundColor Green
         }
     } else {
         Set-Content -Path $sshConfig -Value $block.TrimStart()
@@ -53,14 +53,14 @@ if (-not $SkipBootstrap) {
 }
 
 if (-not $SkipDb) {
-    Write-Host '>> Creation base soundy_staging (via VPS prod)' -ForegroundColor Cyan
+    Write-Host '>> Creation base onscen_staging (via VPS prod)' -ForegroundColor Cyan
     $dbScript = Join-Path $root 'deploy\setup-staging-db.sh'
-    & scp.exe -i $key -o StrictHostKeyChecking=no $dbScript 'soundy-prod:/tmp/setup-staging-db.sh' 2>&1 | Out-Null
+    & scp.exe -i $key -o StrictHostKeyChecking=no $dbScript 'onscen-prod:/tmp/setup-staging-db.sh' 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) {
         & scp.exe -i $key -o StrictHostKeyChecking=no $dbScript "root@51.159.164.100:/tmp/setup-staging-db.sh" 2>&1 | Out-Null
         $prodTarget = 'root@51.159.164.100'
     } else {
-        $prodTarget = 'soundy-prod'
+        $prodTarget = 'onscen-prod'
     }
     $dbOut = Invoke-Ssh $prodTarget "sed -i 's/\r$//' /tmp/setup-staging-db.sh; bash /tmp/setup-staging-db.sh"
     Write-Host $dbOut

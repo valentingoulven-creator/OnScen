@@ -1,4 +1,4 @@
-# Déploiement Soundy — PostgreSQL & Caddy
+# Déploiement OnScen — PostgreSQL & Caddy
 
 **Runbook production** (backups, `.env`, `legal-publisher.json`, vérifs ops) : [`RUNBOOK-PROD.md`](RUNBOOK-PROD.md)
 
@@ -9,7 +9,7 @@
 Script recommandé pour les mises à jour prod sans coupure :
 
 ```powershell
-cd MeloSongv2
+cd OnScen
 powershell -ExecutionPolicy Bypass -File commun/deploy/deploy_zero_downtime.ps1
 ```
 
@@ -19,7 +19,7 @@ powershell -ExecutionPolicy Bypass -File commun/deploy/deploy_zero_downtime.ps1
 | `-SkipFrontend` | Ignore build Vite + swap `public/` |
 | `-VerifyProd` | Lance `verify-prod.sh` sur le VPS après le health check public |
 
-Étapes : build backend + frontend → sync `dist/` + `package.json` → swap atomique `public.new` → `npm install --omit=dev` si besoin → migrations → `pm2 reload melosong-backend --update-env` → Caddy → `curl https://getsoundy.com/health` → (optionnel) `verify-prod.sh`.
+Étapes : build backend + frontend → sync `dist/` + `package.json` → swap atomique `public.new` → `npm install --omit=dev` si besoin → migrations → `pm2 reload onscen-backend --update-env` → Caddy → `curl https://getsoundy.com/health` → (optionnel) `verify-prod.sh`.
 
 Déploiement initial / setup DB Scaleway : `backend/deploy-scaleway.ps1`.
 
@@ -32,7 +32,7 @@ Le fichier **`commun/deploy/Caddyfile`** est la **seule source de vérité** (ge
 | Emplacement | Rôle |
 |-----------|------|
 | `commun/deploy/Caddyfile` (repo) | Canonique — versionner ici |
-| `/opt/soundly/deploy/Caddyfile` (VPS) | Copie déployée |
+| `/opt/onscen/deploy/Caddyfile` (VPS) | Copie déployée |
 | `/etc/caddy/Caddyfile` (VPS) | Config active Caddy |
 | `/root/Caddyfile.production.backup` (VPS) | Backup immuable (`chattr +i`) |
 
@@ -40,12 +40,12 @@ Le fichier **`commun/deploy/Caddyfile`** est la **seule source de vérité** (ge
 
 ```bash
 # Depuis le PC (recommandé) — inclut sync + watchdog
-cd MeloSongv2/backend
+cd OnScen/backend
 powershell -ExecutionPolicy Bypass -File deploy-scaleway.ps1
 
 # Sur le VPS uniquement
-sudo bash /opt/soundly/deploy/install-caddy-guard.sh
-sudo bash /opt/soundly/deploy/sync-caddy.sh
+sudo bash /opt/onscen/deploy/install-caddy-guard.sh
+sudo bash /opt/onscen/deploy/sync-caddy.sh
 ```
 
 ### Surveillance automatique
@@ -89,25 +89,25 @@ caddy validate --config /etc/caddy/Caddyfile
 2. Menu gauche → **Managed Databases** → **Create a Database Instance**
 3. Choisir :
    - **Moteur** : PostgreSQL **16**
-   - **Région** : Paris (fr-par) — même région que le VPS Soundy
+   - **Région** : Paris (fr-par) — même région que le VPS OnScen
    - **Plan** : `DB-DEV-S` (~15 €/mois, 1 vCPU / 2 Go RAM / 10 Go SSD) pour démarrer
-   - **Nom de l'instance** : `soundy-prod` (ou autre)
+   - **Nom de l'instance** : `onscen-prod` (ou autre)
 4. Cliquer **Create a Database Instance** et attendre la création (~2 min)
 
 ### 2. Créer la base et l'utilisateur
 
 Dans l'onglet **Databases** de l'instance :
-1. Cliquer **Add Database** → nom : `soundy`
+1. Cliquer **Add Database** → nom : `onscen`
 2. Onglet **Users** → **Add User** :
-   - Nom : `soundy`
+   - Nom : `onscen`
    - Mot de passe fort (32+ caractères aléatoires)
-   - Rôle : `ALL PRIVILEGES` sur la base `soundy`
+   - Rôle : `ALL PRIVILEGES` sur la base `onscen`
 
 ### 3. Configurer le réseau (liste blanche IP)
 
 Dans l'onglet **Allowed IPs** de l'instance :
 1. Cliquer **Add an IP**
-2. Entrer l'IP publique du VPS Soundy : `51.159.164.100/32`
+2. Entrer l'IP publique du VPS OnScen : `51.159.164.100/32`
 3. Sauvegarder
 
 > Si tu utilises un VPC Scaleway dans la même région, tu peux autoriser l'IP privée
@@ -127,7 +127,7 @@ Exemple réel (à adapter) :
 postgresql://soundy:Xk9#mP2vLq...@rdb-prod-fr-par-xxxxx.pg.sdb.scaleway.com:5432/soundy?sslmode=require
 ```
 
-### 5. Configurer `/opt/soundy/.env` sur le VPS
+### 5. Configurer `/opt/onscen/.env` sur le VPS
 
 ```env
 APP_ENV=production
@@ -155,17 +155,17 @@ Pour les appliquer manuellement avant de redémarrer :
 
 ```bash
 # Sur le VPS, depuis le répertoire du backend
-cd /opt/soundy/backend
+cd /opt/onscen/backend
 
 # S'assurer que DATABASE_URL est disponible dans l'environnement
-export $(grep -v '^#' /opt/soundy/.env | xargs)
+export $(grep -v '^#' /opt/onscen/.env | xargs)
 
 # Option A : via le script de déploiement
 ../commun/deploy/postgres-setup.sh --migrate-only
 
 # Option B : directement (si le script n'est pas disponible)
 node -e "
-require('dotenv').config({ path: '/opt/soundy/.env' });
+require('dotenv').config({ path: '/opt/onscen/.env' });
 const { runMigrations } = require('./dist/db/migrate');
 runMigrations().then(() => { console.log('OK'); process.exit(0); })
   .catch(e => { console.error(e); process.exit(1); });
@@ -175,7 +175,7 @@ runMigrations().then(() => { console.log('OK'); process.exit(0); })
 ### 7. Redémarrer le service
 
 ```bash
-pm2 restart melosong-backend
+pm2 restart onscen-backend
 ```
 
 ### 8. Vérifier
@@ -187,7 +187,7 @@ pm2 restart melosong-backend
 # [soundy] Migration v2 (002_complete_schema.sql) appliquée
 # [soundy] Migration v3 (003_indexes.sql) appliquée
 # [soundy] Données restaurées depuis PostgreSQL
-journalctl -u melosong-backend -n 50 --no-pager
+journalctl -u onscen-backend -n 50 --no-pager
 ```
 
 ---

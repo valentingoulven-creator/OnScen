@@ -1,6 +1,6 @@
 # Rapport Dev Agent — YYYY-MM-DD — [Titre court]
 
-**Agent :** @soundy-dev-agent  
+**Agent :** @onscen-dev-agent  
 **Date :** YYYY-MM-DD  
 **Durée estimée :** X h  
 **Statut global :** ✅ Terminé | ⚠️ Partiel | ❌ Bloqué
@@ -81,4 +81,4 @@ cd app && npm run build       → ✅ / ❌
 
 ---
 
-*Généré par Soundy Dev Agent — ne pas éditer le template `_TEMPLATE.md`*
+*Généré par OnScen Dev Agent — ne pas éditer le template `_TEMPLATE.md`*

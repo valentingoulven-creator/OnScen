@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # install-backup-cron.sh — Installe le cron quotidien backup-db.sh (03:15)
-# Usage : sudo bash /opt/soundly/deploy/install-backup-cron.sh
+# Usage : sudo bash /opt/onscen/deploy/install-backup-cron.sh
 set -euo pipefail
 
-sed -i 's/\r$//' /opt/soundly/deploy/*.sh 2>/dev/null || true
+sed -i 's/\r$//' /opt/onscen/deploy/*.sh 2>/dev/null || true
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/soundy-root.sh
-source "${SCRIPT_DIR}/lib/soundy-root.sh"
+# shellcheck source=lib/onscen-root.sh
+source "${SCRIPT_DIR}/lib/onscen-root.sh"
 BACKUP_SCRIPT="$DEPLOY_DIR/backup-db.sh"
 CRON_LOG="${ROOT}/backups/cron.log"
 CRON_MARKER="backup-db.sh"

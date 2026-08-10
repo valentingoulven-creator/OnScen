@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-08-08 — Correctifs audit compat iOS/Android
 
-**Agent :** @soundy-dev-agent
+**Agent :** @onscen-dev-agent
 **Date :** 2026-08-08
 **Durée estimée :** ~1h
 **Statut global :** ✅ Terminé (scope validé avec le fondateur — portage complet du panel hôte exclu)
@@ -101,4 +101,4 @@ cd ios/apptel && npx eslint src/pages/LivePage.tsx src/types.ts → ⚠️ 10 er
 
 ---
 
-*Généré par Soundy Dev Agent — ne pas éditer le template `_TEMPLATE.md`*
+*Généré par OnScen Dev Agent — ne pas éditer le template `_TEMPLATE.md`*

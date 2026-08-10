@@ -1,4 +1,4 @@
-# Audit technique Soundy — Phase 5 : Sécurité applicative
+# Audit technique OnScen — Phase 5 : Sécurité applicative
 
 **Date :** 2026-08-07
 **Méthode :** revue de `routes/auth.ts`, `twoFactor.ts`, `webauthn.ts`, `lib/loginAttemptLimit.ts`, `uploadRateLimits.ts`, `accessControl.ts`, `server.ts` (Helmet/CSP/CORS), croisement avec les findings SEC-1 à SEC-9 de `commun/docs/audit/AUDIT-CONSOLIDE.md` (2026-07-22) revérifiés à ce jour.

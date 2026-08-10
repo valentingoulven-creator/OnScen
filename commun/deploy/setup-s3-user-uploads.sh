@@ -39,7 +39,7 @@ S3_FORCE_PATH_STYLE=0
 S3_PUBLIC_READ=1
 
 # Puis :
-# pm2 reload melosong-backend --update-env
+# pm2 reload onscen-backend --update-env
 # Log attendu : [startup] S3 uploads actifs — bucket ${BUCKET}
 
 EOF
@@ -59,7 +59,7 @@ create_bucket_with_scw() {
 }
 
 test_vps_upload_env() {
-  local root="${SOUNDY_ROOT:-/opt/soundily}"
+  local root="${ONSCEN_ROOT:-/opt/soundily}"
   if [[ -f "${root}/.env" ]]; then
     set -a
     # shellcheck source=/dev/null

@@ -1,5 +1,5 @@
 /**
- * Génère SOUNDY-PRESENTATION-PRODUIT.pptx — 10 slides produit Soundy.
+ * Génère ONSCEN-PRESENTATION-PRODUIT.pptx — 10 slides produit OnScen.
  * Dimensions LAYOUT_16x9 réelles : 10 × 5.625 pouces (compatible Google Slides).
  *
  * Usage: npm run produit  (depuis commun/docs/strategie)
@@ -11,10 +11,10 @@ import fs from 'fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DOCS = path.resolve(__dirname, '..');
-const OUT = path.join(__dirname, 'SOUNDY-PRESENTATION-PRODUIT.pptx');
+const OUT = path.join(__dirname, 'ONSCEN-PRESENTATION-PRODUIT.pptx');
 const SHOTS = path.join(DOCS, 'presentation-screenshots', 'mobile');
 const SHOTS_DESKTOP = path.join(DOCS, 'presentation-screenshots');
-const LOGO = path.join(DOCS, '..', 'backend', 'public', 'soundy-logo.png');
+const LOGO = path.join(DOCS, '..', 'backend', 'public', 'onscen-logo.png');
 
 const C = {
   bg: '0D0D14',
@@ -43,9 +43,9 @@ const PHONE = { x: 6.55, y: 0.85, w: 1.55, h: 3.35 };
 
 const pptx = new pptxgen();
 pptx.layout = 'LAYOUT_16x9';
-pptx.author = 'Soundy';
-pptx.company = 'Soundy · getsoundy.com';
-pptx.title = 'Soundy — Présentation produit';
+pptx.author = 'OnScen';
+pptx.company = 'OnScen · getsoundy.com';
+pptx.title = 'OnScen — Présentation produit';
 
 function shot(name) {
   const p = path.join(SHOTS, name);
@@ -69,7 +69,7 @@ function bar(slide) {
 }
 
 function footer(slide, n, total) {
-  slide.addText('Soundy · getsoundy.com', {
+  slide.addText('OnScen · getsoundy.com', {
     x: MX, y: FOOT, w: 4, h: 0.2,
     fontSize: 7, fontFace: FONT, color: C.muted, margin: 0,
   });
@@ -198,7 +198,7 @@ function slide(fn, notes) {
 slide((s) => {
   if (fs.existsSync(LOGO)) s.addImage({ path: LOGO, x: MX, y: 0.75, w: 0.45, h: 0.45 });
   label(s, 'getsoundy.com', 0.55);
-  s.addText('Soundy', {
+  s.addText('OnScen', {
     x: MX, y: 1.15, w: 8, h: 0.75,
     fontSize: 36, bold: true, fontFace: FONT, color: C.ink, margin: 0,
   });
@@ -211,7 +211,7 @@ slide((s) => {
     fontSize: 11, fontFace: FONT, color: C.muted, margin: 0,
   });
   phone(s, shot('02-carte.png'), 'Carte · événements');
-}, 'Accroche : Soundy promeut artistes et événements dans une app unifiée.');
+}, 'Accroche : OnScen promeut artistes et événements dans une app unifiée.');
 
 // 2 · Sommaire — grille 2×4 agrandie (alignée HTML deck)
 slide((s) => {
@@ -260,7 +260,7 @@ slide((s) => {
 // 3 · Application
 slide((s) => {
   label(s, 'Produit');
-  title(s, "L'application Soundy", 0.75);
+  title(s, "L'application OnScen", 0.75);
   lede(s, 'Social, carte et expériences musicales live — en production.', 1.35);
   bullets(s, [
     '6 espaces : Actualités · Carte · Direct · Messages · Reels · Musique',
@@ -343,7 +343,7 @@ slide((s) => {
     'Populaire — top performeurs : morceaux les plus écoutés',
     'Créateurs à suivre · recherche · Abonnements & bibliothèque',
   ], 1.75, LEFT_W, 2.0, 8.5);
-  highlight(s, '100 % discographie Soundy — pas de catalogue streaming externe.', 3.75);
+  highlight(s, '100 % discographie OnScen — pas de catalogue streaming externe.', 3.75);
   phone(s, shot('13-musique.png'), 'Musique · tendances');
 });
 
@@ -365,7 +365,7 @@ slide((s) => {
 // 10 · Rémunération
 slide((s) => {
   label(s, 'Business');
-  title(s, 'Comment Soundy est rémunéré', 0.75);
+  title(s, 'Comment OnScen est rémunéré', 0.75);
   lede(s, 'Leviers alignés avec l\'usage — sans pub intrusive.', 1.35);
   bullets(s, [
     'Sponsoring natif — bars, festivals, marques (sur devis)',

@@ -16,7 +16,7 @@ if (Test-Path $exe) {
 }
 
 Set-Location $releaseDir
-cmd /c start "MeloSong msdev" /MAX msdev.exe
+cmd /c start "OnScen msdev" /MAX msdev.exe
 
 # Prefer npm msdev if exe missing
 if (-not (Test-Path $exe)) {

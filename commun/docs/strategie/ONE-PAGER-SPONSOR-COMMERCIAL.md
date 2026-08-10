@@ -1,6 +1,6 @@
-## Pourquoi Soundy
+## Pourquoi OnScen
 
-| | Instagram / TikTok | **Soundy** |
+| | Instagram / TikTok | **OnScen** |
 |---|-------------------|------------|
 | Audience | Généraliste | **Musique live, sorties et événements** |
 | Contexte | Scroll passif | **Carte géolocalisée, salons, lives, onglet Musique** |
@@ -77,4 +77,4 @@ Vous choisissez **un ou plusieurs emplacements** ; chaque ligne = **1 format dé
 
 ---
 
-*Soundy · Document commercial · Forfait / semaine / emplacement ou pack — sans CPM*
+*OnScen · Document commercial · Forfait / semaine / emplacement ou pack — sans CPM*

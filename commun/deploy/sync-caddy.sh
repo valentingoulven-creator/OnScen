@@ -6,8 +6,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/soundy-root.sh
-source "$SCRIPT_DIR/lib/soundy-root.sh"
+# shellcheck source=lib/onscen-root.sh
+source "$SCRIPT_DIR/lib/onscen-root.sh"
 
 SOURCE="${1:-$DEPLOY_DIR/Caddyfile}"
 DEST="/etc/caddy/Caddyfile"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Soundy — PostgreSQL production (VPS ou Managed DB Scaleway)
+# OnScen — PostgreSQL production (VPS ou Managed DB Scaleway)
 # Usage :
 #   Option A (recommandé prod) : créer une Managed DB PostgreSQL Paris, puis :
 #     export DATABASE_URL='postgresql://soundy:SECRET@xxx.pg.sdb.scaleway.com:5432/soundy?sslmode=require'
@@ -16,12 +16,12 @@ MODE="${1:-}"
 
 usage() {
   cat <<'EOF'
-Soundy — postgres-setup.sh
+OnScen — postgres-setup.sh
 
   --migrate-only     Applique les migrations (DATABASE_URL requis dans l'environnement)
   --local-docker     Lance PostgreSQL 16 via Docker sur le VPS (port 5432 local)
   --local-apt        Installe PostgreSQL via apt (Ubuntu/Debian)
-  --env-snippet      Affiche les variables à ajouter dans /opt/soundy/.env
+  --env-snippet      Affiche les variables à ajouter dans /opt/onscen/.env
 
 Variables utiles :
   DATABASE_URL       postgresql://user:pass@host:5432/dbname
@@ -68,7 +68,7 @@ local_docker() {
   echo ""
   echo "PostgreSQL local démarré (container soundy-postgres)"
   echo "DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@127.0.0.1:5432/${DB_NAME}"
-  echo "Ajoutez cette ligne dans /opt/soundy/.env puis : ./commun/deploy/postgres-setup.sh --migrate-only"
+  echo "Ajoutez cette ligne dans /opt/onscen/.env puis : ./commun/deploy/postgres-setup.sh --migrate-only"
 }
 
 local_apt() {
@@ -87,7 +87,7 @@ SQL
 
 env_snippet() {
   cat <<'EOF'
-# --- PostgreSQL production (Soundy) ---
+# --- PostgreSQL production (OnScen) ---
 APP_ENV=production
 DATABASE_URL=postgresql://soundy:MOT_DE_PASSE@HOST:5432/soundy
 # Scaleway Managed DB (Paris) :

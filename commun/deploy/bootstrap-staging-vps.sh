@@ -5,7 +5,7 @@
 #   ou : bash commun/deploy/bootstrap-staging-vps.sh
 set -euo pipefail
 
-echo ">> Soundy staging — bootstrap VPS"
+echo ">> OnScen staging — bootstrap VPS"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
@@ -44,7 +44,7 @@ ufw allow 3478/tcp || true
 ufw allow 3478/udp || true
 ufw --force enable || true
 
-mkdir -p /opt/soundy/{dist,deploy,public,logs,backups,data,public/uploads}
+mkdir -p /opt/onscen/{dist,deploy,public,logs,backups,data,public/uploads}
 mkdir -p /etc/caddy/certs
 
 echo "BOOTSTRAP_OK node=$(node -v) pm2=$(pm2 -v 2>/dev/null || echo n/a) caddy=$(caddy version 2>/dev/null | head -1)"

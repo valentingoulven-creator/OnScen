@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # backup-db.sh — Sauvegarde PostgreSQL (Scaleway Managed DB ou local)
 # Usage (sur le VPS) :
-#   set -a && source /opt/soundy/.env && set +a
-#   bash /opt/soundly/deploy/backup-db.sh
+#   set -a && source /opt/onscen/.env && set +a
+#   bash /opt/onscen/deploy/backup-db.sh
 # Usage (local, avec URL explicite) :
 #   DATABASE_URL='postgresql://...' ./commun/deploy/backup-db.sh
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/soundy-root.sh
-source "${SCRIPT_DIR}/lib/soundy-root.sh"
+# shellcheck source=lib/onscen-root.sh
+source "${SCRIPT_DIR}/lib/onscen-root.sh"
 
 # Usage (sur le VPS) :
 #   set -a && source ${ROOT}/.env && set +a
@@ -29,7 +29,7 @@ if [[ -z "${DATABASE_URL:-}" ]]; then
 fi
 
 mkdir -p "$BACKUP_DIR"
-OUT="${BACKUP_DIR}/soundy-${TIMESTAMP}.sql.gz"
+OUT="${BACKUP_DIR}/onscen-${TIMESTAMP}.sql.gz"
 
 log "Démarrage pg_dump → $OUT"
 
@@ -44,12 +44,12 @@ SIZE="$(du -h "$OUT" | cut -f1)"
 log "OK — sauvegarde créée ($SIZE)"
 
 # Rétention locale (fichiers plus anciens que RETENTION_DAYS)
-DELETED="$(find "$BACKUP_DIR" -maxdepth 1 -name 'soundy-*.sql.gz' -mtime +"${RETENTION_DAYS}" -print -delete | wc -l | tr -d ' ')"
+DELETED="$(find "$BACKUP_DIR" -maxdepth 1 \( -name 'onscen-*.sql.gz' -o -name 'soundy-*.sql.gz' \) -mtime +"${RETENTION_DAYS}" -print -delete | wc -l | tr -d ' ')"
 if [[ "${DELETED:-0}" -gt 0 ]]; then
   log "Rétention — ${DELETED} ancienne(s) sauvegarde(s) supprimée(s) (> ${RETENTION_DAYS} jours)"
 fi
 
-REMAINING="$(find "$BACKUP_DIR" -maxdepth 1 -name 'soundy-*.sql.gz' | wc -l | tr -d ' ')"
+REMAINING="$(find "$BACKUP_DIR" -maxdepth 1 \( -name 'onscen-*.sql.gz' -o -name 'soundy-*.sql.gz' \) | wc -l | tr -d ' ')"
 log "Inventaire — ${REMAINING} sauvegarde(s) dans ${BACKUP_DIR}"
 
 echo ""

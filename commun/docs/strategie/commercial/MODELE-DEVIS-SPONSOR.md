@@ -1,8 +1,8 @@
-# Devis sponsoring Soundy — Modèle
+# Devis sponsoring OnScen — Modèle
 
 > **Document indicatif** — modèle commercial à personnaliser avant envoi.
 > **Validation juridique requise** avant signature ou facturation définitive.
-> **Phase de lancement :** Soundy démarre sa base d'utilisateurs. La tarification ci-dessous est donc **forfaitaire, à la semaine**, et **ne repose ni sur un volume de vues/impressions, ni sur un CPM**. Elle évoluera vers un modèle à l'audience une fois un volume d'utilisateurs actifs mesurable atteint (voir §"Évolution tarifaire").
+> **Phase de lancement :** OnScen démarre sa base d'utilisateurs. La tarification ci-dessous est donc **forfaitaire, à la semaine**, et **ne repose ni sur un volume de vues/impressions, ni sur un CPM**. Elle évoluera vers un modèle à l'audience une fois un volume d'utilisateurs actifs mesurable atteint (voir §"Évolution tarifaire").
 
 ---
 
@@ -43,7 +43,7 @@
 
 ## Objet du devis
 
-Campagne de **sponsoring natif par emplacement** sur l'application Soundy ([getsoundy.com](https://getsoundy.com)) — réseau social musique live, carte géolocalisée, salons, lives et Reels.
+Campagne de **sponsoring natif par emplacement** sur l'application OnScen ([getsoundy.com](https://getsoundy.com)) — réseau social musique live, carte géolocalisée, salons, lives et Reels.
 
 **Objectif annonceur :** [OBJECTIF_CAMPAGNE] *(ex. : remplissage soirée du [DATE_EVENEMENT] · notoriété locale · teaser sortie album)*
 
@@ -111,7 +111,7 @@ Alternative au choix ligne à ligne : **forfait pack** pour une même semaine (o
 
 | Option | Détail | Montant HT (€) |
 |--------|--------|----------------|
-| Création graphique (1 format) | Logo, bannière ou visuel story aux specs Soundy | [150 – 400] |
+| Création graphique (1 format) | Logo, bannière ou visuel story aux specs OnScen | [150 – 400] |
 | Montage reel 9:16 | Vidéo ≤ 30 s recommandé | [400 – 900] |
 | Remise engagement 6 mois | −10 % | [ ] Applicable |
 | Remise engagement 12 mois | −15 % | [ ] Applicable |
@@ -139,16 +139,16 @@ Alternative au choix ligne à ligne : **forfait pack** pour une même semaine (o
 | **Acompte** | [50] % à la commande · solde avant mise en ligne ou à [J+X] jours |
 | **Paiement** | Virement bancaire · IBAN : [IBAN_SOUNDY] · BIC : [BIC_SOUNDY] |
 | **Délai de mise en ligne** | ≤ 5 jours ouvrés après réception acompte + assets validés |
-| **Engagement de diffusion** | Soundy garantit la **diffusion effective** de l'annonce sur toute la durée contractuelle (pas de garantie de volume de vues, celui-ci dépendant du trafic organique de la plateforme en phase de lancement) |
-| **Assets client** | Logo, bannière, visuel story/reel aux specs Soundy (voir annexe créative) |
-| **Validation créative** | Soundy se réserve le droit de refuser un contenu non conforme (ARPP, DSA, charte Soundy) |
+| **Engagement de diffusion** | OnScen garantit la **diffusion effective** de l'annonce sur toute la durée contractuelle (pas de garantie de volume de vues, celui-ci dépendant du trafic organique de la plateforme en phase de lancement) |
+| **Assets client** | Logo, bannière, visuel story/reel aux specs OnScen (voir annexe créative) |
+| **Validation créative** | OnScen se réserve le droit de refuser un contenu non conforme (ARPP, DSA, charte OnScen) |
 | **Reporting** | Confirmation de diffusion (captures d'écran, dates) en fin de campagne *(modèle REPORTING-SPONSOR-TEMPLATE)* |
 
 ---
 
 ## Évolution tarifaire (transparence)
 
-> Le forfait ci-dessus correspond à une **phase de lancement** (base d'utilisateurs en construction). Dès que Soundy dispose d'un **volume d'audience mesurable et stable**, un modèle de tarification **à l'audience (CPM)** pourra être proposé en complément ou en remplacement du forfait, avec **information préalable** de l'annonceur et **sans effet rétroactif** sur les campagnes déjà facturées.
+> Le forfait ci-dessus correspond à une **phase de lancement** (base d'utilisateurs en construction). Dès que OnScen dispose d'un **volume d'audience mesurable et stable**, un modèle de tarification **à l'audience (CPM)** pourra être proposé en complément ou en remplacement du forfait, avec **information préalable** de l'annonceur et **sans effet rétroactif** sur les campagnes déjà facturées.
 
 ---
 
@@ -184,9 +184,9 @@ Le présent devis vaut **proposition commerciale** jusqu'à la date de validité
 
 ## Mentions légales
 
-> Ce document est un **modèle indicatif** fourni par Soundy à des fins commerciales internes.
+> Ce document est un **modèle indicatif** fourni par OnScen à des fins commerciales internes.
 > Il ne constitue **pas un conseil juridique**. Toute utilisation en dehors du cadre interne ou
 > toute signature avec un annonceur doit être **validée par un juriste** (contrat, mentions
 > sponsoring, facturation, DSA, RGPD, ARPP le cas échéant).
 
-*Soundy · Modèle de devis sponsor · Forfait hebdomadaire par emplacement ou pack — sans CPM*
+*OnScen · Modèle de devis sponsor · Forfait hebdomadaire par emplacement ou pack — sans CPM*

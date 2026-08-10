@@ -1,5 +1,5 @@
 /**
- * Génère les PDF stratégie Soundy via Edge headless.
+ * Génère les PDF stratégie OnScen via Edge headless.
  * Usage: node generate-pdfs.mjs
  */
 import { readFileSync, writeFileSync, unlinkSync } from 'fs';
@@ -10,7 +10,7 @@ import { dirname, join } from 'path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CSS_PATH = join(__dirname, 'pdf-style.css');
 const PREMIUM_CSS_PATH = join(__dirname, 'business-plan-premium.css');
-const LOGO_PNG_PATH = join(__dirname, '..', '..', '..', 'web', 'app', 'public', 'soundy-logo.png');
+const LOGO_PNG_PATH = join(__dirname, '..', '..', '..', 'web', 'app', 'public', 'onscen-logo.png');
 const EDGE =
   process.env.EDGE_PATH ??
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
@@ -18,7 +18,7 @@ const EDGE =
 const LOGO_DATA_URL = `data:image/png;base64,${readFileSync(LOGO_PNG_PATH).toString('base64')}`;
 
 function soundyLogoHtml(variant = 'cover') {
-  return `<span class="soundy-logo soundy-logo--${variant}" role="img" aria-label="Soundy">
+  return `<span class="soundy-logo soundy-logo--${variant}" role="img" aria-label="OnScen">
   <img src="${LOGO_DATA_URL}" alt="" class="soundy-logo__sizer" aria-hidden="true" />
   <span class="soundy-logo__wave" aria-hidden="true"></span>
 </span>`;
@@ -29,19 +29,19 @@ const DOCS = [
     kind: 'study',
     md: 'ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.md',
     pdf: 'ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.pdf',
-    title: 'Soundy — Étude de marché & business plan',
+    title: 'OnScen — Étude de marché & business plan',
   },
   {
     kind: 'premium',
     md: 'BUSINESS-PLAN-PREMIUM.md',
     pdf: 'BUSINESS-PLAN-PREMIUM.pdf',
-    title: 'Soundy — Business Plan Premium',
+    title: 'OnScen — Business Plan Premium',
   },
   {
     kind: 'onepager',
     md: 'ONE-PAGER-SPONSOR-COMMERCIAL.md',
     pdf: 'ONE-PAGER-SPONSOR-COMMERCIAL.pdf',
-    title: 'Soundy Sponsors — One-pager commercial',
+    title: 'OnScen Sponsors — One-pager commercial',
     heroTitle: 'Sponsoring\nnatif musique',
     heroLead:
       'Visibilité sur la carte, le fil, les stories et les Reels — audience qualifiée, tarifs transparents.',
@@ -55,7 +55,7 @@ const STUDY_TOC_SECTIONS = [
   { label: 'Partenaires à démarcher', desc: 'Cibles prioritaires par horizon et budget.' },
   { label: 'Plan commercial 90 jours', desc: 'Préparation, prospection, conversion.' },
   { label: 'Priorités immédiates', desc: 'Actions P0 / P1 / P2.' },
-  { label: 'Glossaire', desc: 'Termes métier, produit Soundy et acronymes.' },
+  { label: 'Glossaire', desc: 'Termes métier, produit OnScen et acronymes.' },
   { label: 'Sources & références', desc: 'Sites, publications et données citées dans l\'étude.' },
 ];
 
@@ -76,7 +76,7 @@ const PREMIUM_TOC_SECTIONS = [
   { label: 'Plan de développement', desc: 'Trajectoire 3 à 5 ans.' },
   { label: 'Analyse des risques', desc: 'Matrice risques et parades.' },
   { label: 'Conclusion', desc: 'Synthèse et prochaines étapes.' },
-  { label: 'Glossaire', desc: 'Termes métier, produit Soundy et acronymes.' },
+  { label: 'Glossaire', desc: 'Termes métier, produit OnScen et acronymes.' },
 ];
 
 function wrapStudy(body) {
@@ -88,7 +88,7 @@ function wrapStudy(body) {
 <div class="cover">
   <div class="cover-mark">
     ${soundyLogoHtml('cover')}
-    <span class="cover-brand">Soundy</span>
+    <span class="cover-brand">OnScen</span>
   </div>
   <p class="cover-tagline">Promoteur d'artistes &amp; d'événements</p>
   <h1>Étude de marché,<br>business plan<br>&amp; partenaires</h1>
@@ -98,7 +98,7 @@ function wrapStudy(body) {
     <div class="cover-meta-item"><strong>Date</strong><span>Juillet 2026</span></div>
     <div class="cover-meta-item"><strong>Statut</strong><span>Confidentiel</span></div>
   </div>
-  <div class="cover-badge">Document stratégique · Soundy</div>
+  <div class="cover-badge">Document stratégique · OnScen</div>
 </div>
 <div class="toc-page">
   <div class="toc-header">
@@ -111,7 +111,7 @@ function wrapStudy(body) {
   <ul class="toc-list">${tocItems}</ul>
 </div>
 <div class="running-head">
-  <span class="brand">Soundy</span>
+  <span class="brand">OnScen</span>
   <span>Étude de marché &amp; business plan · getsoundy.com</span>
 </div>
 <div class="content">${body}</div>`;
@@ -127,13 +127,13 @@ function wrapPremium(body) {
   <div class="bp-cover-top">
     <div class="bp-cover-logo-row">
       ${soundyLogoHtml('cover')}
-      <span class="bp-cover-brand">Soundy</span>
+      <span class="bp-cover-brand">OnScen</span>
     </div>
     <span class="bp-cover-doc-type">Confidentiel</span>
   </div>
   <div class="bp-cover-body">
     <p class="bp-cover-eyebrow">Business Plan · Investisseurs &amp; partenaires</p>
-    <h1>Soundy</h1>
+    <h1>OnScen</h1>
     <p class="bp-cover-sub">Réseau social musique live et promoteur d'artistes &amp; d'événements — modèle sponsor natif géolocalisé, projections 36 mois.</p>
     <div class="bp-cover-meta">
       <div><strong>Site</strong><span>getsoundy.com</span></div>
@@ -153,7 +153,7 @@ function wrapPremium(body) {
   <ul class="bp-toc-list">${tocItems}</ul>
 </div>
 <div class="bp-running-head">
-  <span class="brand">${soundyLogoHtml('header')} Soundy</span>
+  <span class="brand">${soundyLogoHtml('header')} OnScen</span>
   <span>Business Plan Premium · getsoundy.com · Juillet 2026</span>
 </div>
 <div class="bp-content">${body}</div>`;
@@ -165,7 +165,7 @@ function wrapOnePager(body, heroTitle, heroLead) {
   <div class="onepager-hero-top">
     <div class="hero-brand-row">
       ${soundyLogoHtml('hero')}
-      <span class="onepager-hero-brand">Soundy</span>
+      <span class="onepager-hero-brand">OnScen</span>
     </div>
     <span class="onepager-hero-url">getsoundy.com</span>
   </div>

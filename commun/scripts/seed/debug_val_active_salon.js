@@ -1,6 +1,6 @@
 'use strict';
-require('dotenv').config({ path: '/opt/soundly/.env' });
-process.chdir('/opt/soundly');
+require('dotenv').config({ path: '/opt/onscen/.env' });
+process.chdir('/opt/onscen');
 
 (async () => {
   const { loadSalonsLivesFromPostgres } = require('./dist/lib/pgSalonsLives');

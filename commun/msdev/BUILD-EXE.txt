@@ -1,4 +1,4 @@
-MeloSong — Générer l'exécutable Windows (msdev.exe)
+OnScen — Générer l'exécutable Windows (msdev.exe)
 ==================================================
 
 ## Prérequis (une seule fois)
@@ -16,7 +16,7 @@ MeloSong — Générer l'exécutable Windows (msdev.exe)
 
 ## Compiler
 
-À la racine du projet MeloSong Dev :
+À la racine du projet OnScen Dev :
 
    npm run build:exe
 
@@ -24,7 +24,7 @@ MeloSong — Générer l'exécutable Windows (msdev.exe)
 - Build de l'interface React (app → backend/public)
 - Compilation TypeScript du backend
 - Empaquetage pkg → msdev/release/msdev.exe
-- Métadonnées Windows « MeloSong » (resedit, remplace l'affichage Node.js)
+- Métadonnées Windows « OnScen » (resedit, remplace l'affichage Node.js)
 - Unblock-File sur le dossier release (Windows)
 - Copie de public/, .env, config.json, data/, lanceurs et DEBLOCAGE-WINDOWS.txt
 

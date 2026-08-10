@@ -1,4 +1,4 @@
--- Soundy / MeloSong — schéma PostgreSQL production (v1)
+-- OnScen / OnScen — schéma PostgreSQL production (v1)
 -- Aligné sur PersistedStore (backend/src/lib/storeCore.ts)
 
 CREATE TABLE IF NOT EXISTS schema_migrations (

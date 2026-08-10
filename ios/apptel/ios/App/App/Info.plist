@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Soundy</string>
+        <string>OnScen</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -55,16 +55,16 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Soundy utilise le microphone pour les lives et salons audio.</string>
+	<string>OnScen utilise le microphone pour les lives et salons audio.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Soundy utilise la caméra pour les lives vidéo et photos de profil.</string>
+	<string>OnScen utilise la caméra pour les lives vidéo et photos de profil.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Soundy utilise votre position pour afficher les salons et utilisateurs proches.</string>
+	<string>OnScen utilise votre position pour afficher les salons et utilisateurs proches.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Soundy accède à vos photos pour les photos de profil et reels.</string>
+	<string>OnScen accède à vos photos pour les photos de profil et reels.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Soundy peut enregistrer des images dans votre photothèque lorsque vous exportez ou partagez du contenu.</string>
+	<string>OnScen peut enregistrer des images dans votre photothèque lorsque vous exportez ou partagez du contenu.</string>
 	<key>NSFaceIDUsageDescription</key>
-	<string>Soundy utilise Face ID pour protéger l'accès à votre session enregistrée.</string>
+	<string>OnScen utilise Face ID pour protéger l'accès à votre session enregistrée.</string>
 </dict>
 </plist>

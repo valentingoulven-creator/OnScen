@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # setup-phase0-prod.sh — Phase 0 stack scale (Redis + env S3) sur VPS prod
-# Usage (root sur VPS) : bash /opt/soundly/deploy/setup-phase0-prod.sh
+# Usage (root sur VPS) : bash /opt/onscen/deploy/setup-phase0-prod.sh
 set -euo pipefail
 
-ENV_FILE="${ENV_FILE:-/opt/soundy/.env}"
-UPLOADS_BUCKET="${S3_BUCKET:-soundy-prod-uploads}"
+ENV_FILE="${ENV_FILE:-/opt/onscen/.env}"
+UPLOADS_BUCKET="${S3_BUCKET:-onscen-prod-uploads}"
 REGION="${S3_REGION:-fr-par}"
 S3_ENDPOINT="${S3_ENDPOINT:-https://s3.fr-par.scw.cloud}"
 
@@ -70,7 +70,7 @@ main() {
   log "Phase 0 prod — Redis + env S3"
   bash "$(dirname "$0")/setup-redis-vps.sh"
   configure_s3_env
-  log "Terminé. Relancer PM2 : pm2 startOrReload /opt/soundly/deploy/ecosystem.config.cjs --update-env"
+  log "Terminé. Relancer PM2 : pm2 startOrReload /opt/onscen/deploy/ecosystem.config.cjs --update-env"
 }
 
 main "$@"

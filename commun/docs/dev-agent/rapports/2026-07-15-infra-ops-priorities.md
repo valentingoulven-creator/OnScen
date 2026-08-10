@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-07-15 — Priorités infra ops
 
-**Agent :** @soundy-dev-agent  
+**Agent :** @onscen-dev-agent  
 **Date :** 2026-07-15  
 **Durée estimée :** 1 h  
 **Statut global :** ⚠️ Partiel (doc + scripts ; exécution dashboard/SSH manuelle)
@@ -9,7 +9,7 @@
 
 ## Mission
 
-Transformer les 10 recommandations infra (Cloudflare CDN, ACRCloud, backup, monitoring, nettoyage) en documentation actionnable et corriger la doc `/opt/soundy` → `/opt/soundily`.
+Transformer les 10 recommandations infra (Cloudflare CDN, ACRCloud, backup, monitoring, nettoyage) en documentation actionnable et corriger la doc `/opt/onscen` → `/opt/soundily`.
 
 ---
 
@@ -38,7 +38,7 @@ Demande fondateur avec priorités P1–P5 issues de l'audit infra/APIs externes.
 | `commun/deploy/OPS-PRIORITIES.md` | Nouveau — checklist P1–P5 |
 | `commun/deploy/CLOUDFLARE-CDN-WAF.md` | Nouveau — guide P1 détaillé |
 | `commun/deploy/setup-s3-user-uploads.sh` | Nouveau — helper S3_BUCKET |
-| `commun/docs/INFRA-SOUNDY.md` | Chemins + liens priorités |
+| `commun/docs/INFRA-ONSCEN.md` | Chemins + liens priorités |
 | `commun/docs/ENVIRONNEMENTS.md` | Chemin VPS corrigé |
 | `commun/deploy/RUNBOOK-PROD.md` | Chemins + liens guides |
 | `commun/deploy/verify-scaleway-backup.sh` | Chemins corrigés |
@@ -62,7 +62,7 @@ Demande fondateur avec priorités P1–P5 issues de l'audit infra/APIs externes.
 |--------------|----------|
 | Build frontend | Non requis |
 | Tests backend | Non requis |
-| Revue cohérence chemins VPS | ✅ soundy-root.sh + deploy PS1 alignés |
+| Revue cohérence chemins VPS | ✅ onscen-root.sh + deploy PS1 alignés |
 
 ---
 
@@ -78,7 +78,7 @@ Demande fondateur avec priorités P1–P5 issues de l'audit infra/APIs externes.
 |-------|------------------|
 | P1 Cloudflare | Changer DNS / proxy sur dashboard (½ j) |
 | P2 ACRCloud | Créer compte + renseigner `.env` prod |
-| P3 Staging crons | `ssh soundy-staging` + install-backup-cron ×3 |
+| P3 Staging crons | `ssh onscen-staging` + install-backup-cron ×3 |
 | P3 PG Scaleway | Console → vérifier backup + test restore trimestriel |
 | P3 S3 uploads | Bucket + clés + `pm2 reload` |
 | P4 Uptime | UptimeRobot free sur `/health` |
@@ -95,4 +95,4 @@ Demande fondateur avec priorités P1–P5 issues de l'audit infra/APIs externes.
 
 ---
 
-*Généré par Soundy Dev Agent*
+*Généré par OnScen Dev Agent*

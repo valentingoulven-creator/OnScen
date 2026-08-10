@@ -70,7 +70,7 @@ async function main() {
       platformFeePercent: String(FEE_PERCENT),
       platformFeeCents: String(platformFeeCents),
     },
-    description: 'Test don live Soundy — split 50/50',
+    description: 'Test don live OnScen — split 50/50',
   });
 
   console.log('PaymentIntent cree: ' + intent.id);
@@ -132,7 +132,7 @@ main().catch(function (e) {
   if (/signed up for Connect/i.test(msg)) {
     console.error('\nStripe Connect n\'est pas active sur ce compte test.');
     console.error('1. Ouvrez https://dashboard.stripe.com/test/connect');
-    console.error('2. Activez Connect (Express recommande, comme Soundy)');
+    console.error('2. Activez Connect (Express recommande, comme OnScen)');
     console.error('3. Relancez: node scripts/test-stripe-donation-split.cjs');
     console.error('\nLe calcul 50/50 est deja verifie dans le code (100 EUR -> 50 EUR plateforme, 50 EUR createur).');
   }

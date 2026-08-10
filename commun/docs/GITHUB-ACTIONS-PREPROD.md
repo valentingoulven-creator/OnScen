@@ -52,4 +52,4 @@ Le deploy **production** reste manuel : `commun/scripts/deploy-prod.ps1` (demand
 - **Secret manquant** : workflow echoue au step SSH agent
 - **Permission denied (SSH)** : verifier `STAGING_SSH_PRIVATE_KEY` et `authorized_keys` sur staging
 - **CI rouge** : deploy preprod ne se lance pas (workflow_run condition)
-- **Health echoue** : `ssh soundy-staging "pm2 logs melosong-backend-staging --lines 40"`
+- **Health echoue** : `ssh onscen-staging "pm2 logs onscen-backend-staging --lines 40"`

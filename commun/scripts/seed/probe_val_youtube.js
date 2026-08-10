@@ -1,17 +1,17 @@
 'use strict';
-require('/opt/soundly/node_modules/dotenv').config({ path: '/opt/soundly/.env' });
-const { Pool } = require('/opt/soundly/node_modules/pg');
+require('/opt/onscen/node_modules/dotenv').config({ path: '/opt/onscen/.env' });
+const { Pool } = require('/opt/onscen/node_modules/pg');
 
 const VAL_ID = 'user_1781025111633_ipv5l';
 
 (async () => {
-  const { loadPersistedStoreAsync } = require('/opt/soundly/dist/lib/persist');
-  const { probeYoutubeHostSession, getValidYoutubeHostToken } = require('/opt/soundly/dist/lib/youtubeOAuth');
-  const { isRealYoutubeAccount, getPlatformAccounts } = require('/opt/soundly/dist/lib/platformConnect');
-  const { decryptPlatformTokens } = require('/opt/soundly/dist/lib/tokenEncryption');
+  const { loadPersistedStoreAsync } = require('/opt/onscen/dist/lib/persist');
+  const { probeYoutubeHostSession, getValidYoutubeHostToken } = require('/opt/onscen/dist/lib/youtubeOAuth');
+  const { isRealYoutubeAccount, getPlatformAccounts } = require('/opt/onscen/dist/lib/platformConnect');
+  const { decryptPlatformTokens } = require('/opt/onscen/dist/lib/tokenEncryption');
 
   await loadPersistedStoreAsync();
-  const { db } = require('/opt/soundly/dist/models/schema');
+  const { db } = require('/opt/onscen/dist/models/schema');
   const user = db.users.get(VAL_ID);
   if (!user) {
     console.log('User not found');

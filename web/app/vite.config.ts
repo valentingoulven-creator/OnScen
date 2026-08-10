@@ -96,7 +96,7 @@ export default defineConfig(({ mode }) => {
       'react/jsx-runtime': path.resolve(__dirname, 'node_modules/react/jsx-runtime.js'),
       'react/jsx-dev-runtime': path.resolve(__dirname, 'node_modules/react/jsx-dev-runtime.js'),
       // @react-three/drei réexporte inconditionnellement son composant <Stats>
-      // (non utilisé par Soundy), qui importe 'stats.js' — un bundle UMD sans
+      // (non utilisé par OnScen), qui importe 'stats.js' — un bundle UMD sans
       // export ESM 'default' propre. Ni l'inclusion ni l'exclusion dans
       // optimizeDeps ne suffit (plante soit l'optimiseur esbuild, soit la
       // résolution ESM native côté navigateur) : on coupe la dépendance à la
@@ -136,8 +136,8 @@ export default defineConfig(({ mode }) => {
       injectRegister: false,
       includeAssets: ['icon.svg', 'favicon.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
-        name: 'Soundy',
-        short_name: 'Soundy',
+        name: 'OnScen',
+        short_name: 'OnScen',
         description: "Salons d'écoute musicale géolocalisés — YouTube",
         start_url: '/',
         display: 'standalone' as const,
@@ -275,8 +275,8 @@ export default defineConfig(({ mode }) => {
     warmup: {
       clientFiles: [
         './src/components/GlobeView.tsx',
-        './src/components/globe3d/SoundyGlobeCanvas.tsx',
-        './src/components/globe3d/SoundyGlobeScene.tsx',
+        './src/components/globe3d/OnScenGlobeCanvas.tsx',
+        './src/components/globe3d/OnScenGlobeScene.tsx',
       ],
     },
   },

@@ -1,4 +1,4 @@
-# Dossier de préparation brevet — Soundly / MeloSong
+# Dossier de préparation brevet — Soundly / OnScen
 
 > **Date de création du dossier :** juin 2026  
 > **Statut :** BROUILLONS TECHNIQUES — **PAS DE CONSEIL JURIDIQUE**
@@ -7,7 +7,7 @@
 
 ## ⚠️ Avertissement essentiel
 
-Les documents de ce dossier (`01` à `07`) ont été **générés automatiquement à partir du code source** de l'application Soundly/MeloSong. Ils constituent une **aide à la divulgation technique** destinée à faciliter un échange avec un professionnel qualifié.
+Les documents de ce dossier (`01` à `07`) ont été **générés automatiquement à partir du code source** de l'application Soundly/OnScen. Ils constituent une **aide à la divulgation technique** destinée à faciliter un échange avec un professionnel qualifié.
 
 **Vous n'êtes PAS couvert par un avocat ou un mandataire en propriété industrielle (CPI) tant que vous n'en avez pas consulté un.**
 
@@ -27,7 +27,7 @@ En Europe, l'**article 52 de la Convention sur le brevet européen (CBE)** exclu
 
 Un brevet peut toutefois être accordé si l'invention produit un **effet technique** au-delà de l'implémentation logicielle « évidente » sur du matériel générique (ordinateur, réseau, serveur standard).
 
-**Conséquences pour Soundly/MeloSong :**
+**Conséquences pour Soundly/OnScen :**
 
 | Fonctionnalité | Risque de non-brevetabilité (UE) |
 |---|---|
@@ -91,7 +91,7 @@ Apporter à la consultation :
 - **Coûteux** en temps et en argent (dépôt, examen, annuités, mandataire).
 - **Recommandé si :** recherche d'antériorité favorable + effet technique démontré + stratégie commerciale / levée de fonds justifiant l'investissement.
 
-**Suggestion pragmatique pour MeloSong :** déposer un **e-Soleau** immédiatement si l'app est déjà visible publiquement, **puis** consulter un CPI avec ce dossier pour évaluer 1–3 revendications techniques ciblées.
+**Suggestion pragmatique pour OnScen :** déposer un **e-Soleau** immédiatement si l'app est déjà visible publiquement, **puis** consulter un CPI avec ce dossier pour évaluer 1–3 revendications techniques ciblées.
 
 ---
 
@@ -126,4 +126,4 @@ Remplir impérativement la section « Date de première divulgation » dans [`01
 
 ---
 
-*Document généré à partir de l'audit du dépôt `MeloSong Dev`. À mettre à jour après chaque évolution majeure de l'architecture.*
+*Document généré à partir de l'audit du dépôt `OnScen Dev`. À mettre à jour après chaque évolution majeure de l'architecture.*

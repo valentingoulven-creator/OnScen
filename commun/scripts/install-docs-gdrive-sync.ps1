@@ -61,7 +61,7 @@ fi
 }
 
 if (-not $SkipLogonTask) {
-    $taskName = 'Soundy-Docs-GDrive-Watch'
+    $taskName = 'OnScen-Docs-GDrive-Watch'
     try {
         $action = New-ScheduledTaskAction `
             -Execute 'powershell.exe' `
@@ -85,7 +85,7 @@ if (-not $SkipLogonTask) {
             -Trigger $trigger `
             -Settings $settings `
             -Principal $principal `
-            -Description 'Soundy — sync doc vers Google Drive à chaque modification (sans commit)' | Out-Null
+            -Description 'OnScen — sync doc vers Google Drive à chaque modification (sans commit)' | Out-Null
         Write-Host '[OK] Tâche planifiée à la connexion Windows installée' -ForegroundColor Green
     } catch {
         Write-Host "[!] Tâche planifiée non installée: $($_.Exception.Message)" -ForegroundColor Yellow
@@ -101,7 +101,7 @@ if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne $null) {
 Write-Host ''
 Write-Host ' Sync continue (sans commit obligatoire) :' -ForegroundColor Green
 Write-Host '  • Watcher Node — dès qu''un fichier docs/ change (~3 s debounce)'
-Write-Host '  • À la connexion Windows (tâche Soundy-Docs-GDrive-Watch)'
+Write-Host '  • À la connexion Windows (tâche OnScen-Docs-GDrive-Watch)'
 Write-Host '  • À npm run dev (ensure watcher)'
 Write-Host '  • npm run docs:gdrive:ensure  (redémarrer le watcher si besoin)'
 Write-Host '  • npm run docs:gdrive:sync     (manuel)'

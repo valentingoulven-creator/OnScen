@@ -4,7 +4,7 @@ Ce dossier contient **`store.json`** (et éventuellement `store-*.json`) : la ba
 
 ## ⚠ Ne pas synchroniser via iCloud
 
-Si le dépôt MeloSong est dans iCloud Drive (`iCloudDrive/...`) :
+Si le dépôt OnScen est dans iCloud Drive (`iCloudDrive/...`) :
 
 - **Désactivez la sync iCloud** pour ce dossier, ou excluez `msdev/data/` de la synchronisation.
 - iCloud peut verrouiller, dupliquer ou corrompre `store.json` pendant l'écriture du serveur → pertes de données ou démarrage impossible.
@@ -17,4 +17,4 @@ Les fichiers `store*.json` sont **ignorés** par Git (données locales). Ne les 
 
 ## Production
 
-En production (`APP_ENV=production`), la persistance doit passer par **PostgreSQL** (`DATABASE_URL` dans `/opt/soundy/.env`). Le repli `store.json` n'est qu'un fallback d'urgence — voir `commun/deploy/RUNBOOK-PROD.md`.
+En production (`APP_ENV=production`), la persistance doit passer par **PostgreSQL** (`DATABASE_URL` dans `/opt/onscen/.env`). Le repli `store.json` n'est qu'un fallback d'urgence — voir `commun/deploy/RUNBOOK-PROD.md`.

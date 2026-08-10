@@ -191,7 +191,7 @@ S3_REGION=fr-par
 
 # Nouveaux
 PG_POOL_MAX=20
-PGBOUNCER_URL=postgresql://...@127.0.0.1:6432/soundy-prod
+PGBOUNCER_URL=postgresql://...@127.0.0.1:6432/onscen-prod
 POSTGIS_ENABLED=1
 MEILISEARCH_URL=http://127.0.0.1:7700
 MEILISEARCH_KEY=...
@@ -240,4 +240,4 @@ PM2_INSTANCES=max
 
 ---
 
-*Prochaine étape recommandée : Phase 0 sur staging (`soundy-staging`) — Redis + PM2 cluster + S3 uploads — puis Phase 1 PostGIS sur branche dédiée.*
+*Prochaine étape recommandée : Phase 0 sur staging (`onscen-staging`) — Redis + PM2 cluster + S3 uploads — puis Phase 1 PostGIS sur branche dédiée.*

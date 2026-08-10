@@ -11,7 +11,7 @@
  * (chaque insertion individuelle est elle-même protégée par un test d'existence).
  *
  * Usage sur le VPS (voir rapport dev-agent pour le détail) :
- *   cd /opt/soundly && APP_ENV=production node dist/scripts/seed-test-account-full.js
+ *   cd /opt/onscen && APP_ENV=production node dist/scripts/seed-test-account-full.js
  */
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';

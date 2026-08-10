@@ -1,11 +1,11 @@
-DOCUMENTATION DES BOUTONS — Soundy (MeloSongv2)
+DOCUMENTATION DES BOUTONS — OnScen (OnScen)
 Généré : 2026-06-11 — inclut MODIF 452–458
 Format : Libellé → action
 
 ═══════════════════════════════════════════════════════════
 1. EN-TÊTE GLOBAL (toujours visible, salon/live plein écran — MODIF 457)
 ═══════════════════════════════════════════════════════════
-• Soundy (logo) → ouvre l'onglet Accueil (fil d'actu)
+• OnScen (logo) → ouvre l'onglet Accueil (fil d'actu)
 • Rafraîchir (msdev uniquement) → rebuild frontend + rechargement page
 • Rechercher un profil… → recherche pseudo ; sélection ouvre le profil public
 • Espace administrateur (icône bouclier, admins) → overlay Administration

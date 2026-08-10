@@ -1,4 +1,4 @@
-# setup-infra-access.ps1 — Bootstrap acces agent Cursor vers infra Soundy
+# setup-infra-access.ps1 — Bootstrap acces agent Cursor vers infra OnScen
 #
 # Objectif : SSH VPS, sync secrets prod locaux, tests DB / Sightengine / health.
 # Ne jamais committer de secrets. Usage :
@@ -6,7 +6,7 @@
 #
 # Options :
 #   -GenerateSshKey     Cree id_ed25519 si absent
-#   -PullProdEnv        Recupere /opt/soundly/.env -> commun/backend/.env.production (requiert SSH OK)
+#   -PullProdEnv        Recupere /opt/onscen/.env -> commun/backend/.env.production (requiert SSH OK)
 #   -SyncMsdevFromProd  Copie variables manquantes (Sightengine, LiveKit, etc.) vers commun/msdev/.env
 #   -TestOnly           Diagnostics sans modification
 
@@ -24,7 +24,7 @@ $script:ExternalErrorAction = 'Continue'
 $VpsHost    = '51.159.164.100'
 $VpsUser    = 'root'
 $VpsTarget  = "${VpsUser}@${VpsHost}"
-$RemoteEnv  = '/opt/soundly/.env'
+$RemoteEnv  = '/opt/onscen/.env'
 $HealthUrl  = 'https://getsoundy.com/health'
 $SshDir     = Join-Path $env:USERPROFILE '.ssh'
 $PrimaryKey = Join-Path $SshDir 'id_ed25519'
@@ -188,7 +188,7 @@ function Test-DatabaseUrl([string]$databaseUrl) {
     }
     if (-not (Get-Command psql -ErrorAction SilentlyContinue)) {
         Write-Warn 'psql absent - installez PostgreSQL client ou testez via SSH sur le VPS'
-        Write-Info 'Alternative : ssh root@51.159.164.100 "cd /opt/soundly && node -e ..."'
+        Write-Info 'Alternative : ssh root@51.159.164.100 "cd /opt/onscen && node -e ..."'
         return
     }
     $out = & psql $databaseUrl -c 'SELECT 1 AS ok;' 2>&1
@@ -196,14 +196,14 @@ function Test-DatabaseUrl([string]$databaseUrl) {
         Write-Ok 'Connexion PostgreSQL OK'
     } else {
         Write-Warn ("Connexion PostgreSQL echouee - whitelist IP Scaleway ? Detail : " + ($out -join ' '))
-        Write-Info 'Scaleway console > Databases > soundy-prod > Allowed IPs > ajouter votre IP publique'
+        Write-Info 'Scaleway console > Databases > onscen-prod > Allowed IPs > ajouter votre IP publique'
     }
 }
 
 # --- Main -------------------------------------------------------------------
 Write-Host ''
 Write-Host ' ============================================================' -ForegroundColor Magenta
-Write-Host '  Soundy - Setup acces infra (agent Cursor)' -ForegroundColor Magenta
+Write-Host '  OnScen - Setup acces infra (agent Cursor)' -ForegroundColor Magenta
 Write-Host ' ============================================================' -ForegroundColor Magenta
 Write-Host "  Repo : $RepoRoot"
 Write-Host "  VPS  : $VpsTarget"
@@ -233,10 +233,10 @@ if ($ImportFile) {
 
 if ($PullProdEnv) {
     if (-not $sshOk) {
-        Write-Warn 'SSH indisponible - utilisez -ImportFile avec un export console (cat /opt/soundy/.env)'
+        Write-Warn 'SSH indisponible - utilisez -ImportFile avec un export console (cat /opt/onscen/.env)'
         if (-not $ImportFile) { throw 'SSH requis pour -PullProdEnv sans -ImportFile.' }
     } else {
-        Write-Step 'Synchronisation /opt/soundy/.env'
+        Write-Step 'Synchronisation /opt/onscen/.env'
         Pull-ProdEnvFile $keyPath
     }
 }

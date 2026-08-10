@@ -1,5 +1,5 @@
 'use strict';
-require('dotenv').config({ path: '/opt/soundly/.env' });
+require('dotenv').config({ path: '/opt/onscen/.env' });
 const { Pool } = require('pg');
 
 (async () => {

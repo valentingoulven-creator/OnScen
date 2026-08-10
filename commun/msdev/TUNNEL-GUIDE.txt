@@ -1,5 +1,5 @@
 ================================================================
-  MeloSong - Guide : Acces Internet depuis l'iPhone
+  OnScen - Guide : Acces Internet depuis l'iPhone
   (ngrok / tunnel HTTPS)
 ================================================================
 
@@ -48,7 +48,7 @@ Etape 4 - Creer votre domaine statique gratuit
   Cliquez "New Domain" - choisissez un nom (ex: melosong-test)
   Votre domaine sera : melosong-test.ngrok-free.app
 
-Etape 5 - Enregistrer le domaine dans MeloSong
+Etape 5 - Enregistrer le domaine dans OnScen
   Creez le fichier : msdev\ngrok-domain.txt
   Contenu : votre-domaine.ngrok-free.app
 
@@ -108,7 +108,7 @@ Plan gratuit ngrok (suffisant pour le dev) :
   - Trafic limite (tres largement suffisant pour tester)
   - Connexions simultanees : 40
 
-Le serveur MeloSong DOIT rester actif (ACCES-IPHONE.bat s'en charge).
+Le serveur OnScen DOIT rester actif (ACCES-IPHONE.bat s'en charge).
 Fermez la fenetre ACCES-IPHONE.bat pour couper le tunnel.
 
 Le tunnel ngrok ne fonctionne que lorsque le PC est allume

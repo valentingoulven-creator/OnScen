@@ -1,4 +1,4 @@
-/* Soundy — Business Plan Premium (style cabinet conseil) */
+/* OnScen — Business Plan Premium (style cabinet conseil) */
 
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Serif:wght@500;600;700&display=swap');
 
@@ -162,7 +162,7 @@ a:hover { text-decoration: underline; }
 
 .bp-cover-meta span { font-size: 9.5pt; font-weight: 600; }
 
-/* Logo Soundy (compact) */
+/* Logo OnScen (compact) */
 .soundy-logo { position: relative; display: inline-block; line-height: 0; }
 .soundy-logo--cover { height: 48px; }
 .soundy-logo--header { height: 28px; }

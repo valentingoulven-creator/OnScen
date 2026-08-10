@@ -45,7 +45,7 @@ l'Express backend à `/tel/*`. Les utilisateurs peuvent installer depuis le navi
 Paquets : `@capacitor/core`, `@capacitor/cli`, `@capacitor/android`, `@capacitor/ios` (^8.4).
 
 ```bash
-# Depuis la racine MeloSong Dev
+# Depuis la racine OnScen Dev
 npm run msdev:sync-lan          # MOBILE_API_URL dans commun/msdev/.env
 npm run capacitor:build         # ios/apptel/dist + API LAN injectée
 npm run capacitor:sync          # copie vers android/ et ios/
@@ -55,7 +55,7 @@ npm run capacitor:android:apk
 # ou double-clic Smartphone/INSTALLER-ANDROID.bat
 ```
 
-- `capacitor.config.json` : `appId` `com.soundy.app`, `appName` `Soundy`, `webDir` `dist`
+- `capacitor.config.json` : `appId` `com.soundy.app`, `appName` `OnScen`, `webDir` `dist`
 - Build PWA web classique : `npm run build` → `backend/public/tel/` (inchangé)
 - Build natif : `npm run build:capacitor` → `dist/` (base relative, pas de service worker)
 - iPhone : compilation uniquement sur Mac + Xcode (voir `Smartphone/LISEZMOI-iPhone-NATIF.txt`)

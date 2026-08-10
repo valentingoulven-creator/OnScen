@@ -1,11 +1,11 @@
-# Audit Senior — Stack & Qualité de Code — Soundy
+# Audit Senior — Stack & Qualité de Code — OnScen
 
 Périmètre : Sections 1 (Audit Stack) et 12 (Qualité du code) du cahier des charges.
 Méthode : lecture statique (Grep/Glob/Read) + exécution en lecture seule de `npm outdated`, `npm audit`, `eslint`, `sync-src.js --check`.
 
 ## 1. Résumé exécutif
 
-Le monorepo Soundy est structuré en 4 packages npm indépendants (`web/app`, `ios/apptel`, `commun/backend`, `commun/msdev`) plus un package de tests d'agents (`commun/tests/agents`). Stack moderne (React 19, TypeScript ~6.0, Vite 8, Express 4, Node/PM2), 0 vulnérabilité `npm audit` détectée sur les 3 packages testés, bonne discipline sur `any` explicite, et une architecture mobile/web propre (script `sync-src.js` garantissant l'absence de doublons entre `web/app/src` et `ios/apptel/src`).
+Le monorepo OnScen est structuré en 4 packages npm indépendants (`web/app`, `ios/apptel`, `commun/backend`, `commun/msdev`) plus un package de tests d'agents (`commun/tests/agents`). Stack moderne (React 19, TypeScript ~6.0, Vite 8, Express 4, Node/PM2), 0 vulnérabilité `npm audit` détectée sur les 3 packages testés, bonne discipline sur `any` explicite, et une architecture mobile/web propre (script `sync-src.js` garantissant l'absence de doublons entre `web/app/src` et `ios/apptel/src`).
 
 Cependant, l'audit révèle un **problème architectural critique** : le backend de production utilise une base de données **en mémoire** (`Map` JS dans `models/schema.ts`) comme source de vérité pour les lectures (y compris l'authentification), alors que la configuration PM2 de production tourne en **mode cluster à 2 instances**. Chaque worker a sa propre copie du store, sans mécanisme de synchronisation entre workers en dehors d'un flush asynchrone débouncé (800ms) vers PostgreSQL. Cela expose à des incohérences de données et des déconnexions aléatoires en production.
 

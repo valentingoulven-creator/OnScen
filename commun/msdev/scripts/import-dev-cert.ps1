@@ -1,9 +1,9 @@
 ﻿# Importe le certificat msdev (auto-signé) dans le magasin Windows
 # "Autorités de certification racines de confiance" de l'utilisateur courant.
 #
-# AVERTISSEMENT : réservé au développement local MeloSong msdev uniquement.
+# AVERTISSEMENT : réservé au développement local OnScen msdev uniquement.
 # N'exécutez pas sur une machine partagée ou en production.
-# Pour retirer : certmgr.msc → Utilisateur courant → Autorités racines → supprimer "MeloSong msdev local"
+# Pour retirer : certmgr.msc → Utilisateur courant → Autorités racines → supprimer "OnScen msdev local"
 
 $ErrorActionPreference = "Stop"
 $Msdev = Split-Path -Parent $PSScriptRoot
@@ -16,7 +16,7 @@ if (-not (Test-Path $certPath)) {
 }
 
 Write-Host ""
-Write-Host "=== Import certificat DEV MeloSong (utilisateur courant) ===" -ForegroundColor Cyan
+Write-Host "=== Import certificat DEV OnScen (utilisateur courant) ===" -ForegroundColor Cyan
 Write-Host "Fichier : $certPath"
 Write-Host ""
 Write-Host "Ce certificat est AUTO-SIGNE et sert uniquement au dev HTTPS msdev." -ForegroundColor Yellow

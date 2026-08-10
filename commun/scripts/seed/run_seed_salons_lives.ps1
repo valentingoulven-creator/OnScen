@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-  Déploie et exécute seed-production-salons-lives sur la prod Soundy.
+  Déploie et exécute seed-production-salons-lives sur la prod OnScen.
   Usage: .\run_seed_salons_lives.ps1
 #>
 
 $Key    = "$env:USERPROFILE\.ssh\id_ed25519"
 $Server = "root@51.159.164.100"
-$Dist   = Join-Path (Split-Path $PSScriptRoot -Parent) "MeloSongv2\backend\dist"
-$PM2    = "melosong-backend"
+$Dist   = Join-Path (Split-Path $PSScriptRoot -Parent) "OnScen\backend\dist"
+$PM2    = "onscen-backend"
 
 Write-Host ""
 Write-Host "══════════════════════════════════════════════════════" -ForegroundColor Cyan
@@ -24,8 +24,8 @@ $files = @(
 
 foreach ($rel in $files) {
   $local = Join-Path $Dist $rel
-  $remoteDir = "/opt/soundy/dist/" + ($rel -replace '\\[^\\]+$', '/')
-  if (-not (Test-Path $local)) { Write-Error "Fichier manquant : $local — lancez npm run build dans MeloSongv2/backend"; exit 1 }
+  $remoteDir = "/opt/onscen/dist/" + ($rel -replace '\\[^\\]+$', '/')
+  if (-not (Test-Path $local)) { Write-Error "Fichier manquant : $local — lancez npm run build dans OnScen/backend"; exit 1 }
   Write-Host "📤  SCP $rel" -ForegroundColor Yellow
   & scp -i $Key -o StrictHostKeyChecking=no $local "${Server}:${remoteDir}"
   if ($LASTEXITCODE -ne 0) { Write-Error "SCP échoué : $rel"; exit 1 }
@@ -33,7 +33,7 @@ foreach ($rel in $files) {
 
 Write-Host ""
 Write-Host "⚡  Exécution du seeder…" -ForegroundColor Yellow
-& ssh -i $Key -o StrictHostKeyChecking=no $Server "cd /opt/soundy && APP_ENV=production node dist/commun/scripts/seed-production-salons-lives.js"
+& ssh -i $Key -o StrictHostKeyChecking=no $Server "cd /opt/onscen && APP_ENV=production node dist/commun/scripts/seed-production-salons-lives.js"
 if ($LASTEXITCODE -ne 0) { Write-Error "Seeder échoué."; exit 1 }
 
 Write-Host ""

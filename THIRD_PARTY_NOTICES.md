@@ -1,4 +1,4 @@
-# Third-party notices — Soundy backend (production dependencies)
+# Third-party notices — OnScen backend (production dependencies)
 
 Generated 2026-06-29 via `license-checker --production --summary` in `backend/`.
 

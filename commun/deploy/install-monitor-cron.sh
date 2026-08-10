@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# install-monitor-cron.sh — Installe le cron de monitoring système Soundy (toutes les 5 min)
-# Usage : sudo bash /opt/soundly/deploy/install-monitor-cron.sh
+# install-monitor-cron.sh — Installe le cron de monitoring système OnScen (toutes les 5 min)
+# Usage : sudo bash /opt/onscen/deploy/install-monitor-cron.sh
 #
 # Ce script installe :
 #   - monitor-alerts.sh en cron toutes les 5 min (disk/RAM/CPU/PM2)
 #
-# Les alertes email utilisent RESEND_API_KEY (prioritaire) ou SMTP depuis /opt/soundy/.env.
+# Les alertes email utilisent RESEND_API_KEY (prioritaire) ou SMTP depuis /opt/onscen/.env.
 # Le monitoring Node.js (API latency, uncaughtException, DB errors) est géré
 # côté backend via lib/serverMonitor.ts et lib/alertNotifier.ts.
 set -euo pipefail
@@ -16,8 +16,8 @@ if [[ "$(id -u)" -ne 0 ]]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/soundy-root.sh
-source "${SCRIPT_DIR}/lib/soundy-root.sh"
+# shellcheck source=lib/onscen-root.sh
+source "${SCRIPT_DIR}/lib/onscen-root.sh"
 MONITOR_SCRIPT="$DEPLOY_DIR/monitor-alerts.sh"
 LOG_DIR="${ROOT}/logs"
 LOG_FILE="${LOG_DIR}/monitor-alerts.log"
@@ -42,7 +42,7 @@ crontab "$TMP_CRON"
 rm -f "$TMP_CRON"
 
 echo ""
-echo "=== Cron monitoring Soundy installé ==="
+echo "=== Cron monitoring OnScen installé ==="
 echo "  Horaire  : toutes les 5 minutes"
 echo "  Script   : ${MONITOR_SCRIPT}"
 echo "  Log      : ${LOG_FILE}"

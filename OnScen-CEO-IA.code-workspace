@@ -1,0 +1,16 @@
+{
+  "folders": [
+    {
+      "path": ".",
+      "name": "OnScen — CEO IA (repo complet)"
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/.gradle": true,
+      "**/android/app/build": true,
+      "**/android/MeloSong-Mobile/www/assets": false
+    }
+  }
+}

@@ -1,4 +1,4 @@
-# AUDIT REPORT — Soundy / MeloSongv2
+# AUDIT REPORT — OnScen / OnScen
 **Date :** 2026-06-22  
 **Auditeur :** Équipe fictive CTO · Architecte · QA · UX · Performance · Streaming  
 **Version analysée :** état courant branche principale (modification.txt : MODIF 590)  
@@ -249,7 +249,7 @@ En prod (VPS + Caddy + compression) : FCP estimé **< 1.5s** sur 4G, **< 0.6s** 
 ### 6.2 Problèmes détectés
 
 - **Sélection du mode non transparente** : l'utilisateur ne comprend pas quel mode est actif ni ses limites
-- **OBS uniquement via Cloudflare** : les streamers habitués à OBS sont limités au plan SoundyUltra
+- **OBS uniquement via Cloudflare** : les streamers habitués à OBS sont limités au plan OnScenUltra
 - **Pas de qualité adaptative (ABR)** en WebRTC mesh — une mauvaise connexion host dégrade l'expérience de tous
 - **Cloudflare HLS : latence 10-30s** — incompatible avec l'aspect "temps réel" et les interactions live (dons, chat)
 - **Egress LiveKit → Cloudflare** : double service, double coût, double point de failure
@@ -282,7 +282,7 @@ En prod (VPS + Caddy + compression) : FCP estimé **< 1.5s** sur 4G, **< 0.6s** 
 
 ### 8.1 Comparaison fonctionnelle
 
-| Fonctionnalité | Soundy | TikTok Live | Instagram Live | Twitch |
+| Fonctionnalité | OnScen | TikTok Live | Instagram Live | Twitch |
 |----------------|--------|-------------|----------------|--------|
 | Vidéo live host | ✅ | ✅ | ✅ | ✅ |
 | Chat live | ✅ | ✅ | ✅ | ✅ |
@@ -301,7 +301,7 @@ En prod (VPS + Caddy + compression) : FCP estimé **< 1.5s** sur 4G, **< 0.6s** 
 | Salons YouTube | ✅ (unique) | ❌ | ❌ | ❌ |
 | Carte géo | ✅ (unique) | ❌ | ❌ | ❌ |
 
-**Différenciateur unique de Soundy :** salons YouTube géolocalisés = USP fort. Personne d'autre ne propose ça.
+**Différenciateur unique de OnScen :** salons YouTube géolocalisés = USP fort. Personne d'autre ne propose ça.
 
 ### 8.2 Friction UX détectée
 
@@ -433,7 +433,7 @@ En prod (VPS + Caddy + compression) : FCP estimé **< 1.5s** sur 4G, **< 0.6s** 
 
 ### 11.2 Conformité App Store / Google Play
 
-| Règle | Soundy | Conformité |
+| Règle | OnScen | Conformité |
 |-------|--------|-----------|
 | YouTube TOS §4C : pas d'utilisation commerciale de l'IFrame sans accord | ⚠️ Publicités sponsor dans les salons | **Risque** |
 | Attribution YouTube obligatoire | ✅ Présente | **Conforme** |

@@ -1,6 +1,6 @@
-# msdev — MeloSong local development
+# msdev — OnScen local development
 
-Environment de développement local dédié pour MeloSong.
+Environment de développement local dédié pour OnScen.
 
 ## Démarrage rapide
 
@@ -38,10 +38,10 @@ Configurée dans `msdev/.env` (`MOBILE_HOST_IP`) et `msdev/MOBILE-URL.txt`.
 
 Le serveur écoute sur **0.0.0.0:4080** (`HOST` dans `.env`) pour accepter les connexions du téléphone.
 
-#### Ce que MeloSong n’affiche pas
+#### Ce que OnScen n’affiche pas
 
 - Il n’y a **pas** d’écran « téléphone connecté » ou liste d’appareils sur le réseau.
-- **Personnes proches** sur la carte = **comptes MeloSong** avec géolocalisation (pas votre téléphone en tant qu’appareil).
+- **Personnes proches** sur la carte = **comptes OnScen** avec géolocalisation (pas votre téléphone en tant qu’appareil).
 
 #### Dépannage
 

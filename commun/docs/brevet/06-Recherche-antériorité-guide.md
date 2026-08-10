@@ -9,7 +9,7 @@
 
 Identifier les documents publics (brevets, demandes, articles, produits) qui pourraient :
 
-- **anticiper** les éléments techniques de MeloSong ;
+- **anticiper** les éléments techniques de OnScen ;
 - **détruire la nouveauté** (divulgation antérieure) ;
 - **rendre l'invention évidente** pour l'examinateur.
 
@@ -147,7 +147,7 @@ Remplir le tableau ci-dessous et le transmettre au CPI.
 
 ## 5. Grille de synthèse (à compléter)
 
-| # | Référence (brevet / produit) | Date | Éléments communs | Différences vs MeloSong | Impact nouveauté |
+| # | Référence (brevet / produit) | Date | Éléments communs | Différences vs OnScen | Impact nouveauté |
 |---|---|---|---|---|---|
 | 1 | `[À COMPLÉTER]` | | | | Faible / Moyen / Fort |
 | 2 | | | | | |
@@ -166,7 +166,7 @@ Remplir le tableau ci-dessous et le transmettre au CPI.
 
 > Ces éléments sont **suspects** d'antériorité — la recherche doit confirmer ou infirmer.
 
-| Fonctionnalité MeloSong | Antériorité suspectée |
+| Fonctionnalité OnScen | Antériorité suspectée |
 |---|---|
 | Horloge `progressMs + startedAt` | Sync par timestamp serveur (nombreux brevets streaming) |
 | Correction dérive client | Lecteurs vidéo synchronisés (Teleparty, etc.) |
@@ -178,7 +178,7 @@ Remplir le tableau ci-dessous et le transmettre au CPI.
 
 ---
 
-## 7. Recherche sur divulgations MeloSong (nouveauté)
+## 7. Recherche sur divulgations OnScen (nouveauté)
 
 Documenter **toutes** les divulgations par l'inventeur :
 

@@ -1,7 +1,7 @@
-# commun/deploy/environments.ps1 — Cibles de deploiement Soundy (prod / preprod)
-# Usage : . ./commun/deploy/environments.ps1 ; $cfg = Get-SoundyDeployEnvironment preprod
+# commun/deploy/environments.ps1 — Cibles de deploiement OnScen (prod / preprod)
+# Usage : . ./commun/deploy/environments.ps1 ; $cfg = Get-OnScenDeployEnvironment preprod
 
-function Get-SoundyDeployEnvironment {
+function Get-OnScenDeployEnvironment {
     param(
         [ValidateSet('prod', 'preprod')]
         [string]$Name = 'prod'
@@ -11,11 +11,11 @@ function Get-SoundyDeployEnvironment {
         prod = @{
             Label          = 'production'
             Vps            = 'root@51.159.164.100'
-            SshHost        = 'soundy-prod'
-            Remote         = '/opt/soundly'
+            SshHost        = 'onscen-prod'
+            Remote         = '/opt/onscen'
             Health         = 'https://getsoundy.com/health'
             SiteUrl        = 'https://getsoundy.com'
-            Pm2App         = 'melosong-backend'
+            Pm2App         = 'onscen-backend'
             ViteMode       = 'production'
             ViteEnvFile    = 'web/app/.env.production'
             Caddyfile      = 'commun/deploy/Caddyfile'
@@ -26,11 +26,11 @@ function Get-SoundyDeployEnvironment {
         preprod = @{
             Label          = 'preproduction'
             Vps            = 'root@51.159.170.181'
-            SshHost        = 'soundy-staging'
-            Remote         = '/opt/soundly'
+            SshHost        = 'onscen-staging'
+            Remote         = '/opt/onscen'
             Health         = 'https://staging.getsoundy.com/health'
             SiteUrl        = 'https://staging.getsoundy.com'
-            Pm2App         = 'melosong-backend-staging'
+            Pm2App         = 'onscen-backend-staging'
             ViteMode       = 'preproduction'
             ViteEnvFile    = 'web/app/.env.preproduction'
             Caddyfile      = 'commun/deploy/Caddyfile.staging'

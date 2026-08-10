@@ -1,6 +1,6 @@
 ﻿# Accès HTTPS msdev (certificat auto-signé)
 
-MeloSong en mode `msdev:https` utilise un certificat **auto-signé** (développement uniquement).
+OnScen en mode `msdev:https` utilise un certificat **auto-signé** (développement uniquement).
 L’erreur **`NET::ERR_CERT_AUTHORITY_INVALID`** (ou « connexion non privée ») est **normale** : le navigateur ne connaît pas l’émetteur. Ce n’est **pas** un problème de SAN si vous avez régénéré le cert avec votre IP LAN.
 
 **Important :** gardez **HTTPS** pour la caméra (`getUserMedia` sur téléphone). Ne désactivez pas la sécurité du navigateur globalement. Il faut **accepter ce certificat une fois par navigateur et par appareil** (ou l’importer dans Windows, voir ci-dessous).
@@ -111,5 +111,5 @@ Puis relancer `npm run msdev` ou `npm run msdev:https`.
 | app:dev (5173) ne connecte pas | Backend HTTPS → `npm run app:dev:https` ou https://localhost:4080. |
 | Téléphone n’atteint pas le PC | Pare-feu Windows : autoriser le port **4080** entrant sur le profil **Privé**. |
 | Page noire après le certificat | Recharge forcée (Ctrl+F5) ou vider le cache du site ; relancer `npm run msdev:https` (rebuild + sync LAN). |
-| Port 4080 déjà utilisé | Fermez les autres MeloSong ; `netstat -ano \| findstr :4080` puis arrêtez le PID node.exe. |
+| Port 4080 déjà utilisé | Fermez les autres OnScen ; `netstat -ano \| findstr :4080` puis arrêtez le PID node.exe. |
 

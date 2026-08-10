@@ -1,6 +1,6 @@
-process.chdir('/opt/soundly');
-require('dotenv').config({ path: '/opt/soundly/.env' });
-const { Pool } = require('/opt/soundly/node_modules/pg');
+process.chdir('/opt/onscen');
+require('dotenv').config({ path: '/opt/onscen/.env' });
+const { Pool } = require('/opt/onscen/node_modules/pg');
 const p = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 const id = process.argv[2] || 'prod-seed-salon-beat-castel';
 p.query('SELECT id, is_active, payload FROM lives WHERE id = $1', [id])

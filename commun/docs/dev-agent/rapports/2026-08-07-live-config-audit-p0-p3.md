@@ -1,6 +1,6 @@
 # Rapport Dev Agent — 2026-08-07 — Live Config : implémentation audit CTO P0→P3
 
-**Agent :** @soundy-dev-agent
+**Agent :** @onscen-dev-agent
 **Date :** 2026-08-07
 **Durée estimée :** ~1 session longue
 **Statut global :** ✅ Terminé (avec 1 point hors périmètre non corrigé, voir Bloquers)
@@ -9,7 +9,7 @@
 
 ## Mission
 
-Implémenter les 4 lots priorisés (P0, P1, P2, P3) issus de l'audit `@soundy-cto` de l'onglet **Config** du `LiveHostPanel`, comparé à TikTok / Instagram / Twitch / Kick.
+Implémenter les 4 lots priorisés (P0, P1, P2, P3) issus de l'audit `@onscen-cto` de l'onglet **Config** du `LiveHostPanel`, comparé à TikTok / Instagram / Twitch / Kick.
 
 ---
 
@@ -122,4 +122,4 @@ cd web/app && npm run build (tsc -b)           → ❌ pré-existant, hors péri
 
 ---
 
-*Généré par Soundy Dev Agent — ne pas éditer le template `_TEMPLATE.md`*
+*Généré par OnScen Dev Agent — ne pas éditer le template `_TEMPLATE.md`*

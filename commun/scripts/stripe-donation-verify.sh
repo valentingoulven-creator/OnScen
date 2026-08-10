@@ -2,7 +2,7 @@
 # Verify donation create-intent on production VPS (after Connect + host setup).
 set -eu
 set -a
-source /opt/soundy/.env
+source /opt/onscen/.env
 set +a
 
 HOST_USER_ID="${1:-user_1781025111633_ipv5l}"
@@ -20,7 +20,7 @@ FROM users WHERE id = '${HOST_USER_ID}';
 "
 
 echo "=== Ensure test live + donor (backend stopped to avoid persist clobber) ==="
-pm2 stop melosong-backend >/dev/null 2>&1 || true
+pm2 stop onscen-backend >/dev/null 2>&1 || true
 sleep 2
 
 if [ -z "$LIVE_ID" ]; then
@@ -46,10 +46,10 @@ VALUES ('${DONOR_ID}', 'donor-test@getsoundy.com', 'DonorTest', '${DONOR_PAYLOAD
 ON CONFLICT (id) DO UPDATE SET payload = EXCLUDED.payload;
 " >/dev/null
 
-pm2 start melosong-backend --update-env >/dev/null 2>&1 || pm2 restart melosong-backend --update-env >/dev/null 2>&1 || true
+pm2 start onscen-backend --update-env >/dev/null 2>&1 || pm2 restart onscen-backend --update-env >/dev/null 2>&1 || true
 sleep 5
 
-TOKEN=$(cd /opt/soundy && node -e "
+TOKEN=$(cd /opt/onscen && node -e "
 const jwt = require('jsonwebtoken');
 const secret = process.env.JWT_SECRET;
 if (!secret) { console.error('JWT_SECRET missing'); process.exit(1); }
@@ -80,11 +80,11 @@ fi
 
 if [ "$CLEANUP" = "1" ]; then
   echo "=== Cleanup test lives (live_stripe_test_*) ==="
-  pm2 stop melosong-backend >/dev/null 2>&1 || true
+  pm2 stop onscen-backend >/dev/null 2>&1 || true
   sleep 2
   psql "$DATABASE_URL" -c "
 DELETE FROM lives WHERE id LIKE 'live_stripe_test_%';
 " || true
-  pm2 start melosong-backend --update-env >/dev/null 2>&1 || pm2 restart melosong-backend --update-env >/dev/null 2>&1 || true
+  pm2 start onscen-backend --update-env >/dev/null 2>&1 || pm2 restart onscen-backend --update-env >/dev/null 2>&1 || true
   echo "Cleaned up test lives"
 fi

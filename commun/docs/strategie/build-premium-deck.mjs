@@ -1,5 +1,5 @@
 /**
- * Génère SOUNDY-PREMIUM-DECK.pptx — deck marketing premium.
+ * Génère ONSCEN-PREMIUM-DECK.pptx — deck marketing premium.
  * Layout strict 16:9 — tout le contenu reste dans la zone safe (marges fixes).
  *
  * Usage: npm run deck  (depuis commun/docs/strategie)
@@ -11,9 +11,9 @@ import fs from 'fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DOCS_DIR = path.resolve(__dirname, '..');
-const OUT_FILE = path.join(__dirname, 'SOUNDY-PREMIUM-DECK.pptx');
+const OUT_FILE = path.join(__dirname, 'ONSCEN-PREMIUM-DECK.pptx');
 const SHOTS = path.join(DOCS_DIR, 'presentation-screenshots', 'mobile');
-const LOGO = path.join(DOCS_DIR, '..', 'backend', 'public', 'soundy-logo.png');
+const LOGO = path.join(DOCS_DIR, '..', 'backend', 'public', 'onscen-logo.png');
 
 const C = {
   bg: 'FFFFFF',
@@ -37,10 +37,10 @@ const FONT_BODY = 'Calibri';
 
 const pptx = new pptxgen();
 pptx.layout = 'LAYOUT_16x9';
-pptx.author = 'Soundy';
-pptx.company = 'Soundy · getsoundy.com';
+pptx.author = 'OnScen';
+pptx.company = 'OnScen · getsoundy.com';
 pptx.subject = 'Présentation premium — produit, marché, roadmap';
-pptx.title = 'Soundy — Deck premium';
+pptx.title = 'OnScen — Deck premium';
 
 // ── Grille stricte (pouces, slide 13.333 × 7.5) ──
 const W = 13.333;
@@ -83,7 +83,7 @@ function brandMark(slide, dark = false) {
   if (fs.existsSync(LOGO)) {
     slide.addImage({ path: LOGO, x: MX, y, w: 0.32, h: 0.32 });
   }
-  slide.addText('Soundy', {
+  slide.addText('OnScen', {
     x: MX + 0.4,
     y: y - 0.01,
     w: 1.5,
@@ -106,7 +106,7 @@ function footer(slide, n, total, dark = false) {
     h: 0,
     line: { color: lc, width: 0.5 },
   });
-  slide.addText('Soundy · getsoundy.com', {
+  slide.addText('OnScen · getsoundy.com', {
     x: MX,
     y: FOOT_Y + 0.08,
     w: 4,
@@ -368,7 +368,7 @@ newSlide((s) => {
   brandMark(s);
 
   pillTag(s, 'Réseau social · Musique live · Sorties', MX, 1.0, 3.6);
-  s.addText('Soundy', {
+  s.addText('OnScen', {
     x: MX,
     y: 1.45,
     w: 7,
@@ -424,7 +424,7 @@ newSlide((s) => {
   ctaBtn(s, 'getsoundy.com', MX, 4.15, 2.0);
   phoneShot(s, shot('02-carte.png'), 'Carte · événements');
 }, {
-  notes: 'Accroche : Soundy réunit découverte, écoute, live et sorties dans une seule app.',
+  notes: 'Accroche : OnScen réunit découverte, écoute, live et sorties dans une seule app.',
 });
 
 // ── 2 · Problème (grille 2×2 — tient dans la page) ──
@@ -483,7 +483,7 @@ newSlide((s) => {
   heading(s, 'Un seul endroit pour tout vivre', 1.15);
   calloutBox(
     s,
-    "Soundy synchronise l'écoute, la carte géolocalisée, les salons et les lives vidéo.",
+    "OnScen synchronise l'écoute, la carte géolocalisée, les salons et les lives vidéo.",
     MX,
     2.05,
     COL_L.w,
@@ -699,10 +699,10 @@ newSlide((s) => {
 newSlide((s) => {
   brandMark(s);
   sectionLabel(s, 'Impact');
-  heading(s, 'Avant Soundy · Après Soundy', 1.15, CW, 22);
+  heading(s, 'Avant OnScen · Après OnScen', 1.15, CW, 22);
   s.addTable(
     [
-      [headerCell('Situation'), headerCell('Avant'), headerCell('Avec Soundy')],
+      [headerCell('Situation'), headerCell('Avant'), headerCell('Avec OnScen')],
       [cellBefore('Découverte'), cellBefore('3-4 apps'), cellAfter('Un fil, une carte')],
       [cellBefore('Écoute'), cellBefore('Solitaire'), cellAfter("Salons synchronisés")],
       [cellBefore('Sorties'), cellBefore('Agenda non social'), cellAfter('Carte filtrée par date')],
@@ -719,14 +719,14 @@ newSlide((s) => {
       autoPage: false,
     },
   );
-}, { notes: 'Insister sur la colonne « Avec Soundy ».' });
+}, { notes: 'Insister sur la colonne « Avec OnScen ».' });
 
 // ── 11 · Cas d'usage ──
 newSlide((s) => {
   brandMark(s);
   sectionLabel(s, 'Cas concrets');
   heading(s, "Cas d'usage", 1.15, CW, 22);
-  lede(s, 'Trois profils, trois façons d\'utiliser Soundy', 1.85, CW);
+  lede(s, 'Trois profils, trois façons d\'utiliser OnScen', 1.85, CW);
 
   const cases = [
     ['L', 'Léa, 24 ans', 'Fan électro', 'Salons et lives du soir, rejoint ses amis en un tap.'],
@@ -884,7 +884,7 @@ newSlide((s) => {
 newSlide((s) => {
   brandMark(s);
   sectionLabel(s, 'Roadmap');
-  heading(s, 'Où va Soundy', 1.15, CW, 22);
+  heading(s, 'Où va OnScen', 1.15, CW, 22);
   lede(s, 'Trajectoire produit par paliers', 1.85, CW);
 
   const phases = [
