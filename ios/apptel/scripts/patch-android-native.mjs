@@ -96,6 +96,8 @@ const MANIFEST_CONTENT = `<?xml version="1.0" encoding="utf-8"?>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="onscen.com" android:pathPrefix="/salon" />
+                <data android:scheme="https" android:host="www.onscen.com" android:pathPrefix="/salon" />
                 <data android:scheme="https" android:host="getsoundy.com" android:pathPrefix="/salon" />
                 <data android:scheme="https" android:host="www.getsoundy.com" android:pathPrefix="/salon" />
             </intent-filter>
@@ -103,6 +105,8 @@ const MANIFEST_CONTENT = `<?xml version="1.0" encoding="utf-8"?>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="onscen.com" android:pathPrefix="/live" />
+                <data android:scheme="https" android:host="www.onscen.com" android:pathPrefix="/live" />
                 <data android:scheme="https" android:host="getsoundy.com" android:pathPrefix="/live" />
                 <data android:scheme="https" android:host="www.getsoundy.com" android:pathPrefix="/live" />
             </intent-filter>
@@ -110,6 +114,8 @@ const MANIFEST_CONTENT = `<?xml version="1.0" encoding="utf-8"?>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="onscen.com" android:pathPrefix="/profile" />
+                <data android:scheme="https" android:host="www.onscen.com" android:pathPrefix="/profile" />
                 <data android:scheme="https" android:host="getsoundy.com" android:pathPrefix="/profile" />
                 <data android:scheme="https" android:host="www.getsoundy.com" android:pathPrefix="/profile" />
             </intent-filter>

@@ -37761,3 +37761,37 @@ ACTION RESTANTE CRITIQUE (hors périmètre de cette purge)
 ================================================================================
 Fin MODIF 1348 — 2026-08-10
 ================================================================================
+
+================================================================================
+MODIF 1349 — Domaine canonique onscen.com (code + doc + UI, dual-host legacy)
+Date : 2026-08-10
+================================================================================
+
+OBJECTIF
+----
+ Finaliser la bascule produit vers onscen.com (getsoundy.com reste servi en parallèle).
+
+DEJA LIVE (verifie SSH / curl ce jour)
+----
+ • Prod VPS : WEB_APP_URL=https://onscen.com, CORS multi-origines, WebAuthn rp.id onscen.com
+ • Staging VPS : WEB_APP_URL=https://staging.onscen.com (memes cles)
+ • Caddy prod/staging : blocs onscen.com + legacy getsoundy.com
+ • https://onscen.com/health -> 200 OK
+
+CE COMMIT VERSIONNE
+----
+ • Caddyfile*, sync-caddy*, patch-env-onscen-domain.sh, environments.ps1, deployEnvironments.ts
+ • Doc ONSCEN-DOMAINE.md, ENVIRONNEMENTS.md, scripts DNS OVH + fix acces local (hosts)
+ • Mobile : capacitor hostname onscen.com, associated domains, nativeDeepLink hosts
+ • Locales FR/EN : liens utilisateur onscen.com (emails admin@getsoundy.com inchanges)
+
+RESTE MANUEL
+----
+ • DNS OVH zone onscen.com : enregistrement A `staging` -> 51.159.170.181 (script OVH
+   non executable ici : credentials OVH absents de commun/msdev/.env sur ce poste)
+ • Consoles Google/Stripe : ajouter redirect URIs onscen.com (en plus du legacy)
+ • AASA : TEAM_ID placeholder tant que APPLE_TEAM_ID non renseigne
+
+================================================================================
+Fin MODIF 1349 — 2026-08-10
+================================================================================

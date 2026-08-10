@@ -17,6 +17,11 @@
 	encode zstd gzip
 }
 
+staging.onscen.com {
+	import staging_handlers
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+}
+
 staging.getsoundy.com {
 	import staging_handlers
 	header Strict-Transport-Security "max-age=31536000; includeSubDomains"

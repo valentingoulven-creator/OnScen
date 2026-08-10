@@ -3,7 +3,16 @@
  */
 import { App as CapApp } from '@capacitor/app';
 
-const PROD_HOST = 'getsoundy.com';
+const PROD_HOSTS = new Set<string>([
+  'onscen.com',
+  'www.onscen.com',
+  'getsoundy.com',
+  'www.getsoundy.com',
+]);
+
+function isProdDeepLinkHost(hostname: string): boolean {
+  return PROD_HOSTS.has(hostname.toLowerCase());
+}
 
 function applyDeepLinkPath(pathname: string, search: string, hash: string): void {
   const path = `${pathname}${search}${hash}`;
@@ -16,7 +25,7 @@ export function initNativeDeepLinks(): void {
   void CapApp.addListener('appUrlOpen', (event) => {
     try {
       const url = new URL(event.url);
-      if (url.hostname !== PROD_HOST && url.hostname !== `www.${PROD_HOST}`) return;
+      if (!isProdDeepLinkHost(url.hostname)) return;
       applyDeepLinkPath(url.pathname, url.search, url.hash);
     } catch {
       /* ignore malformed */
@@ -27,7 +36,7 @@ export function initNativeDeepLinks(): void {
     if (!result?.url) return;
     try {
       const url = new URL(result.url);
-      if (url.hostname !== PROD_HOST && url.hostname !== `www.${PROD_HOST}`) return;
+      if (!isProdDeepLinkHost(url.hostname)) return;
       applyDeepLinkPath(url.pathname, url.search, url.hash);
     } catch {
       /* ignore */

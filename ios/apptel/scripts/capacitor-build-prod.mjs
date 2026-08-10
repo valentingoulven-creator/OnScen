@@ -33,8 +33,8 @@ if (fs.existsSync(prodConfig)) {
 
 process.env.CAPACITOR_BUILD = '1';
 process.env.VITE_APP_ENV = 'production';
-process.env.VITE_API_URL = 'https://getsoundy.com/api';
-process.env.VITE_SOCKET_URL = 'https://getsoundy.com';
+process.env.VITE_API_URL = 'https://onscen.com/api';
+process.env.VITE_SOCKET_URL = 'https://onscen.com';
 
 console.log('[capacitor-build-prod] VITE_APP_ENV     =', process.env.VITE_APP_ENV);
 console.log('[capacitor-build-prod] VITE_API_URL     =', process.env.VITE_API_URL);

@@ -4,6 +4,8 @@
 <dict>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
+		<string>applinks:onscen.com</string>
+		<string>webcredentials:onscen.com</string>
 		<string>applinks:getsoundy.com</string>
 		<string>webcredentials:getsoundy.com</string>
 	</array>
