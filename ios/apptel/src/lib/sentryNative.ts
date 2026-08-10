@@ -20,7 +20,7 @@ export function initNativeSentry(): void {
 
 export function captureNativeClientError(error: unknown, context?: Record<string, unknown>): void {
   if (!active) return;
-  Sentry.withScope((scope) => {
+  Sentry.withScope((scope: Sentry.Scope) => {
     if (context) scope.setContext('extra', context);
     Sentry.captureException(error);
   });
