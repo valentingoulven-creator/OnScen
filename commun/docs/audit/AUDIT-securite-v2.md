@@ -127,7 +127,7 @@ Comme documenté explicitement dans `modification.txt` (« ATTENTION : l'histori
 
 ### Action manuelle non vérifiable
 
-« Rotation effective du mot de passe `OnScenYtDemo2026!Secure` / du compte `yt.audit.demo2.soundy@gmail.com` » — **Impossible à vérifier avec les informations disponibles** (nécessite un accès au compte Google/getsoundy.com hors périmètre de cet audit statique).
+« Rotation effective du mot de passe `[REDACTED — mot de passe exposé, à faire tourner en priorité]` / du compte `yt.audit.demo2.soundy@gmail.com` » — **Impossible à vérifier avec les informations disponibles** (nécessite un accès au compte Google/getsoundy.com hors périmètre de cet audit statique).
 
 ---
 
@@ -283,7 +283,7 @@ Client Stripe partagé (`commun/backend/src/lib/stripeClient.ts`, nouveau fichie
 
 ## Impossible à vérifier avec les informations disponibles
 
-- Rotation effective du mot de passe `OnScenYtDemo2026!Secure` / du compte Gmail associé.
+- Rotation effective du mot de passe `[REDACTED — mot de passe exposé, à faire tourner en priorité]` / du compte Gmail associé.
 - Purge de l'historique Git antérieur (non traitée, décision explicitement différée par l'agent précédent — nécessite validation utilisateur pour une opération destructive de type BFG/`git filter-repo`).
 - Revue XSS ligne-à-ligne exhaustive des ~35 fichiers frontend (`web/app/src`, `ios/apptel/src`) modifiés dans cette session (hors scope : ce sont des changements de fonctionnalité live/chat, sans lien avec les corrections sécurité auditées).
 - Contenu réel de la base PostgreSQL de production / secrets effectivement déployés sur le VPS.

@@ -37551,6 +37551,33 @@ Fin MODIF 1348 — 2026-08-10
 ================================================================================
 
 ================================================================================
+MODIF 1349 — Accès onscen.com : PM2 ecosystem + fix DNS local — OnScen Dev
+Date : 2026-08-10
+================================================================================
+
+OBJECTIF
+----
+ Débloquer l’app sur onscen.com (env PM2 figée getsoundy) et l’accès navigateur
+ local (box bbox → parking OVH 213.186.33.5).
+
+CHANGEMENTS
+-----
+ • VPS prod : pm2 reload deploy/ecosystem.config.cjs (CORS/CSP onscen.com)
+ • VPS staging : patch-env-onscen-domain.sh + pm2 via ecosystem.staging.config.cjs
+ • commun/scripts/fix-onscen-local-access.ps1 (admin : DNS 1.1.1.1 + hosts)
+ • configure-onscen-dns-ovh.ps1 : fallback ~/.ovh.conf ; doc ONSCEN-DOMAINE.md PM2
+
+OPS
+-----
+ staging.onscen.com : pas encore visible chez dns10.ovh.net — vérifier enregistrement
+ A « staging » → 51.159.170.181 dans zone onscen.com (OVH). Token API OVH absent
+ dans commun/msdev/.env → DNS auto impossible depuis CI agent.
+
+================================================================================
+Fin MODIF 1349 — 2026-08-10
+================================================================================
+
+================================================================================
 MODIF 1346 — Rebranding OnScen phase 2 (infra live + docs restants) — catch-up
 Date : 2026-08-10
 ================================================================================
@@ -37667,4 +37694,70 @@ BUILD
 
 ================================================================================
 Fin MODIF 1347 — 2026-08-10
+================================================================================
+
+================================================================================
+MODIF 1348 — Purge historique Git (secrets exposés, commit 72370fc8 et antérieurs)
+Date : 2026-08-10
+================================================================================
+
+CONTEXTE
+----
+Suite validation utilisateur explicite (action destructive). Finding #4 de l'audit
+00-synthese.md : 4 fichiers avec secrets réels committés puis untrack (sans purge
+d'historique) restaient récupérables via `git log --all -- <path>` depuis le commit
+72370fc8 (09/07/2026, "Monorepo restructure").
+
+FICHIERS PURGÉS DE TOUT L'HISTORIQUE (toutes branches + tags, via BFG Repo-Cleaner)
+----
+ • commun/docs/youtube-audit-demo-credentials.local.txt
+ • commun/msdev/ceo-founder-context.json
+ • commun/msdev/certs/dev-key.pem
+ • commun/msdev/legal-publisher.json
+
+MÉTHODE
+----
+ 1. Backup complet AVANT purge : clone --mirror de GitHub conservé en local
+    (C:\Dev\git-purge-2026-08-10\backup-before-purge-REAL.git) — permet un rollback
+    complet en cas de problème (git push --mirror depuis ce backup restaurerait
+    l'état exact d'avant purge).
+ 2. BFG Repo-Cleaner (--delete-files) sur une copie miroir séparée, 4 passes
+    (une par fichier), puis `git reflog expire --expire=now --all && git gc
+    --prune=now --aggressive`.
+ 3. Vérification post-gc : `git rev-list --all --objects` ne référence plus aucun
+    des 4 fichiers dans les refs standards (heads/tags).
+ 4. `git push --mirror` vers origin — toutes les branches (master, fix/*, feat/*,
+    test/*, backup/pre-audit-fixes) réécrites avec succès (nouveaux SHA).
+ 5. Dépôt local (C:\Dev\Soundy) resynchronisé : stash des modifications en cours
+    (migration domaine onscen.com, non liée à cette purge) → fetch + reset --hard
+    sur la nouvelle histoire → stash pop (aucune perte, contenu de l'arbre
+    identique, seuls les hash de commits ont changé).
+
+LIMITE CONNUE — refs/pull/* GitHub
+----
+ GitHub a rejeté la réécriture des refs `refs/pull/N/head` et `refs/pull/N/merge`
+ ("deny updating a hidden ref") — ce sont des refs internes gérées par GitHub pour
+ l'historique des Pull Requests (jusqu'à #35), non modifiables par un push classique
+ même en mirror. Les commits originaux (avec les secrets) restent donc techniquement
+ conservés côté serveur GitHub via ces refs de PR, indépendamment de la réécriture
+ des branches. Pour une purge à 100% garantie, il faudrait contacter le support
+ GitHub (procédure officielle documentée pour ce cas précis). Risque résiduel jugé
+ faible : dépôt privé, un seul propriétaire, pas de fork connu.
+
+REDACTION COMPLÉMENTAIRE
+----
+ Le mot de passe `OnScenYtDemo2026!Secure` était aussi cité en clair dans deux
+ rapports d'audit vivants (AUDIT-securite-v2.md, archive/AUDIT-securite.md) — pas
+ concerné par la purge d'historique (fichiers actuels, pas des fichiers supprimés).
+ Redacted dans ce commit.
+
+ACTION RESTANTE CRITIQUE (hors périmètre de cette purge)
+----
+ La purge d'historique ne rend pas le secret "non exposé" s'il a déjà été vu/cloné.
+ Le mot de passe `OnScenYtDemo2026!Secure` du compte
+ `yt.audit.demo2.soundy@gmail.com` doit être changé manuellement (accès Gmail requis,
+ hors périmètre agent) — recommandé en priorité indépendamment de cette purge.
+
+================================================================================
+Fin MODIF 1348 — 2026-08-10
 ================================================================================
