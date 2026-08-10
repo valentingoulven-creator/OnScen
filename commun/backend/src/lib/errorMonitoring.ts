@@ -36,6 +36,21 @@ function shouldIgnoreSentryError(error: unknown): boolean {
 
 }
 
+const SENSITIVE_KEY_RE = /password|authorization|cookie|token|secret|api[_-]?key/i;
+
+function scrubSentryEvent<T extends { request?: { headers?: Record<string, string> }; extra?: Record<string, unknown> }>(
+  event: T
+): T {
+  if (event.request?.headers) {
+    for (const key of Object.keys(event.request.headers)) {
+      if (SENSITIVE_KEY_RE.test(key)) {
+        event.request.headers[key] = '[Filtered]';
+      }
+    }
+  }
+  return event;
+}
+
 
 
 export function isSentryActive(): boolean {
@@ -96,7 +111,7 @@ export async function initErrorMonitoring(): Promise<void> {
 
         }
 
-        return event;
+        return scrubSentryEvent(event);
 
       },
 

@@ -3706,6 +3706,7 @@ export function HomePage({
           onOpenEventDetail={handleBrowseEventDetailOpen}
           onOpenInFeed={onOpenFeedPost}
           onPostChange={handleBrowseEventPostChange}
+          onOpenProfile={(userId) => onOpenProfile({ id: userId, username: '' })}
           selectedMapEventDayKey={mapEventDayPinFilter}
           onMapEventDayKeySelect={handleMapEventDayPinFilter}
           sponsoredEventPosts={

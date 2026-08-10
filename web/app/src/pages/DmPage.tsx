@@ -1351,7 +1351,7 @@ export function DmPage({
     if (!groupRenameOpen || !activeGroup) return null;
     return (
       <div
-        className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 z-[60] flex items-center justify-center ms-modal-overlay bg-black/60 backdrop-blur-sm"
         role="dialog"
         aria-modal="true"
         aria-labelledby="group-rename-title"
@@ -1359,7 +1359,7 @@ export function DmPage({
           if (e.target === e.currentTarget && !groupRenaming) setGroupRenameOpen(false);
         }}
       >
-        <div className="w-full max-w-md bg-[#12121a] rounded-t-2xl sm:rounded-2xl border border-[#2d2d3d] shadow-2xl safe-area-pb">
+        <div className="w-full max-w-md bg-[#12121a] rounded-2xl ms-modal-panel border border-[#2d2d3d] shadow-2xl safe-area-pb">
           <div className="shrink-0 flex items-center justify-between p-4 border-b border-[#1e1e2f]">
             <h2 id="group-rename-title" className="font-bold text-white text-base">
               {t('dm.renameGroup', { defaultValue: 'Renommer le groupe' })}
@@ -1411,7 +1411,7 @@ export function DmPage({
 
     return (
       <div
-        className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 z-[60] flex items-center justify-center ms-modal-overlay bg-black/60 backdrop-blur-sm"
         role="dialog"
         aria-modal="true"
         aria-labelledby="group-delete-choice-title"
@@ -1419,7 +1419,7 @@ export function DmPage({
           if (e.target === e.currentTarget && !busy) setShowGroupDeleteModal(false);
         }}
       >
-        <div className="w-full max-w-md bg-[#12121a] rounded-t-2xl sm:rounded-2xl border border-[#2d2d3d] shadow-2xl safe-area-pb max-h-[90dvh] flex flex-col overflow-hidden">
+        <div className="w-full max-w-md bg-[#12121a] rounded-2xl ms-modal-panel border border-[#2d2d3d] shadow-2xl safe-area-pb max-h-[90dvh] flex flex-col overflow-hidden">
           <div className="shrink-0 p-5 border-b border-[#1e1e2f]">
             <h2 id="group-delete-choice-title" className="text-lg font-bold text-white">
               {t('dm.deleteGroupChoiceTitle', { defaultValue: 'Supprimer ce groupe ?' })}
@@ -3853,13 +3853,13 @@ export function DmPage({
 
       {showNewDmSheet && (
         <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center ms-modal-overlay bg-black/60 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="new-dm-sheet-title"
           onClick={(e) => { if (e.target === e.currentTarget) setShowNewDmSheet(false); }}
         >
-          <div className="w-full max-w-md bg-[#12121a] rounded-t-2xl sm:rounded-2xl border border-[#2d2d3d] max-h-[90dvh] flex flex-col shadow-2xl safe-area-pb">
+          <div className="w-full max-w-md bg-[#12121a] rounded-2xl ms-modal-panel border border-[#2d2d3d] max-h-[90dvh] flex flex-col shadow-2xl safe-area-pb">
             <div className="shrink-0 flex items-center justify-between p-4 border-b border-[#1e1e2f]">
               <div className="min-w-0">
                 <h2 id="new-dm-sheet-title" className="font-bold text-white text-base">

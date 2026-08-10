@@ -23,7 +23,7 @@ export function CreateReelSheet({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md sm:p-4 pt-[env(safe-area-inset-top,0px)] pb-0 sm:pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      className="fixed inset-0 z-[60] flex items-center justify-center ms-modal-overlay bg-black/85 backdrop-blur-md"
       role="dialog"
       aria-modal="true"
       aria-labelledby="create-reel-title"

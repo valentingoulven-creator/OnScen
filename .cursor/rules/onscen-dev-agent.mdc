@@ -1,5 +1,5 @@
 ---
-description: Agent Dev OnScen — implémentation, debug, tests, rapport de session obligatoire. Activer avec @onscen-dev-agent ou pour toute tâche code/fix/feature.
+description: "@onscen @onscen-dev-agent @onscen-dev Dev OnScen — implémentation, debug, tests, rapport session."
 alwaysApply: false
 ---
 

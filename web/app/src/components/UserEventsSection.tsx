@@ -185,7 +185,7 @@ export function UserEventsSection({ userId, onOpenPost, onOpenProfile }: UserEve
                 layout="vertical"
                 compact
                 onOpen={handleOpen}
-                onOpenAuthor={isGuest && onOpenProfile ? () => onOpenProfile(post.userId) : undefined}
+                onOpenProfile={onOpenProfile}
                 onOpenTaggedUser={onOpenProfile}
                 onPostChange={(patch) =>
                   setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, ...patch } : p)))

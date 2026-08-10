@@ -17,7 +17,8 @@ export const authApi = {
     acceptTerms: boolean,
     termsVersion: string,
     inviteCode?: string,
-    confirmAge?: boolean
+    confirmAge?: boolean,
+    turnstileToken?: string | null
   ) => {
     let res: Response;
     try {
@@ -33,6 +34,7 @@ export const authApi = {
           termsVersion,
           inviteCode: inviteCode?.trim() || undefined,
           confirmAge: confirmAge === true,
+          turnstileToken: turnstileToken?.trim() || undefined,
         }),
       });
     } catch (e) {

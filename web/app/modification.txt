@@ -1,0 +1,67 @@
+﻿
+================================================================================
+MODIF 1397 — Admin · Onglet Statistiques complet — Soundy Dev
+Date : 2026-08-07
+================================================================================
+
+OBJECTIF / PROBLEME
+----
+ Demande @soundy-cto : ajouter dans l'admin un onglet de statistiques complet
+ (vues par reel, spectateurs salon/live, utilisateurs connectes maintenant/
+ jour/semaine/mois, inscrits, nombre de live/salon/evenement).
+ Analyse CTO prealable : la majorite des donnees existaient deja en memoire
+ (Salon.listenersCount, Live.viewersCount, reelViews par reel, User.lastSeenAt,
+ rooms socket.io user_{id}) mais n'etaient pas agregees ni exposees a l'admin.
+ Choix : nouveau module lecture seule dedie (pas de modification du endpoint
+ /api/analytics/summary existant, deja utilise par l'onglet Analytics), accessible
+ aux roles admin+dev (donnees agregees non sensibles), aucune action d'ecriture.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/analytics.ts
+ ─────────────────
+ • export countActiveUsersSince() + nouvel export getEventTotalAllTime(type)
+   (somme tous les buckets journaliers d'un type d'evenement depuis le debut
+   du tracking, pour un total "all-time" salons/lives crees).
+
+ commun/backend/src/lib/statsOverview.ts (NOUVEAU)
+ ─────────────────
+ • getStatsOverview() : audience (total inscrits, connectes maintenant via
+   rooms socket.io user_*, actifs 24h/7j/30j), contenus (reels publies,
+   salons/lives actifs + total all-time, evenements publies via isEvent),
+   classements top 10 (reels les plus vus, salons les plus ecoutes, lives les
+   plus regardes).
+
+ commun/backend/src/routes/adminStatsOverview.ts (NOUVEAU)
+ ─────────────────
+ • GET /api/admin/stats-overview — authenticateJWT + requireAdmin (admin+dev),
+   rate-limit 30/min, aucune ecriture.
+
+ commun/backend/src/server.ts → montage adminStatsOverviewRouter.
+
+ web/app/src/types.ts → StatsOverviewResponse, StatsTopReel, StatsTopSalon, StatsTopLive.
+ web/app/src/lib/api/admin.ts → api.getStatsOverview(token).
+ web/app/src/pages/AdminStatsTab.tsx (NOUVEAU) → cartes + classements, lecture seule.
+ web/app/src/pages/AdminPage.tsx → nouvel onglet "stats" (icone 📈).
+ web/app/src/components/AdminPrimaryNav.tsx → AdminPrimaryTabId += 'stats'.
+ web/app/src/lib/adminStaffRoles.ts → 'stats' ajoute a ADMIN_OPERATIONAL_TAB_IDS.
+ web/app/src/locales/fr.json · en.json → admin.tabs.stats, admin.tabHints.stats,
+   bloc complet admin.stats.*.
+
+FICHIERS MODIFIES
+-----
+ commun/backend/src/lib/analytics.ts · statsOverview.ts (nouveau) · routes/adminStatsOverview.ts (nouveau) · server.ts
+ web/app/src/types.ts · lib/api/admin.ts · pages/AdminStatsTab.tsx (nouveau) · pages/AdminPage.tsx
+ web/app/src/components/AdminPrimaryNav.tsx · lib/adminStaffRoles.ts · locales/fr.json · en.json
+
+BUILD (si verifie)
+-----
+ commun/backend → npx tsc --noEmit → ✅
+ commun/backend → npm test → ✅ 474/474
+ commun/backend → eslint (fichiers modifies) → ✅
+ web/app → npx tsc --noEmit → ✅
+ web/app → eslint (fichiers modifies) → ✅
+
+================================================================================
+Fin MODIF 1397 — 2026-08-07
+================================================================================

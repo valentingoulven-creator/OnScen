@@ -913,7 +913,7 @@ export function SettingsPage({
 
         {/* ── Modals 2FA / suppression (overlays) ── */}
         {twoFAModal === 'setup_qr' && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center ms-modal-overlay bg-black/70 backdrop-blur-sm">
             <div className="w-full max-w-sm bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
               <div className="text-center space-y-1">
                 <p className="text-2xl">🔐</p>
@@ -959,7 +959,7 @@ export function SettingsPage({
 
         {/* ── Modal 2FA : codes de secours ── */}
         {twoFAModal === 'setup_backup' && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center ms-modal-overlay bg-black/70 backdrop-blur-sm">
             <div className="w-full max-w-sm bg-[#12121a] border border-green-500/30 rounded-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
               <div className="text-center space-y-1">
                 <p className="text-2xl">✅</p>
@@ -989,7 +989,7 @@ export function SettingsPage({
 
         {/* ── Modal 2FA : désactiver ── */}
         {twoFAModal === 'disable' && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center ms-modal-overlay bg-black/70 backdrop-blur-sm">
             <div className="w-full max-w-sm bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
               <div className="text-center space-y-1">
                 <p className="text-2xl">🔓</p>
@@ -1029,7 +1029,7 @@ export function SettingsPage({
 
         {/* ── Modal suppression de compte ── */}
         {deleteModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center ms-modal-overlay bg-black/70 backdrop-blur-sm">
             <form
               onSubmit={handleDeleteAccount}
               className="w-full max-w-sm bg-[#12121a] border border-red-500/30 rounded-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto"

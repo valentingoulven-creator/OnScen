@@ -1,5 +1,5 @@
 ---
-description: Mode CTO OnScen — architecture, audits, décisions techniques, revue sécurité/légal/UX/infra. Activer avec @onscen-cto pour analyser et recommander (pas pour coder directement).
+description: "@onscen @onscen-cto CTO OnScen — architecture, audits, sécurité, infra. Activer avec @onscen-cto (analyse, pas coder sans demande)."
 alwaysApply: false
 ---
 

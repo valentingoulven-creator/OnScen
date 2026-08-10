@@ -43,7 +43,7 @@ export function AdminChatModerationPolicySheet({
 
   const sheet = (
     <div
-      className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[110] flex items-center justify-center ms-modal-overlay bg-black/60 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
@@ -52,7 +52,7 @@ export function AdminChatModerationPolicySheet({
       <div
         ref={focusTrapRef}
         tabIndex={-1}
-        className="w-full max-w-lg sm:max-w-xl bg-[#12121a] border border-[#2d2d3d] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[90dvh] outline-none"
+        className="w-full max-w-lg sm:max-w-xl bg-[#12121a] border border-[#2d2d3d] rounded-2xl ms-modal-panel shadow-2xl flex flex-col max-h-[90dvh] outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="shrink-0 px-4 pt-4 pb-3 border-b border-[#1e1e2f]">

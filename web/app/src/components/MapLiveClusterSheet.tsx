@@ -60,7 +60,7 @@ export function MapLiveClusterSheet({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center ms-modal-overlay"
       role="dialog"
       aria-modal="true"
       aria-label={locationLabel}
@@ -71,7 +71,7 @@ export function MapLiveClusterSheet({
         aria-label="Fermer"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-md max-h-[min(90dvh,28rem)] rounded-t-2xl sm:rounded-2xl bg-[#0e0e14] border border-white/10 shadow-2xl flex flex-col overflow-hidden pb-[env(safe-area-inset-bottom)]">
+      <div className="relative w-full max-w-md max-h-[min(90dvh,28rem)] rounded-2xl ms-modal-panel bg-[#0e0e14] border border-white/10 shadow-2xl flex flex-col overflow-hidden pb-[env(safe-area-inset-bottom)]">
         <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-3 border-b border-white/10">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-white flex items-center gap-2">

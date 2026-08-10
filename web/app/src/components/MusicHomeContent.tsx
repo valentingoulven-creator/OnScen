@@ -407,7 +407,7 @@ function MusicAlbumCard({
   };
 
   return (
-    <div className="group shrink-0 w-[9.5rem] sm:w-[10.5rem] flex flex-col text-left">
+    <div className="group shrink-0 w-[7.5rem] sm:w-[8rem] flex flex-col text-left">
       <button
         type="button"
         onClick={handlePlay}
@@ -429,7 +429,7 @@ function MusicAlbumCard({
           />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-purple-900/35 via-[#1a1a26] to-[#0b0b0f] flex items-center justify-center">
-            <span className="text-2xl font-black text-purple-200/70" aria-hidden>
+            <span className="text-xl font-black text-purple-200/70" aria-hidden>
               {album.title.slice(0, 1).toUpperCase()}
             </span>
           </div>
@@ -443,21 +443,21 @@ function MusicAlbumCard({
         >
           <PlayBadge playing={isPlayingThisAlbum} />
         </span>
-        <span className="absolute top-1.5 left-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-black/70 text-white tabular-nums">
+        <span className="absolute top-1 left-1 text-[9px] font-semibold px-1 py-0.5 rounded bg-black/70 text-white tabular-nums">
           {t('music.trackCount', {
             defaultValue: '{{count}} morceau(x)',
             count: album.trackCount,
           })}
         </span>
       </button>
-      <p className="mt-2 text-sm font-semibold text-gray-100 truncate">{album.title}</p>
+      <p className="mt-1.5 text-xs font-semibold text-gray-100 truncate">{album.title}</p>
       <button
         type="button"
         onClick={() => onOpenProfile(album.userId)}
-        className="flex items-center gap-1.5 mt-0.5 min-w-0 text-left touch-manipulation"
+        className="flex items-center gap-1 mt-0.5 min-w-0 text-left touch-manipulation"
       >
-        <img src={avatar} alt="" className="size-4 rounded-full shrink-0 object-cover bg-[#1a1a26]" />
-        <p className="text-[11px] text-gray-500 truncate hover:text-gray-300">{album.creatorName}</p>
+        <img src={avatar} alt="" className="size-3.5 rounded-full shrink-0 object-cover bg-[#1a1a26]" />
+        <p className="text-[10px] text-gray-500 truncate hover:text-gray-300">{album.creatorName}</p>
       </button>
     </div>
   );
@@ -485,16 +485,16 @@ function MusicCreatorCard({
     <button
       type="button"
       onClick={() => onOpenProfile(creator.userId)}
-      className="group shrink-0 w-[5.5rem] flex flex-col items-center text-center"
+      className="group shrink-0 w-[4.25rem] flex flex-col items-center text-center"
     >
       <img
         src={avatar}
         alt=""
         loading="lazy"
         decoding="async"
-        className="size-[4.5rem] rounded-full object-cover bg-[#1a1a26] ring-1 ring-[#2a2a3a] group-hover:ring-purple-500/50 transition"
+        className="size-12 rounded-full object-cover bg-[#1a1a26] ring-1 ring-[#2a2a3a] group-hover:ring-purple-500/50 transition"
       />
-      <p className="mt-1.5 w-full text-[11px] font-medium text-gray-300 truncate">{creator.name}</p>
+      <p className="mt-1 w-full text-[10px] font-medium text-gray-300 truncate">{creator.name}</p>
     </button>
   );
 }

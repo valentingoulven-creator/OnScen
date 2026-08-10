@@ -86,7 +86,7 @@ export function MapEventMapInfoPanel({
         defaultValue: `Aperçu de l'événement ${previewTitle}`,
       })}
     >
-      <div className="relative overflow-hidden rounded-t-2xl sm:rounded-2xl border border-purple-500/45 bg-[#12121a] shadow-[0_0_22px_rgba(168,85,247,0.18)]">
+      <div className="relative overflow-hidden rounded-2xl border border-purple-500/45 bg-[#12121a] shadow-[0_0_22px_rgba(168,85,247,0.18)]">
         <MapEventPreviewCard
           post={activePost}
           locationCoords={locationCoords}

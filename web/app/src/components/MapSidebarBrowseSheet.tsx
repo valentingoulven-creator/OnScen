@@ -503,14 +503,14 @@ export function MapSidebarBrowseSheet({
   return createPortal(
     <>
       <div
-        className="fixed inset-0 z-[110] flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center sm:p-4 sm:pt-[max(1rem,env(safe-area-inset-top))] sm:pb-[max(1rem,env(safe-area-inset-bottom))]"
+        className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-sm ms-modal-overlay"
         role="dialog"
         aria-modal="true"
         aria-labelledby="map-sidebar-browse-title"
         onClick={handleBackdropClose}
       >
         <div
-          className={`relative w-full max-w-md sm:max-w-lg max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-0.5rem))] sm:max-h-[min(36rem,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-2rem))] flex flex-col bg-[#0e0e14] border rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden ${theme.sheetBorder}`}
+          className={`relative w-full max-w-md sm:max-w-lg max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-0.5rem))] sm:max-h-[min(36rem,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-2rem))] flex flex-col bg-[#0e0e14] border rounded-2xl ms-modal-panel shadow-2xl overflow-hidden ${theme.sheetBorder}`}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="sm:hidden flex justify-center pt-2.5 pb-0.5 shrink-0" aria-hidden>

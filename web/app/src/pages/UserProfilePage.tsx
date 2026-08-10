@@ -22,6 +22,7 @@ import { FollowProfileNotificationsButton } from '../components/FollowProfileNot
 import { ensureYoutubeLinkedToJoinSalon } from '../lib/platformConnect';
 import { resolveProfileLiveId } from '../lib/profileLive';
 import { useUserProfile } from '../hooks/useUserProfile';
+import { isProfileTabVisible, useProfileTabVisibility } from '../hooks/useProfileTabVisibility';
 import type { FeedPost, NearbyPerson } from '../types';
 
 interface UserProfilePageProps {
@@ -85,6 +86,12 @@ export function UserProfilePage({
     sendHeart,
   } = useUserProfile(userId, preview);
 
+  const tabVisibility = useProfileTabVisibility(userId, {
+    isSelf,
+    token,
+    canViewPrivateReels,
+  });
+
   const reelsTabLabel = isSelf ? t('profile.tabReels') : t('profile.tabReelsOther');
   const livesTabLabel = isSelf ? t('profile.tabLives') : t('profile.tabLivesOther');
 
@@ -115,6 +122,12 @@ export function UserProfilePage({
       cancelled = true;
     };
   }, [token, userId, isSelf, profileTab]);
+
+  useEffect(() => {
+    if (!tabVisibility.ready && !isSelf) return;
+    if (isProfileTabVisible(profileTab, isSelf, tabVisibility)) return;
+    setProfileTab('profil');
+  }, [profileTab, isSelf, tabVisibility]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -366,8 +379,10 @@ export function UserProfilePage({
                     setProfileTab(id);
                     if (id === 'compositions') setCompositionsRefreshKey((k) => k + 1);
                   }}
-                  showReels={!!onOpenReel}
-                  showLives={!!onOpenLive}
+                  showReels={isSelf ? !!onOpenReel : tabVisibility.showReels && !!onOpenReel}
+                  showCompositions={isSelf || tabVisibility.showCompositions}
+                  showProgrammation={isSelf || tabVisibility.showProgrammation}
+                  showLives={isSelf ? !!onOpenLive : tabVisibility.showLives && !!onOpenLive}
                   reelsLabel={reelsTabLabel}
                   livesLabel={livesTabLabel}
                 />

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useHorizontalSwipe } from '../hooks/useHorizontalSwipe';
 import { useVerticalSwipe } from '../hooks/useVerticalSwipe';
 import { api } from '../lib/api';
@@ -31,6 +32,7 @@ export interface StoryViewerProps {
   onDeleted?: (story: MapStory) => void;
   /** Plein écran sponsorisé (visionneuse stories). */
   sponsorAd?: ReelsSponsorAd;
+  onOpenProfile?: (userId: string) => void;
 }
 
 export function StoryViewer({
@@ -46,7 +48,9 @@ export function StoryViewer({
   token,
   onDeleted,
   sponsorAd,
+  onOpenProfile,
 }: StoryViewerProps) {
+  const { t } = useTranslation();
   const isSponsorSlide = Boolean(sponsorAd);
   const activeStory = story;
   const activeStack = stack ?? [];
@@ -429,6 +433,44 @@ export function StoryViewer({
                   </div>
                 </div>
               ) : activeStory ? (
+                onOpenProfile && activeStory.author.id ? (
+                  <button
+                    type="button"
+                    onClick={() => onOpenProfile(activeStory.author.id)}
+                    className="flex items-center gap-2 min-w-0 flex-1 text-left rounded-lg -ml-1 px-1 py-0.5 hover:bg-white/10 active:bg-white/15 transition min-h-[44px]"
+                    aria-label={t('reels.openAuthorProfile', {
+                      username: activeStory.author.username,
+                      defaultValue: `Voir le profil de ${activeStory.author.username}`,
+                    })}
+                  >
+                    <UserAvatarOnline
+                      userId={activeStory.author.id}
+                      username={activeStory.author.username}
+                      avatarUrl={activeStory.author.avatarUrl}
+                      size="sm"
+                    />
+                    <div className="min-w-0">
+                      <UsernameDisplay
+                        username={activeStory.author.username}
+                        usernameColor={activeStory.author.usernameColor}
+                        usernameWaveFrom={activeStory.author.usernameWaveFrom}
+                        usernameWaveTo={activeStory.author.usernameWaveTo}
+                        className="text-sm font-semibold truncate block text-white drop-shadow-sm"
+                      />
+                      <p className="text-[11px] text-gray-200/90 drop-shadow-sm">
+                        {formatStoryTimeAgo(activeStory.createdAt)}
+                      </p>
+                    </div>
+                    {activeStory.visibility ? (
+                      <span
+                        className="text-xs shrink-0 drop-shadow-sm"
+                        title={activeStory.visibility === 'public' ? 'Public' : 'Abonnés'}
+                      >
+                        {activeStory.visibility === 'public' ? '🌍' : '👥'}
+                      </span>
+                    ) : null}
+                  </button>
+                ) : (
                 <div className="flex items-center gap-2 min-w-0">
                   <UserAvatarOnline
                     userId={activeStory.author.id}
@@ -457,6 +499,7 @@ export function StoryViewer({
                     </span>
                   ) : null}
                 </div>
+                )
               ) : (
                 <div />
               )}

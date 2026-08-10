@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useVerticalSwipe } from '../hooks/useVerticalSwipe';
 import { api } from '../lib/api';
 import type { MapStoryEntry } from '../lib/mapStoriesFeed';
@@ -17,6 +18,7 @@ export interface StorySalonPreviewViewerProps {
   token: string;
   onClose: () => void;
   onJoin?: (salonId: string, salonTitle?: string) => void;
+  onOpenProfile?: (userId: string) => void;
 }
 
 export function StorySalonPreviewViewer({
@@ -25,7 +27,9 @@ export function StorySalonPreviewViewer({
   token,
   onClose,
   onJoin,
+  onOpenProfile,
 }: StorySalonPreviewViewerProps) {
+  const { t } = useTranslation();
   const [salon, setSalon] = useState<Salon | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -142,7 +146,48 @@ export function StorySalonPreviewViewer({
           aria-hidden
         />
 
-        <div className="absolute top-0 inset-x-0 z-10 flex items-center gap-2 px-3 pt-2 pb-8 ms-safe-area-top">
+        <div className="absolute top-0 inset-x-0 z-10 flex items-center gap-2 px-3 pt-2 pb-8 ms-safe-area-top pointer-events-auto">
+          {onOpenProfile ? (
+            <button
+              type="button"
+              onClick={() => onOpenProfile(entry.userId)}
+              className="flex items-center gap-2 min-w-0 flex-1 text-left rounded-lg -ml-1 px-1 py-0.5 hover:bg-white/10 active:bg-white/15 transition min-h-[44px]"
+              aria-label={t('reels.openAuthorProfile', {
+                username: hostName,
+                defaultValue: `Voir le profil de ${hostName}`,
+              })}
+            >
+              <UserAvatarOnline
+                userId={entry.userId}
+                username={hostName}
+                avatarUrl={entry.avatarUrl ?? salon?.hostAvatarUrl}
+                size="sm"
+                isSalon
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-violet-300 bg-violet-950/70 px-1.5 py-0.5 rounded border border-violet-500/35 shrink-0">
+                    Salon
+                  </span>
+                  <UsernameDisplay
+                    username={hostName}
+                    usernameColor={salon?.hostUsernameColor}
+                    usernameWaveFrom={salon?.hostUsernameWaveFrom}
+                    usernameWaveTo={salon?.hostUsernameWaveTo}
+                    className="text-sm font-semibold truncate block text-white"
+                  />
+                </div>
+                <p className="text-[11px] text-white/75 truncate mt-0.5">{salonTitle}</p>
+                {nowPlaying ? (
+                  <p className="text-[10px] text-violet-200/80 truncate mt-0.5">{nowPlaying}</p>
+                ) : null}
+                {listenersLabel ? (
+                  <p className="text-[11px] text-white/60 tabular-nums mt-0.5">{listenersLabel}</p>
+                ) : null}
+              </div>
+            </button>
+          ) : (
+            <>
           <UserAvatarOnline
             userId={entry.userId}
             username={hostName}
@@ -171,6 +216,8 @@ export function StorySalonPreviewViewer({
               <p className="text-[11px] text-white/60 tabular-nums mt-0.5">{listenersLabel}</p>
             ) : null}
           </div>
+            </>
+          )}
           <button
             type="button"
             onClick={onClose}

@@ -89,12 +89,12 @@ export function GlobalErrorPopup() {
 
   const blockingModal = activeBlocking && (
     <div
-      className="fixed inset-0 z-[140] flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[140] flex items-center justify-center ms-modal-overlay bg-black/60 backdrop-blur-sm"
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="global-error-popup-title"
     >
-      <div className="w-full max-w-sm bg-[#12121a] border border-[#2d2d3d] rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[90dvh]">
+      <div className="w-full max-w-sm bg-[#12121a] border border-[#2d2d3d] rounded-2xl ms-modal-panel shadow-2xl overflow-hidden max-h-[90dvh]">
         <div className="p-5">
           <p id="global-error-popup-title" className="text-lg font-bold text-white">
             {t('errors.generic')}

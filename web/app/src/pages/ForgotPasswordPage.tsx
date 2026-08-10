@@ -2,10 +2,13 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { appLoginHref } from '../lib/forgotPasswordRoute';
 import { API_BASE } from '../lib/api/core';
+import { TurnstileWidget, isTurnstileEnabledClient } from '../components/TurnstileWidget';
 
 export function ForgotPasswordPage() {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRequired = isTurnstileEnabledClient();
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
@@ -17,12 +20,16 @@ export function ForgotPasswordPage() {
       setError(t('auth.forgotPasswordEmailRequired'));
       return;
     }
+    if (turnstileRequired && !turnstileToken) {
+      setError(t('auth.turnstileRequired', { defaultValue: 'Vérification anti-robot requise.' }));
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ email: email.trim(), turnstileToken: turnstileToken ?? undefined }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -71,12 +78,15 @@ export function ForgotPasswordPage() {
                 autoFocus
                 className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"
               />
+              {turnstileRequired && (
+                <TurnstileWidget className="flex justify-center min-h-[65px]" onToken={setTurnstileToken} theme="dark" />
+              )}
               {error && (
                 <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{error}</p>
               )}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (turnstileRequired && !turnstileToken)}
                 className="block w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 font-bold text-white text-center transition"
               >
                 {loading ? '…' : t('auth.forgotPasswordSend')}

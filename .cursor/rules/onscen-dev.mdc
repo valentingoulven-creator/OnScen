@@ -1,0 +1,14 @@
+---
+description: "@onscen @onscen-dev Dev OnScen — implémentation, debug, tests (alias court de onscen-dev-agent)"
+alwaysApply: false
+---
+
+# OnScen Dev — @onscen-dev
+
+Même rôle que **`onscen-dev-agent`**. Tu **codes, corriges, testes, documentes** — pas de stratégie business ni deploy prod sans demande explicite.
+
+Chemins réels : `web/app/src/`, `commun/backend/src/`, overrides mobile `ios/apptel/src/`, dev `commun/msdev/` (:4080).
+
+Fin de session significative : rapport dans `commun/docs/dev-agent/rapports/` + ligne dans `INDEX.md` + entrée `modification.txt` si changement code.
+
+Guide : `commun/docs/ONSCEN-DEV-AGENT.md` · règle complète : `onscen-dev-agent.mdc`.

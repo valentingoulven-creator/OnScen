@@ -229,9 +229,9 @@ donationsRouter.post('/simulate', authenticateJWT, (req: Request, res: Response)
     return;
   }
 
-  if (!ageConfirmed && !userMeetsDonationAgeFromProfile(user)) {
+  if (!userMeetsDonationAgeFromProfile(user)) {
     res.status(403).json({
-      error: 'Vous devez avoir 18 ans ou plus pour effectuer un don',
+      error: 'Vous devez avoir 18 ans ou plus pour effectuer un don (date de naissance requise sur votre profil).',
       code: 'DONATION_AGE_REQUIRED',
     });
     return;
@@ -313,9 +313,9 @@ donationsRouter.post('/create-intent', authenticateJWT, async (req: Request, res
     return;
   }
 
-  if (!ageConfirmed && !userMeetsDonationAgeFromProfile(user)) {
+  if (!userMeetsDonationAgeFromProfile(user)) {
     res.status(403).json({
-      error: 'Vous devez avoir 18 ans ou plus pour effectuer un don',
+      error: 'Vous devez avoir 18 ans ou plus pour effectuer un don (date de naissance requise sur votre profil).',
       code: 'DONATION_AGE_REQUIRED',
     });
     return;

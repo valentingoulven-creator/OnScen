@@ -4,6 +4,7 @@ Rapports produits par `@onscen-dev-agent` à chaque session de développement si
 
 | Date | Rapport | Mission | Statut |
 |------|---------|---------|--------|
+| 2026-08-10 | [audit-technique-complet](./rapports/2026-08-10-audit-technique-complet.md) | Audit 12 phases + synthèse dans `audit/` (lecture seule, npm audit + tests) | ✅ |
 | 2026-08-08 | [fix-compat-ios-android](./rapports/2026-08-08-fix-compat-ios-android.md) | Correctifs audit compat iOS/Android : safe-area duo, dépendance LiveKit apptel, viewer mobile (annonce épinglée + sondage) | ✅ |
 | 2026-08-08 | [audit-compat-ios-android](./rapports/2026-08-08-audit-compat-ios-android.md) | Audit compatibilité web ↔ iOS Capacitor / APK Android du Config live (MODIF 1341) — révèle que le panel hôte live entier n'est pas porté sur mobile | ⚠️ |
 | 2026-08-07 | [audit-technique-implementation-p1](./rapports/2026-08-07-audit-technique-implementation-p1.md) | Implémentation audit technique complet — vague 1 : CSAM (détection + runbook), modération live temps réel, modèles gore/weapon, scan sponsors, filtre commentaires reels, notification admin signalements, rate limiting lives/search/follow/like | ⚠️ |

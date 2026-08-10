@@ -33,7 +33,7 @@ export function LiveLegalAcceptanceModal({ token, onAccepted, onClose }: LiveLeg
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center px-2 sm:px-3 bg-black/75 backdrop-blur-sm overflow-hidden pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+      className="fixed inset-0 z-[60] flex items-center justify-center ms-modal-overlay bg-black/75 backdrop-blur-sm overflow-hidden"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

@@ -134,7 +134,6 @@ export function ProfilePage({
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [photoViewerIndex, setPhotoViewerIndex] = useState<number | null>(null);
-  const [editDetailsOpen, setEditDetailsOpen] = useState(false);
 
   const [form, setForm] = useState(() => profileToForm(user));
 
@@ -196,12 +195,10 @@ export function ProfilePage({
     } catch {
       setForm(profileToForm(user));
     }
-    setEditDetailsOpen(false);
     setEditing(true);
   }, [user, token, setUserFromProfile]);
 
   const cancelEditing = useCallback(() => {
-    setEditDetailsOpen(false);
     setEditing(false);
     setSaveError(null);
   }, []);
@@ -282,7 +279,6 @@ export function ProfilePage({
       }
       setUserFromProfile(updated);
       setForm(profileToForm(updated));
-      setEditDetailsOpen(false);
       setEditing(false);
       setSavedMsg('Profil enregistré');
       setTimeout(() => setSavedMsg(null), 3000);
@@ -426,7 +422,7 @@ export function ProfilePage({
           )}
 
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden max-w-lg mx-auto w-full">
-            <div className="flex-1 min-h-0 flex flex-col gap-2.5 px-3 pt-2.5 pb-1 overflow-hidden">
+            <div className="flex-1 min-h-0 flex flex-col gap-2.5 px-3 pt-2.5 pb-3 overflow-y-auto overscroll-y-contain">
               <section className={`shrink-0 ${EDIT_SECTION_CLASS} p-2.5`}>
                 <div className="flex gap-3 items-start">
                   <ProfilePhotoGallery
@@ -535,30 +531,7 @@ export function ProfilePage({
                 </div>
               </section>
 
-              <section className={`shrink-0 ${EDIT_SECTION_CLASS} overflow-hidden`}>
-                <button
-                  type="button"
-                  onClick={() => setEditDetailsOpen((open) => !open)}
-                  className="flex items-center justify-between w-full min-h-[44px] px-2.5 py-2 text-left transition hover:bg-[#16161f]/60"
-                  aria-expanded={editDetailsOpen}
-                >
-                  <span className="text-xs font-semibold text-gray-300">Plus d&apos;options</span>
-                  <svg
-                    viewBox="0 0 24 24"
-                    className={`w-4 h-4 text-gray-500 transition-transform ${
-                      editDetailsOpen ? 'rotate-180' : ''
-                    }`}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    aria-hidden
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
-                  </svg>
-                </button>
-
-                {editDetailsOpen ? (
-                  <div className="border-t border-[#1e1e2f]/60 px-2.5 py-2 space-y-2 max-h-[min(42dvh,18rem)] overflow-y-auto overscroll-y-contain scrollbar-none">
+              <section className={`shrink-0 ${EDIT_SECTION_CLASS} p-2.5 space-y-2`}>
                     <div className="block">
                       <span className={EDIT_LABEL_CLASS}>{t('profile.birthDate')}</span>
                       <BirthDateInput
@@ -658,8 +631,6 @@ export function ProfilePage({
                         ))}
                       </div>
                     </div>
-                  </div>
-                ) : null}
               </section>
             </div>
 
@@ -824,6 +795,8 @@ export function ProfilePage({
               if (id !== 'reels') setShowReelRecorder(false);
             }}
             showReels={!!onOpenReel}
+            showCompositions
+            showProgrammation
             showLives
           />
         </div>

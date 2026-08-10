@@ -38,14 +38,14 @@ export function SalonYoutubeJoinModal({ token, user, onUserUpdated }: SalonYoutu
 
   const modal = (
     <div
-      className="fixed inset-0 z-[115] flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[115] flex items-center justify-center ms-modal-overlay bg-black/60 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="salon-youtube-join-title"
       onClick={() => closeSalonYoutubeJoinGate()}
     >
       <div
-        className="w-full max-w-md bg-[#12121a] border border-[#2d2d3d] rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[90dvh] flex flex-col"
+        className="w-full max-w-md bg-[#12121a] border border-[#2d2d3d] rounded-2xl ms-modal-panel shadow-2xl overflow-hidden max-h-[90dvh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-5 space-y-2 overflow-y-auto">

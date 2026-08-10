@@ -95,16 +95,27 @@ export function hasRealPlatformConnection(user: User | undefined): boolean {
 
 export function publicPlatformLinks(user: User) {
   return getPlatformAccounts(user).map(
-    ({ platform, externalUserId, connectedAt, displayName, avatarUrl, email, topArtists, accessToken }) => ({
-      platform,
-      externalUserId,
-      connectedAt,
-      displayName,
-      avatarUrl,
-      email,
-      topArtists,
-      isRealOAuth: isRealPlatformAccount({ platform, externalUserId, connectedAt, accessToken }),
-    })
+    ({ platform, externalUserId, connectedAt, displayName, avatarUrl, email, topArtists, accessToken }) => {
+      let resolvedName = displayName?.trim();
+      if (!resolvedName && platform === 'youtube' && user.username?.trim()) {
+        resolvedName = user.username.trim();
+      }
+      if (!resolvedName && platform === 'instagram') {
+        const handle = user.instagramHandle?.trim();
+        if (handle) resolvedName = handle.startsWith('@') ? handle : `@${handle}`;
+      }
+      const resolvedEmail = email?.trim();
+      return {
+        platform,
+        externalUserId,
+        connectedAt,
+        displayName: resolvedName || resolvedEmail,
+        avatarUrl,
+        email: resolvedEmail,
+        topArtists,
+        isRealOAuth: isRealPlatformAccount({ platform, externalUserId, connectedAt, accessToken }),
+      };
+    }
   );
 }
 

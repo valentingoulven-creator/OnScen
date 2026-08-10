@@ -8,6 +8,7 @@
 
 - **Setup complet :** [`commun/docs/CURSOR-CLOUD-AGENTS.md`](./commun/docs/CURSOR-CLOUD-AGENTS.md)
 - **Config repo :** `.cursor/environment.json` · sync `npm run cloud:sync` · hook `npm run cloud:sync:install-hook`
+- **Règles @onscen vides dans le chat ?** [`commun/docs/CURSOR-RULES-TROUBLESHOOTING.md`](./commun/docs/CURSOR-RULES-TROUBLESHOOTING.md)
 - **Secrets :** dashboard [Cloud Agents](https://cursor.com/dashboard/cloud-agents) — clés listées dans `.cursor/cloud-secrets.manifest.json` (valeurs depuis `commun/msdev/.env` local, jamais Git)
 - **Smoke test cloud :** [`.cursor/cloud-agent-prompts/01-smoke-msdev-boot.md`](./.cursor/cloud-agent-prompts/01-smoke-msdev-boot.md)
 - Dev local : `npm run dev` → http://localhost:5173 (API :4080)

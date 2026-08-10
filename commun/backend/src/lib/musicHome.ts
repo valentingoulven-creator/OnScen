@@ -69,6 +69,8 @@ export interface MusicHomePayload {
   library: MusicHomeSection;
   popular: MusicHomeSection;
   weeklyTrend: MusicHomeWeeklySection;
+  /** Pistes d’artistes déjà appréciées (upvote / écoute), hors titres déjà upvotés. */
+  recommended: MusicHomeSection;
 }
 
 export interface MusicSearchPayload {
@@ -242,6 +244,32 @@ function buildPopularSection(viewerId: string): MusicHomeSection {
   return { albums, tracks };
 }
 
+function buildRecommendedSection(viewerId: string): MusicHomeSection {
+  const upvotedIds = new Set(
+    db.compositionUpvotes.filter((u) => u.userId === viewerId).map((u) => u.compositionId)
+  );
+  const artistIds = new Set<string>();
+  for (const upvote of db.compositionUpvotes) {
+    if (upvote.userId !== viewerId) continue;
+    const comp = db.compositions.find((c) => c.id === upvote.compositionId);
+    if (comp) artistIds.add(comp.userId);
+  }
+  for (const play of db.compositionPlays) {
+    if (play.userId !== viewerId) continue;
+    const comp = db.compositions.find((c) => c.id === play.compositionId);
+    if (comp) artistIds.add(comp.userId);
+  }
+
+  const tracks: MusicTrackItem[] = db.compositions
+    .filter((c) => artistIds.has(c.userId) && !upvotedIds.has(c.id))
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 12)
+    .map((c) => compositionTrack(c, viewerId));
+
+  const albums = albumsForUserIds(artistIds, 8);
+  return { albums, tracks };
+}
+
 export function buildMusicHome(viewerId: string): MusicHomePayload {
   const following = new Set(getFollowingIds(viewerId));
   const everyone = allUserIds();
@@ -281,6 +309,7 @@ export function buildMusicHome(viewerId: string): MusicHomePayload {
     },
     popular,
     weeklyTrend: buildWeeklyTrendSection(viewerId),
+    recommended: buildRecommendedSection(viewerId),
   };
 }
 

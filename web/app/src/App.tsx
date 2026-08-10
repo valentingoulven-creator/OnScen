@@ -1802,6 +1802,10 @@ export default function App() {
               openLive(liveId);
             }}
             onClose={() => setLivePipPreview(null)}
+            onOpenProfile={(userId) => {
+              setLivePipPreview(null);
+              openProfile(userId);
+            }}
           />
         </Suspense>
       )}

@@ -604,6 +604,10 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
           isOwn={sheet.kind === 'view' ? sheet.isOwn : false}
           token={token ?? undefined}
           onDeleted={sheet.kind === 'view' ? handleStoryDeleted : undefined}
+          onOpenProfile={(userId) => {
+            onOpenProfile(userId);
+            setSheet({ kind: 'closed' });
+          }}
         />
       ) : null}
 
@@ -619,6 +623,10 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
           canNext={livePreviewNav.canNext}
           onPrev={retreatBeforeLivePreview}
           canPrev={livePreviewNav.canPrev}
+          onOpenProfile={(userId) => {
+            onOpenProfile(userId);
+            setLivePreview({ kind: 'closed' });
+          }}
         />
       ) : null}
 
@@ -629,6 +637,10 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
           token={token}
           onClose={() => setSalonPreview({ kind: 'closed' })}
           onJoin={(id, title) => onOpenSalon?.(id, title)}
+          onOpenProfile={(userId) => {
+            onOpenProfile(userId);
+            setSalonPreview({ kind: 'closed' });
+          }}
         />
       ) : null}
     </>

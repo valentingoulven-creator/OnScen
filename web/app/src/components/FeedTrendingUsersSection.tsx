@@ -44,10 +44,10 @@ const TrendingUserCard = memo(function TrendingUserCard({
     <button
       type="button"
       onClick={() => onOpenProfile(user.userId)}
-      className="flex flex-col items-center gap-1.5 w-20 shrink-0"
+      className="flex flex-col items-center gap-1 w-[4.25rem] shrink-0"
       aria-label={`Voir le profil de ${user.username}`}
     >
-      <div className="relative w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-violet-900 to-purple-900 border-2 border-[#2a2a3d]">
+      <div className="relative w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-violet-900 to-purple-900 border-2 border-[#2a2a3d]">
         {user.avatarUrl && imgOk ? (
           <img
             src={user.avatarUrl}
@@ -58,16 +58,16 @@ const TrendingUserCard = memo(function TrendingUserCard({
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-xl font-bold text-purple-300 uppercase">
+          <div className="w-full h-full flex items-center justify-center text-base font-bold text-purple-300 uppercase">
             {user.username.charAt(0)}
           </div>
         )}
-        <div className="absolute top-0 left-0 bg-black/50 rounded-br-lg px-1 py-0.5 text-[10px] font-bold text-white leading-none">
+        <div className="absolute top-0 left-0 bg-black/50 rounded-br-lg px-0.5 py-px text-[9px] font-bold text-white leading-none">
           {user.rank <= 3 ? rankMedal(user.rank) : `#${user.rank}`}
         </div>
         {user.liveCount > 0 ? (
-          <div className="absolute bottom-0 right-0 w-4 h-4 bg-red-500 rounded-full border border-[#0b0b0f] flex items-center justify-center">
-            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+          <div className="absolute bottom-0 right-0 w-3 h-3 bg-red-500 rounded-full border border-[#0b0b0f] flex items-center justify-center">
+            <span className="w-1 h-1 rounded-full bg-white animate-pulse" />
           </div>
         ) : null}
       </div>
@@ -119,11 +119,11 @@ export function FeedTrendingUsersSection({
       )}
       {loading && users.length === 0 ? (
         <div className="overflow-x-auto -mx-3 px-3">
-          <div className="flex gap-4 w-max pb-1">
+          <div className="flex gap-3 w-max pb-1">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="flex flex-col items-center gap-1.5 w-20 shrink-0">
-                <div className="w-16 h-16 rounded-full bg-[#1e1e2f] animate-pulse" />
-                <div className="w-14 h-2 rounded bg-[#1e1e2f] animate-pulse" />
+              <div key={i} className="flex flex-col items-center gap-1 w-[4.25rem] shrink-0">
+                <div className="w-12 h-12 rounded-full bg-[#1e1e2f] animate-pulse" />
+                <div className="w-12 h-2 rounded bg-[#1e1e2f] animate-pulse" />
               </div>
             ))}
           </div>
@@ -134,7 +134,7 @@ export function FeedTrendingUsersSection({
         </p>
       ) : (
         <div className="overflow-x-auto -mx-3 px-3">
-          <div className="flex gap-4 w-max pb-1">
+          <div className="flex gap-3 w-max pb-1">
             {users.map((user) => (
               <TrendingUserCard key={user.userId} user={user} onOpenProfile={onOpenProfile} />
             ))}

@@ -78,6 +78,7 @@ import {
   sendVerificationEmail,
   sendPasswordResetEmail,
 } from '../lib/mailer';
+import { verifyTurnstileToken } from '../lib/turnstile';
 
 export const authRouter = Router();
 
@@ -126,7 +127,15 @@ const USERNAME_MIN = 2;
 const USERNAME_MAX = 30;
 
 authRouter.post('/register', async (req: Request, res: Response) => {
-  const { username, email, password, acceptTerms, termsVersion, inviteCode, confirmAge } = req.body;
+  const { username, email, password, acceptTerms, termsVersion, inviteCode, confirmAge, turnstileToken } =
+    req.body;
+  if (!(await verifyTurnstileToken(turnstileToken, req.ip))) {
+    res.status(400).json({
+      error: 'Vérification anti-robot requise. Rechargez la page et réessayez.',
+      code: 'turnstile_failed',
+    });
+    return;
+  }
   if (!username || !email || !password) {
     res.status(400).json({ error: 'Champs requis manquants' });
     return;
@@ -852,7 +861,14 @@ authRouter.get('/verify-email', (req: Request, res: Response) => {
 
 /** Demande de réinitialisation de mot de passe */
 authRouter.post('/forgot-password', async (req: Request, res: Response) => {
-  const { email } = req.body ?? {};
+  const { email, turnstileToken } = req.body ?? {};
+  if (!(await verifyTurnstileToken(turnstileToken, req.ip))) {
+    res.status(400).json({
+      error: 'Vérification anti-robot requise. Rechargez la page et réessayez.',
+      code: 'turnstile_failed',
+    });
+    return;
+  }
   if (!email || typeof email !== 'string') {
     res.status(400).json({ error: 'Adresse e-mail requise' });
     return;
