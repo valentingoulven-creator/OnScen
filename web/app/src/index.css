@@ -4127,6 +4127,10 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   );
 }
 
+[data-design-quick-wins="1"] .ms-app-shell--bottom-tabs .ms-salon-fullscreen-overlay .live-host-panel-root {
+  padding-bottom: var(--salon-host-drawer-viewport-bottom, 0px);
+}
+
 .ms-salon-fullscreen-overlay .salon-youtube-host-drawer {
   flex: 0 0 auto;
   min-height: 0;

@@ -21324,3 +21324,22 @@ RISQUES DE RÉGRESSION
 ================================================================================
 Fin MODIF 965 — 2026-07-08
 ================================================================================
+
+================================================================================
+MODIF 945 — LiveHostPanel : modal visible entièrement (viewport + bottom tabs)
+Date : 2026-07-07
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Studio live dialog clipped under bottom tabs when using fixed viewport sizing.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/LiveHostPanel.tsx → absolute overlay anchoring, scrollable body
+ web/app/src/index.css → quick-wins bottom padding for live-host-panel-root
+
+================================================================================
+Fin MODIF 945 — 2026-07-07
+================================================================================
+

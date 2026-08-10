@@ -1091,15 +1091,14 @@ export function LiveHostPanel({
   return (
     <>
       <div
-        className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm"
+        className="live-host-panel-scrim absolute inset-0 z-[90] bg-black/70 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden
       />
 
-      <div className="fixed inset-0 z-[91] flex items-end sm:items-center justify-center pointer-events-none p-0 sm:p-4">
+      <div className="live-host-panel-root absolute inset-0 z-[91] flex items-end sm:items-center justify-center pointer-events-none p-0 sm:p-4 pt-[max(0.25rem,env(safe-area-inset-top))]">
         <div
-          className="pointer-events-auto w-full sm:max-w-lg bg-[#0f0f1a] border border-[#1e1e2f] rounded-t-2xl sm:rounded-2xl flex flex-col shadow-2xl"
-          style={{ maxHeight: 'min(90dvh, 680px)' }}
+          className="pointer-events-auto w-full sm:max-w-lg bg-[#0f0f1a] border border-[#1e1e2f] rounded-t-2xl sm:rounded-2xl flex flex-col min-h-0 overflow-hidden shadow-2xl max-h-full sm:max-h-[min(90dvh,680px)]"
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-labelledby="live-host-panel-title"
@@ -1150,7 +1149,7 @@ export function LiveHostPanel({
             ))}
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
             {activeTab === 'dashboard' && (
               <DashboardTab stats={stats} goals={goalsWithProgress} liveId={liveId} token={token} />
             )}
