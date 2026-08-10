@@ -19,6 +19,7 @@ $backendLines = Get-Content $backendEnv
 $sentryDsn = ($backendLines | Where-Object { $_ -match '^\s*SENTRY_DSN\s*=' } | Select-Object -First 1) -replace '^\s*SENTRY_DSN\s*=\s*', ''
 $sentryTraces = ($backendLines | Where-Object { $_ -match '^\s*SENTRY_TRACES_SAMPLE_RATE\s*=' } | Select-Object -First 1) -replace '^\s*SENTRY_TRACES_SAMPLE_RATE\s*=\s*', '0.05'
 $webUrl = ($backendLines | Where-Object { $_ -match '^\s*WEB_APP_URL\s*=' } | Select-Object -First 1) -replace '^\s*WEB_APP_URL\s*=\s*', ''
+$turnstileSite = ($backendLines | Where-Object { $_ -match '^\s*TURNSTILE_SITE_KEY\s*=' } | Select-Object -First 1) -replace '^\s*TURNSTILE_SITE_KEY\s*=\s*', ''
 
 if (-not $sentryDsn) {
     throw 'SENTRY_DSN missing in backend env file'
@@ -35,6 +36,10 @@ $appEnvLines = @(
     "VITE_SENTRY_REPLAY_ON_ERROR_SAMPLE_RATE=1",
     "VITE_DESIGN_QUICK_WINS=1"
 )
+
+if ($turnstileSite) {
+    $appEnvLines += "VITE_TURNSTILE_SITE_KEY=$turnstileSite"
+}
 
 if ($Environment -eq 'preproduction') {
     $demoEmail = ($backendLines | Where-Object { $_ -match '^\s*STAGING_DEMO_LOGIN_EMAIL\s*=' } | Select-Object -First 1) -replace '^\s*STAGING_DEMO_LOGIN_EMAIL\s*=\s*', ''
