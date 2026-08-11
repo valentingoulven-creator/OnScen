@@ -38032,3 +38032,113 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 1353 — 2026-08-11
 ================================================================================
+
+================================================================================
+MODIF 1354 — Inscriptions prod ouvertes + notification e-mail fondateur
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Réouvrir les inscriptions en production et notifier valentin.goulven@gmail.com
+ à chaque nouvelle création de compte (email/password ou OAuth).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/mailer.ts
+ ─────────────────
+ • sendSignupNotificationEmail + getSignupNotifyRecipients (SIGNUP_NOTIFY_EMAIL
+   ou repli SMTP_ADMIN_EMAIL).
+
+ commun/backend/src/routes/auth.ts · oauth.ts
+ ─────────────────
+ • Appel notification après register et création OAuth (Google/Apple).
+
+ commun/backend/.env.production.example
+ ─────────────────
+ • ACCESS_REGISTRATION_MODE=open · SIGNUP_NOTIFY_EMAIL documentés.
+
+ Infra prod (/opt/onscen/.env)
+ ─────────────────
+ • ACCESS_REGISTRATION_MODE=open
+ • SIGNUP_NOTIFY_EMAIL=valentin.goulven@gmail.com
+
+FICHIERS MODIFIÉS
+-----
+ mailer.ts · auth.ts · oauth.ts · .env.production.example · VPS prod .env
+
+================================================================================
+Fin MODIF 1354 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1354 — Vérif mobile iOS/Android post-migration domaine onscen.com — Soundly Dev
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Vérification terrain (build réel, pas lecture de code) de l'app mobile Capacitor
+ après la migration de domaine canonique getsoundy.com → onscen.com (MODIF/commit
+ cb6b5c3e, 2026-08-10). Le dossier ios/apptel/android/ est gitignoré (projet Gradle
+ persistant local) : les scripts de patch avaient été mis à jour dans le commit mais
+ jamais ré-exécutés contre le projet déjà généré sur ce poste → dérive silencieuse.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/android/app/src/main/AndroidManifest.xml (gitignoré, régénéré)
+ ─────────────────
+ • Deep links (App Links) /salon, /live, /profile ne listaient que getsoundy.com/
+   www.getsoundy.com → un lien https://onscen.com/salon/... n'ouvrait pas l'app.
+ • Fix : `node ios/apptel/scripts/patch-android-native.mjs` ré-exécuté (idempotent,
+   déjà à jour depuis le 10/08) → manifeste réécrit avec les 4 hôtes.
+
+ commun/scripts/fetch-cert-pins.mjs
+ ─────────────────
+ • Ciblait un seul host en dur (getsoundy.com). onscen.com et getsoundy.com sont
+   servis par des certificats TLS Caddy/Let's Encrypt DISTINCTS (CN et empreintes
+   différents, vérifié — pas de SAN partagé) → depuis le 10/08 l'app native (qui
+   parle exclusivement à onscen.com) n'avait plus AUCUN cert pinning actif sur le
+   domaine réellement utilisé (retombée silencieuse sur <base-config>, validation
+   TLS standard sans pinning — régression de sécurité silencieuse, pas une panne).
+ • Fix : script réécrit pour itérer sur ['onscen.com', 'getsoundy.com'] et générer
+   un <domain-config> + pin-set (leaf + intermédiaire de secours) par domaine.
+   `npm run mobile:cert-pins` régénère network_security_config.xml (gitignoré) avec
+   les 2 domaines. Pins onscen.com expirent 2026-11-08, getsoundy.com 2026-10-13.
+
+VÉRIFICATIONS (build réel)
+-----
+ • Build web apptel (tsc -b && vite build) → ✅
+ • npm test (apptel) → ✅ (aucun test)
+ • npm run lint (apptel) → ⚠️ 36 erreurs pré-existantes (react-hooks/set-state-in-effect
+   LivePage.tsx), identiques à l'audit du 22/07 — pas de régression
+ • npm run capacitor:build:prod + cap sync android → ✅
+ • Build Gradle réel (gradlew assembleDebug) → ✅ BUILD SUCCESSFUL avant ET après fix
+ • VPS prod /opt/onscen/.env (WEBAUTHN_RP_ID, CORS_ORIGIN, WEB_APP_URL) → ✅ déjà
+   patchés en onscen.com (patch-env-onscen-domain.sh déjà exécuté en prod)
+ • onscen.com/health et getsoundy.com/health → ✅ 200 OK tous les deux
+ • targetSdk/compileSdk Android → 36 (conforme exigence Google Play 31/08/2026)
+ • assetlinks.json → vraie empreinte SHA-256 cohérente
+
+GAPS CONNUS NON RETRAITÉS (hors scope / décision humaine)
+-----
+ • APPLE_TEAM_ID toujours placeholder dans l'AASA prod → Universal Links/WebAuthn
+   cross-domain iOS cassés en build signé réel. Nécessite Apple Developer Program.
+ • staging.onscen.com : aucun enregistrement DNS (action OVH restante, déjà documentée).
+ • AASA : paths /reels/*, /feed/* toujours absents (gap déjà connu du 22/07).
+
+FICHIERS MODIFIÉS
+-----
+ commun/scripts/fetch-cert-pins.mjs → multi-domaine onscen.com + getsoundy.com
+ ios/apptel/android/... (gitignoré) → manifeste + network_security_config.xml régénérés
+ commun/docs/dev-agent/rapports/2026-08-11-verif-mobile-post-migration-domaine.md → nouveau
+ commun/docs/dev-agent/INDEX.md → ligne ajoutée
+
+BUILD (si vérifié)
+-----
+ ios/apptel/ → npm run build → ✅
+ ios/apptel/android/ → gradlew assembleDebug → ✅ BUILD SUCCESSFUL
+
+================================================================================
+Fin MODIF 1354 — 2026-08-11
+================================================================================

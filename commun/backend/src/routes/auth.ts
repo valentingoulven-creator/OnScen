@@ -78,6 +78,7 @@ import { revokeAndDisconnectYoutube } from '../lib/youtubeOAuth';
 import {
   sendVerificationEmail,
   sendPasswordResetEmail,
+  sendSignupNotificationEmail,
 } from '../lib/mailer';
 import { verifyTurnstileToken } from '../lib/turnstile';
 
@@ -263,9 +264,16 @@ authRouter.post('/register', async (req: Request, res: Response) => {
   schedulePersistUserToPg(user);
   schedulePersist();
 
+  void sendSignupNotificationEmail({
+    username: user.username,
+    email: user.email,
+    method: 'email',
+    accountStatus: user.accountStatus ?? 'active',
+  });
+
   // Send verification email (graceful — no SMTP = skip, signup still proceeds)
   if (!skipVerification && verificationToken) {
-    const appUrl = process.env.WEB_APP_URL ?? 'https://getsoundy.com';
+    const appUrl = process.env.WEB_APP_URL ?? 'https://onscen.com';
     const verificationUrl = `${appUrl}/verify-email?token=${verificationToken}`;
     void sendVerificationEmail({ toEmail: email, username, verificationUrl });
   }
@@ -907,7 +915,7 @@ authRouter.post('/forgot-password', async (req: Request, res: Response) => {
   schedulePersistUserToPg(user);
   schedulePersist();
 
-  const appUrl = process.env.WEB_APP_URL ?? 'https://getsoundy.com';
+  const appUrl = process.env.WEB_APP_URL ?? 'https://onscen.com';
   const resetUrl = `${appUrl}/reset-password?token=${resetToken}`; // envoyer le token brut par email
   void sendPasswordResetEmail({ toEmail: user.email, username: user.username, resetUrl });
 

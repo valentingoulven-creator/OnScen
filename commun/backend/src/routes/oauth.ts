@@ -27,6 +27,7 @@ import {
   isInstagramOAuthConfigured,
 } from '../lib/instagramOAuth';
 import { clearPasswordChangeRequiredForOAuthLogin } from '../lib/oauthAccount';
+import { sendSignupNotificationEmail, type SignupNotificationMethod } from '../lib/mailer';
 import {
   exchangeAppleAuthCode,
   isAppleOAuthConfigured,
@@ -207,6 +208,12 @@ function findOrCreateOAuthUser(profile: OAuthProfile): { user: User; isNew: bool
   user = applyProfileDefaults(user);
   db.users.set(user.id, user);
   schedulePersist();
+  void sendSignupNotificationEmail({
+    username: user.username,
+    email: user.email,
+    method: profile.provider as SignupNotificationMethod,
+    accountStatus: user.accountStatus ?? 'active',
+  });
   return { user, isNew: true };
 }
 
@@ -271,10 +278,14 @@ function findOrCreateAppleUser(
   user = applyProfileDefaults(user);
   db.users.set(user.id, user);
   schedulePersist();
+  void sendSignupNotificationEmail({
+    username: user.username,
+    email: user.email,
+    method: 'apple',
+    accountStatus: user.accountStatus ?? 'active',
+  });
   return { user, isNew: true };
 }
-
-/** Typed fetch wrapper for JSON GET requests. */
 async function getJson(url: string): Promise<unknown> {
   const res = await fetch(url, { headers: { Accept: 'application/json' } });
   const json = await res.json().catch(() => ({}));
