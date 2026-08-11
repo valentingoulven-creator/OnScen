@@ -1,5 +1,6 @@
 # Cursor local sync state (regenerated)
 .cursor/cloud-sync.state.json
+.cursor/*.pid
 
 dist/
 .env
@@ -41,6 +42,14 @@ apptel/android/keystore.properties
 
 # Built Windows executable (regenerate with npm run build:exe)
 msdev/release/
+commun/msdev/release/
+
+# Mobile Capacitor export (regénéré par npm run mobile:build)
+android/OnScen-Mobile/www/
+android/MeloSong-Mobile/www/
+
+# Scripts ops — logs locaux
+commun/scripts/dns-onscen-log.txt
 
 # Auto-signed dev TLS (regenerate with msdev/scripts/generate-dev-cert.ps1)
 **/msdev/certs/

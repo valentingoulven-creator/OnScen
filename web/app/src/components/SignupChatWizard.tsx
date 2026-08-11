@@ -3,9 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { OnScenLogo } from './OnScenLogo';
 import { AuthPageShell } from './AuthSpaceBackground';
 import { PasswordStrengthBar } from './PasswordStrengthBar';
+import { BirthDateInput } from './BirthDateInput';
 import { CURRENT_TERMS_VERSION, type LegalKey } from '../content/legal';
 import { api } from '../lib/api';
 import { getPasswordStrengthAsync, preloadPasswordStrength } from '../lib/passwordStrength';
+import { birthDateErrorMessage, formatBirthDate, validateBirthDate } from '../lib/profileAge';
 import type { PublicAccessConfig, User } from '../types';
 
 type Step =
@@ -15,7 +17,7 @@ type Step =
   | 'password'
   | 'confirmPassword'
   | 'invite'
-  | 'age'
+  | 'birthDate'
   | 'terms'
   | 'done';
 
@@ -45,7 +47,7 @@ export function SignupChatWizard({
   onLegalPreview,
   onComplete,
 }: SignupChatWizardProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [signupStyle, setSignupStyle] = useState<SignupStyle>('choosing');
   const [lines, setLines] = useState<ChatLine[]>(() => [
     {
@@ -64,7 +66,8 @@ export function SignupChatWizard({
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [inviteCode, setInviteCode] = useState('');
-  const [confirmAge, setConfirmAge] = useState(false);
+  const [birthDate, setBirthDate] = useState('');
+  const birthDateError = validateBirthDate(birthDate);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -218,11 +221,12 @@ export function SignupChatWizard({
       setStep('invite');
     } else {
       pushBot(
-        t('auth.signupChat.askAge', {
-          defaultValue: 'Presque fini ! Confirme que tu as au moins 13 ans — c’est requis pour utiliser OnScen.',
+        t('auth.signupChat.askBirthDate', {
+          defaultValue:
+            'Presque fini ! Indique ta date de naissance — il faut avoir au moins 13 ans pour utiliser OnScen.',
         })
       );
-      setStep('age');
+      setStep('birthDate');
     }
   };
 
@@ -237,20 +241,22 @@ export function SignupChatWizard({
     pushUser(value);
     setInput('');
     pushBot(
-      t('auth.signupChat.askAge', {
-        defaultValue: 'Presque fini ! Confirme que tu as au moins 13 ans — c’est requis pour utiliser OnScen.',
+      t('auth.signupChat.askBirthDate', {
+        defaultValue:
+          'Presque fini ! Indique ta date de naissance — il faut avoir au moins 13 ans pour utiliser OnScen.',
       })
     );
-    setStep('age');
+    setStep('birthDate');
   };
 
-  const submitAge = () => {
-    if (!confirmAge) {
-      setError("Tu dois confirmer avoir au moins 13 ans");
+  const submitBirthDate = () => {
+    const birthError = validateBirthDate(birthDate);
+    if (birthError) {
+      setError(birthDateErrorMessage(birthError));
       return;
     }
     setError('');
-    pushUser(t('auth.ageConfirmCheckbox', { defaultValue: "J'ai au moins 13 ans" }));
+    pushUser(formatBirthDate(birthDate, i18n.language) ?? birthDate);
     pushBot(
       t('auth.signupChat.askTerms', {
         defaultValue: 'Dernière étape : accepte nos conditions pour activer ton compte.',
@@ -299,7 +305,7 @@ export function SignupChatWizard({
         true,
         CURRENT_TERMS_VERSION,
         inviteCode.trim(),
-        confirmAge
+        birthDate.trim()
       );
       if (r.pending) {
         onComplete({
@@ -347,8 +353,13 @@ export function SignupChatWizard({
   };
 
   const createAccount = async () => {
-    if (!acceptTerms || !confirmAge) {
-      setError('Accepte les conditions et confirme ton âge pour continuer');
+    if (!acceptTerms) {
+      setError('Accepte les conditions pour continuer');
+      return;
+    }
+    const birthError = validateBirthDate(birthDate);
+    if (birthError) {
+      setError(birthDateErrorMessage(birthError));
       return;
     }
     await registerWithApi({ chatFeedback: true });
@@ -384,12 +395,13 @@ export function SignupChatWizard({
       setError('Code d’invitation requis pour créer un compte.');
       return;
     }
-    if (!confirmAge) {
-      setError("Tu dois confirmer avoir au moins 13 ans");
-      return;
-    }
     if (!acceptTerms) {
       setError('Accepte les conditions pour continuer');
+      return;
+    }
+    const birthError = validateBirthDate(birthDate);
+    if (birthError) {
+      setError(birthDateErrorMessage(birthError));
       return;
     }
     await registerWithApi({ chatFeedback: false });
@@ -419,7 +431,7 @@ export function SignupChatWizard({
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey && step !== 'age' && step !== 'terms') {
+    if (e.key === 'Enter' && !e.shiftKey && step !== 'birthDate' && step !== 'terms') {
       e.preventDefault();
       handleSend();
     }
@@ -428,7 +440,7 @@ export function SignupChatWizard({
   const showTextInput = signupStyle === 'guided' && ['username', 'email', 'invite'].includes(step);
   const showConfirmInput = signupStyle === 'guided' && step === 'confirmPassword';
   const showGuidedFooter =
-    signupStyle === 'guided' && ['password', 'confirmPassword', 'username', 'email', 'invite', 'age', 'terms'].includes(step);
+    signupStyle === 'guided' && ['password', 'confirmPassword', 'username', 'email', 'invite', 'birthDate', 'terms'].includes(step);
 
   return (
     <AuthPageShell className="flex flex-col">
@@ -563,16 +575,16 @@ export function SignupChatWizard({
               />
             ) : null}
 
-            <label className="flex items-start gap-2 cursor-pointer text-xs text-gray-300 leading-snug">
-              <input
-                type="checkbox"
-                checked={confirmAge}
-                onChange={(e) => setConfirmAge(e.target.checked)}
-                className="onscen-checkbox mt-0.5 shrink-0"
-                required
-              />
-              <span>{t('auth.ageConfirmCheckbox')}</span>
-            </label>
+            <div className="space-y-1">
+              <span className="text-[11px] font-medium text-gray-400">
+                {t('auth.birthDateLabel', { defaultValue: 'Date de naissance' })}{' '}
+                <span className="text-purple-400">*</span>
+              </span>
+              <BirthDateInput value={birthDate} onChange={setBirthDate} />
+              {birthDate && birthDateError ? (
+                <p className="text-[11px] text-red-400">{birthDateErrorMessage(birthDateError)}</p>
+              ) : null}
+            </div>
 
             <label className="flex items-start gap-2 cursor-pointer text-xs text-gray-300 leading-snug">
               <input
@@ -602,7 +614,12 @@ export function SignupChatWizard({
 
             <button
               type="submit"
-              disabled={loading || !acceptTerms || !confirmAge}
+              disabled={
+                loading ||
+                !acceptTerms ||
+                !birthDate.trim() ||
+                Boolean(birthDateError)
+              }
               className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 font-bold text-white disabled:opacity-50 transition"
             >
               {loading ? t('auth.submitRegisterLoading') : t('auth.submitRegister')}
@@ -634,7 +651,7 @@ export function SignupChatWizard({
       </div>
 
       {signupStyle !== 'classic' ? (
-      <div className="shrink-0 border-t border-[#1e1e2f]/80 bg-[#12121a]/85 backdrop-blur-md px-4 py-3 max-w-md mx-auto w-full pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="shrink-0 px-4 py-3 max-w-md mx-auto w-full pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         {error && signupStyle !== 'choosing' ? (
           <p className="text-xs text-red-400 mb-2 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
             {error}
@@ -661,40 +678,43 @@ export function SignupChatWizard({
         ) : null}
 
         {showGuidedFooter && step === 'password' && (
-          <div className="space-y-2 mb-3">
-            <input
-              ref={inputRef}
-              type="password"
-              className="w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-3 text-white"
-              placeholder={t('auth.password')}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  void submitPassword();
-                }
-              }}
-            />
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <input
+                ref={inputRef}
+                type="password"
+                className="flex-1 min-w-0 bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-3 text-white min-h-[44px]"
+                placeholder={t('auth.password')}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    void submitPassword();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                disabled={loading || password.length < 8}
+                onClick={() => void submitPassword()}
+                className="shrink-0 min-w-[44px] min-h-[44px] px-4 rounded-xl bg-purple-600 hover:bg-purple-500 font-semibold text-white text-sm disabled:opacity-50 transition"
+                aria-label={t('auth.signupChat.send', { defaultValue: 'Continuer' })}
+              >
+                →
+              </button>
+            </div>
             <PasswordStrengthBar password={password} />
-            <button
-              type="button"
-              disabled={loading || password.length < 8}
-              onClick={() => void submitPassword()}
-              className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 font-semibold text-white text-sm disabled:opacity-50 transition"
-            >
-              {t('auth.signupChat.send', { defaultValue: 'Continuer' })}
-            </button>
           </div>
         )}
 
         {showConfirmInput && (
-          <div className="flex gap-2 mb-1">
+          <div className="flex gap-2">
             <input
               ref={inputRef}
               type="password"
-              className="flex-1 min-w-0 bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-3 text-white"
+              className="flex-1 min-w-0 bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-3 text-white min-h-[44px]"
               placeholder={t('auth.confirmPassword')}
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -705,7 +725,8 @@ export function SignupChatWizard({
               type="button"
               disabled={loading || !input}
               onClick={handleSend}
-              className="shrink-0 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 font-semibold text-white text-sm disabled:opacity-50 transition"
+              className="shrink-0 min-w-[44px] min-h-[44px] px-4 rounded-xl bg-purple-600 hover:bg-purple-500 font-semibold text-white text-sm disabled:opacity-50 transition"
+              aria-label={t('auth.signupChat.send', { defaultValue: 'Continuer' })}
             >
               →
             </button>
@@ -713,11 +734,11 @@ export function SignupChatWizard({
         )}
 
         {showTextInput && (
-          <div className="flex gap-2 mb-1">
+          <div className="flex gap-2">
             <input
               ref={inputRef}
               type={step === 'email' ? 'email' : 'text'}
-              className="flex-1 min-w-0 bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-3 text-white"
+              className="flex-1 min-w-0 bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-3 text-white min-h-[44px]"
               placeholder={
                 step === 'username'
                   ? t('auth.username')
@@ -734,28 +755,25 @@ export function SignupChatWizard({
               type="button"
               disabled={loading || !input.trim()}
               onClick={handleSend}
-              className="shrink-0 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 font-semibold text-white text-sm disabled:opacity-50 transition"
+              className="shrink-0 min-w-[44px] min-h-[44px] px-4 rounded-xl bg-purple-600 hover:bg-purple-500 font-semibold text-white text-sm disabled:opacity-50 transition"
+              aria-label={t('auth.signupChat.send', { defaultValue: 'Continuer' })}
             >
               {loading ? '…' : '→'}
             </button>
           </div>
         )}
 
-        {signupStyle === 'guided' && step === 'age' && (
+        {signupStyle === 'guided' && step === 'birthDate' && (
           <div className="space-y-3">
-            <label className="flex items-start gap-2 cursor-pointer text-xs text-gray-300 leading-snug">
-              <input
-                type="checkbox"
-                checked={confirmAge}
-                onChange={(e) => setConfirmAge(e.target.checked)}
-                className="onscen-checkbox mt-0.5 shrink-0"
-              />
-              <span>{t('auth.ageConfirmCheckbox')}</span>
-            </label>
+            <BirthDateInput value={birthDate} onChange={setBirthDate} />
+            {birthDate && birthDateError ? (
+              <p className="text-[11px] text-red-400">{birthDateErrorMessage(birthDateError)}</p>
+            ) : null}
+            <p className="text-[10px] text-gray-500">{t('auth.minAgeNotice')}</p>
             <button
               type="button"
-              disabled={!confirmAge}
-              onClick={submitAge}
+              disabled={!birthDate.trim() || Boolean(birthDateError)}
+              onClick={submitBirthDate}
               className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 font-semibold text-white text-sm disabled:opacity-50 transition"
             >
               {t('auth.signupChat.send', { defaultValue: 'Continuer' })}
@@ -787,7 +805,12 @@ export function SignupChatWizard({
             <p className="text-[10px] text-gray-500">{t('auth.minAgeNotice')}</p>
             <button
               type="button"
-              disabled={loading || !acceptTerms || !confirmAge}
+              disabled={
+                loading ||
+                !acceptTerms ||
+                !birthDate.trim() ||
+                Boolean(birthDateError)
+              }
               onClick={() => void createAccount()}
               className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 font-bold text-white disabled:opacity-50 transition"
             >

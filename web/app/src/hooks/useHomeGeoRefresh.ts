@@ -26,6 +26,8 @@ export function useHomeGeoRefresh(options: {
   token: string | null;
   /** Attendre la fin du boot auth pour avoir user.city avant le fallback Paris. */
   geoBootstrapReady?: boolean;
+  /** False pour les 13–17 ans : pas de GPS client ni POST /geo/update. */
+  canUsePreciseGeo?: boolean;
   profileCity?: string;
   center: Coords;
   defaultCenter: Coords;
@@ -43,6 +45,7 @@ export function useHomeGeoRefresh(options: {
     isActive,
     token,
     geoBootstrapReady = true,
+    canUsePreciseGeo = true,
     profileCity,
     center,
     defaultCenter,
@@ -117,7 +120,7 @@ export function useHomeGeoRefresh(options: {
       const coords: Coords = [geo.latitude, geo.longitude];
       centerMapOnCoords(coords);
       loadNearbyAt(coords);
-    } else if (!isGeolocationAvailable()) {
+    } else if (!canUsePreciseGeo || !isGeolocationAvailable()) {
       applyProfileCityFallback();
     } else {
       getCurrentGeoPosition().then(
@@ -142,6 +145,7 @@ export function useHomeGeoRefresh(options: {
     isActive,
     token,
     geoBootstrapReady,
+    canUsePreciseGeo,
     profileCity,
     defaultCenter,
     loadNearbyAt,
@@ -159,6 +163,13 @@ export function useHomeGeoRefresh(options: {
       const { locationSharing: sharing } = getPrivacyPreferences();
       if (isFixedMapGeoSource(current.source)) {
         loadNearbyAtRef.current([current.latitude, current.longitude]);
+        return;
+      }
+      if (!canUsePreciseGeo) {
+        loadNearbyAtRef.current(
+          resolveMapCameraFallbackCenter(profileCityRef.current),
+          { updateUserGeo: false }
+        );
         return;
       }
       if (!isGeolocationAvailable()) {
@@ -215,5 +226,5 @@ export function useHomeGeoRefresh(options: {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isActive, token, geoIntervalRef]);
+  }, [isActive, token, canUsePreciseGeo, geoIntervalRef]);
 }

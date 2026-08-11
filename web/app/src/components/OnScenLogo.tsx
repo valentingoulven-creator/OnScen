@@ -87,7 +87,7 @@ export function OnScenLogo({
     const textOnly = !showMark;
     return (
       <div
-        className={`flex flex-col items-center text-center ${className}`.trim()}
+        className={`mx-auto flex w-fit flex-col items-center justify-center text-center ${className}`.trim()}
         role="img"
         aria-label={alt}
       >

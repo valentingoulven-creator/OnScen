@@ -27,6 +27,7 @@ import {
   applyAgeSettings,
   applyProfileDefaults,
   applyRelationshipSettings,
+  parseBirthDateInput,
   publicProfile,
   syncProfilePhotos,
   sanitizeIncomingProfilePhotos,
@@ -39,7 +40,7 @@ import {
   parseUsernameColorInput,
   parseUsernameWaveHexInput,
 } from '../lib/usernameColor';
-import { applyPrivacySettings } from '../lib/locationPrivacy';
+import { applyPrivacySettings, enforceMinorGeoPolicy } from '../lib/locationPrivacy';
 import { generateUserId } from '../lib/userIds';
 import {
   ensurePlatformAccountsFromLegacy,
@@ -127,7 +128,7 @@ const USERNAME_MIN = 2;
 const USERNAME_MAX = 30;
 
 authRouter.post('/register', async (req: Request, res: Response) => {
-  const { username, email, password, acceptTerms, termsVersion, inviteCode, confirmAge, turnstileToken } =
+  const { username, email, password, acceptTerms, termsVersion, inviteCode, birthDate, turnstileToken } =
     req.body;
   if (!(await verifyTurnstileToken(turnstileToken, req.ip))) {
     res.status(400).json({
@@ -175,10 +176,18 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     });
     return;
   }
-  if (confirmAge !== true) {
+  const parsedBirthDate = parseBirthDateInput(birthDate);
+  if (!parsedBirthDate.ok) {
     res.status(400).json({
-      error: 'Vous devez confirmer avoir au moins 13 ans pour créer un compte',
-      code: 'age_not_confirmed',
+      error: parsedBirthDate.error,
+      code: birthDate ? 'birth_date_invalid' : 'birth_date_required',
+    });
+    return;
+  }
+  if (parsedBirthDate.value === null) {
+    res.status(400).json({
+      error: 'Date de naissance requise pour créer un compte',
+      code: 'birth_date_required',
     });
     return;
   }
@@ -237,6 +246,16 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     verificationTokenExpiry,
   };
   user = applyProfileDefaults(user);
+  const ageApply = applyAgeSettings(user, {
+    birthDate: parsedBirthDate.value,
+    hideBirthDateOnProfile: true,
+    showAge: false,
+  });
+  if (!ageApply.ok) {
+    res.status(400).json({ error: ageApply.error, code: 'birth_date_invalid' });
+    return;
+  }
+  enforceMinorGeoPolicy(user);
   if (getAccessPolicy().registrationMode === 'invite_only' && inviteCode) {
     consumeInviteCode(String(inviteCode));
   }

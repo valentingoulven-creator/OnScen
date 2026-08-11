@@ -3,7 +3,8 @@ import crypto from 'node:crypto';
 import rateLimit from 'express-rate-limit';
 import { db, type User } from '../models/schema';
 import { signTokenForUser, setAuthCookie } from '../middleware/auth';
-import { applyProfileDefaults, publicProfile } from '../lib/profile';
+import { applyAgeSettings, applyProfileDefaults, parseBirthDateInput, publicProfile } from '../lib/profile';
+import { enforceMinorGeoPolicy } from '../lib/locationPrivacy';
 import { generateUserId } from '../lib/userIds';
 import { schedulePersist } from '../lib/persist';
 import { trackEvent, trackUserActive } from '../lib/analytics';
@@ -328,7 +329,7 @@ oauthRouter.get('/providers', (_req: Request, res: Response) => {
 oauthRouter.post('/oauth/exchange', oauthInitLimiter, async (req: Request, res: Response) => {
   const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
   const acceptTerms = req.body?.acceptTerms === true;
-  const confirmAge = req.body?.confirmAge === true;
+  const birthDate = typeof req.body?.birthDate === 'string' ? req.body.birthDate.trim() : '';
   const termsVersion = typeof req.body?.termsVersion === 'string' ? req.body.termsVersion : undefined;
 
   if (!code) {
@@ -357,11 +358,14 @@ oauthRouter.post('/oauth/exchange', oauthInitLimiter, async (req: Request, res: 
       });
       return;
     }
-    if (!confirmAge) {
+    const parsedBirthDate = parseBirthDateInput(birthDate);
+    if (!parsedBirthDate.ok || parsedBirthDate.value === null) {
       res.status(400).json({
         needsTermsAcceptance: true,
-        error: 'Vous devez confirmer avoir au moins 13 ans pour créer un compte',
-        code: 'age_not_confirmed',
+        error: parsedBirthDate.ok
+          ? 'Date de naissance requise pour créer un compte'
+          : parsedBirthDate.error,
+        code: birthDate ? 'birth_date_invalid' : 'birth_date_required',
       });
       return;
     }
@@ -374,6 +378,20 @@ oauthRouter.post('/oauth/exchange', oauthInitLimiter, async (req: Request, res: 
     user.acceptedTermsAt = Date.now();
     user.acceptedTermsVersion = CURRENT_TERMS_VERSION;
     user.ageConfirmedAt = Date.now();
+    const ageApply = applyAgeSettings(user, {
+      birthDate: parsedBirthDate.value,
+      hideBirthDateOnProfile: true,
+      showAge: false,
+    });
+    if (!ageApply.ok) {
+      res.status(400).json({
+        needsTermsAcceptance: true,
+        error: ageApply.error,
+        code: 'birth_date_invalid',
+      });
+      return;
+    }
+    enforceMinorGeoPolicy(user);
     db.users.set(user.id, user);
     schedulePersist();
   }

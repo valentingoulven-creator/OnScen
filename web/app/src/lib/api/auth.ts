@@ -17,7 +17,7 @@ export const authApi = {
     acceptTerms: boolean,
     termsVersion: string,
     inviteCode?: string,
-    confirmAge?: boolean,
+    birthDate?: string,
     turnstileToken?: string | null
   ) => {
     let res: Response;
@@ -33,7 +33,7 @@ export const authApi = {
           acceptTerms,
           termsVersion,
           inviteCode: inviteCode?.trim() || undefined,
-          confirmAge: confirmAge === true,
+          birthDate: birthDate?.trim() || undefined,
           turnstileToken: turnstileToken?.trim() || undefined,
         }),
       });
@@ -63,7 +63,7 @@ export const authApi = {
 
   exchangeOAuthCode: (
     code: string,
-    opts?: { acceptTerms?: boolean; termsVersion?: string; confirmAge?: boolean }
+    opts?: { acceptTerms?: boolean; termsVersion?: string; birthDate?: string }
   ) =>
     request<{
       token?: string;
@@ -78,7 +78,7 @@ export const authApi = {
         code,
         acceptTerms: opts?.acceptTerms,
         termsVersion: opts?.termsVersion,
-        confirmAge: opts?.confirmAge === true,
+        birthDate: opts?.birthDate?.trim() || undefined,
       }),
     }),
 

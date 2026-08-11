@@ -27,7 +27,7 @@ Push-Location $root
 try {
   npm run capacitor:android:apk:prod
   $apkSrc = Join-Path $root "ios\apptel\android\app\build\outputs\apk\debug\app-debug.apk"
-  $apkDest = Join-Path $root "android\MeloSong-Mobile\Soundy-debug-prod.apk"
+  $apkDest = Join-Path $root "android\OnScen-Mobile\Soundy-debug-prod.apk"
   if (Test-Path $apkSrc) {
     Copy-Item $apkSrc $apkDest -Force
     Write-Host ""

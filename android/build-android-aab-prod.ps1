@@ -39,7 +39,7 @@ try {
     Pop-Location
   }
   $aabSrc = Join-Path $root "ios\apptel\android\app\build\outputs\bundle\release\app-release.aab"
-  $aabDest = Join-Path $root "android\MeloSong-Mobile\Soundy-release-prod.aab"
+  $aabDest = Join-Path $root "android\OnScen-Mobile\Soundy-release-prod.aab"
   if (Test-Path $aabSrc) {
     Copy-Item $aabSrc $aabDest -Force
     Write-Host ""

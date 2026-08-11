@@ -2,10 +2,10 @@ import { useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { PROFILE_TYPE_OPTIONS, getProfileTypeOption } from '../lib/profileTypes';
 import { CityAutocomplete } from './CityAutocomplete';
-import { BirthDateInput } from './BirthDateInput';
+import { computeAgeFromBirthDate } from '../lib/profileAge';
+import { isGeoMinor } from '../lib/geoAgePolicy';
 import { getPrivacyPreferences, setPrivacyPreferences } from '../lib/settings';
 import { compressProfilePhotoDataUrl, prepareProfilePhotosForSave } from '../lib/profilePhotos';
-import { validateBirthDate, computeAgeFromBirthDate, birthDateErrorMessage } from '../lib/profileAge';
 import { validateImageFileAsync } from '../lib/imageConstraints';
 import { prepareImageFile } from '../lib/imageUtils';
 import { ConfirmModal } from './ConfirmModal';
@@ -114,6 +114,8 @@ function PrivacySwitch({
 export interface ProfileSetupWizardProps {
   token: string;
   username?: string;
+  /** Date déjà collectée à l'inscription — sert aux réglages de confidentialité. */
+  birthDate?: string;
   title?: string;
   subtitle?: string;
   onProfileUpdate?: (user: User) => void;
@@ -123,6 +125,7 @@ export interface ProfileSetupWizardProps {
 export function ProfileSetupWizard({
   token,
   username,
+  birthDate: birthDateFromSignup = '',
   title = 'Bienvenue',
   subtitle = 'Personnalisez votre expérience OnScen',
   onProfileUpdate,
@@ -132,9 +135,8 @@ export function ProfileSetupWizard({
   const [profileType, setProfileType] = useState<string>('');
   const [city, setCity] = useState('');
   const [bio, setBio] = useState('');
-  const [birthDate, setBirthDate] = useState('');
   const [hideBirthDateOnProfile, setHideBirthDateOnProfile] = useState(true);
-  const [showAge, setShowAge] = useState(true);
+  const [showAge, setShowAge] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [locating, setLocating] = useState(false);
@@ -148,16 +150,14 @@ export function ProfileSetupWizard({
     if (city.trim()) score += 15;
     if (photos.length > 0) score += 15;
     if (bio.trim().length > 10) score += 20;
-    if (birthDate.trim()) score += 15;
+    if (birthDateFromSignup.trim()) score += 15;
     return Math.min(score, 100);
   })();
 
-  const birthDateTrimmed = birthDate.trim();
+  const birthDateTrimmed = birthDateFromSignup.trim();
   const derivedAge = birthDateTrimmed ? computeAgeFromBirthDate(birthDateTrimmed) : null;
-  const birthPrivacyDisabled = !birthDateTrimmed;
-  const birthDateError = birthDateTrimmed ? validateBirthDate(birthDateTrimmed) : null;
-  const birthDateValid = birthDateTrimmed ? birthDateError === null : false;
-  const profileStepReady = Boolean(profileType && city.trim() && birthDateValid);
+  const geoMinor = isGeoMinor({ birthDate: birthDateTrimmed, age: derivedAge ?? undefined });
+  const profileStepReady = Boolean(profileType && city.trim());
 
   const openPhotoPicker = () => {
     if (photos.length >= 1 || saving) return;
@@ -215,17 +215,6 @@ export function ProfileSetupWizard({
         setError('Indiquez votre ville.');
         return;
       }
-      if (!birthDateTrimmed) {
-        setError('Indiquez votre date de naissance.');
-        return;
-      }
-    }
-    if (birthDateTrimmed) {
-      const birthError = validateBirthDate(birthDateTrimmed);
-      if (birthError) {
-        setError(birthDateErrorMessage(birthError));
-        return;
-      }
     }
     setSaving(true);
     try {
@@ -234,7 +223,6 @@ export function ProfileSetupWizard({
       if (city.trim()) body.city = city.trim();
       if (bio.trim()) body.bio = bio.trim();
       if (birthDateTrimmed) {
-        body.birthDate = birthDateTrimmed;
         body.hideBirthDateOnProfile = hideBirthDateOnProfile;
         body.showAge = showAge;
       }
@@ -265,6 +253,20 @@ export function ProfileSetupWizard({
   };
 
   const handleAllowLocation = () => {
+    if (geoMinor) {
+      setLocating(true);
+      void (async () => {
+        setPrivacyPreferences({ ...getPrivacyPreferences(), locationSharing: true });
+        try {
+          await api.updatePrivacySettings(token, { locationPrecision: 'city' });
+        } catch {
+          // best-effort — ville profil ancre côté serveur
+        }
+        setLocating(false);
+        await finishWizard();
+      })();
+      return;
+    }
     if (!navigator.geolocation) {
       setPrivacyPreferences({ ...getPrivacyPreferences(), locationSharing: true });
       void finishWizard();
@@ -422,45 +424,27 @@ export function ProfileSetupWizard({
               </label>
             </section>
 
-            <section className="rounded-xl border border-[#1e1e2f] bg-[#0f0f16] p-3 space-y-2">
-              <label className="block space-y-1">
-                <span className="text-[11px] font-medium text-gray-400">
-                  Date de naissance <span className="text-purple-400">*</span>
-                </span>
-                <BirthDateInput
-                  value={birthDate}
-                  onChange={(next) => {
-                    setBirthDate(next);
-                    if (!next.trim()) {
-                      setHideBirthDateOnProfile(true);
-                      setShowAge(true);
-                    }
-                  }}
-                  inputClassName="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white text-center tabular-nums min-h-[44px]"
+            {birthDateTrimmed ? (
+              <section className="rounded-xl border border-[#1e1e2f] bg-[#0f0f16] p-3 space-y-2">
+                {derivedAge != null ? (
+                  <p className="text-[11px] text-gray-400 tabular-nums">
+                    Âge : <span className="text-gray-200 font-medium">{derivedAge} ans</span>
+                  </p>
+                ) : null}
+                <PrivacySwitch
+                  label="Date de naissance sur le profil"
+                  hidden={hideBirthDateOnProfile}
+                  disabled={false}
+                  onChange={setHideBirthDateOnProfile}
                 />
-              </label>
-              {birthDateError ? (
-                <p className="text-xs text-red-400 leading-relaxed" role="alert">
-                  {birthDateErrorMessage(birthDateError)}
-                </p>
-              ) : derivedAge != null ? (
-                <p className="text-[11px] text-gray-400 tabular-nums">
-                  Âge : <span className="text-gray-200 font-medium">{derivedAge} ans</span>
-                </p>
-              ) : null}
-              <PrivacySwitch
-                label="Date de naissance sur le profil"
-                hidden={hideBirthDateOnProfile}
-                disabled={birthPrivacyDisabled}
-                onChange={setHideBirthDateOnProfile}
-              />
-              <PrivacySwitch
-                label="Âge sur le profil public"
-                hidden={!showAge}
-                disabled={birthPrivacyDisabled}
-                onChange={(hidden) => setShowAge(!hidden)}
-              />
-            </section>
+                <PrivacySwitch
+                  label="Âge sur le profil public"
+                  hidden={!showAge}
+                  disabled={false}
+                  onChange={(hidden) => setShowAge(!hidden)}
+                />
+              </section>
+            ) : null}
 
             {error ? <p className="text-xs text-red-400 text-center">{error}</p> : null}
 
@@ -484,9 +468,22 @@ export function ProfileSetupWizard({
                 📍
               </div>
               <div>
-                <h2 className="text-base font-bold text-white">Partage ta position</h2>
+                <h2 className="text-base font-bold text-white">
+                  {geoMinor ? 'Partage ta ville (approximative)' : 'Partage ta position'}
+                </h2>
                 <p className="text-xs text-gray-400 mt-1.5 leading-relaxed">
-                  OnScen utilise ta position pour afficher les salons, lives et personnes musicales près de toi. Ta position exacte n&apos;est jamais partagée publiquement.
+                  {geoMinor ? (
+                    <>
+                      OnScen utilise ta ville pour afficher les salons, lives et personnes près de chez
+                      toi. En tant que mineur·e (13–17 ans), seule une zone floue autour de ta ville est
+                      utilisée — le GPS précis n&apos;est pas disponible avant 18 ans.
+                    </>
+                  ) : (
+                    <>
+                      OnScen utilise ta position pour afficher les salons, lives et personnes musicales près
+                      de toi. Ta position exacte n&apos;est jamais partagée publiquement.
+                    </>
+                  )}
                 </p>
               </div>
             </div>
@@ -502,6 +499,8 @@ export function ProfileSetupWizard({
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     Localisation…
                   </>
+                ) : geoMinor ? (
+                  '📍 Activer (ville approximative)'
                 ) : (
                   '📍 Autoriser'
                 )}

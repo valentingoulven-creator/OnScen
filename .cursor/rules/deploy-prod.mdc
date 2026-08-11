@@ -35,6 +35,8 @@ Expressions declenchantes : **deploy prod**, **deploy production**, **deploie en
 **Workflow obligatoire** (dans cet ordre, depuis la racine du repo) :
 
 1. **Verifier** — build app + backend, tests si pertinent ; ne pas deployer si bug bloquant.
+   - **Demander explicitement a l'utilisateur** si les cles **ACRCloud** (`ACRCLOUD_ACCESS_KEY`, `ACRCLOUD_ACCESS_SECRET`) doivent etre configurees ou restent volontairement absentes (reconnaissance audio). Ne pas considerer l'audit pre-prod ou le GO prod complet sans cette confirmation.
+   - Tokens Cloudflare : verifier Stream (`test-cf-api` / list live_inputs) et Turnstile (`TURNSTILE_SECRET_KEY` + site key frontend). Le `CLOUDFLARE_API_TOKEN` (`cfat_`, `.env.cloudflare`) sert aux scripts ops (DNS/Turnstile widgets) — signaler si 401.
 2. **Commit local** — `git add` (sources + assets buildes, jamais secrets) puis `git commit` avec message clair.
 3. **Push GitHub** — `git push -u origin HEAD` (ou branche courante).
 4. **Deploy VPS** — `powershell -ExecutionPolicy Bypass -File commun/scripts/deploy-prod.ps1`

@@ -10,7 +10,7 @@
       "**/node_modules": true,
       "**/.gradle": true,
       "**/android/app/build": true,
-      "**/android/MeloSong-Mobile/www/assets": false
+      "**/android/OnScen-Mobile/www/assets": false
     }
   }
 }
