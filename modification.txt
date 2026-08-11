@@ -1,4 +1,96 @@
 ================================================================================
+MODIF 797 — Fil abonnements : retrait message vide 48 h
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Message intrusif lorsqu’aucune publication récente (48 h) : « Aucune publication
+ sur les 2 derniers jours » + hint « Afficher plus ».
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/ActualiteTabPage.tsx
+ ─────────────────
+ • Suppression du bloc empty state followingRecentEmpty / followingRecentEmptyHint.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/ActualiteTabPage.tsx → retrait message vide abonnements
+
+================================================================================
+Fin — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 796 — Carte : contrôles responsifs (boutons visibles petits écrans)
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur mobile / viewport étroit, les boutons carte (filtres, zoom, création, recentrage)
+ se chevauchaient ; la carte était parfois limitée à ~280px de hauteur.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/index.css
+ ─────────────────
+ • Variables --ms-map-chrome-* pour insets (tab bar, bords).
+ • Zoom slider repositionné bas-droite sur compact ; track raccourci.
+ • FAB création en ligne horizontale scrollable ; filtres wrap + taille réduite.
+ • Suppression min-height fixe 280px sur .ms-map-viewport.
+
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • Classes ms-map-zoom-control / ms-map-filter-btn / ms-map-create-fab.
+ • Filtres max-width relative à la colonne carte (pas 100vw).
+
+ web/app/src/components/NearbyPeoplePanel.tsx
+ ─────────────────
+ • Sidebar plus étroite sur mobile (34vw / 9rem).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/index.css → layout chrome carte responsive
+ web/app/src/pages/HomePage.tsx → classes contrôles
+ web/app/src/components/NearbyPeoplePanel.tsx → sidebar mobile
+
+================================================================================
+Fin — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 795 — Carte : sidebar liste toujours à gauche
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur mobile / viewport compact, la liste carte (NearbyPeoplePanel) passait en bas
+ de l'écran au lieu de rester en colonne latérale gauche.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • Suppression du mode bottomMapList (appa2 || compactMapLayout).
+ • Layout carte toujours flex-row ; panneau latéral rendu à gauche uniquement.
+
+ ios/apptel/src/pages/HomePage.tsx
+ ─────────────────
+ • Même correction pour le miroir Capacitor (layout appa2).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/HomePage.tsx → sidebar gauche permanente
+ ios/apptel/src/pages/HomePage.tsx → idem miroir mobile
+
+================================================================================
+Fin — 2026-08-11
+================================================================================
+
+================================================================================
 MODIF 794 — Outil lettre de soutien BIC (formulaire HTML)
 Date : 2026-07-31
 ================================================================================
@@ -38141,4 +38233,175 @@ BUILD (si vérifié)
 
 ================================================================================
 Fin MODIF 1354 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1355 - Décommissionnement complet getsoundy.com — Soundly Dev
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande explicite : « Retire getsoundy.com, seul onscen.com doit fonctionner ».
+ Précisions utilisateur : coupure nette (hard stop, aucune redirection), appliqué
+ immédiatement en prod ET staging, emails applicatifs @getsoundy.com → @onscen.com.
+ getsoundy.com subsistait dans ~200 fichiers (code source, config déploiement,
+ mobile, docs, scripts, .env VPS) depuis la migration de domaine du 10/08.
+
+CHANGEMENTS / FIX
+-----
+ Caddy (hard stop TLS, pas de redirect)
+ ─────────────────
+ • commun/deploy/Caddyfile : blocs `getsoundy.com {}` / `www.getsoundy.com {}`
+   supprimés — aucun certificat TLS n'est plus délivré pour ce host, le
+   handshake échoue (confirmé : HTTP 525 côté Cloudflare après déploiement).
+ • commun/deploy/Caddyfile.staging : bloc `staging.getsoundy.com` supprimé (idem).
+ • commun/deploy/sync-caddy.sh / sync-caddy-staging.sh : le script refuse
+   désormais d'installer un Caddyfile source qui contiendrait encore
+   `getsoundy.com` (garde-fou anti-réintroduction).
+ • commun/deploy/caddy-watchdog.sh, install-caddy-guard.sh : vérifient la
+   présence de `onscen.com` (au lieu de `getsoundy.com`) pour détecter un
+   Caddyfile cassé/minimal.
+
+ Environnement VPS (.env prod + staging)
+ ─────────────────
+ • CORS_ORIGIN, WEB_APP_URL, WEBAUTHN_RP_ID, WEBAUTHN_ORIGIN → onscen.com
+   uniquement (via commun/deploy/patch-env-onscen-domain.sh, corrigé pour ne
+   plus injecter getsoundy.com dans CORS_ORIGIN).
+ • Emails : ACCESS_ADMIN_EMAILS, SMTP_ADMIN_EMAIL, ALERT_EMAIL,
+   PROD_ADMIN_EMAIL, VAPID_SUBJECT, STAGING_DEMO_LOGIN_EMAIL →
+   admin@onscen.com / contact@onscen.com (sed global sur les deux VPS,
+   backup .env.bak.email-migration conservé).
+ • GOOGLE_CALLBACK_URL / YOUTUBE_CALLBACK_URL → basculés sur onscen.com.
+   ⚠️ Découverte en cours de vérification : le client OAuth Google configuré
+   est actuellement supprimé côté console (Error 401: deleted_client) —
+   login Google/YouTube déjà non-fonctionnel indépendamment de ce changement.
+   Action requise (hors repo) : recréer un client OAuth dans Google Cloud
+   Console avec redirect URI https://onscen.com/api/auth/google/callback et
+   https://onscen.com/api/auth/youtube/callback, puis mettre à jour
+   GOOGLE_CLIENT_ID/SECRET sur les deux VPS.
+ • PM2 reload --update-env sur onscen-backend (prod) et
+   onscen-backend-staging après chaque patch.
+
+ Frontend build (bug découvert et corrigé en cours de session)
+ ─────────────────
+ • web/app/.env.production et .env.preproduction (gitignorés, régénérés par
+   commun/scripts/sync-app-sentry-env.ps1 à partir de commun/backend/.env.*)
+   contenaient encore VITE_WEB_APP_URL=https://getsoundy.com — copie locale
+   miroir du VPS non resynchronisée après la migration du 10/08. Résultat :
+   les bundles JS buildés et déployés (index-Bmji6GYK.js en prod,
+   index-CbMKATTi.js en staging) contenaient encore getsoundy.com en dur
+   malgré toutes les corrections de code source.
+ • Fix : resynchronisation de commun/backend/.env.production/.preproduction
+   depuis les VPS (post-patch), régénération de web/app/.env.* via
+   sync-app-sentry-env.ps1, rebuild + redeploy complet des deux environnements.
+   Nouveaux bundles vérifiés 0 occurrence de "getsoundy" (index-DczpIz_X.js
+   prod, index-DLmQBu7m.js staging).
+
+ Code source (backend + frontend + mobile) — ~180 fichiers
+ ─────────────────
+ • Remplacement getsoundy.com → onscen.com et admin@getsoundy.com →
+   admin@onscen.com dans : constantes légales, User-Agent Nominatim, VAPID,
+   CSP/HSTS, AI agents, catalogue SaaS, sitemap/robots/index.html, listes
+   d'hôtes autorisés (storyAppLink, reelAlbumLinkPlatform, linkifyText),
+   locales fr/en, pages admin coûts, scripts de seed, tests unitaires,
+   fichiers .env.*.example (web + backend), workflows GitHub Actions
+   (ci.yml, deploy-preprod.yml, uptime-health.yml), E2E Playwright staging,
+   scripts ops (~30 fichiers .ps1/.sh), règles Cursor (.cursor/rules/*.mdc),
+   AGENTS.md.
+ • Mobile : ios/apptel/ios/App/App/App.entitlements (associated domains),
+   ios/apptel/src/lib/nativeDeepLink.ts (PROD_HOSTS), scripts
+   patch-android-native.mjs (deep links AndroidManifest) et
+   fetch-cert-pins.mjs (network_security_config.xml — pin uniquement
+   onscen.com désormais) — régénérés localement.
+ • Auxiliaire VPS non versionné : /opt/onscen/deploy/auth-server/ (page de
+   login Caddy basic-auth, non utilisée en prod actuellement) — footer/
+   description texte corrigés directement sur le VPS.
+
+GAPS CONNUS / ACTIONS RESTANTES (hors repo)
+-----
+ • Client OAuth Google supprimé côté console → login Google/YouTube cassé
+   indépendamment de ce changement de domaine. Nécessite recréation manuelle
+   dans Google Cloud Console (cf. ci-dessus).
+ • DNS staging.onscen.com toujours absent (déjà documenté depuis le 10/08) —
+   Caddy staging répond correctement en testant avec Host: staging.onscen.com
+   directement sur l'IP, mais le nom de domaine ne résout pas encore.
+ • Retirer getsoundy.com des consoles tierces (Meta, Apple Sign In) si
+   applicable — non vérifié dans cette session (cf. commun/docs/ONSCEN-DOMAINE.md §4).
+ • Anciens chunks JS buildés avant cette session (des centaines de fichiers
+   dans public/assets, non référencés par l'index.html actuel) contiennent
+   encore getsoundy.com en dur — conservés intentionnellement par le
+   processus de déploiement zero-downtime (compatibilité clients avec cache
+   navigateur actif) ; s'auto-purgeront au fil des déploiements suivants.
+
+VÉRIFICATIONS (prod + staging, post-déploiement)
+-----
+ • https://onscen.com/health → 200 OK (env production)
+ • https://www.onscen.com → 301 → onscen.com
+ • https://getsoundy.com, https://www.getsoundy.com → 525 (handshake TLS
+   refusé, hard stop confirmé, PAS de redirection)
+ • https://staging.getsoundy.com → 525 (idem)
+ • Bundle prod index-DczpIz_X.js et staging index-DLmQBu7m.js → 0 référence
+   getsoundy après rebuild
+ • CORS_ORIGIN/WEB_APP_URL/WEBAUTHN_*/emails sur les deux VPS → onscen.com
+   uniquement, aucune occurrence "getsoundy" restante dans /opt/onscen/.env
+ • PM2 onscen-backend (prod) et onscen-backend-staging → online, reload
+   sans coupure
+ • verify-prod.sh → Résultat : OK
+
+FICHIERS MODIFIÉS
+-----
+ ~180 fichiers backend/frontend/mobile/scripts/docs → onscen.com uniquement
+ (détail exhaustif dans l'historique de session, non reproduit ici pour
+ concision — voir git diff de cette session)
+ commun/deploy/Caddyfile, Caddyfile.staging → hard stop getsoundy.com
+ commun/deploy/patch-env-onscen-domain.sh → CORS_ORIGIN sans getsoundy.com
+ commun/deploy/sync-caddy.sh, sync-caddy-staging.sh → garde-fou anti-réintroduction
+ VPS prod + staging /opt/onscen/.env → patché (CORS, WebAuthn, emails, callbacks OAuth)
+ web/app/.env.production, .env.preproduction (gitignorés) → VITE_WEB_APP_URL corrigé
+
+BUILD (vérifié)
+-----
+ backend/ → tsc build:prod → ✅ (prod + staging)
+ web/app/ → vite build (production + preproduction) → ✅
+ Déploiement zero-downtime prod → ✅ (2 passes, 2e pour corriger le bundle contaminé)
+ Déploiement zero-downtime staging → ✅ (2 passes, idem)
+
+================================================================================
+Fin MODIF 1355 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1356 — getsoundy.com : legal-publisher prod + assets onscen.com
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Compléter la décommission getsoundy.com : `/opt/onscen/legal-publisher.json` en
+ prod contenait encore contact@getsoundy.com et productionDomain getsoundy.com ;
+ capacitor iOS généré avec hostname legacy ; demande d'autorisation des comptes
+ uniquement sur onscen.com (déjà en place côté .env, bundle principal).
+
+CHANGEMENTS / FIX
+-----
+ commun/msdev/legal-publisher.json → onscen.com / admin@onscen.com
+ ios/apptel/ios/App/App/capacitor.config.json → hostname onscen.com
+ commun/deploy/purge-stale-public-assets.sh → script purge chunks obsolètes
+   (corrigé : inclut imports du bundle principal, évite purge trop agressive)
+
+ VPS prod
+ ─────────────────
+ • legal-publisher.json resynchronisé
+ • patch-env-onscen-domain.sh prod (WEB_APP_URL/CORS/WEBAUTHN onscen.com)
+ • Rebuild + deploy public/ (index-Mv-6TC6k.js, 0 getsoundy)
+ • ACCESS_REGISTRATION_MODE=open · SIGNUP_NOTIFY_EMAIL inchangé
+
+FICHIERS MODIFIÉS
+-----
+ legal-publisher.json · capacitor.config.json · purge-stale-public-assets.sh
+ VPS prod legal-publisher + public/
+
+================================================================================
+Fin MODIF 1356 — 2026-08-11
 ================================================================================
