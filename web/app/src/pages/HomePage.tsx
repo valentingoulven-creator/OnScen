@@ -138,6 +138,7 @@ import {
   MAP_GEO_CHANGED_EVENT,
   type LivesGeoPrefs,
 } from '../lib/livesGeo';
+import { canUsePreciseGeo } from '../lib/geoAgePolicy';
 import { isValidLatLng, sanitizeLatLngTuple } from '../lib/mapCoords';
 import {
   filterLivesForMap,
@@ -323,6 +324,10 @@ export function HomePage({
   const bottomMapList = appa2 || compactMapLayout;
   const nearbyLayout = bottomMapList ? ('bottom' as const) : ('side' as const);
   const { user, token, authBootPending, setUserFromProfile } = useAuth();
+  const userCanUsePreciseGeo = useMemo(
+    () => canUsePreciseGeo(user),
+    [user?.birthDate, user?.age]
+  );
   const sidebarSponsoredEvents = useMapSidebarSponsoredEvents(token);
   const { devMarkerDragEnabled, overrides, onDevMarkerDragEnd } = useDevMapMarkerDrag();
   const mapSponsoredPostIds = useMemo(
@@ -2395,7 +2400,7 @@ export function HomePage({
           if (!opts?.silent) setLoadingNearby(false);
         });
 
-    if (opts?.updateUserGeo === false) {
+    if (opts?.updateUserGeo === false || !userCanUsePreciseGeo) {
       runNearby();
       return;
     }
@@ -2405,7 +2410,7 @@ export function HomePage({
         console.warn('[HomePage] updateGeo failed (silent retry):', err);
       })
       .finally(runNearby);
-  }, [token, applyNearbyResponse]);
+  }, [token, userCanUsePreciseGeo, applyNearbyResponse]);
 
   const loadNearby = useCallback((lat: number, lon: number) => {
     loadNearbyAt(sanitizeLatLngTuple(lat, lon, DEFAULT_CENTER));
@@ -2443,6 +2448,7 @@ export function HomePage({
     isActive,
     token,
     geoBootstrapReady: !authBootPending,
+    canUsePreciseGeo: userCanUsePreciseGeo,
     profileCity: user?.city,
     center,
     defaultCenter: DEFAULT_CENTER,
@@ -2467,7 +2473,7 @@ export function HomePage({
         loadNearby(geo.latitude, geo.longitude);
         return;
       }
-      if (!navigator.geolocation) {
+      if (!navigator.geolocation || !userCanUsePreciseGeo) {
         const fallback = resolveMapCameraFallbackCenter(user?.city);
         applyMapViewportCenter(fallback);
         loadNearby(fallback[0], fallback[1]);
@@ -2493,7 +2499,7 @@ export function HomePage({
     };
     window.addEventListener(MAP_GEO_CHANGED_EVENT, onMapGeo);
     return () => window.removeEventListener(MAP_GEO_CHANGED_EVENT, onMapGeo);
-  }, [isActive, token, user?.city, applyMapViewportCenter, loadNearby]);
+  }, [isActive, token, user?.city, userCanUsePreciseGeo, applyMapViewportCenter, loadNearby]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -2705,7 +2711,7 @@ export function HomePage({
 
     const fallbackCoords = userPosition ?? resolveMapCameraFallbackCenter(user?.city);
 
-    if (!navigator.geolocation) {
+    if (!navigator.geolocation || !userCanUsePreciseGeo) {
       applyRecenter(fallbackCoords);
       return;
     }
@@ -2734,7 +2740,7 @@ export function HomePage({
       },
       { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 }
     );
-  }, [userPosition, user?.city, loadNearbyAt, setUserPosition, flyMapRecenter]);
+  }, [userPosition, user?.city, userCanUsePreciseGeo, loadNearbyAt, setUserPosition, flyMapRecenter]);
 
   const dismissSalonSheetOnly = useCallback(() => {
     setSelected((prev) => {

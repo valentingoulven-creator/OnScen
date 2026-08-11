@@ -9,7 +9,8 @@
     "produit": "node build-produit-presentation.mjs",
     "produit:pdf": "node generate-produit-pdf.mjs",
     "lettres-soutien": "node generate-lettres-soutien-docx.mjs",
-    "tarifs-sponsor-pdf": "node commercial/generate-tarifs-sponsor-pdf.mjs"
+    "tarifs-sponsor-pdf": "node commercial/generate-tarifs-sponsor-pdf.mjs",
+    "pdf:budget-bancaire": "node generate-budget-bancaire-pdf.mjs"
   },
   "dependencies": {
     "docx": "^9.5.0",

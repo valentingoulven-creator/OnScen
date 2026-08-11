@@ -5,6 +5,8 @@ export const MAX_PROFILE_AGE = 120;
 export const MIN_LIVE_AGE = 16;
 /** Âge minimum pour payer (dons, abonnements) ou recevoir en tant que créateur. */
 export const CREATOR_MONETIZATION_MIN_AGE = 18;
+/** Âge minimum pour la géolocalisation précise (POST /geo/update, mode « précision max »). */
+export const GEO_PRECISE_MIN_AGE = CREATOR_MONETIZATION_MIN_AGE;
 
 export function userMeetsLiveAge(age: number | undefined): boolean {
   return typeof age === 'number' && age >= MIN_LIVE_AGE;
@@ -27,6 +29,28 @@ export function creatorMeetsMonetizationAgeFromProfile(user: AgeProfile): boolea
 export function userMeetsMonetizationAgeFromProfile(user: AgeProfile): boolean {
   const age = resolveUserAge(user);
   return typeof age === 'number' && age >= CREATOR_MONETIZATION_MIN_AGE;
+}
+
+export function userMeetsPreciseGeoAge(age: number | undefined): boolean {
+  return typeof age === 'number' && age >= GEO_PRECISE_MIN_AGE;
+}
+
+export function userMeetsPreciseGeoAgeFromProfile(user: AgeProfile): boolean {
+  return userMeetsPreciseGeoAge(resolveUserAge(user));
+}
+
+/**
+ * true seulement si l'âge est **connu** et strictement inférieur au seuil.
+ * Contrairement à `userMeetsPreciseGeoAgeFromProfile` (qui traite un âge inconnu
+ * comme non éligible — fail-closed, adapté aux dons/paiements), cette fonction
+ * ne restreint QUE les comptes dont on sait avec certitude qu'ils sont mineurs.
+ * Nécessaire pour ne pas dégrader silencieusement la précision géo des comptes
+ * historiques n'ayant jamais renseigné leur date de naissance (cf. audit
+ * `commun/docs/audit/2026-08-11/03-postgis.md` §3.2 — ~95 % des comptes actifs prod au 2026-08-11).
+ */
+export function userIsKnownMinorForPreciseGeo(user: AgeProfile): boolean {
+  const age = resolveUserAge(user);
+  return typeof age === 'number' && age < GEO_PRECISE_MIN_AGE;
 }
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

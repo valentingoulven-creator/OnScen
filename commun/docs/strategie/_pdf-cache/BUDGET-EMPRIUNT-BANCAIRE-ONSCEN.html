@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>OnScen (getsoundy.com) — Budget prévisionnel & besoin de financement bancaire</title>
+  <style>/* ============================================================
+   Dossier avocat — feuille de style PDF
+   Design professionnel unifié pour tous les documents du dossier.
+   ============================================================ */
+
+:root {
+  --sy-ink: #17172a;
+  --sy-ink-soft: #4b4b63;
+  --sy-muted: #6b7280;
+  --sy-purple: #6d28d9;
+  --sy-purple-deep: #3b1f7a;
+  --sy-purple-soft: #ede9fe;
+  --sy-purple-line: #c4b5fd;
+  --sy-border: #e2e2ef;
+  --sy-row: #f8f7fc;
+  --sy-amber: #b45309;
+  --sy-amber-bg: #fffbeb;
+  --sy-amber-line: #fde68a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.55;
+  color: var(--sy-ink);
+  max-width: 100%;
+  margin: 0;
+  padding: 0 4mm;
+}
+
+/* ---------- En-tête de document (bandeau + carte méta) ---------- */
+
+.doc-header {
+  display: block;
+  border-bottom: 3px solid var(--sy-purple);
+  padding-bottom: 10px;
+  margin-bottom: 18px;
+}
+
+.doc-header__brand {
+  display: block;
+  font-size: 10.5pt;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sy-purple);
+}
+
+.doc-header__brand span {
+  color: var(--sy-ink-soft);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.doc-header__category {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 8.5pt;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--sy-purple-deep);
+  background: var(--sy-purple-soft);
+  border: 1px solid var(--sy-purple-line);
+  border-radius: 999px;
+  padding: 3px 12px;
+}
+
+.doc-header__title {
+  margin: 10px 0 2px;
+  font-size: 21pt;
+  font-weight: 800;
+  color: var(--sy-ink);
+  line-height: 1.2;
+}
+
+.doc-meta {
+  display: block;
+  margin-top: 10px;
+  font-size: 8.5pt;
+  color: var(--sy-muted);
+  border-top: 1px solid var(--sy-border);
+  padding-top: 8px;
+}
+
+.doc-meta strong {
+  color: var(--sy-ink-soft);
+}
+
+.doc-banner {
+  font-size: 8pt;
+  color: var(--sy-muted);
+  margin: 0 0 4px;
+}
+
+/* ---------- Bandeau d'avertissement (indicatif / non contractuel) --- */
+
+.doc-warning {
+  background: var(--sy-amber-bg);
+  border: 1px solid var(--sy-amber-line);
+  border-left: 4px solid var(--sy-amber);
+  color: #7c4a03;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 9pt;
+  margin: 0 0 18px;
+  page-break-inside: avoid;
+}
+
+.doc-warning strong {
+  color: var(--sy-amber);
+}
+
+/* ---------- Titres ---------- */
+
+h1 {
+  font-size: 18pt;
+  color: var(--sy-ink);
+  border-bottom: 2px solid var(--sy-purple);
+  padding-bottom: 6px;
+  margin: 28px 0 14px;
+  page-break-after: avoid;
+}
+
+h1:first-of-type {
+  margin-top: 0;
+}
+
+h2 {
+  font-size: 13.5pt;
+  color: var(--sy-purple-deep);
+  border-bottom: 1px solid var(--sy-purple-line);
+  padding-bottom: 4px;
+  margin-top: 22px;
+  page-break-after: avoid;
+}
+
+h3 {
+  font-size: 11.5pt;
+  color: var(--sy-purple);
+  margin-top: 16px;
+  page-break-after: avoid;
+}
+
+p {
+  margin: 8px 0;
+}
+
+/* ---------- Tables ---------- */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+  border: 1px solid var(--sy-border);
+}
+
+th {
+  background-color: var(--sy-purple);
+  color: #ffffff;
+  font-weight: 600;
+  text-align: left;
+  padding: 7px 10px;
+  border: 1px solid var(--sy-purple-deep);
+}
+
+td {
+  padding: 6px 10px;
+  border: 1px solid var(--sy-border);
+  vertical-align: top;
+}
+
+tr:nth-child(even) td {
+  background-color: var(--sy-row);
+}
+
+/* ---------- Code / citations ---------- */
+
+code {
+  background-color: #f1f0f7;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 8.7pt;
+  font-family: Consolas, 'Courier New', monospace;
+  color: var(--sy-purple-deep);
+}
+
+pre {
+  background-color: #f1f0f7;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 9pt;
+  line-height: 1.4;
+  overflow-x: auto;
+  page-break-inside: avoid;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+blockquote {
+  border-left: 4px solid var(--sy-purple);
+  margin: 12px 0;
+  padding: 8px 16px;
+  background-color: var(--sy-purple-soft);
+  color: var(--sy-purple-deep);
+  border-radius: 0 6px 6px 0;
+}
+
+hr {
+  border: none;
+  border-top: 2px solid var(--sy-border);
+  margin: 24px 0;
+}
+
+ul,
+ol {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+li {
+  margin: 3px 0;
+}
+
+strong {
+  color: var(--sy-ink);
+}
+
+/* ---------- Pied de document ---------- */
+
+.doc-footer {
+  margin-top: 28px;
+  padding-top: 10px;
+  border-top: 1px solid var(--sy-border);
+  font-size: 8pt;
+  color: var(--sy-muted);
+  text-align: center;
+}
+
+/* ---------- Impression ---------- */
+
+@page {
+  margin: 16mm 14mm 18mm 14mm;
+}
+
+@media print {
+  h1,
+  h2,
+  h3 {
+    page-break-after: avoid;
+  }
+  table,
+  pre,
+  blockquote,
+  .doc-warning {
+    page-break-inside: avoid;
+  }
+}
+</style>
+</head>
+<body>
+  <header class="doc-header">
+    <span class="doc-header__brand">OnScen <span>· dossier financement</span></span>
+    <span class="doc-header__category">Budget prévisionnel · emprunt bancaire / BPI</span>
+    <h1 class="doc-header__title" style="border:none;margin-top:10px;padding-bottom:0;">OnScen (getsoundy.com) — Budget prévisionnel & besoin de financement bancaire</h1>
+    <p class="doc-meta"><strong>getsoundy.com</strong> · Document interne · Généré le 11 août 2026</p>
+  </header>
+  <div class="doc-warning">
+    <strong>⚠ Hypothèses indicatives.</strong> À valider avec l'expert-comptable et l'établissement prêteur avant dépôt du dossier.
+  </div>
+  <p><strong>Document de travail — dossier prêt professionnel / BPI complémentaire</strong><br><strong>Date :</strong> 2026-08-10<br><strong>Statut :</strong> Hypothèses à valider avec le fondateur, l’expert-comptable et l’établissement prêteur.<br><strong>Références internes :</strong> <a href="../presentations/OnScen-Pitch-Deck.md"><code>OnScen-Pitch-Deck.md</code></a>, <a href="./BUSINESS-PLAN-PREMIUM.md"><code>BUSINESS-PLAN-PREMIUM.md</code></a>, <a href="../../../TODO-MANUAL.md"><code>TODO-MANUAL.md</code></a></p>
+<hr>
+<h2>1. Objet du financement</h2>
+<p>Financer <strong>12 à 18 mois</strong> de mise en conformité, finalisation produit (web + mobile iOS/Android), lancement commercial et communication, <strong>sans attendre une levée equity</strong>, afin d’atteindre :</p>
+<ul>
+<li>Application <strong>publiable</strong> sur App Store / Play Store (ou scope mobile documenté et conforme).</li>
+<li><strong>Paiements réels</strong> opérationnels (Stripe live, pas de clé test en production).</li>
+<li><strong>3 à 5 contrats sponsors payants</strong> et traction mesurable (objectif document interne : 5 000 → 15 000 MAU en phase 0).</li>
+<li>Dossier <strong>juridique validé</strong> (CGU, privacy, monétisation, sponsors, stores).</li>
+</ul>
+<hr>
+<h2>2. Synthèse — montants demandés (3 scénarios)</h2>
+<table>
+<thead>
+<tr>
+<th>Scénario</th>
+<th>Montant emprunt recommandé</th>
+<th>Horizon</th>
+<th>Usage principal</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>A — Ciblé « finalisation »</strong></td>
+<td><strong>60 000 – 80 000 €</strong></td>
+<td>12 mois</td>
+<td>Dev freelance + juridique + infra + trésorerie minimale</td>
+</tr>
+<tr>
+<td><strong>B — Lancement complet</strong></td>
+<td><strong>120 000 – 150 000 €</strong></td>
+<td>15 mois</td>
+<td>A + com’ / acquisition + commercial terrain + modération</td>
+</tr>
+<tr>
+<td><strong>C — Aligné plan seed interne</strong></td>
+<td><strong>190 000 – 280 000 €</strong></td>
+<td>18 mois</td>
+<td>Équivalent levée seed (pitch deck) : growth 40 %, sales 30 %, produit 20 %, ops 10 %</td>
+</tr>
+</tbody></table>
+<p><strong>Recommandation banque (PME innovante, garantie possible BPI / caution) :</strong> viser le <strong>scénario B (~135 000 €)</strong> avec décaissement par tranches liées à jalons (voir §6), ou <strong>80 000 €</strong> si le fondateur finance la com’ en bootstrap et ne demande que <strong>produit + juridique + conformité</strong>.</p>
+<hr>
+<h2>3. Détail du budget par poste (scénario B — 15 mois, base <strong>135 000 €</strong>)</h2>
+<p>Les montants sont <strong>HT</strong> sauf mention. Fourchettes = fourchette basse / haute ; <strong>Base</strong> = chiffre retenu pour le total.</p>
+<h3>3.1 Produit &amp; développement — <strong>32 000 €</strong> (base)</h3>
+<table>
+<thead>
+<tr>
+<th>Ligne</th>
+<th>Détail</th>
+<th>Base (€)</th>
+<th>Fourchette (€)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Audit sécurité + revue code</td>
+<td>Freelance senior, rapport P0/P1/P2</td>
+<td>4 000</td>
+<td>3 000 – 6 000</td>
+</tr>
+<tr>
+<td>Finalisation mobile (Capacitor)</td>
+<td>Panel hôte live, stores, Sign in with Apple, IAP ou scope documenté</td>
+<td>12 000</td>
+<td>8 000 – 20 000</td>
+</tr>
+<tr>
+<td>Stripe prod + webhooks + Connect</td>
+<td>Bascule live, tests, runbook</td>
+<td>2 500</td>
+<td>1 500 – 4 000</td>
+</tr>
+<tr>
+<td>Dette UX / stabilité (F1, build, QA)</td>
+<td>Toasts, modales, corrections ciblées</td>
+<td>5 000</td>
+<td>3 000 – 8 000</td>
+</tr>
+<tr>
+<td>Design / UX ponctuel (optionnel)</td>
+<td>Maquettes bottom-sheet live mobile</td>
+<td>3 000</td>
+<td>0 – 6 000</td>
+</tr>
+<tr>
+<td>Contingence technique (10 %)</td>
+<td>Imprévus intégration LiveKit / stores</td>
+<td>5 500</td>
+<td>—</td>
+</tr>
+</tbody></table>
+<p><em>Référence marché : freelance senior full-stack WebRTC/Capacitor, <strong>550–650 €/jour</strong>, mission type <strong>6–8 semaines à 4 j/sem</strong> ≈ <strong>11–21 k€</strong> ; le poste ci-dessus couvre <strong>2 vagues</strong> (audit + finalisation).</em></p>
+<h3>3.2 Juridique, conformité &amp; administratif — <strong>16 500 €</strong> (base)</h3>
+<table>
+<thead>
+<tr>
+<th>Ligne</th>
+<th>Détail</th>
+<th>Base (€)</th>
+<th>Fourchette (€)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Avocat digital (RGPD, DSA, stores, pourboires)</td>
+<td>1er dossier + 1 retour post-lancement</td>
+<td>8 000</td>
+<td>5 000 – 12 000</td>
+</tr>
+<tr>
+<td>CGV / contrats sponsors &amp; devis types</td>
+<td>Rédaction ou relecture</td>
+<td>3 000</td>
+<td>2 000 – 5 000</td>
+</tr>
+<tr>
+<td>Expert-comptable</td>
+<td>12–15 mois (250–350 €/mois)</td>
+<td>3 600</td>
+<td>3 000 – 5 000</td>
+</tr>
+<tr>
+<td>Assurances</td>
+<td>RC Pro, cyber (optionnelle)</td>
+<td>1 200</td>
+<td>800 – 2 000</td>
+</tr>
+<tr>
+<td>Frais divers</td>
+<td>e-Soleau déjà fait, greffe, formalités</td>
+<td>500</td>
+<td>300 – 1 500</td>
+</tr>
+<tr>
+<td>Apple Developer + Google Play</td>
+<td>Comptes + 1ère soumission</td>
+<td>200</td>
+<td>150 – 500</td>
+</tr>
+</tbody></table>
+<p><em>Dossier avocat PDF déjà généré (<code>commun/docs/juridique/dossier-avocat-a-valider/</code>) — le budget couvre la <strong>validation et les ajustements</strong>, pas la rédiction from scratch.</em></p>
+<h3>3.3 Communication &amp; marketing — <strong>29 000 €</strong> (base)</h3>
+<table>
+<thead>
+<tr>
+<th>Ligne</th>
+<th>Détail</th>
+<th>Base (€)</th>
+<th>Fourchette (€)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Identité &amp; assets lancement</td>
+<td>Vidéo courte, kit presse, landing</td>
+<td>4 000</td>
+<td>2 000 – 8 000</td>
+</tr>
+<tr>
+<td>Social ads (Meta / TikTok tests)</td>
+<td>Tests géo ciblées (Paris, Lyon, Toulouse)</td>
+<td>8 000</td>
+<td>4 000 – 15 000</td>
+</tr>
+<tr>
+<td>Événements / partenariats locaux</td>
+<td>3–5 soirées pilotes, micro-influence</td>
+<td>6 000</td>
+<td>3 000 – 12 000</td>
+</tr>
+<tr>
+<td>Offre lancement sponsors</td>
+<td>Remises « 10 premiers » (99 €) — <strong>coût commercial</strong>, pas CA</td>
+<td>2 000</td>
+<td>1 000 – 4 000</td>
+</tr>
+<tr>
+<td>Community / contenu (freelance ou mi-temps M6+)</td>
+<td>6 mois × ~1 500 €/mois</td>
+<td>9 000</td>
+<td>0 – 18 000</td>
+</tr>
+</tbody></table>
+<p><em>Aligné business plan : priorité 1 <strong>150–800 €/mois</strong> (0–3 mois), puis montée <strong>800–5 000 €/mois</strong> ; la base lisse sur 15 mois.</em></p>
+<h3>3.4 Commercial &amp; ventes (B2B sponsors / lieux) — <strong>22 000 €</strong> (base)</h3>
+<table>
+<thead>
+<tr>
+<th>Ligne</th>
+<th>Détail</th>
+<th>Base (€)</th>
+<th>Fourchette (€)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Prospection terrain + déplacements</td>
+<td>Occitanie + Paris (3 villes pilotes)</td>
+<td>4 000</td>
+<td>2 000 – 6 000</td>
+</tr>
+<tr>
+<td>Account executive freelance / commission</td>
+<td>M7–M15, 2 j/sem ou success fee</td>
+<td>12 000</td>
+<td>0 – 24 000</td>
+</tr>
+<tr>
+<td>Outils CRM / email pro / démo</td>
+<td>15 mois</td>
+<td>1 500</td>
+<td>800 – 3 000</td>
+</tr>
+<tr>
+<td>Formation / salons pro (optional)</td>
+<td>1–2 événements sectoriels</td>
+<td>4 500</td>
+<td>0 – 8 000</td>
+</tr>
+</tbody></table>
+<p><em>Pitch deck : burn additionnel <strong>120–180 k€/an</strong> pour CM + AE + support si <strong>3 embauches</strong> ; ici version <strong>lean</strong> externalisée.</em></p>
+<h3>3.5 Infrastructure, SaaS &amp; modération — <strong>12 000 €</strong> (base)</h3>
+<table>
+<thead>
+<tr>
+<th>Ligne</th>
+<th>Détail</th>
+<th>Base (€)</th>
+<th>Fourchette (€)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Hébergement &amp; cloud</td>
+<td>Scaleway VPS, PG, S3 — palier croissance</td>
+<td>2 500</td>
+<td>1 500 – 5 000</td>
+</tr>
+<tr>
+<td>LiveKit / Cloudflare Stream / Sightengine</td>
+<td>Usage live + modération</td>
+<td>4 500</td>
+<td>2 000 – 10 000</td>
+</tr>
+<tr>
+<td>Stripe (frais) + outils (Sentry, email, etc.)</td>
+<td>Variable selon volume</td>
+<td>2 000</td>
+<td>1 000 – 4 000</td>
+</tr>
+<tr>
+<td>Modération externalisée (mi-temps M9+)</td>
+<td>6 mois</td>
+<td>3 000</td>
+<td>0 – 8 000</td>
+</tr>
+</tbody></table>
+<p><em>Coût fixe MVP documenté <strong>~41–45 €/mois</strong> ; palier 5 000 DAU <strong>~300–350 €/mois</strong> (business plan).</em></p>
+<h3>3.6 Trésorerie &amp; imprévus — <strong>13 000 €</strong> (base)</h3>
+<table>
+<thead>
+<tr>
+<th>Ligne</th>
+<th>Détail</th>
+<th>Base (€)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Fonds de roulement</td>
+<td>2–3 mois charges hors fondateur</td>
+<td>10 000</td>
+</tr>
+<tr>
+<td>Imprévus (≈ 8 % du sous-total hors trésorerie)</td>
+<td>Retards stores, litige, infra</td>
+<td>3 000</td>
+</tr>
+</tbody></table>
+<h3>3.7 Rémunération dirigeant (option — souvent <strong>hors</strong> emprunt ou partiel)</h3>
+<table>
+<thead>
+<tr>
+<th>Ligne</th>
+<th>Détail</th>
+<th>Base (€)</th>
+<th>Note banque</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Allocations fondateur</td>
+<td>12 × 1 500 € (minimum vital)</td>
+<td>18 000</td>
+<td>À discuter : certains prêteurs exigent de le <strong>montrer</strong> dans le plan ; d’autres préfèrent <strong>bootstrap</strong> dirigeant</td>
+</tr>
+</tbody></table>
+<p><strong>Sous-total postes affectés (3.1 à 3.6) : 32 000 + 16 500 + 29 000 + 22 000 + 12 000 + 13 000 = 124 500 €.</strong><br><strong>Marge de sécurité non affectée (arrondi au montant cible du scénario B) : 10 500 €</strong> — provision explicite, pas un « oubli » : à mobiliser en priorité sur la finalisation mobile (§3.1) si le périmètre IAP natif est retenu (cf. §12 Points de vigilance CTO).<br><strong>Total scénario B sans rémunération dirigeant : 135 000 €.</strong><br><strong>Avec rémunération dirigeant (+18 k€) : ~153 000 €.</strong></p>
+<hr>
+<h2>4. Répartition % (pour slide banque / BPI)</h2>
+<table>
+<thead>
+<tr>
+<th>Poste</th>
+<th>Montant (€)</th>
+<th>% (scénario B, 135 k€)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Produit &amp; développement</td>
+<td>32 000</td>
+<td><strong>24 %</strong></td>
+</tr>
+<tr>
+<td>Communication &amp; marketing</td>
+<td>29 000</td>
+<td><strong>21 %</strong></td>
+</tr>
+<tr>
+<td>Commercial B2B</td>
+<td>22 000</td>
+<td><strong>16 %</strong></td>
+</tr>
+<tr>
+<td>Juridique &amp; admin</td>
+<td>16 500</td>
+<td><strong>12 %</strong></td>
+</tr>
+<tr>
+<td>Trésorerie &amp; imprévus</td>
+<td>13 000</td>
+<td><strong>10 %</strong></td>
+</tr>
+<tr>
+<td>Infra, outils, modération</td>
+<td>12 000</td>
+<td><strong>9 %</strong></td>
+</tr>
+<tr>
+<td>Marge de sécurité non affectée</td>
+<td>10 500</td>
+<td><strong>8 %</strong></td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>135 000</strong></td>
+<td><strong>100 %</strong></td>
+</tr>
+<tr>
+<td><em>(Option dirigeant non inclus)</em></td>
+<td>—</td>
+<td>—</td>
+</tr>
+</tbody></table>
+<p><em>Comparable pitch deck seed : Growth 40 % · Sales 30 % · Produit 20 % · Ops 10 % — même logique, montants adaptés au prêt.</em></p>
+<hr>
+<h2>5. Plan de trésorerie simplifié (hypothèses)</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>M1–M6</th>
+<th>M7–M12</th>
+<th>M13–M15</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Dépenses cumulées (base)</strong></td>
+<td>~55 k€</td>
+<td>~115 k€</td>
+<td>~135 k€</td>
+</tr>
+<tr>
+<td><strong>Revenus sponsors (hyp.)</strong></td>
+<td>5–15 k€</td>
+<td>20–40 k€</td>
+<td>35–55 k€ cumul</td>
+</tr>
+<tr>
+<td><strong>Revenus abos / tips (hyp.)</strong></td>
+<td>faible</td>
+<td>5–15 k€</td>
+<td>10–25 k€ cumul</td>
+</tr>
+<tr>
+<td><strong>Solde net cumulé (hyp.)</strong></td>
+<td>-45 à -50 k€</td>
+<td>-70 à -85 k€</td>
+<td>-60 à -90 k€</td>
+</tr>
+</tbody></table>
+<p><em>Scénario pitch <strong>An 1</strong> : <del>65 k€ revenus pour ~100 k€ charges — déficit ~35 k€ ; le prêt <strong>couvre le gap</strong> avant break-even (</del>An 2 dans l’hypothèse base du deck).</em></p>
+<p><strong>Revenus à ne pas sur-promettre à la banque :</strong> utiliser le <strong>scénario conservateur</strong> (15–25 k€ sponsors année 1) pour le remboursement ; garder le scénario base pour l’equity story.</p>
+<hr>
+<h2>6. Jalons de décaissement (proposition)</h2>
+<table>
+<thead>
+<tr>
+<th>Tranche</th>
+<th>%</th>
+<th>Montant (sur 135 k€)</th>
+<th>Condition</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>T1</td>
+<td>30 %</td>
+<td>40 500 €</td>
+<td>Signature prêt + plan de trésao validé</td>
+</tr>
+<tr>
+<td>T2</td>
+<td>25 %</td>
+<td>33 750 €</td>
+<td>Rapport audit dev + bascule Stripe live OK</td>
+</tr>
+<tr>
+<td>T3</td>
+<td>25 %</td>
+<td>33 750 €</td>
+<td>Avis juriste reçu + soumission TestFlight / Play internal</td>
+</tr>
+<tr>
+<td>T4</td>
+<td>20 %</td>
+<td>27 000 €</td>
+<td>3 contrats sponsors signés ou 5 000 MAU (KPI au choix)</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>7. Capacité de remboursement (indicatif)</h2>
+<table>
+<thead>
+<tr>
+<th>Paramètre</th>
+<th>Valeur indicative</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Montant emprunté</td>
+<td>135 000 €</td>
+</tr>
+<tr>
+<td>Durée</td>
+<td>5 à 7 ans</td>
+</tr>
+<tr>
+<td>Taux (hyp.)</td>
+<td>4,5 – 6,5 % / an</td>
+</tr>
+<tr>
+<td>Mensualité (7 ans, 5,5 %)</td>
+<td><strong>~1 950 €/mois</strong></td>
+</tr>
+<tr>
+<td>Mensualité (5 ans, 5,5 %)</td>
+<td><strong>~2 570 €/mois</strong></td>
+</tr>
+</tbody></table>
+<p><strong>Seuil de revenus mensuels</strong> pour couvrir la mensualité seule (hors charges opérationnelles) : <strong>~2 500 – 3 500 €/mois</strong> de marge disponible — atteignable avec <strong>2–4 contrats Pro Ville</strong> (2 400 €/mois documentés) + sponsors ponctuels, <strong>hypothèse M10+</strong>.</p>
+<p><em>À faire chiffrer par le banquier ; ajouter assurance emprunteur (~0,3–0,5 % capital/an).</em></p>
+<hr>
+<h2>8. Garanties &amp; leviers complémentaires</h2>
+<ul>
+<li><strong>BPI France</strong> : prêt garanti PME / French Tech — souvent demandé par les banques pour <strong>50–70 %</strong> du risque.</li>
+<li><strong>CIR / JEI</strong> : si éligible, mentionner le <strong>MEMO-RD</strong> interne pour crédibilité R&amp;D (ne remplace pas le remboursement du prêt).</li>
+<li><strong>Actif</strong> : code, marque, base utilisateurs, contrats sponsors — pas de garantie matérielle lourde (SaaS lean).</li>
+<li><strong>Apport personnel</strong> : même <strong>10–15 %</strong> du projet améliore nettement le dossier.</li>
+</ul>
+<hr>
+<h2>9. Ce que le prêt ne doit pas financer (transparence)</h2>
+<ul>
+<li>Dividendes ou rachat de parts</li>
+<li>Dette fiscale / URSSAF non planifiée (à régulariser avant dossier)</li>
+<li><strong>Speculation</strong> media sans KPI (garder plafonds ads + mesure ROAS)</li>
+<li>Doublon avec <strong>levée equity</strong> simultanée sans tableau de sources clair</li>
+</ul>
+<hr>
+<h2>10. Checklist pièces jointes banque</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Kbis / statuts / RIB société  </li>
+<li><input disabled="" type="checkbox"> 2–3 derniers bilans ou <strong>prévisionnel 3 ans</strong> (expert-comptable)  </li>
+<li><input disabled="" type="checkbox"> Ce budget + business plan premium (PDF)  </li>
+<li><input disabled="" type="checkbox"> Pitch deck (12 slides)  </li>
+<li><input disabled="" type="checkbox"> Preuves traction : health prod, captures app, <strong>pipeline sponsors</strong> (même LOI)  </li>
+<li><input disabled="" type="checkbox"> Devis signés ou lettres d’intention : dev freelance, avocat  </li>
+<li><input disabled="" type="checkbox"> Tableau des subventions / BPI en cours ou visées</li>
+</ul>
+<hr>
+<h2>11. Une page « executive » à copier dans le courrier banquier</h2>
+<blockquote>
+<p><strong>Projet :</strong> OnScen — réseau social musique &amp; nightlife (carte, lives, sponsors natifs).<br><strong>Demande :</strong> <strong>135 000 €</strong> sur <strong>15 mois</strong> (scénario lancement complet), remboursable sur <strong>5–7 ans</strong>.<br><strong>Emploi des fonds :</strong> 24 % finalisation app &amp; mobile stores, 21 % communication, 16 % commercial B2B sponsors, 12 % juridique/compta, 10 % trésorerie, 9 % infra &amp; modération, 8 % marge de sécurité.<br><strong>Jalons :</strong> Stripe live, conformité juridique, soumission stores, 3 contrats sponsors payants.<br><strong>Revenus An 1 (hyp. conservatrice) :</strong> 15–25 k€ sponsors ; <strong>An 2 (hyp. base interne) :</strong> ~240 k€ — break-even visé ~An 2.<br><strong>Complément :</strong> garantie BPI / apport fondateur <strong>15 k€</strong> envisagés.</p>
+</blockquote>
+<hr>
+<h2>12. Points de vigilance CTO (revue technique du document — 2026-08-10)</h2>
+<p>Revue croisée avec <code>TODO-MANUAL.md</code> et <code>commun/docs/audit/2026-08-audit-technique-complet/</code>.</p>
+<ol>
+<li><strong>Risque de sous-budgétisation mobile (§3.1)</strong> : la ligne « Finalisation mobile » (8 000 – 20 000 €) doit couvrir <em>simultanément</em> le portage du panel hôte live sur Capacitor, la soumission stores, Sign in with Apple <strong>et éventuellement l&#39;IAP natif (StoreKit2/Play Billing)</strong>. <code>TODO-MANUAL.md</code> (item C1) chiffre l&#39;IAP natif seul à <strong>4–8 semaines</strong> de dev — soit, au même TJM (550–650 €/j), <strong>~9 000 – 20 000 €</strong> à lui seul. Si le fondateur tranche pour l&#39;IAP natif obligatoire (plutôt que le scope web-only déjà en place via les garde-fous App Store 3.1.1), la ligne §3.1 doit être <strong>doublée</strong> ou puiser dans la marge de sécurité (§3, note ajoutée). <strong>Action avant dépôt du dossier :</strong> trancher ce scope — cela change le montant demandé de façon non négligeable.</li>
+<li><strong>Risque infra non mentionné explicitement</strong> : les audits internes documentent une architecture <strong>mono-VPS sans CDN/WAF devant l&#39;application</strong> (<code>06-ddos.md</code>, risque qualifié « Élevé ») et <strong>aucun auto-scaling horizontal</strong> opérationnel. Le scénario B cible 5 000–15 000 MAU, pour lequel le VPS actuel suffit (cohérent avec le business plan, poids infra 3–8 % au lancement) — mais ce n&#39;est <strong>pas une garantie en cas de traction plus rapide que prévu</strong> (pic viral, campagne sponsor réussie). Recommandation : ajouter une phrase de risque dans le dossier banque (« infrastructure actuelle dimensionnée pour la phase de lancement ; scaling ultérieur = investissement complémentaire, pas couvert par cet emprunt ») plutôt que de laisser le sujet implicite.</li>
+<li><strong>DPA non signés (Scaleway/Cloudflare/Stripe/Resend)</strong> — coût nul mais action contractuelle identifiée dans l&#39;audit RGPD (<code>09-cgu-rgpd.md</code>), à inclure dans le mandat de l&#39;avocat (§3.2) pour ne pas la perdre de vue ; aucun ajustement budgétaire nécessaire, juste une inclusion explicite du périmètre de mission avocat.</li>
+<li><strong>Erreurs arithmétiques corrigées dans cette révision</strong> : les sous-totaux « Juridique » (18 000 € → 16 500 € réel) et « Communication » (28 000 € → 29 000 € réel) ne correspondaient pas à la somme de leurs propres lignes ; la répartition en % ne totalisait que 93 % au lieu de 100 %. Corrigé en ajoutant une ligne explicite « Marge de sécurité non affectée » (10 500 €, 8 %) plutôt que de masquer l&#39;écart dans un arrondi non tracé. <strong>Un banquier ou un comptable qui refait le calcul doit retrouver exactement les mêmes totaux — c&#39;est fait, à revérifier après tout ajustement manuel ultérieur du document.</strong></li>
+<li><strong>Cohérence sources vérifiée</strong> : coût infra MVP (<del>41–45 €/mois), palier 5 000 DAU (</del>300–350 €/mois), tarif « Pro Ville » (2 400 €/mois HT, confirmé récurrent et non ponctuel dans <code>BUSINESS-PLAN-PREMIUM.md</code>), et chiffres An 1 du pitch deck (~65 k€ revenus / 100 k€ charges) — tous corrects et correctement cités.</li>
+<li><strong>Mensualités d&#39;emprunt (§7)</strong> recalculées indépendamment (formule d&#39;amortissement standard, taux 5,5 %) : ~1 940 €/mois sur 84 mois et ~2 582 €/mois sur 60 mois — cohérent à moins de 1 % des valeurs indicatives du document (arrondis acceptables pour un document marqué « indicatif », à faire chiffrer précisément par la banque).</li>
+</ol>
+<p><strong>Verdict global :</strong> document exploitable pour un dossier bancaire après les corrections ci-dessus (appliquées dans ce fichier). Point bloquant réel avant dépôt : <strong>trancher le scope IAP natif vs web-only</strong> (point 1) — c&#39;est une décision produit, pas technique, qui impacte directement le montant à demander.</p>
+<hr>
+<p><em>Document préparé à partir des hypothèses OnScen documentées — à faire valider par un expert-comptable et l’établissement prêteur. Ne constitue pas un conseil financier réglementé.</em></p>
+
+  <footer class="doc-footer">OnScen · Budget emprunt bancaire · getsoundy.com · 11 août 2026</footer>
+</body>
+</html>

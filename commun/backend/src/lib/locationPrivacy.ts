@@ -1,6 +1,7 @@
 import { User } from '../models/schema';
 import { blurCoordinate } from './geo';
 import { isValidLatLng, sanitizeLatLng } from './mapCoords';
+import { resolveUserAge, userIsKnownMinorForPreciseGeo } from './ageGates';
 
 export type LocationPrecision = 'precise' | 'city';
 
@@ -223,7 +224,42 @@ export function userAllowsPrivateMessages(user: User): boolean {
 }
 
 export function userCityOnlyLocation(user: User): boolean {
-  return user.locationPrecision === 'city';
+  return user.locationPrecision === 'city' || userIsKnownMinorForPreciseGeo(user);
+}
+
+/**
+ * Mineurs (13–17) **confirmés** (âge connu) : géo limitée à la ville, sans GPS live.
+ * Un âge inconnu (comptes historiques sans `birthDate`/`age`) n'est **pas** traité
+ * comme mineur ici — cf. `userIsKnownMinorForPreciseGeo`. Les nouvelles inscriptions
+ * renseignent obligatoirement `birthDate` (voir `routes/auth.ts`), donc ce cas ne
+ * concerne que les comptes créés avant cette obligation.
+ */
+export function userRequiresCityOnlyGeo(user: User): boolean {
+  return userIsKnownMinorForPreciseGeo(user);
+}
+
+/**
+ * Ancre lat/lng sur la ville profil (sans geoUpdatedAt).
+ * Nécessaire pour que nearby / carte fonctionnent sans POST /geo/update.
+ */
+export function syncProfileCityGeo(user: User): void {
+  if (!user.city?.trim()) return;
+  if (userHasLiveGeo(user) && !userRequiresCityOnlyGeo(user)) return;
+  const [lat, lon] = resolveCityCoordinates(user.city);
+  user.latitude = lat;
+  user.longitude = lon;
+  delete user.geoUpdatedAt;
+  user.locationPrecision = 'city';
+}
+
+/** Force précision ville et supprime tout GPS live pour les comptes < 18 ans. */
+export function enforceMinorGeoPolicy(user: User): void {
+  if (!userRequiresCityOnlyGeo(user)) return;
+  user.locationPrecision = 'city';
+  if (userHasLiveGeo(user)) {
+    delete user.geoUpdatedAt;
+  }
+  syncProfileCityGeo(user);
 }
 
 /** Position GPS live (POST /geo/update), pas un backfill ville seul. */
@@ -316,7 +352,11 @@ export function applyPrivacySettings(
     user.shareDistance = Boolean(body.shareDistance);
   }
   if (body.locationPrecision === 'precise' || body.locationPrecision === 'city') {
-    user.locationPrecision = body.locationPrecision;
+    if (body.locationPrecision === 'precise' && userRequiresCityOnlyGeo(user)) {
+      user.locationPrecision = 'city';
+    } else {
+      user.locationPrecision = body.locationPrecision;
+    }
   }
   if (body.allowPrivateMessages !== undefined) {
     user.allowPrivateMessages = Boolean(body.allowPrivateMessages);
@@ -324,5 +364,6 @@ export function applyPrivacySettings(
   if (body.allowExternalEventTags !== undefined) {
     user.allowExternalEventTags = Boolean(body.allowExternalEventTags);
   }
+  enforceMinorGeoPolicy(user);
   refreshUserPublicCoords(user);
 }

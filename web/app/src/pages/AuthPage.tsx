@@ -16,6 +16,8 @@ import { ProfileSetupWizard } from '../components/ProfileSetupWizard';
 import { SignupChatWizard, type SignupChatResult } from '../components/SignupChatWizard';
 import { AuthPageShell } from '../components/AuthSpaceBackground';
 import { TurnstileWidget, isTurnstileEnabledClient } from '../components/TurnstileWidget';
+import { BirthDateInput } from '../components/BirthDateInput';
+import { birthDateErrorMessage, validateBirthDate } from '../lib/profileAge';
 import { startAuthentication } from '@simplewebauthn/browser';
 
 // ─── OAuth provider status ───────────────────────────────────────────────────
@@ -76,7 +78,8 @@ export function AuthPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
-  const [confirmAge, setConfirmAge] = useState(false);
+  const [birthDate, setBirthDate] = useState('');
+  const birthDateError = validateBirthDate(birthDate);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const turnstileRequired = isTurnstileEnabledClient();
   const [rememberMe, setRememberMe] = useState(true);
@@ -97,7 +100,8 @@ export function AuthPage() {
   const [appleOAuthAvailable, setAppleOAuthAvailable] = useState(false);
   const [oauthTermsCode, setOauthTermsCode] = useState<string | null>(null);
   const [oauthAcceptTerms, setOauthAcceptTerms] = useState(false);
-  const [oauthConfirmAge, setOauthConfirmAge] = useState(false);
+  const [oauthBirthDate, setOauthBirthDate] = useState('');
+  const oauthBirthDateError = validateBirthDate(oauthBirthDate);
   const [oauthTermsBusy, setOauthTermsBusy] = useState(false);
 
   // ── Biometric / Face ID ───────────────────────────────────────────────────
@@ -251,8 +255,9 @@ export function AuthPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const completeOAuthTerms = async () => {
-    if (!oauthTermsCode || !oauthConfirmAge) {
-      setError("Vous devez confirmer que vous avez au moins 13 ans");
+    const birthError = validateBirthDate(oauthBirthDate);
+    if (birthError) {
+      setError(birthDateErrorMessage(birthError));
       return;
     }
     if (!oauthAcceptTerms) {
@@ -262,10 +267,10 @@ export function AuthPage() {
     setOauthTermsBusy(true);
     setError('');
     try {
-      const r = await api.exchangeOAuthCode(oauthTermsCode, {
+      const r = await api.exchangeOAuthCode(oauthTermsCode!, {
         acceptTerms: true,
         termsVersion: CURRENT_TERMS_VERSION,
-        confirmAge: true,
+        birthDate: oauthBirthDate.trim(),
       });
       if (r.pending) {
         setRegisterSuccess(
@@ -325,8 +330,13 @@ export function AuthPage() {
         setError('Les inscriptions sont fermées. Demandez une invitation à l’administrateur.');
         return;
       }
-      if (!confirmAge) {
-        setError("Vous devez confirmer que vous avez au moins 13 ans");
+      if (!birthDate.trim()) {
+        setError('Indiquez votre date de naissance');
+        return;
+      }
+      const birthError = validateBirthDate(birthDate);
+      if (birthError) {
+        setError(birthDateErrorMessage(birthError));
         return;
       }
       if (!acceptTerms) {
@@ -382,7 +392,7 @@ export function AuthPage() {
           true,
           CURRENT_TERMS_VERSION,
           inviteCode.trim(),
-          confirmAge,
+          birthDate.trim(),
           turnstileToken
         );
         if (r.pending) {
@@ -549,7 +559,7 @@ export function AuthPage() {
     setConfirmPassword('');
     setUsernameStatus('idle');
     setUsernameMessage('');
-    setConfirmAge(false);
+    setBirthDate('');
     setAcceptTerms(false);
   };
 
@@ -568,6 +578,7 @@ export function AuthPage() {
       <ProfileSetupWizard
         token={pendingSignup.token}
         username={pendingSignup.user.username}
+        birthDate={pendingSignup.user.birthDate}
         title="Créez votre profil"
         subtitle="Étape 2 sur 2 — personnalisez votre expérience OnScen"
         onDone={finishSignupProfile}
@@ -594,15 +605,16 @@ export function AuthPage() {
           <p className="text-sm text-gray-400 text-center">
             Acceptez les conditions pour activer votre compte créé via Google.
           </p>
-          <label className="flex items-start gap-2 cursor-pointer text-xs text-gray-400 leading-snug">
-            <input
-              type="checkbox"
-              checked={oauthConfirmAge}
-              onChange={(e) => setOauthConfirmAge(e.target.checked)}
-              className="onscen-checkbox mt-0.5 shrink-0"
-            />
-            <span>{t('auth.ageConfirmCheckbox')}</span>
-          </label>
+          <div className="space-y-1">
+            <span className="text-[11px] font-medium text-gray-400">
+              {t('auth.birthDateLabel', { defaultValue: 'Date de naissance' })}{' '}
+              <span className="text-purple-400">*</span>
+            </span>
+            <BirthDateInput value={oauthBirthDate} onChange={setOauthBirthDate} />
+            {oauthBirthDate && oauthBirthDateError ? (
+              <p className="text-[11px] text-red-400">{birthDateErrorMessage(oauthBirthDateError)}</p>
+            ) : null}
+          </div>
           <label className="flex items-start gap-2 cursor-pointer text-xs text-gray-400 leading-snug">
             <input
               type="checkbox"
@@ -625,7 +637,12 @@ export function AuthPage() {
           {error && <p className="text-sm text-red-400">{error}</p>}
           <button
             type="button"
-            disabled={oauthTermsBusy || !oauthAcceptTerms || !oauthConfirmAge}
+            disabled={
+              oauthTermsBusy ||
+              !oauthAcceptTerms ||
+              !oauthBirthDate.trim() ||
+              Boolean(oauthBirthDateError)
+            }
             onClick={() => void completeOAuthTerms()}
             className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 font-bold text-white disabled:opacity-50 transition"
           >
@@ -641,12 +658,13 @@ export function AuthPage() {
       fitViewport
       className="flex flex-col items-center justify-start px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.35rem,env(safe-area-inset-top))] sm:px-6"
     >
-      <div className="flex h-full min-h-0 max-h-full w-full max-w-sm flex-col">
-        <header className="shrink-0 pb-2 pt-0.5 text-center">
-          <OnScenLogo variant="lockup" density="compact" showMark={false} className="mx-auto" />
-        </header>
+      <div className="mx-auto flex h-full min-h-0 max-h-full w-full max-w-sm flex-col">
+        {/* Logo centré verticalement entre le haut de la fenêtre et le bloc auth */}
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
+          <OnScenLogo variant="lockup" density="compact" showMark={false} className="mx-auto w-fit" />
+        </div>
 
-        <div className="flex min-h-0 flex-1 flex-col justify-center gap-2.5">
+        <div className="flex shrink-0 flex-col gap-2.5 overflow-y-auto overscroll-contain">
         {pendingSalonId && (
           <p className="text-center text-xs text-purple-300 bg-purple-500/10 border border-purple-500/30 rounded-xl px-3 py-2 shrink-0">
             {t('auth.pendingSalon')}
@@ -789,16 +807,16 @@ export function AuthPage() {
           )}
 
           {mode === 'register' && (
-            <label className="flex items-start gap-2 cursor-pointer text-xs text-gray-400 leading-snug">
-              <input
-                type="checkbox"
-                checked={confirmAge}
-                onChange={(e) => setConfirmAge(e.target.checked)}
-                className="onscen-checkbox mt-0.5 shrink-0"
-                required
-              />
-              <span>{t('auth.ageConfirmCheckbox')}</span>
-            </label>
+            <div className="space-y-1">
+              <span className="text-[11px] font-medium text-gray-400">
+                {t('auth.birthDateLabel', { defaultValue: 'Date de naissance' })}{' '}
+                <span className="text-purple-400">*</span>
+              </span>
+              <BirthDateInput value={birthDate} onChange={setBirthDate} />
+              {birthDate && birthDateError ? (
+                <p className="text-[11px] text-red-400">{birthDateErrorMessage(birthDateError)}</p>
+              ) : null}
+            </div>
           )}
 
           {mode === 'register' && (
@@ -851,7 +869,10 @@ export function AuthPage() {
             disabled={
               loading ||
               (mode === 'register' &&
-                (!acceptTerms || !confirmAge || (turnstileRequired && !turnstileToken)))
+                (!acceptTerms ||
+                  !birthDate.trim() ||
+                  Boolean(birthDateError) ||
+                  (turnstileRequired && !turnstileToken)))
             }
             className="w-full rounded-xl bg-purple-600 py-2.5 text-sm font-bold text-white transition hover:bg-purple-500 disabled:opacity-50"
           >
@@ -1001,7 +1022,7 @@ export function AuthPage() {
             setConfirmPassword('');
             setUsernameStatus('idle');
             setUsernameMessage('');
-            setConfirmAge(false);
+            setBirthDate('');
           }}
         >
           {mode === 'login'
@@ -1012,6 +1033,9 @@ export function AuthPage() {
         </button>
         )}
         </div>
+
+        {/* Espace symétrique sous l’auth → le logo reste au milieu de la zone haute */}
+        <div className="min-h-0 flex-1" aria-hidden />
       </div>
     </AuthPageShell>
   );

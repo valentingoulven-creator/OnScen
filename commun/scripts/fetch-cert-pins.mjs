@@ -1,11 +1,18 @@
 #!/usr/bin/env node
 /**
- * Extrait les pins SPKI SHA-256 pour getsoundy.com (SSL pinning Android).
+ * Extrait les pins SPKI SHA-256 pour onscen.com + getsoundy.com (SSL pinning Android).
  *
- * Pin le certificat feuille (leaf, Cloudflare, rotation ~90j) ET le certificat
- * intermédiaire (issuer, rotation beaucoup plus rare) comme pin de secours —
- * recommandation OWASP « au moins 2 pins » pour éviter de « bricker » l'app au
- * prochain renouvellement TLS si un seul pin (le leaf) est utilisé.
+ * Domaine canonique `onscen.com` (2026-08-10, cf. commun/docs/ONSCEN-DOMAINE.md) et legacy
+ * `getsoundy.com` dual-hostés sur des certificats Caddy/Let's Encrypt DISTINCTS (CN et
+ * empreintes différentes, vérifié — pas un SAN partagé) : les deux domaines nécessitent
+ * chacun leur propre <domain-config> avec pin-set, sinon `onscen.com` (utilisé par
+ * capacitor.config.prod.json + VITE_API_URL mobile) retombe sur le <base-config> sans
+ * pinning.
+ *
+ * Pin le certificat feuille (leaf, rotation ~90j) ET le certificat intermédiaire (issuer,
+ * rotation beaucoup plus rare) comme pin de secours par domaine — recommandation OWASP
+ * « au moins 2 pins » pour éviter de « bricker » l'app au prochain renouvellement TLS si
+ * un seul pin (le leaf) est utilisé.
  *
  * Usage : node commun/scripts/fetch-cert-pins.mjs [--write]
  */
@@ -15,7 +22,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const HOST = 'getsoundy.com';
+const HOSTS = ['onscen.com', 'getsoundy.com'];
 // commun/scripts/ -> racine repo = deux niveaux au-dessus (restructuration monorepo du 09/07/2026 ;
 // l'ancien chemin à un seul niveau pointait vers commun/ios/... et n'écrivait jamais le bon fichier).
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -59,9 +66,9 @@ function expirationFromCert(cert) {
   return d.toISOString().slice(0, 10);
 }
 
-async function main() {
-  const chain = await fetchChain(HOST);
-  if (chain.length < 1) throw new Error('Aucun certificat reçu');
+async function pinsForHost(host) {
+  const chain = await fetchChain(host);
+  if (chain.length < 1) throw new Error(`Aucun certificat reçu pour ${host}`);
 
   const leaf = chain[0];
   // Intermédiaire = dernier certificat de la chaîne qui n'est pas auto-signé (root) ;
@@ -78,32 +85,46 @@ async function main() {
   const expiration = expirationFromCert(leaf);
 
   for (const { cert, label } of pins) {
-    console.log(`[${label}] subject=${cert.subject?.CN} issuer=${cert.issuer?.CN} pin=${spkiPinFromCert(cert)} expires=${cert.valid_to}`);
+    console.log(`[${host}/${label}] subject=${cert.subject?.CN} issuer=${cert.issuer?.CN} pin=${spkiPinFromCert(cert)} expires=${cert.valid_to}`);
   }
-  console.log(`Suggested pin-set expiration: ${expiration}`);
+
+  return { host, pins, expiration };
+}
+
+async function main() {
+  const results = [];
+  for (const host of HOSTS) {
+    results.push(await pinsForHost(host));
+  }
 
   if (!process.argv.includes('--write')) return;
 
-  const pinLines = pins
-    .map(({ cert, label }) => `            <pin digest="SHA-256">${spkiPinFromCert(cert)}</pin> <!-- ${label} -->`)
+  const domainBlocks = results
+    .map(({ host, pins, expiration }) => {
+      const pinLines = pins
+        .map(({ cert, label }) => `            <pin digest="SHA-256">${spkiPinFromCert(cert)}</pin> <!-- ${label} -->`)
+        .join('\n');
+      return `    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">${host}</domain>
+        <pin-set expiration="${expiration}">
+${pinLines}
+        </pin-set>
+    </domain-config>`;
+    })
     .join('\n');
 
   const xml = `<?xml version="1.0" encoding="utf-8"?>
-<!-- Généré par commun/scripts/fetch-cert-pins.mjs — Cloudflare : renouveler avant expiration.
-     2 pins (leaf + intermédiaire de secours) pour éviter de bloquer l'app au
-     prochain renouvellement TLS du leaf seul (recommandation OWASP). -->
+<!-- Généré par commun/scripts/fetch-cert-pins.mjs — renouveler avant expiration.
+     onscen.com (canonique) + getsoundy.com (legacy) : certificats Caddy/Let's Encrypt
+     DISTINCTS, chacun avec 2 pins (leaf + intermédiaire de secours, recommandation OWASP)
+     pour éviter de bloquer l'app au prochain renouvellement TLS du leaf seul. -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
-    <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">${HOST}</domain>
-        <pin-set expiration="${expiration}">
-${pinLines}
-        </pin-set>
-    </domain-config>
+${domainBlocks}
 </network-security-config>
 `;
   fs.writeFileSync(xmlPath, xml, 'utf8');

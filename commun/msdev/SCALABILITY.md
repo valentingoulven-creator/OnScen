@@ -7,6 +7,32 @@
 
 ---
 
+## 0. Quand migrer ? Seuils de déclenchement (ajouté 2026-08-11)
+
+> **Contexte** : au 2026-08-11, OnScen compte ~439 comptes actifs en base prod. La section 2
+> (PostgreSQL/Redis partagé, Socket.IO multi-process, PM2 cluster, CDN) est une **dette
+> technique légitime mais prématurée** à ce stade — l'implémenter maintenant mobiliserait du
+> temps de dev sans bénéfice mesurable et retarderait des correctifs sécurité/légaux plus
+> urgents (voir `commun/docs/audit/2026-08-11/00-synthese.md`). Ce n'est **pas** un chantier à lancer par anticipation ;
+> c'est un chantier à lancer **sur signal**, avant que le signal ne devienne un incident.
+
+**Signaux de déclenchement (n'importe lequel suffit à ouvrir le chantier) :**
+
+| Signal | Seuil | Comment le mesurer |
+|---|---|---|
+| Alertes infra répétées | CPU/RAM/disque ≥ 80 % ou latence p95 > 1000 ms **de façon récurrente** (pas un pic isolé) | Déjà instrumenté : `serverMonitor.ts` (`ALERT_CPU_PERCENT`, `ALERT_RAM_PERCENT`, `ALERT_DISK_PERCENT`, `ALERT_LATENCY_MS`) — ces alertes existent déjà, il suffit de les surveiller |
+| Connexions Socket.IO simultanées | > 3 000–5 000 connexions concurrentes (limite indicative d'un seul process Node sur `db-play2-nano`/VPS actuel) | `io.engine.clientsCount` ou dashboard PM2 |
+| Comptes actifs (30j) | > 5 000–10 000 | Requête PostgreSQL (`account_status`, `last_seen_at`) |
+| Croissance planifiée | Campagne marketing / lancement store avec pic attendu | Décision produit — anticiper **avant** le pic, pas après |
+| Connexions PostgreSQL | Approche de la limite `max_connections` (150, cf. `scw rdb instance get`) | Scaleway console / `pg_stat_activity` |
+
+**Recommandation :** ne pas ouvrir le chantier de refonte tant qu'aucun signal n'est atteint.
+Dès qu'un signal se déclenche, prioriser dans cet ordre : (1) PM2 cluster multi-instance +
+adaptateur Redis Socket.IO (§2.2, gain rapide, pas de refonte du store), (2) migration du store
+RAM vers PostgreSQL/Redis (§2.1, plus lourd), (3) reste de la section 2.
+
+---
+
 ## 1. Optimisations déjà implémentées (juin 2026)
 
 ### Frontend

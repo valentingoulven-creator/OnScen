@@ -24,7 +24,7 @@ interface AuthCtx {
     acceptTerms: boolean,
     termsVersion: string,
     inviteCode?: string,
-    confirmAge?: boolean
+    birthDate?: string
   ) => Promise<{ emailVerificationRequired: true; message: string } | void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -197,7 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     acceptTerms: boolean,
     termsVersion: string,
     inviteCode?: string,
-    confirmAge?: boolean
+    birthDate?: string
   ) => {
     const r = await api.register(
       username,
@@ -206,7 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       acceptTerms,
       termsVersion,
       inviteCode,
-      confirmAge
+      birthDate
     );
     if (r.pending) {
       throw new Error(

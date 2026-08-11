@@ -168,6 +168,7 @@ export abstract class BaseAgent {
       password: this.persona.password,
       acceptTerms: true,
       termsVersion: '2024-01',
+      birthDate: '2000-06-15',
     }, 'Inscription');
 
     if (result.success && result.data) {

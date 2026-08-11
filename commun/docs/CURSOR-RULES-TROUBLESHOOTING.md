@@ -57,4 +57,4 @@ Les deux `Test-Path` doivent afficher `True`.
 
 ## Doc complète
 
-[`docs/CURSOR-AGENT-CONFIG.md`](../../docs/CURSOR-AGENT-CONFIG.md) · [`AGENTS.md`](../../AGENTS.md)
+[`commun/docs/CURSOR-AGENT-CONFIG.md`](./CURSOR-AGENT-CONFIG.md) · [`AGENTS.md`](../../AGENTS.md)

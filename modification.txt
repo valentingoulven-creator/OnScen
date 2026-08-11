@@ -37730,3 +37730,305 @@ BUILD
 ================================================================================
 Fin MODIF 1348 — 2026-08-10
 ================================================================================
+
+================================================================================
+MODIF 1349 — Inscription : date de naissance obligatoire (étape compte)
+================================================================================
+Date : 2026-08-11
+
+OBJECTIF / PROBLÈME
+----
+ Recommandation CTO : remplacer la simple case « j'ai 13 ans » par une date de
+ naissance validée serveur dès la création de compte (email, OAuth, wizard).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/routes/auth.ts
+ ─────────────────
+ • POST /register : birthDate obligatoire (parseBirthDateInput, ≥ 13 ans).
+ • applyAgeSettings à la création (hideBirthDateOnProfile, showAge défaut).
+
+ commun/backend/src/routes/oauth.ts
+ ─────────────────
+ • POST /oauth/exchange (nouveau compte) : birthDate requis, même validation.
+
+ web/app/src/components/SignupChatWizard.tsx
+ web/app/src/pages/AuthPage.tsx
+ web/app/src/lib/api/auth.ts
+ web/app/src/context/AuthContext.tsx
+ ─────────────────
+ • BirthDateInput à la place de confirmAge (guided, classic, OAuth finalisation).
+
+ web/app/src/components/ProfileSetupWizard.tsx
+ ─────────────────
+ • DOB retirée de l'étape profil (déjà collectée) ; toggles visibilité conservés.
+
+ commun/tests/agents/agent.ts
+ web/app/src/locales/fr.json · en.json
+ ─────────────────
+ • birthDate dans register agent ; clés askBirthDate / birthDateLabel.
+
+FICHIERS MODIFIÉS
+-----
+ Backend auth/oauth · SignupChatWizard · AuthPage · ProfileSetupWizard · API · locales
+
+BUILD (si vérifié)
+-----
+ commun/backend npm test → 508/508 ✅
+ web/app npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 1349 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1350 — Géo mineurs 13–17 : blocage UI + mention opt-in
+================================================================================
+Date : 2026-08-11
+
+OBJECTIF / PROBLÈME
+----
+ Vérifier que l'UI ne contourne pas GEO_MINOR_RESTRICTED (précision max client).
+ Mention explicite à l'activation géo pour les 13–17 ans.
+ Politique : <13 bloqué (DOB), 13–17 ville/flou, 18+ précis avec consentement.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/ageGates.ts · locationPrivacy.ts
+ ─────────────────
+ • GEO_PRECISE_MIN_AGE = 18 ; enforceMinorGeoPolicy / syncProfileCityGeo.
+ • applyPrivacySettings refuse locationPrecision « precise » pour < 18 ans.
+
+ commun/backend/src/routes/auth.ts · oauth.ts
+ ─────────────────
+ • enforceMinorGeoPolicy à l'inscription.
+
+ web/app/src/lib/geoAgePolicy.ts
+ ─────────────────
+ • canUsePreciseGeo / isGeoMinor (aligné backend).
+
+ web/app/src/hooks/useHomeGeoRefresh.ts · pages/HomePage.tsx
+ ─────────────────
+ • Pas de GPS client ni POST /geo/update pour les mineurs (fallback ville).
+
+ web/app/src/components/ProfileSetupWizard.tsx
+ ─────────────────
+ • Étape position : copy 13–17, bouton « ville approximative », API city only.
+
+FICHIERS MODIFIÉS
+-----
+ Backend ageGates/locationPrivacy/auth/oauth · geoAgePolicy · HomePage · ProfileSetupWizard
+
+BUILD (si vérifié)
+-----
+ commun/backend locationPrivacy tests → 7/7 ✅
+ web/app npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 1350 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1351 — PDF budget emprunt bancaire
+================================================================================
+Date : 2026-08-11
+
+OBJECTIF / PROBLÈME
+----
+ Générer un PDF du dossier banque à partir de BUDGET-EMPRIUNT-BANCAIRE-ONSCEN.md.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/generate-budget-bancaire-pdf.mjs
+ ─────────────────
+ • Script Edge headless (style dossier juridique).
+
+ commun/docs/strategie/BUDGET-EMPRIUNT-BANCAIRE-ONSCEN.pdf
+ commun/docs/strategie/package.json · README.md
+ ─────────────────
+ • npm run pdf:budget-bancaire · index README.
+
+FICHIERS MODIFIÉS
+-----
+ generate-budget-bancaire-pdf.mjs · PDF généré · package.json · README.md
+
+BUILD (si vérifié)
+-----
+ npm run pdf:budget-bancaire → ✅
+
+================================================================================
+Fin MODIF 1351 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1352 — Correctifs audit technique (C8, build cassé, E15, E12, E13)
+================================================================================
+Date : 2026-08-11
+
+OBJECTIF / PROBLÈME
+----
+ Appliquer les correctifs techniques identifiés dans audit/00-synthese.md
+ (refresh du 2026-08-11) pour assainir l'audit, hors points nécessitant une
+ décision légale/business ou une opération infra irréversible (voir rapport
+ de session pour la liste de ce qui reste hors scope).
+
+CHANGEMENTS / FIX
+-----
+ web/app/package.json
+ ─────────────────
+ • jspdf ^3.0.4 → ^4.2.1 (C8 — vulnérabilités critiques CVSS jusqu'à 9.6 :
+   LFI, injection PDF, XSS via window.open, DoS décodeur image). 0 vulnérabilité
+   après upgrade (npm audit). jspdf-autotable ^5.0.8 compatible (peer ^2||^3||^4).
+
+ web/app/src/pages/AuthPage.tsx · components/SignupChatWizard.tsx
+ ─────────────────
+ • BUG BLOQUANT (préexistant, découvert en vérifiant `npm run build` — la
+   vérification précédente MODIF 1349 utilisait seulement `tsc --noEmit` qui
+   ne détecte pas cette erreur, contrairement à `tsc -b` utilisé par le build) :
+   validateBirthDate(birthDate) appelé deux fois (condition JSX + message
+   d'erreur) → TS ne peut pas relier les deux appels → build prod cassé.
+ • Fix : birthDateError / oauthBirthDateError calculés une seule fois (dérivés
+   du state), réutilisés partout (condition, message, disabled bouton).
+
+ commun/backend/src/lib/ageGates.ts
+ ─────────────────
+ • Ajout userIsKnownMinorForPreciseGeo(user) : true seulement si l'âge est
+   CONNU et < 18 ans (contrairement à userMeetsPreciseGeoAgeFromProfile qui
+   traite un âge inconnu comme non éligible — fail-closed, gardé tel quel
+   pour les dons où c'est le comportement voulu).
+
+ commun/backend/src/lib/locationPrivacy.ts
+ ─────────────────
+ • E15 — RÉGRESSION CRITIQUE ÉVITÉE : requête prod en lecture seule (2026-08-11)
+   → 418/439 comptes actifs (95 %) n'ont NI birthDate NI age. La politique
+   introduite par MODIF 1350 (âge inconnu = traité comme mineur → ville/flou)
+   aurait dégradé silencieusement la précision géo pour la quasi-totalité des
+   comptes existants si déployée telle quelle.
+ • Fix : userRequiresCityOnlyGeo / userCityOnlyLocation utilisent désormais
+   userIsKnownMinorForPreciseGeo — seuls les mineurs CONFIRMÉS (âge connu <18)
+   sont restreints. Les comptes à âge inconnu (légacy, pré-obligation DOB)
+   conservent leur précision géo existante ("grandfathering"). Les nouvelles
+   inscriptions renseignent obligatoirement birthDate (MODIF 1349) donc ce cas
+   ne concerne que les comptes créés avant cette obligation.
+ • Comportement déjà correct par ailleurs dans routes/geo.ts (POST /geo/update
+   ne bloquait déjà que les mineurs à âge CONNU) — la fix aligne locationPrivacy
+   sur ce pattern déjà en place.
+
+ commun/backend/src/lib/locationPrivacy.test.ts
+ ─────────────────
+ • +3 tests verrouillant le grandfathering âge inconnu (pas de restriction
+   city-only, conservation du mode précis existant, activation du mode précis
+   possible via applyPrivacySettings).
+
+ Infra prod (lecture + actions ciblées, hors code versionné)
+ ─────────────────
+ • E11 — Vérifié : SIGHTENGINE_FAIL_OPEN=0 déjà configuré en prod (fail-closed
+   explicite sur erreur API modération). Rien à corriger.
+ • E5 — Vérifié : privacy.ts annonce déjà "6 mois" pour les logs techniques
+   (pas 12 mois comme le supposait un audit antérieur obsolète) ; implémentation
+   réelle app_diagnostic_logs = 5 mois ≤ promesse. Conforme, rien à corriger.
+ • E12 — REVOKE CREATEROLE, REVOKE CREATEDB sur le rôle applicatif `soundy`
+   (PostgreSQL prod). Aucune migration ne requiert ces privilèges. Vérifié
+   post-changement : /health → db:ok, app fonctionnelle.
+ • E13 — Process fantôme `soundy-auth` (pm2 id 8, /opt/onscen/deploy/auth-server,
+   gate basic-auth avec identifiant unique bcrypt codé en dur, résidu de la
+   migration de domaine) : confirmé non routé par Caddy (0 référence dans les
+   3 configs actives), écoute 127.0.0.1:3001 uniquement (non exposé publiquement).
+   Supprimé de pm2 (`pm2 delete soundy-auth && pm2 save`) pour ne pas persister
+   au reboot. onscen-backend non affecté, /health OK après suppression.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/package.json → jspdf ^4.2.1
+ web/app/src/pages/AuthPage.tsx → fix build birthDateError
+ web/app/src/components/SignupChatWizard.tsx → fix build birthDateError
+ commun/backend/src/lib/ageGates.ts → userIsKnownMinorForPreciseGeo
+ commun/backend/src/lib/locationPrivacy.ts → grandfathering âge inconnu
+ commun/backend/src/lib/locationPrivacy.test.ts → +3 tests
+ Infra prod : rôle DB soundy (NOCREATEROLE/NOCREATEDB), pm2 (soundy-auth supprimé)
+
+BUILD (si vérifié)
+-----
+ commun/backend/ → npm run build (tsc) → ✅
+ commun/backend/ → npx vitest run → 513/513 ✅
+ web/app/ → npx tsc --noEmit → ✅
+ web/app/ → npm run build → ✅
+ web/app/ → npm test -- --run → 576/576 ✅
+ Prod https://getsoundy.com/health → 200, db:ok (avant et après REVOKE + suppression soundy-auth)
+
+HORS SCOPE (nécessite décision légale/business ou action infra à risque —
+voir rapport de session pour détail complet)
+-----
+ • C1 (CSAM hash-matching), C2 (runbook validation juriste), C3 (licences
+   musicales SACEM/UGC), C4 (purge historique Git — réécriture destructive),
+   C5 (refonte scaling PM2/RAM), C6 (modération live WebRTC temps réel),
+   C7 (bascule DNS Cloudflare WAF/CDN).
+ • E1 (OAuth Google mode test → Play Store), E4 (signature DPA sous-traitants),
+   E6 (test de restauration backup réel), E7 (SPOF infra), E10 (conformité
+   IAP stores), E16 (arbitrage seuil âge live 16 vs 18 ans).
+
+================================================================================
+Fin MODIF 1352 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1353 — Rangement repo : doublons, audit, mobile, binaires
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Désordre local : dossier `deploy/` obsolète à la racine (Caddyfile pre-rebrand),
+ `audit/` et `docs/` éparpillés, export mobile `MeloSong-Mobile/` vs scripts
+ `OnScen-Mobile/`, binaire `msdev.exe` (46 Mo) et `www/` mobile versionnés,
+ churn assets build (89 supprimés + 98 non suivis).
+
+CHANGEMENTS / FIX
+-----
+ .gitignore
+ ─────────────────
+ • `.cursor/*.pid`, `commun/msdev/release/`, `android/*/www/`, log DNS scripts.
+
+ deploy/ (racine)
+ ─────────────────
+ • Supprimé — canonical = `commun/deploy/` uniquement.
+
+ commun/app/
+ ─────────────────
+ • Supprimé — fichier orphelin `reelsDemoCatalog.ts` (doublon web/backend).
+
+ audit/ → commun/docs/audit/2026-08-11/
+ ─────────────────
+ • 14 fichiers déplacés ; références mises à jour (SCALABILITY, ageGates, dev-agent).
+
+ docs/ → commun/docs/
+ ─────────────────
+ • `CURSOR-AGENT-CONFIG.md`, `internal/notes-whats-up.ini` consolidés.
+
+ android/MeloSong-Mobile/ → android/OnScen-Mobile/
+ ─────────────────
+ • Renommage aligné sur `sync-mobile-export.js` ; README + scripts build mis à jour.
+ • `www/` retiré du suivi Git (regénéré via `npm run mobile:build`).
+
+ commun/msdev/release/
+ ─────────────────
+ • Retiré du suivi Git (~46 Mo msdev.exe + assets embarqués) — regénérable `npm run build:exe`.
+
+ commun/backend/public/assets/
+ ─────────────────
+ • Rebuild `npm run app:build` + assets consolidés (suppression anciens hashes).
+
+FICHIERS MODIFIÉS
+-----
+ .gitignore · deploy/ (supprimé) · commun/app/ (supprimé) · audit/ → commun/docs/audit/2026-08-11/
+ docs/ → commun/docs/ · android/OnScen-Mobile/ · commun/msdev/release/ (untrack)
+ commun/backend/public/ · références audit/mobile dans code et docs
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm run build → ✅
+ npm run src:clean → 0 doublon apptel
+
+================================================================================
+Fin MODIF 1353 — 2026-08-11
+================================================================================
