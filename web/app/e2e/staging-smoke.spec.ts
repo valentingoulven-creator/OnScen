@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const STAGING = process.env.E2E_BASE_URL ?? 'https://staging.getsoundy.com';
+const STAGING = process.env.E2E_BASE_URL ?? 'https://staging.onscen.com';
 const API = process.env.E2E_API_URL ?? STAGING;
 
 test.describe('Staging smoke — infra', () => {
@@ -95,7 +95,7 @@ test.describe('Staging smoke — bundle map/events', () => {
   });
 });
 
-const STAGING_EMAIL = process.env.E2E_STAGING_EMAIL ?? 'admin@staging.getsoundy.com';
+const STAGING_EMAIL = process.env.E2E_STAGING_EMAIL ?? 'admin@staging.onscen.com';
 const STAGING_PASSWORD = process.env.E2E_STAGING_PASSWORD ?? '';
 
 async function loginStaging(request: import('@playwright/test').APIRequestContext) {

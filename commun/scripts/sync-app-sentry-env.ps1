@@ -45,7 +45,7 @@ if ($Environment -eq 'preproduction') {
     $demoEmail = ($backendLines | Where-Object { $_ -match '^\s*STAGING_DEMO_LOGIN_EMAIL\s*=' } | Select-Object -First 1) -replace '^\s*STAGING_DEMO_LOGIN_EMAIL\s*=\s*', ''
     $demoPassword = ($backendLines | Where-Object { $_ -match '^\s*STAGING_DEMO_LOGIN_PASSWORD\s*=' } | Select-Object -First 1) -replace '^\s*STAGING_DEMO_LOGIN_PASSWORD\s*=\s*', ''
     $demoAuto = ($backendLines | Where-Object { $_ -match '^\s*STAGING_DEMO_AUTO_LOGIN\s*=' } | Select-Object -First 1) -replace '^\s*STAGING_DEMO_AUTO_LOGIN\s*=\s*', ''
-    if (-not $demoEmail) { $demoEmail = 'admin@staging.getsoundy.com' }
+    if (-not $demoEmail) { $demoEmail = 'admin@staging.onscen.com' }
     if (-not $demoAuto) { $demoAuto = '1' }
     if ($demoEmail) { $appEnvLines += "VITE_DEMO_LOGIN_EMAIL=$demoEmail" }
     if ($demoPassword) { $appEnvLines += "VITE_DEMO_LOGIN_PASSWORD=$demoPassword" }

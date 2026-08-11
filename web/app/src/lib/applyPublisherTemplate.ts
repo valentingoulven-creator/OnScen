@@ -45,8 +45,8 @@ export function applyPublisherTemplate(text: string, config: LegalPublisherConfi
     mediatorName: config.mediatorName?.trim() || '—',
     mediatorUrl: config.mediatorUrl?.trim() || 'https://ec.europa.eu/consumers/odr/',
     dpoEmail: config.dpoEmail?.trim() || 'non désigné',
-    contactEmail: config.contactEmail?.trim() || 'admin@getsoundy.com',
-    privacyEmail: config.privacyEmail?.trim() || 'admin@getsoundy.com',
+    contactEmail: config.contactEmail?.trim() || 'admin@onscen.com',
+    privacyEmail: config.privacyEmail?.trim() || 'admin@onscen.com',
     productionDomain: config.productionDomain?.trim() || '[À compléter : productionDomain]',
   };
 

@@ -33,7 +33,10 @@ interface MapAdBannerProps {
 }
 
 /** Attente avant refetch après déplacement carte (ms). */
-const MAP_SPONSOR_FETCH_DEBOUNCE_MS = 2000;
+const MAP_SPONSOR_FETCH_DEBOUNCE_MS = 4500;
+
+/** Durée du fondu entre deux slides (alignée sur transition-opacity duration-200). */
+const SPONSOR_CAROUSEL_FADE_MS = 200;
 
 function isBannerClickable(ad: MapAd): boolean {
   const action = ad.actionId ?? (ad.id === 'salon' ? 'salon' : ad.id === 'live' ? 'live' : undefined);
@@ -208,8 +211,10 @@ export function MapAdBanner({ viewport, isActive = true, onCtaSalon, onCtaLive }
   const [fading, setFading] = useState(false);
   const fetchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchGenerationRef = useRef(0);
+  const indexRef = useRef(0);
   const adsRef = useRef(ads);
   adsRef.current = ads;
+  indexRef.current = index;
   const viewportKey = buildMapSponsorViewportFetchKey(viewport);
   const adsRotationKey = ads.map((a) => a.id).join(',');
 
@@ -286,33 +291,43 @@ export function MapAdBanner({ viewport, isActive = true, onCtaSalon, onCtaLive }
   }, [viewportKey, isActive, viewport]);
 
   useEffect(() => {
-    if (!adsRotationKey || ads.length <= 1) return;
+    if (!isActive || !adsRotationKey || ads.length <= 1) {
+      setFading(false);
+      return;
+    }
+
     let cancelled = false;
-    let timer: number | undefined;
+    let rotateTimer: number | undefined;
+    let fadeTimer: number | undefined;
     const list = adsRef.current;
+    const startIndex = indexRef.current % list.length;
 
     const scheduleNext = (currentIndex: number) => {
       if (cancelled) return;
       const currentAd = list[currentIndex % list.length];
       if (!currentAd) return;
-      timer = window.setTimeout(() => {
+
+      rotateTimer = window.setTimeout(() => {
         if (cancelled) return;
         setFading(true);
-        window.setTimeout(() => setFading(false), 180);
-        setIndex((i) => {
-          const nextIndex = (i + 1) % list.length;
+        fadeTimer = window.setTimeout(() => {
+          if (cancelled) return;
+          const nextIndex = (currentIndex + 1) % list.length;
+          setIndex(nextIndex);
+          indexRef.current = nextIndex;
+          setFading(false);
           scheduleNext(nextIndex);
-          return nextIndex;
-        });
+        }, SPONSOR_CAROUSEL_FADE_MS);
       }, getMapBannerDisplayDurationMs(currentAd.displayDurationSec));
     };
 
-    scheduleNext(0);
+    scheduleNext(startIndex);
     return () => {
       cancelled = true;
-      if (timer != null) clearTimeout(timer);
+      if (rotateTimer != null) clearTimeout(rotateTimer);
+      if (fadeTimer != null) clearTimeout(fadeTimer);
     };
-  }, [adsRotationKey, ads.length]);
+  }, [adsRotationKey, ads.length, isActive]);
 
   const visibleAd = ads.length > 0 ? ads[index % ads.length] : null;
 

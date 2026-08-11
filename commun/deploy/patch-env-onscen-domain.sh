@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # patch-env-onscen-domain.sh — WEB_APP_URL + CORS multi-origines pour onscen.com
+# getsoundy.com décommissionné (2026-08-11, hard stop côté Caddy) — plus aucune origine
+# getsoundy.com dans CORS_ORIGIN/WEBAUTHN_ORIGIN à partir de cette version du script.
 # Usage : bash patch-env-onscen-domain.sh prod|staging
 set -euo pipefail
 
@@ -17,10 +19,10 @@ cp -a "$ENV_FILE" "${ENV_FILE}.bak.onscen-domain"
 
 if [[ "$ROLE" == "prod" ]]; then
   WEB='https://onscen.com'
-  CORS='https://onscen.com,https://www.onscen.com,https://getsoundy.com,https://www.getsoundy.com'
+  CORS='https://onscen.com,https://www.onscen.com'
 else
   WEB='https://staging.onscen.com'
-  CORS='https://staging.onscen.com,https://staging.getsoundy.com'
+  CORS='https://staging.onscen.com'
 fi
 
 set_kv() {

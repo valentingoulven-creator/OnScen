@@ -1,5 +1,5 @@
 /**
- * Build PWA apptel prod → backend/public/tel (même origine getsoundy.com/tel/).
+ * Build PWA apptel prod → backend/public/tel (même origine onscen.com/tel/).
  */
 import { spawnSync } from 'child_process';
 import path from 'path';

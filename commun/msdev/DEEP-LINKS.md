@@ -1,6 +1,6 @@
-# Deep Links — OnScen (getsoundy.com)
+# Deep Links — OnScen (onscen.com)
 
-Universal Links (iOS) et App Links (Android) permettent d'ouvrir directement l'app Capacitor depuis une URL `getsoundy.com/salon/:id` ou `getsoundy.com/live/:id`.
+Universal Links (iOS) et App Links (Android) permettent d'ouvrir directement l'app Capacitor depuis une URL `onscen.com/salon/:id` ou `onscen.com/live/:id`.
 
 ---
 
@@ -33,7 +33,7 @@ Le fichier `app/public/.well-known/apple-app-site-association` est déployé aut
    - Sélectionner la target `App`
    - Onglet **Signing & Capabilities**
    - Cliquer **+ Capability** → **Associated Domains**
-   - Ajouter : `applinks:getsoundy.com`
+   - Ajouter : `applinks:onscen.com`
 
 3. **Activer Associated Domains** dans le portail Apple Developer :
    - [developer.apple.com](https://developer.apple.com) → Certificates, IDs & Profiles → Identifiers
@@ -43,13 +43,13 @@ Le fichier `app/public/.well-known/apple-app-site-association` est déployé aut
 
 4. **Vérifier le déploiement AASA** :
    ```
-   curl -I https://getsoundy.com/.well-known/apple-app-site-association
+   curl -I https://onscen.com/.well-known/apple-app-site-association
    # Content-Type doit être application/json
    ```
    Utiliser aussi [branch.io/resources/aasa-validator](https://branch.io/resources/aasa-validator/) pour valider.
 
 5. **Test sur appareil réel** (les simulateurs ne supportent pas les Universal Links) :
-   - Envoyer le lien `https://getsoundy.com/salon/TEST_ID` par iMessage
+   - Envoyer le lien `https://onscen.com/salon/TEST_ID` par iMessage
    - Appuyer sur le lien → l'app doit s'ouvrir
 
 ---
@@ -90,7 +90,7 @@ Le fichier `app/public/.well-known/assetlinks.json` est déployé automatiquemen
        <category android:name="android.intent.category.DEFAULT" />
        <category android:name="android.intent.category.BROWSABLE" />
        <data android:scheme="https"
-             android:host="getsoundy.com"
+             android:host="onscen.com"
              android:pathPrefix="/salon" />
      </intent-filter>
      <intent-filter android:autoVerify="true">
@@ -98,7 +98,7 @@ Le fichier `app/public/.well-known/assetlinks.json` est déployé automatiquemen
        <category android:name="android.intent.category.DEFAULT" />
        <category android:name="android.intent.category.BROWSABLE" />
        <data android:scheme="https"
-             android:host="getsoundy.com"
+             android:host="onscen.com"
              android:pathPrefix="/live" />
      </intent-filter>
    </activity>
@@ -106,7 +106,7 @@ Le fichier `app/public/.well-known/assetlinks.json` est déployé automatiquemen
 
 3. **Vérifier** avec Google's Digital Asset Links tester :
    ```
-   https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://getsoundy.com&relation=delegate_permission/common.handle_all_urls
+   https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://onscen.com&relation=delegate_permission/common.handle_all_urls
    ```
 
 ---
@@ -137,5 +137,5 @@ Les boutons "Partager" ajoutés dans `SalonPage.tsx` et `LivePage.tsx` utilisent
 - Fallback : copie dans le presse-papier `navigator.clipboard.writeText()`
 
 URLs partagées :
-- Salon : `https://getsoundy.com/salon/:id`
-- Live : `https://getsoundy.com/live/:id`
+- Salon : `https://onscen.com/salon/:id`
+- Live : `https://onscen.com/live/:id`

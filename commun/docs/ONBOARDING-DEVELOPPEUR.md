@@ -224,6 +224,16 @@ Point d'entrée : `commun/backend/src/index.ts` · flag msdev : `--msdev`.
 
 **Uniquement les overrides Capacitor.** Les fixes partagés web/mobile vont dans `web/app/src/`. Ne pas dupliquer la logique métier ici.
 
+**Commandes mobile-only :**
+
+```powershell
+npm run mobile:override -- create components/MonComposant.tsx  # override depuis web
+npm run mobile:dev                                               # :4082/tel/
+npm run mobile:check                                             # vérifie qu'on n'a pas touché web/app
+```
+
+Cursor : mentionner **`@mobile-only`** pour limiter l'agent à `ios/apptel/src/`.
+
 ### Dev local — `commun/msdev/`
 
 - `.env` — config msdev (non versionné)

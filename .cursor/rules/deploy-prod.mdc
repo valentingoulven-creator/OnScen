@@ -10,8 +10,8 @@ alwaysApply: true
 | Contexte | Cible | Commande canonique |
 |----------|-------|-------------------|
 | **DEV** | `localhost:5173` (Vite) + API `localhost:4080` (msdev) | `npm run dev` ou `commun/scripts/dev-start.ps1` |
-| **PREPROD** | VPS staging `staging.getsoundy.com` | `commun/scripts/deploy-preprod.ps1` ou **GitHub Actions** (auto apres CI) |
-| **PROD** | VPS `getsoundy.com` | `commun/scripts/deploy-prod.ps1` |
+| **PREPROD** | VPS staging `staging.onscen.com` | `commun/scripts/deploy-preprod.ps1` ou **GitHub Actions** (auto apres CI) |
+| **PROD** | VPS `onscen.com` | `commun/scripts/deploy-prod.ps1` |
 
 ## Quand l'utilisateur dit « deploy preprod » / « deploy staging »
 

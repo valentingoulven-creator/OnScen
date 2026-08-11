@@ -1,4 +1,4 @@
-# Build APK debug Android (prod API getsoundy.com)
+# Build APK debug Android (prod API onscen.com)
 # Prérequis : JDK 21, Android SDK (ANDROID_HOME)
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot

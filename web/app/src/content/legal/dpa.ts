@@ -207,7 +207,7 @@ est autorisé à traiter des données personnelles pour le compte du Responsable
 conformément à l'article 28 du RGPD.
 
 Champ d'application : tous les traitements de données personnelles des utilisateurs
-de OnScen (getsoundy.com) réalisés par un sous-traitant pour le compte du Responsable.`,
+de OnScen (onscen.com) réalisés par un sous-traitant pour le compte du Responsable.`,
     },
     {
       heading: '2. Obligations du sous-traitant (art. 28 § 3 RGPD)',

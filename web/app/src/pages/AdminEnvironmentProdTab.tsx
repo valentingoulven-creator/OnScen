@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { AdminEnvironmentStatusCard } from '../components/AdminEnvironmentStatusCard';
 
 /**
- * Page dédiée à l'environnement PROD (getsoundy.com).
+ * Page dédiée à l'environnement PROD (onscen.com).
  * Lecture seule uniquement — AUCUN bouton de déploiement/action ici, par
  * choix de sécurité explicite (voir audit CTO) : un déploiement prod doit
  * rester un geste manuel délibéré (`.cursor/rules/deploy-prod.mdc`), jamais

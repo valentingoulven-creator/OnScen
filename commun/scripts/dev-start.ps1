@@ -50,7 +50,7 @@ Write-Host '   Backend  : http://localhost:4080  (msdev)'
 Write-Host '   Frontend : http://localhost:5173  (Vite HMR)'
 Write-Host '   APP_ENV  : msdev'
 Write-Host '   Carte    : copiez web/app/.env.development.example -> .env.development (parite prod UI)'
-Write-Host '   Prod     : getsoundy.com (deploy-prod.ps1 uniquement)'
+Write-Host '   Prod     : onscen.com (deploy-prod.ps1 uniquement)'
 Write-Host ' ==============================================' -ForegroundColor Green
 Write-Host ''
 

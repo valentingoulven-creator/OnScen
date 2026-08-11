@@ -15,8 +15,14 @@ if [ ! -f "$SOURCE" ]; then
   exit 1
 fi
 
-if ! grep -qE 'staging\.onscen\.com|staging\.getsoundy\.com' "$SOURCE"; then
-  log "ERREUR — source invalide (staging.onscen.com / staging.getsoundy.com absent)"
+if ! grep -q 'staging.onscen.com' "$SOURCE"; then
+  log "ERREUR — source invalide (staging.onscen.com absent)"
+  exit 1
+fi
+
+# staging.getsoundy.com décommissionné (2026-08-11) — refuser toute réintroduction accidentelle.
+if grep -q 'getsoundy.com' "$SOURCE"; then
+  log "ERREUR — getsoundy.com détecté dans le Caddyfile staging source, domaine décommissionné, refus d'installer"
   exit 1
 fi
 

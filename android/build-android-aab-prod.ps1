@@ -1,4 +1,4 @@
-# Build AAB release Android (prod API getsoundy.com)
+# Build AAB release Android (prod API onscen.com)
 # Prérequis : JDK 21, Android SDK, keystore signé (voir ios/apptel/android/keystore.properties.example)
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot

@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# Vérifie si getsoundy.com est sur Cloudflare (zone API) — n'affiche pas les secrets.
+# Vérifie si onscen.com est sur Cloudflare (zone API) — n'affiche pas les secrets.
 # Usage : powershell -File commun/scripts/cloudflare-dns-check.ps1
 $ErrorActionPreference = 'Stop'
 
@@ -39,7 +39,7 @@ if (-not $zones.success) {
   exit 2
 }
 
-$targets = @('getsoundy.com', 'staging.getsoundy.com')
+$targets = @('onscen.com', 'staging.onscen.com')
 foreach ($name in $targets) {
   $zone = $zones.result | Where-Object { $_.name -eq $name -or $_.name -eq ($name -replace '^staging\.', '') }
   if (-not $zone) {

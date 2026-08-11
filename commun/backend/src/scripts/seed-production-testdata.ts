@@ -4,7 +4,7 @@
  *   cd /opt/onscen && APP_ENV=production node dist/commun/scripts/seed-production-testdata.js
  *
  * Variables optionnelles :
- *   SEED_TARGET_EMAIL — email du compte cible (défaut : admin@getsoundy.com)
+ *   SEED_TARGET_EMAIL — email du compte cible (défaut : admin@onscen.com)
  *   SEED_TARGET_USERNAME — pseudo alternatif (défaut : Val)
  */
 import dotenv from 'dotenv';

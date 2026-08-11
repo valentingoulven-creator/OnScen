@@ -49,16 +49,9 @@ www.onscen.com {
 	redir https://onscen.com{uri} permanent
 }
 
-# Legacy — même app (OAuth / liens existants) ; pas de redirect 301 tant que consoles tierces migrent
-getsoundy.com {
-	import onscen_handlers
-	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
-}
-
-# www → apex
-www.getsoundy.com {
-	redir https://getsoundy.com{uri} permanent
-}
+# Ancien domaine legacy décommissionné (2026-08-11) — aucun bloc Caddy = pas de certificat
+# TLS obtenu pour ce host, la connexion échoue au handshake (hard stop volontaire, pas de
+# redirect). Ne pas réintroduire de bloc pour ce domaine ici (voir commun/docs/ONSCEN-DOMAINE.md).
 
 # Accès par IP pendant la transition (HTTP)
 http://51.159.164.100 {

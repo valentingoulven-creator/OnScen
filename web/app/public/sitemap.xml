@@ -1,27 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://getsoundy.com/</loc>
+    <loc>https://onscen.com/</loc>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://getsoundy.com/map</loc>
+    <loc>https://onscen.com/map</loc>
     <changefreq>hourly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://getsoundy.com/live</loc>
+    <loc>https://onscen.com/live</loc>
     <changefreq>hourly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://getsoundy.com/actualite</loc>
+    <loc>https://onscen.com/actualite</loc>
     <changefreq>hourly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://getsoundy.com/reels</loc>
+    <loc>https://onscen.com/reels</loc>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>

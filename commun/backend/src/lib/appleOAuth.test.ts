@@ -14,7 +14,7 @@ describe('appleOAuth', () => {
     vi.stubEnv('APPLE_CLIENT_ID', 'com.onscen.app.service');
     vi.stubEnv('APPLE_TEAM_ID', 'TEAM123');
     vi.stubEnv('APPLE_KEY_ID', 'KEY123');
-    vi.stubEnv('APPLE_CALLBACK_URL', 'https://getsoundy.com/api/auth/apple/callback');
+    vi.stubEnv('APPLE_CALLBACK_URL', 'https://onscen.com/api/auth/apple/callback');
     vi.stubEnv(
       'APPLE_PRIVATE_KEY',
       '-----BEGIN PRIVATE KEY-----\\nMOCK\\n-----END PRIVATE KEY-----'

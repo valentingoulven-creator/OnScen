@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useSyncRef } from './hooks/useSyncRef';
 import { useAuth } from './context/AuthContext';
-import { useWebPushRegistration } from './hooks/useWebPushRegistration';
+import { usePlatformBackButton, usePlatformPushRegistration } from './lib/platformShell';
 import {
   consumePendingProfileView,
   parseProfileIdFromLocation,
@@ -148,7 +148,7 @@ type View =
 
 export default function App() {
   const { user, token, completeOnboarding, refreshUser, authBootPending, authBootError, clearAuthBootError, setUserFromProfile, logout } = useAuth();
-  useWebPushRegistration(token);
+  usePlatformPushRegistration(token);
   const { unreadCount: dmUnread, incomingToast, dismissToast, setDmTabActive } = useDmUnread();
   const [appToast, setAppToast] = useState<{ message: string; kind: 'info' | 'error' } | null>(null);
   const showAppToast = useCallback((message: string, kind: 'info' | 'error' = 'info') => {
@@ -1188,6 +1188,65 @@ export default function App() {
     },
     [selectTab, viewRef]
   );
+
+  /**
+   * Bouton retour matériel Android (natif uniquement — no-op sur web, cf.
+   * `usePlatformBackButton`) : referme l'overlay ouvert (réglages > admin >
+   * profil > vue profil > grand salon/live > onglet non-carte) avant de
+   * minimiser l'app. Sans ça, le retour matériel ferme l'app directement au
+   * lieu de fermer l'overlay courant.
+   */
+  const handleBackButton = useCallback((): boolean => {
+    if (settingsOpen) {
+      setSettingsOpen(false);
+      return true;
+    }
+    if (adminOpen) {
+      setAdminOpen(false);
+      setAdminInitialTab('accounts');
+      setAdminHighlightSupportMessageId(undefined);
+      return true;
+    }
+    if (profileOpen) {
+      setProfileOpen(false);
+      return true;
+    }
+    if (viewRef.current.type === 'profile') {
+      closeProfile();
+      return true;
+    }
+    if (activeSalonSessionRef.current?.viewMode === 'full') {
+      handleSalonPageBack();
+      return true;
+    }
+    if (activeLiveViewerSessionRef.current?.viewMode === 'full') {
+      handleLivePageBack();
+      return true;
+    }
+    if (viewRef.current.type !== 'home') {
+      setView({ type: 'home' });
+      return true;
+    }
+    if (tabRef.current !== 'map') {
+      selectTab('map');
+      return true;
+    }
+    return false;
+  }, [
+    settingsOpen,
+    adminOpen,
+    profileOpen,
+    viewRef,
+    activeSalonSessionRef,
+    activeLiveViewerSessionRef,
+    closeProfile,
+    handleSalonPageBack,
+    handleLivePageBack,
+    tabRef,
+    selectTab,
+  ]);
+
+  usePlatformBackButton(handleBackButton);
 
   if (authBootError) {
     return (

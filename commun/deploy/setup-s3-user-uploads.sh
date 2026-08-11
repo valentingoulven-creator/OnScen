@@ -34,7 +34,7 @@ S3_ACCESS_KEY_ID=<iam-access-key>
 S3_SECRET_ACCESS_KEY=<iam-secret-key>
 S3_PUBLIC_BASE_URL=https://${BUCKET}.s3.${REGION}.scw.cloud
 # ou CDN custom une fois Cloudflare P1 actif :
-# S3_PUBLIC_BASE_URL=https://cdn.getsoundy.com
+# S3_PUBLIC_BASE_URL=https://cdn.onscen.com
 S3_FORCE_PATH_STYLE=0
 S3_PUBLIC_READ=1
 

@@ -3,12 +3,7 @@
  */
 import { App as CapApp } from '@capacitor/app';
 
-const PROD_HOSTS = new Set<string>([
-  'onscen.com',
-  'www.onscen.com',
-  'getsoundy.com',
-  'www.getsoundy.com',
-]);
+const PROD_HOSTS = new Set<string>(['onscen.com', 'www.onscen.com']);
 
 function isProdDeepLinkHost(hostname: string): boolean {
   return PROD_HOSTS.has(hostname.toLowerCase());

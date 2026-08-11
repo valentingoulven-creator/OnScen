@@ -77,7 +77,7 @@ export function MapEventPreviewCard({
 
   return (
     <>
-      <div className="relative p-3 pt-3.5">
+      <div className="relative p-2.5 pt-3 sm:p-3 sm:pt-3.5">
         <button
           type="button"
           onClick={onClose}

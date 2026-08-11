@@ -4,7 +4,7 @@ const PHONE_MAX_MQ = '(max-width: 430px)';
 const TABLET_TOUCH_MQ = '(max-width: 767px) and (pointer: coarse)';
 const COMPACT_MAP_MQ = '(max-width: 639px)';
 
-/** Mobile browser (getsoundy.com) — not Capacitor native (apptel). */
+/** Mobile browser (onscen.com) — not Capacitor native (apptel). */
 export function isPhoneWebViewport(): boolean {
   if (typeof window === 'undefined') return false;
   if (isNativeApp()) return false;

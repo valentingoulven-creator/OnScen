@@ -1,7 +1,7 @@
 /**
  * Monitoring alert notifier.
  * Sends email alerts via Resend HTTP API (RESEND_API_KEY) or SMTP (nodemailer fallback).
- * Recipients: SMTP_ADMIN_EMAIL (default admin@getsoundy.com) + ALERT_EXTRA_EMAILS (comma-sep).
+ * Recipients: SMTP_ADMIN_EMAIL (default admin@onscen.com) + ALERT_EXTRA_EMAILS (comma-sep).
  * Cooldown: same alert type cannot be emailed more than once per 30 min (configurable).
  */
 
@@ -42,7 +42,7 @@ const alertHistory: MonitoringAlert[] = [];
 const cooldowns = new Map<AlertType, number>();
 const COOLDOWN_MS = parseInt(process.env.ALERT_COOLDOWN_MS ?? '1800000', 10); // 30 min
 
-const DEFAULT_ADMIN_EMAIL = 'admin@getsoundy.com';
+const DEFAULT_ADMIN_EMAIL = 'admin@onscen.com';
 
 function getRecipients(): string[] {
   const recipients = new Set<string>();
@@ -112,7 +112,7 @@ function buildEmailContent(alert: MonitoringAlert): { subject: string; html: str
   const unit = ALERT_UNITS[alert.type] ?? '';
   const severityColor = alert.severity === 'critical' ? '#dc2626' : '#d97706';
   const severityLabel = alert.severity === 'critical' ? 'CRITIQUE' : 'AVERTISSEMENT';
-  const adminUrl = `${process.env.WEB_APP_URL ?? 'https://getsoundy.com'}/admin?tab=monitoring`;
+  const adminUrl = `${process.env.WEB_APP_URL ?? 'https://onscen.com'}/admin?tab=monitoring`;
   const ts = new Date(alert.timestamp).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' });
   const safeMsgHtml = alert.message
     .replace(/&/g, '&amp;')
@@ -143,7 +143,7 @@ function buildEmailContent(alert: MonitoringAlert): { subject: string; html: str
         <table style="border-collapse:collapse;width:100%;margin-bottom:16px;">
           <tr>
             <td style="padding:4px 8px 4px 0;color:#6b7280;font-size:14px;white-space:nowrap;">Serveur</td>
-            <td style="padding:4px 0;font-weight:600;">getsoundy.com (51.159.164.100)</td>
+            <td style="padding:4px 0;font-weight:600;">onscen.com (51.159.164.100)</td>
           </tr>
           <tr>
             <td style="padding:4px 8px 4px 0;color:#6b7280;font-size:14px;white-space:nowrap;">Heure (Paris)</td>
@@ -159,14 +159,14 @@ function buildEmailContent(alert: MonitoringAlert): { subject: string; html: str
         </a>
       </div>
       <p style="color:#9ca3af;font-size:12px;margin-top:24px;">
-        Alerte automatique OnScen — <a href="${adminUrl}" style="color:#7c3aed;">getsoundy.com/admin</a>
+        Alerte automatique OnScen — <a href="${adminUrl}" style="color:#7c3aed;">onscen.com/admin</a>
       </p>
     </div>`;
 
   const textLines = [
     `[OnScen ${severityLabel}] ${label}`,
     ``,
-    `Serveur : getsoundy.com (51.159.164.100)`,
+    `Serveur : onscen.com (51.159.164.100)`,
     `Heure   : ${ts}`,
     ...(alert.value !== undefined ? [`Valeur  : ${alert.value}${unit}`] : []),
     ...(alert.threshold !== undefined ? [`Seuil   : ${alert.threshold}${unit}`] : []),

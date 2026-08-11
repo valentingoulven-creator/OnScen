@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { AdminEnvironmentStatusCard } from '../components/AdminEnvironmentStatusCard';
 
 /**
- * Page dédiée à l'environnement PREPROD (staging.getsoundy.com).
+ * Page dédiée à l'environnement PREPROD (staging.onscen.com).
  * Lecture seule (ping /health public) — pas de déclenchement de déploiement
  * depuis le web par choix de sécurité (voir audit CTO), même si le workflow
  * GitHub `deploy-preprod.yml` supporte déjà `workflow_dispatch` manuellement

@@ -98,8 +98,6 @@ const MANIFEST_CONTENT = `<?xml version="1.0" encoding="utf-8"?>
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="onscen.com" android:pathPrefix="/salon" />
                 <data android:scheme="https" android:host="www.onscen.com" android:pathPrefix="/salon" />
-                <data android:scheme="https" android:host="getsoundy.com" android:pathPrefix="/salon" />
-                <data android:scheme="https" android:host="www.getsoundy.com" android:pathPrefix="/salon" />
             </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
@@ -107,8 +105,6 @@ const MANIFEST_CONTENT = `<?xml version="1.0" encoding="utf-8"?>
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="onscen.com" android:pathPrefix="/live" />
                 <data android:scheme="https" android:host="www.onscen.com" android:pathPrefix="/live" />
-                <data android:scheme="https" android:host="getsoundy.com" android:pathPrefix="/live" />
-                <data android:scheme="https" android:host="www.getsoundy.com" android:pathPrefix="/live" />
             </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
@@ -116,8 +112,6 @@ const MANIFEST_CONTENT = `<?xml version="1.0" encoding="utf-8"?>
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="onscen.com" android:pathPrefix="/profile" />
                 <data android:scheme="https" android:host="www.onscen.com" android:pathPrefix="/profile" />
-                <data android:scheme="https" android:host="getsoundy.com" android:pathPrefix="/profile" />
-                <data android:scheme="https" android:host="www.getsoundy.com" android:pathPrefix="/profile" />
             </intent-filter>
 
         </activity>

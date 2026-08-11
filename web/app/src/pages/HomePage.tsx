@@ -14,6 +14,7 @@ import { MapMajorCityLiveSheet } from '../components/MapMajorCityLiveSheet';
 import { MapEventDetailModal } from '../components/MapEventDetailModal';
 import { MapEventMapInfoPanel } from '../components/MapEventMapInfoPanel';
 import { MapEventFilterSheet } from '../components/MapEventFilterSheet';
+import { MapCreateActionFab } from '../components/MapCreateActionFab';
 import {
   MapSalonFilterSheet,
   getDefaultSalonFilterCriteria,
@@ -54,7 +55,6 @@ import {
 import { writeSavedEventLocation } from '../lib/savedEventLocation';
 import { validateStoryLinkUrl } from '../lib/storyLink';
 import { isAppa2Layout, type AppLayoutId } from '../lib/appLayout';
-import { useCompactMapViewport } from '../hooks/usePhoneWebViewport';
 import {
   createDefaultEventFilter,
   DEFAULT_EVENT_FILTER_RADIUS_KM,
@@ -164,7 +164,6 @@ import { pauseAllReelsMediaInDom } from '../lib/reelsMedia';
 import { releaseAppMediaFocus, requestAppMediaFocus } from '../lib/appMediaFocus';
 import { clearMapInlineListenSession } from '../lib/mapListenSession';
 import { clearSalonUrlFromBar } from '../lib/salonDeepLink';
-import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
 import { mergeRemotePlaybackState } from '../lib/salonPlayback';
 import {
   liveNeedsStreamFieldEnrichment,
@@ -201,15 +200,11 @@ const MAP_EVENT_DETAIL_FLY_RADIUS_KM = 5;
 const MAP_SIDEBAR_EVENT_FLY_RADIUS_KM = 1.2;
 /** Boutons Lives / Évènement (pile haut-gauche carte) — padding, typo et hauteur alignés. */
 const MAP_STACK_FILTER_BTN =
-  'w-auto shrink-0 min-h-[2rem] px-3 py-2 rounded-full border shadow-lg active:scale-95 transition text-[10px] sm:text-[11px] font-bold leading-none whitespace-nowrap flex items-center justify-center gap-1.5';
+  'ms-map-filter-btn w-auto shrink-0 min-h-[2rem] px-3 py-2 rounded-full border shadow-lg active:scale-95 transition text-[10px] sm:text-[11px] font-bold leading-none whitespace-nowrap flex items-center justify-center gap-1.5';
 
 /** Boutons icône (grille lives / globe) — même hauteur que MAP_STACK_FILTER_BTN. */
 const MAP_STACK_ICON_BTN =
   'w-8 h-8 min-h-[2rem] shrink-0 flex items-center justify-center rounded-full border shadow-lg active:scale-95 transition select-none';
-
-/** FAB carte : créer salon / live (bas-gauche). */
-const MAP_CREATE_FAB_BTN =
-  'px-5 py-2.5 sm:py-3 rounded-full bg-[#12121a] border border-[#2d2d3d] hover:border-purple-500/60 font-extrabold text-sm sm:text-base shadow-lg shadow-black/30 whitespace-nowrap active:scale-95 transition shrink-0 min-w-[5.5rem] sm:min-w-[6.5rem]';
 
 function findSalonForLive(live: Live, salons: Salon[]): Salon | undefined {
   return salons.find(
@@ -320,9 +315,6 @@ export function HomePage({
 }: HomePageProps) {
   const { t } = useTranslation();
   const appa2 = isAppa2Layout(appLayout);
-  const compactMapLayout = useCompactMapViewport();
-  const bottomMapList = appa2 || compactMapLayout;
-  const nearbyLayout = bottomMapList ? ('bottom' as const) : ('side' as const);
   const { user, token, authBootPending, setUserFromProfile } = useAuth();
   const userCanUsePreciseGeo = useMemo(
     () => canUsePreciseGeo(user),
@@ -3680,7 +3672,7 @@ export function HomePage({
 
   return (
     <div
-      className={`ms-map-page relative flex-1 flex min-h-0 h-full w-full ${bottomMapList ? 'flex-col' : 'flex-row'}`}
+      className="ms-map-page relative flex-1 flex min-h-0 h-full w-full flex-row"
     >
       {token && (
         <MapEventFilterSheet
@@ -3828,7 +3820,7 @@ export function HomePage({
 
       {token && user && <StartLiveFlowModals flow={liveStartFlow} />}
 
-      {!bottomMapList && showNearbyPeople ? (
+      {showNearbyPeople ? (
         selectedEventCluster && !livesFilterOn ? (
           <MapCityEventsPanel
             layout="side"
@@ -3872,7 +3864,7 @@ export function HomePage({
             onToggleMapFilterSponso={token ? toggleSidebarMapFilterSponso : undefined}
           />
         )
-      ) : !bottomMapList ? (
+      ) : (
         <button
           type="button"
           onClick={() => setNearbyPeopleVisible(true)}
@@ -3890,7 +3882,7 @@ export function HomePage({
             </span>
           )}
         </button>
-      ) : null}
+      )}
 
       <div className="ms-map-main-column relative flex-1 min-w-0 flex flex-col min-h-0">
         {!appa2 && !mapProfileOpen && !(selected?.platform === 'youtube') && (
@@ -4057,53 +4049,14 @@ export function HomePage({
         )}
 
         {token && !mapProfileOpen && (
-          <div className="ms-map-salon-fab absolute bottom-4 left-3 z-30 pointer-events-auto flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={liveStartFlow.startLive}
-              disabled={liveStartFlow.starting || liveStartFlow.mediaSetupOpen}
-              aria-label={t('map.createLiveFabAria', { defaultValue: 'Créer un live' })}
-              className={`${MAP_CREATE_FAB_BTN} disabled:opacity-50 inline-flex items-center gap-1.5`}
-            >
-              {liveStartFlow.starting ? (
-                <>
-                  <svg
-                    className="w-3.5 h-3.5 animate-spin shrink-0"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    aria-hidden
-                  >
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
-                  <span>{t('map.startingLive', { defaultValue: 'Démarrage…' })}</span>
-                </>
-              ) : (
-                <span className={USERNAME_WAVE_CLASS}>+ Lives</span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setEventModalOpen(true)}
-              disabled={eventPublishing}
-              aria-label={t('map.createEventFabAria', { defaultValue: 'Créer un événement' })}
-              className={`${MAP_CREATE_FAB_BTN} disabled:opacity-50`}
-            >
-              <span className={USERNAME_WAVE_CLASS}>+ Event</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowCreateSalon(true)}
-              aria-label={t('home.createSalon', { defaultValue: 'Créer un salon musical' })}
-              className={MAP_CREATE_FAB_BTN}
-            >
-              <span className={USERNAME_WAVE_CLASS}>+ Salon</span>
-            </button>
-          </div>
+          <MapCreateActionFab
+            onStartLive={liveStartFlow.startLive}
+            liveStarting={liveStartFlow.starting}
+            liveMediaSetupOpen={liveStartFlow.mediaSetupOpen}
+            onCreateEvent={() => setEventModalOpen(true)}
+            eventPublishing={eventPublishing}
+            onCreateSalon={() => setShowCreateSalon(true)}
+          />
         )}
 
         {!mapProfileOpen && (
@@ -4113,7 +4066,7 @@ export function HomePage({
             onChange={handleMapZoomSliderChange}
             onInteractionStart={handleMapZoomSliderDragStart}
             onInteractionEnd={handleMapZoomSliderDragEnd}
-            className="absolute right-3 top-1/2 -translate-y-[calc(50%+1.75rem)] z-30"
+            className="ms-map-zoom-control"
             mapStyle={mapStyle}
             onToggleMapStyle={isWebGLSupported() ? toggleMapStyle : undefined}
             mapStyleFlatLabel={t('map.globeView', { defaultValue: 'Vue globe satellite' })}
@@ -4122,7 +4075,7 @@ export function HomePage({
         )}
 
         {!mapProfileOpen && (
-          <div className="ms-map-recenter-fab absolute bottom-4 right-3 z-30 flex flex-row items-center gap-2 pointer-events-auto">
+          <div className="ms-map-recenter-fab absolute z-30 flex flex-row items-center gap-2 pointer-events-auto">
             <button
               type="button"
               onClick={recenterMap}
@@ -4154,7 +4107,7 @@ export function HomePage({
           />
         )}
 
-        <div className="ms-map-filter-stack absolute top-3 left-3 z-30 flex flex-row flex-nowrap items-center gap-1.5 pointer-events-auto max-w-[min(22rem,calc(100vw-5rem))] overflow-x-auto overscroll-x-contain">
+        <div className="ms-map-filter-stack absolute top-3 left-3 z-30 flex flex-row flex-wrap sm:flex-nowrap items-center gap-1 sm:gap-1.5 pointer-events-auto max-w-[calc(100%-3.25rem)] overflow-x-auto overscroll-x-contain">
           <button
             type="button"
             onClick={toggleLivesFilter}
@@ -4296,71 +4249,6 @@ export function HomePage({
         )}
 
         </div>
-
-        {bottomMapList &&
-          (showNearbyPeople ? (
-            selectedEventCluster && !livesFilterOn ? (
-              <MapCityEventsPanel
-                layout={nearbyLayout}
-                cluster={selectedEventClusterForPanel ?? selectedEventCluster}
-                detailTier={mapDetailState.tier}
-                favoriteIds={favoriteIds}
-                onEventClick={handleSidebarMapEventZoom}
-                onBack={clearEventClusterSelection}
-                onHide={() => setNearbyPeopleVisible(false)}
-              />
-            ) : (
-              <NearbyPeoplePanel
-                layout={nearbyLayout}
-                content={mapSidebarPanelContent}
-                detail={mapDetailState}
-                loading={loadingNearby}
-                eventsLoading={loadingMapEvents}
-                selectedSalonId={selected?.id}
-                onPersonClick={handleSidebarPersonClick}
-                onSalonClick={handleSidebarSalonClick}
-                onLiveClick={handleSidebarLiveClick}
-                onEventClick={handleSidebarMapEventZoom}
-                onHide={() => setNearbyPeopleVisible(false)}
-                eventsFilterOn={sidebarEventsFilterOn}
-                livesFilterOn={sidebarLivesFilterOn}
-                salonFilterOn={salonFilterOn}
-                eventsBrowseMode={false}
-                eventsBrowse={mapEventsBrowseConfig}
-                sponsoredEventPosts={sidebarSponsoredEvents.posts}
-                onSponsoredEventOpen={handleBrowseEventZoomOnMap}
-                onSponsoredEventPostChange={sidebarSponsoredEvents.patchPost}
-                mapFilterLivesFollowingOn={sidebarMapFilterLivesFollowing}
-                mapFilterSalonsFollowingOn={sidebarMapFilterSalonsFollowing}
-                mapFilterEventsFollowingOn={sidebarMapFilterEventsFollowing}
-                mapFilterSponsoOn={sidebarMapFilterSponso}
-                onToggleMapFilterLivesFollowing={toggleSidebarMapFilterLivesFollowing}
-                onToggleMapFilterSalonsFollowing={toggleSidebarMapFilterSalonsFollowing}
-                onToggleMapFilterEventsFollowing={
-                  token ? toggleSidebarMapFilterEventsFollowing : undefined
-                }
-                onToggleMapFilterSponso={token ? toggleSidebarMapFilterSponso : undefined}
-              />
-            )
-          ) : (
-            <button
-              type="button"
-              onClick={() => setNearbyPeopleVisible(true)}
-              title="Afficher la liste carte"
-              aria-label="Afficher la liste carte"
-              className="shrink-0 z-20 flex items-center justify-center gap-2 w-full min-h-[44px] py-2.5 bg-[var(--ms-surface)]/95 border-t border-[var(--ms-border)] text-purple-400 hover:text-purple-300 hover:bg-[var(--ms-surface-elevated)] transition"
-            >
-              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" strokeLinecap="round" />
-              </svg>
-              <span className="text-xs font-bold uppercase tracking-wide">Liste carte</span>
-              {anyMapFilterActive && mapSidebarItemCount > 0 && (
-                <span className="text-[10px] font-bold bg-purple-600/80 text-white px-2 py-0.5 rounded-full min-w-[1.25rem]">
-                  {mapSidebarItemCount}
-                </span>
-              )}
-            </button>
-          ))}
       </div>
 
       <MapEventDetailModal

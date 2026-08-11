@@ -5,7 +5,7 @@ type Props = {
   children: ReactNode;
 };
 
-/** Coque téléphone pour getsoundy.com ouvert dans le navigateur mobile (pas apptel natif). */
+/** Coque téléphone pour onscen.com ouvert dans le navigateur mobile (pas apptel natif). */
 export function PhoneWebShell({ children }: Props) {
   const phoneWeb = usePhoneWebViewport();
   if (!phoneWeb) return <>{children}</>;

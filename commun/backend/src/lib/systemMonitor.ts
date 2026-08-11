@@ -5,7 +5,7 @@
  *   RAM_ALERT_THRESHOLD   – RAM % that triggers a warning alert (default 85)
  *   CPU_ALERT_THRESHOLD   – CPU load % (1-min avg / cores) that triggers a warning (default 90)
  *   DISK_ALERT_THRESHOLD  – disk used % that triggers a warning alert (default 80)
- *   ALERT_EMAIL           – primary recipient for system alerts (default admin@getsoundy.com)
+ *   ALERT_EMAIL           – primary recipient for system alerts (default admin@onscen.com)
  *
  * Debounce: at most one alert email per metric per hour.
  * Checks are run every 5 minutes (same as serverMonitor.ts).
@@ -24,7 +24,7 @@ const DISK_THRESHOLD = parseInt(process.env.DISK_ALERT_THRESHOLD ?? process.env.
 const CHECK_INTERVAL_MS = parseInt(process.env.MONITOR_INTERVAL_MS ?? '300000', 10);
 const DEBOUNCE_MS = 60 * 60 * 1000; // 1 hour per metric
 
-const alertEmail = process.env.ALERT_EMAIL ?? process.env.SMTP_ADMIN_EMAIL ?? 'admin@getsoundy.com';
+const alertEmail = process.env.ALERT_EMAIL ?? process.env.SMTP_ADMIN_EMAIL ?? 'admin@onscen.com';
 
 const lastAlertTime = new Map<'ram' | 'cpu' | 'disk', number>();
 
@@ -73,7 +73,7 @@ async function sendSystemAlert(params: {
   const label = params.metric === 'ram' ? 'RAM' : params.metric === 'cpu' ? 'CPU' : 'Disque';
   const ts = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' });
   const subject = `🚨 [OnScen VPS] ${label} ${params.value}% - Action requise`;
-  const adminUrl = `${process.env.WEB_APP_URL ?? 'https://getsoundy.com'}/admin?tab=monitoring`;
+  const adminUrl = `${process.env.WEB_APP_URL ?? 'https://onscen.com'}/admin?tab=monitoring`;
 
   const html = `
     <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
@@ -85,7 +85,7 @@ async function sendSystemAlert(params: {
         <table style="border-collapse:collapse;width:100%;margin-bottom:16px;">
           <tr>
             <td style="padding:4px 8px 4px 0;color:#6b7280;font-size:14px;white-space:nowrap;">Serveur</td>
-            <td style="padding:4px 0;font-weight:600;">getsoundy.com</td>
+            <td style="padding:4px 0;font-weight:600;">onscen.com</td>
           </tr>
           <tr>
             <td style="padding:4px 8px 4px 0;color:#6b7280;font-size:14px;white-space:nowrap;">Heure (Paris)</td>
@@ -105,14 +105,14 @@ async function sendSystemAlert(params: {
         </a>
       </div>
       <p style="color:#9ca3af;font-size:12px;margin-top:24px;">
-        Alerte automatique OnScen — <a href="${adminUrl}" style="color:#7c3aed;">getsoundy.com/admin</a>
+        Alerte automatique OnScen — <a href="${adminUrl}" style="color:#7c3aed;">onscen.com/admin</a>
       </p>
     </div>`;
 
   const text = [
     `[OnScen ALERTE] ${label} ${params.value}% (seuil : ${params.threshold}%)`,
     ``,
-    `Serveur : getsoundy.com`,
+    `Serveur : onscen.com`,
     `Heure   : ${ts}`,
     ``,
     `Voir le monitoring : ${adminUrl}`,

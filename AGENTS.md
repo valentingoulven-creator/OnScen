@@ -13,9 +13,10 @@
 - **Smoke test cloud :** [`.cursor/cloud-agent-prompts/01-smoke-msdev-boot.md`](./.cursor/cloud-agent-prompts/01-smoke-msdev-boot.md)
 - Dev local : `npm run dev` → http://localhost:5173 (API :4080)
 - Infra agent : `commun/scripts/verify-full-access.ps1` · `commun/scripts/setup-infra-access.ps1` · règle `.cursor/rules/infra-access.mdc`
-- Preprod : `commun/scripts/deploy-preprod.ps1` → staging.getsoundy.com
+- Preprod : `commun/scripts/deploy-preprod.ps1` → staging.onscen.com
 - Prod : **ne jamais** déployer sans demande explicite → `commun/scripts/deploy-prod.ps1`
 - Source frontend : `web/app/src/` · mobile overrides : `ios/apptel/src/` uniquement
+- **Mobile only** : `@mobile-only` · `npm run mobile:override -- create <chemin>` · `npm run mobile:dev` → `:4082/tel/`
 - Changelog significatif : entrée en fin de `modification.txt`
 - Doc → Google Drive : `npm run docs:gdrive:install` puis `npm run docs:gdrive:watch` (voir `commun/docs/GOOGLE-DRIVE-DOCS-SYNC.md`)
 - **Stack scale :** [`commun/docs/STACK-CIBLE.md`](./commun/docs/STACK-CIBLE.md) · checklist 500k : `commun/msdev/SCALABILITY.md`

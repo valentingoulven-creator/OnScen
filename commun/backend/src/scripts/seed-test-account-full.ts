@@ -56,7 +56,7 @@ dotenv.config({ path: path.join(process.cwd(), '.env') });
 const TEST_ACCOUNT_ID = 'demo-test-founder';
 const TEST_ACCOUNT_USERNAME = 'demo_test_founder';
 const TEST_ACCOUNT_EMAIL = 'demo.test.founder@getonscen-demo.local';
-const SPONSOR_AUTHOR_EMAIL = 'admin@getsoundy.com';
+const SPONSOR_AUTHOR_EMAIL = 'admin@onscen.com';
 
 const NOW = Date.now();
 const DAY_MS = 86_400_000;

@@ -33,7 +33,7 @@ export function isStripeConfigured(): boolean {
 
 /**
  * Dons activés : simulation msdev toujours ; staging si DONATIONS_ENABLED + Stripe ;
- * production stricte (getsoundy.com) uniquement si clé Stripe **live** — évite les
+ * production stricte (onscen.com) uniquement si clé Stripe **live** — évite les
  * paiements « réussis » fictifs avec sk_test (audit STR-11, reco CTO 2026-08-07).
  */
 export function isDonationsEnabled(): boolean {

@@ -14,7 +14,7 @@ jobs:
     steps:
       - name: Production — GET /health
         run: |
-          code=$(curl -sS -o /tmp/health-prod.json -w "%{http_code}" --connect-timeout 15 --max-time 30 https://getsoundy.com/health)
+          code=$(curl -sS -o /tmp/health-prod.json -w "%{http_code}" --connect-timeout 15 --max-time 30 https://onscen.com/health)
           echo "HTTP $code"
           cat /tmp/health-prod.json
           test "$code" = "200"
@@ -22,7 +22,7 @@ jobs:
 
       - name: Staging — GET /health
         run: |
-          code=$(curl -sS -o /tmp/health-staging.json -w "%{http_code}" --connect-timeout 15 --max-time 30 https://staging.getsoundy.com/health)
+          code=$(curl -sS -o /tmp/health-staging.json -w "%{http_code}" --connect-timeout 15 --max-time 30 https://staging.onscen.com/health)
           echo "HTTP $code"
           cat /tmp/health-staging.json
           test "$code" = "200"

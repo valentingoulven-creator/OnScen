@@ -8,7 +8,7 @@ function setProductionEnv(): void {
   process.env.APP_ENV = 'production';
   process.env.JWT_SECRET = 'prod-jwt-secret';
   process.env.ENCRYPTION_KEY = 'prod-encryption-key-distinct';
-  process.env.CORS_ORIGIN = 'https://getsoundy.com';
+  process.env.CORS_ORIGIN = 'https://onscen.com';
   process.env.DATABASE_URL = 'postgres://localhost/test';
   process.env.SIGHTENGINE_API_USER = 'se-user';
   process.env.SIGHTENGINE_API_SECRET = 'se-secret';

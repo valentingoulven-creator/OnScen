@@ -22,7 +22,7 @@ function splitTrailingPunctuation(value: string): { core: string; trailing: stri
 function isOnScenHost(hostname: string): boolean {
   const h = hostname.toLowerCase();
   if (typeof window !== 'undefined' && h === window.location.hostname.toLowerCase()) return true;
-  return h === 'getsoundy.com' || h.endsWith('.getsoundy.com') || h === 'localhost' || h === '127.0.0.1';
+  return h === 'onscen.com' || h.endsWith('.onscen.com') || h === 'localhost' || h === '127.0.0.1';
 }
 
 function parseHashRoute(hash: string): InternalLinkTarget | null {
@@ -47,7 +47,7 @@ export function resolveInternalLink(raw: string): InternalLinkTarget | null {
     const url = trimmed.startsWith('http')
       ? new URL(trimmed)
       : trimmed.startsWith('/')
-        ? new URL(trimmed, typeof window !== 'undefined' ? window.location.origin : 'https://getsoundy.com')
+        ? new URL(trimmed, typeof window !== 'undefined' ? window.location.origin : 'https://onscen.com')
         : null;
 
     if (!url) return null;

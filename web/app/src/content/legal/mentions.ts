@@ -15,7 +15,7 @@ export const mentionsLegales: LegalDocument = {
     },
     {
       heading: 'Activité du service',
-      body: `OnScen est une application sociale autour de la musique : salons d\u2019écoute géolocalisés, lives, messagerie, carte des utilisateurs et contenus musicaux via YouTube. OnScen n\u2019est pas un service de rencontre sentimental.\n\nDomaine de production : getsoundy.com`,
+      body: `OnScen est une application sociale autour de la musique : salons d\u2019écoute géolocalisés, lives, messagerie, carte des utilisateurs et contenus musicaux via YouTube. OnScen n\u2019est pas un service de rencontre sentimental.\n\nDomaine de production : onscen.com`,
     },
     {
       heading: 'Propriété intellectuelle',

@@ -1,4 +1,4 @@
-# commun/scripts/deploy-prod.ps1 - Deploiement PRODUCTION canonique (getsoundy.com)
+# commun/scripts/deploy-prod.ps1 - Deploiement PRODUCTION canonique (onscen.com)
 # Usage : powershell -ExecutionPolicy Bypass -File commun/scripts/deploy-prod.ps1
 #         ou double-clic deploy-prod.bat
 param(
@@ -20,10 +20,10 @@ Set-Location $root
 
 Write-Host ''
 Write-Host ' ==============================================' -ForegroundColor Red
-Write-Host '   DEPLOY PRODUCTION -> getsoundy.com' -ForegroundColor Red
+Write-Host '   DEPLOY PRODUCTION -> onscen.com' -ForegroundColor Red
 Write-Host ' ==============================================' -ForegroundColor Red
 Write-Host '   VPS    : 51.159.164.100 (/opt/onscen)'
-Write-Host '   Health : https://getsoundy.com/health'
+Write-Host '   Health : https://onscen.com/health'
 Write-Host '   Script : commun/deploy/deploy_zero_downtime.ps1 -VerifyProd'
 Write-Host ' ==============================================' -ForegroundColor Red
 Write-Host ''

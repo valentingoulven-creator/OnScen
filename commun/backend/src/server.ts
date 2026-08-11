@@ -329,7 +329,7 @@ app.use(
       useDefaults: true,
       directives: {
         // Ne pas forcer upgrade-insecure-requests : casse http://IP (scripts → cert auto-signé)
-        // et double charge avec Caddy sur getsoundy.com.
+        // et double charge avec Caddy sur onscen.com.
         'upgrade-insecure-requests': null,
         'default-src': ["'self'"],
         // unsafe-inline retiré : les scripts inline des pages servies par Express
@@ -358,7 +358,7 @@ app.use(
       },
     },
     crossOriginEmbedderPolicy: false,
-    // HSTS : activé en production (Caddy assure TLS sur getsoundy.com).
+    // HSTS : activé en production (Caddy assure TLS sur onscen.com).
     // Désactivé hors production pour permettre http://IP et les certs auto-signés msdev.
     // Note : HSTS est scope-hostname (ne s'applique pas aux adresses IP), donc inoffensif
     // pour les accès directs http://IP en prod si Caddy est le seul point d'entrée public.
@@ -458,6 +458,7 @@ const AUTH_RATE_LIMIT_SENSITIVE_PATHS = new Set([
   '/change-password',
   '/forgot-password',
   '/reset-password',
+  '/resend-verification-email',
 ]);
 
 const authLimiter = rateLimit({
@@ -828,7 +829,7 @@ function getShareOgBaseUrl(req: express.Request): string {
   const rawHost = (req.get('x-forwarded-host') || req.get('host') || '').split(',')[0].trim();
 
   // Allow only safe hostname characters to prevent header injection into HTML.
-  const safeHost = /^[a-zA-Z0-9.\-:[\]]+$/.test(rawHost) ? rawHost : 'getsoundy.com';
+  const safeHost = /^[a-zA-Z0-9.\-:[\]]+$/.test(rawHost) ? rawHost : 'onscen.com';
   return `${proto}://${safeHost}`;
 }
 

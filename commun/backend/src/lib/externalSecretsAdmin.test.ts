@@ -72,7 +72,7 @@ describe('validateProviderInput', () => {
     const errors = validateProviderInput('google_oauth', {
       GOOGLE_CLIENT_ID: '123456789-xxxx.apps.googleusercontent.com',
       GOOGLE_CLIENT_SECRET: 'GOCSPX-abcdefgh1234',
-      GOOGLE_CALLBACK_URL: 'https://getsoundy.com/api/auth/google/callback',
+      GOOGLE_CALLBACK_URL: 'https://onscen.com/api/auth/google/callback',
       YOUTUBE_CALLBACK_URL: 'not-a-url',
     });
     expect(errors.some((e) => e.field === 'YOUTUBE_CALLBACK_URL')).toBe(true);

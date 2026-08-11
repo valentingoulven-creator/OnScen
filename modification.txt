@@ -1,4 +1,255 @@
 ================================================================================
+MODIF 806 — Commande mobile-only (override apptel sans web)
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Besoin d'une commande / mode agent pour modifier UNIQUEMENT l'app mobile
+ (ios/apptel) sans toucher web/app.
+
+CHANGEMENTS / FIX
+-----
+ commun/scripts/mobile-override.mjs (nouveau)
+ ─────────────────
+ • create / list / status / check — scaffold override + garde-fou git.
+
+ package.json
+ ─────────────────
+ • mobile:override, mobile:only, mobile:dev, mobile:check.
+
+ .cursor/rules/onscen-mobile-only.mdc (nouveau)
+ ─────────────────
+ • Mode @mobile-only / @apptel-only pour l'agent Cursor.
+
+ commun/scripts/sync-src.js
+ ─────────────────
+ • --clean : conserve les overrides différents de web (plus seulement PROTECTED).
+
+ AGENTS.md, 00-onscen-agents.mdc, ONBOARDING-DEVELOPPEUR.md
+ ─────────────────
+ • Doc commandes mobile-only.
+
+FICHIERS MODIFIÉS
+-----
+ commun/scripts/mobile-override.mjs (nouveau)
+ .cursor/rules/onscen-mobile-only.mdc (nouveau)
+ package.json, AGENTS.md, commun/scripts/sync-src.js
+ .cursor/rules/00-onscen-agents.mdc, commun/docs/ONBOARDING-DEVELOPPEUR.md
+
+================================================================================
+Fin — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 805 — Carte : recherche événements loupe seule par défaut
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ MapEventSearchBar affichait la barre complète en permanence (expanded=true).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapEventSearchBar.tsx
+ ─────────────────
+ • État initial collapsed : bouton loupe seul ; clic pour déplier.
+ • Fermeture si champ vide (clic extérieur, ×, Escape) ; reste ouvert si requête.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapEventSearchBar.tsx
+
+================================================================================
+Fin — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 804 — Carte : rotation sponsors plus stable
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Bandeau MapAdBanner : rotation trop rapide / contenu invisible (opacity-0) —
+ l’index changeait pendant le fondu au lieu d’après.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapAdBanner.tsx
+ ─────────────────
+ • Fondu puis changement d’index (200 ms), reprise depuis l’index courant.
+ • Pause rotation si onglet carte inactif ; debounce refetch 4,5 s.
+
+ web/app/src/lib/useSponsorAdsRotation.ts
+ ─────────────────
+ • Même correction fondu → advance (feed, stories, salon).
+
+ web/app/src/lib/sponsorDisplaySpec.ts
+ ─────────────────
+ • MAP_BANNER_MIN_DISPLAY_SEC : 12 → 15 s.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapAdBanner.tsx
+ web/app/src/lib/useSponsorAdsRotation.ts
+ web/app/src/lib/sponsorDisplaySpec.ts
+
+================================================================================
+Fin — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 802 — Carte : aperçu événement centré responsive
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La fiche MapEventPreviewCard n’était pas centrée horizontalement dans le
+ viewport carte (inset-x-3 + largeur fixe empêchait mx-auto).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapEventMapInfoPanel.tsx
+ ─────────────────
+ • Wrapper flex centré (`.ms-map-event-preview-panel`) au lieu du positionnement absolu mixte.
+
+ web/app/src/index.css
+ ─────────────────
+ • Styles `.ms-map-event-preview-panel*` : bottom sheet centrée, max-width 20rem mobile / 17.5rem sm+.
+ • Alignement sur `--ms-map-chrome-bottom` (tab bar + safe area).
+
+ web/app/src/components/MapEventPreviewCard.tsx
+ ─────────────────
+ • Padding légèrement réduit sur très petits écrans (p-2.5).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapEventMapInfoPanel.tsx → ancrage centré
+ web/app/src/index.css → styles panel preview
+ web/app/src/components/MapEventPreviewCard.tsx → padding responsive
+
+================================================================================
+Fin — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 801 — Reels : recherche loupe seule par défaut
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La barre de recherche reels occupait toute la largeur en permanence au-dessus
+ du flux vidéo.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/ReelsSearchBar.tsx
+ ─────────────────
+ • État collapsé : bouton loupe 44×44px uniquement.
+ • Clic → expansion en barre pleine largeur ; fermeture si vide (×, Escape, clic extérieur).
+ • Reste ouverte tant qu’une requête est saisie.
+
+ web/app/src/index.css
+ ─────────────────
+ • Classes `.ms-reels-search*` (toggle, field, input, clear).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/ReelsSearchBar.tsx → recherche collapsée
+ web/app/src/index.css → styles ms-reels-search
+
+================================================================================
+Fin — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 800 — Sidebar carte : chips filtre icône seule
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Chip filtre « 🎵 Salon » trop large dans la sidebar étroite.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/NearbyPeoplePanel.tsx
+ ─────────────────
+ • SidebarSectionFilterChip : icône seule (sans texte Salon/Lives/…).
+ • Bouton carré 28×28px ; aria-label/title conservés pour l’accessibilité.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/NearbyPeoplePanel.tsx → chips filtre icône only
+
+================================================================================
+Fin — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 799 — Reels : vidéo pleine largeur mobile
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Vidéo reels limitée à max-w-lg (512px) avec marges latérales (~24px) sur mobile.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/ReelsTabPage.tsx
+ ─────────────────
+ • Conteneur w-full sur mobile ; max-w-lg centré uniquement à partir de lg.
+
+ web/app/src/index.css
+ ─────────────────
+ • object-fit cover global sur .reel-slide > video/img.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/ReelsTabPage.tsx → layout pleine largeur
+ web/app/src/index.css → cover vidéo reels
+
+================================================================================
+Fin — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 798 — Reels : swipe plus fluide entre slides
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Changement de reel saccadé (snap instantané, correction scroll, lecture tardive).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/ReelsTabPage.tsx
+ ─────────────────
+ • Snap smooth à la fin du swipe (plus de scrollTo auto brutal).
+ • focusedIndex (scroll) vs activeIndex (lecture) — pas de son en plein drag.
+ • scrollend + tolérance snap 6px ; délai lecture 12ms.
+ • Préchargement metadata des slides adjacents.
+
+ web/app/src/index.css
+ ─────────────────
+ • scroll-behavior: smooth + scroll-snap sur .reels-track / .reel-slide.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/ReelsTabPage.tsx → fluidité swipe reels
+ web/app/src/index.css → snap CSS smooth
+
+================================================================================
+Fin — 2026-08-11
+================================================================================
+
+================================================================================
 MODIF 797 — Fil abonnements : retrait message vide 48 h
 Date : 2026-08-11
 ================================================================================
@@ -38404,4 +38655,384 @@ FICHIERS MODIFIÉS
 
 ================================================================================
 Fin MODIF 1356 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1357 — Notifications utilisateurs (emails + in-app + prod RESEND_FROM)
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Audit notifications : expéditeur e-mail « Soundy » en prod, pas de renvoi
+ vérification e-mail, pas de mail à l'activation admin, échec paiement abonnement
+ absent de la cloche in-app.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/mailer.ts
+ ─────────────────
+ • sendAccountActivatedEmail() — mail « Votre compte OnScen est activé »
+
+ commun/backend/src/routes/auth.ts
+ ─────────────────
+ • POST /auth/resend-verification-email (Turnstile + rate limit, anti-énumération)
+ • issueVerificationToken() helper
+
+ commun/backend/src/routes/access.ts
+ ─────────────────
+ • E-mail activation après approve admin (compte était pending)
+
+ commun/backend/src/server.ts
+ ─────────────────
+ • Rate limit sur /resend-verification-email
+
+ web/app/src/components/NotificationBell.tsx
+ web/app/src/types.ts
+ ─────────────────
+ • subscription_payment_failed visible cloche + toast + emoji 💳
+
+ web/app/src/lib/api/auth.ts · web/app/src/pages/AuthPage.tsx
+ ─────────────────
+ • Bouton « Renvoyer l'e-mail de vérification » (login + post-inscription)
+
+ commun/backend/.env.production.example
+ ─────────────────
+ • Note : ne jamais laisser « Soundy » dans RESEND_FROM
+
+ VPS prod
+ ─────────────────
+ • RESEND_FROM='OnScen <onboarding@resend.dev>' (remplace Soundy)
+ • Deploy dist/ + public/ · pm2 reload · health OK
+
+FICHIERS MODIFIÉS
+-----
+ mailer.ts · auth.ts · access.ts · server.ts · NotificationBell.tsx · types.ts
+ auth.ts (api) · AuthPage.tsx · .env.production.example
+
+BUILD (si vérifié)
+-----
+ commun/backend → npm run build → ✅ · npm test (notifications) → ✅
+ web/app → npm run build → ✅
+
+================================================================================
+Fin MODIF 1357 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1358 — Parité totale app mobile / web (suppression overrides apptel)
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'app mobile (PWA /tel/ + Capacitor iOS/Android) affichait des écrans très
+ allégés par rapport au web (jusqu'à 4000 lignes en moins pour HomePage) via
+ 12 fichiers pages/composants + CSS + types.ts + App.tsx dupliqués et réduits
+ dans ios/apptel/src/, sans aucune dépendance Capacitor réelle à l'intérieur
+ (0 match `Capacitor` dans ces .tsx). Résultat : globe 3D, recherche
+ événements/organisateurs, sidebar carte, panel hôte Live complet, onglet
+ Musique, panel Admin, PiP salon/live… absents sur mobile alors qu'aucune
+ raison technique ne l'imposait — le plugin Vite `apptelSrcFallback` permet
+ déjà un fallback transparent vers web/app/src.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/index.css
+ ─────────────────
+ • Ajout `@source "../../../ios/apptel/src";` (Tailwind v4 scanne par défaut
+   uniquement le dossier du projet Vite courant → sans cette directive les
+   classes utilisées uniquement côté web ne seraient pas générées pour apptel)
+
+ ios/apptel/src/index.css → SUPPRIMÉ
+ ─────────────────
+ • apptel hérite désormais du CSS web complet (tokens, safe-area, `.ms-*`)
+
+ ios/apptel/src/{types.ts, lib/feedUserPrefs.ts} → SUPPRIMÉS
+ ios/apptel/src/pages/{HomePage,ActualiteTabPage,DmPage,SalonPage,LivePage}.tsx → SUPPRIMÉS
+ ios/apptel/src/components/{NearbyPeoplePanel,MainTabNav,RoomTheaterLayout,
+   ChatPanel,FloatingSalonChat,MapSalonListenSheet,NotificationBell}.tsx → SUPPRIMÉS
+ ─────────────────
+ • 14 overrides purs supprimés — fallback Vite charge automatiquement la
+   version web complète (aucune dépendance native trouvée dans ces fichiers)
+
+ web/app/src/lib/platformShell.ts (nouveau, partagé)
+ ios/apptel/src/lib/platformShell.ts (nouveau, override natif)
+ ─────────────────
+ • `usePlatformPushRegistration(token)` — web: useWebPushRegistration,
+   apptel: useNativePushRegistration (FCM iOS/Android)
+ • `usePlatformBackButton(onBack)` — web: no-op, apptel: useAndroidBackButton
+
+ web/app/src/App.tsx
+ ─────────────────
+ • useWebPushRegistration → usePlatformPushRegistration (via platformShell)
+ • Ajout handleBackButton + usePlatformBackButton : referme réglages > admin
+   > profil > vue profil > grand salon/live > onglet non-carte avant de
+   minimiser l'app (portage de la logique de bouton retour Android de
+   l'ancien App.tsx apptel, adaptée aux overlays du web : admin, PiP salon/live)
+
+ ios/apptel/src/App.tsx → SUPPRIMÉ
+ ─────────────────
+ • apptel hérite intégralement de web/app/src/App.tsx (via main.tsx → './App'
+   résolu par apptelSrcFallback) — plus de duplication de la navigation
+
+ commun/scripts/sync-src.js
+ ─────────────────
+ • PROTECTED réduit aux seuls fichiers réellement overridés restants :
+   main.tsx, vite-env.d.ts, lib/api.ts, lib/api/core.ts, lib/authStorage.ts,
+   lib/socket.ts, lib/nativeServer.ts, lib/platformShell.ts (diff web) +
+   lib/nativeBoot.ts, lib/nativeDeepLink.ts, lib/nativeOfflineDetection.ts,
+   lib/sentryNative.ts, hooks/useNativePushRegistration.ts,
+   hooks/useAndroidBackButton.ts (natif sans équivalent web)
+ • Commentaire d'en-tête mis à jour (apptel = overrides minimes natifs
+   uniquement, plus aucune page/composant dupliqué)
+
+RISQUES / À TESTER MANUELLEMENT AVANT BUILD STORE
+-----
+ • Live (caméra/micro) : panel hôte complet arrive sur mobile pour la
+   première fois — tester permissions natives Android/iOS réelles
+ • Bouton retour Android : tester fermeture overlays (profil, admin,
+   réglages, salon/live plein écran, changement d'onglet) sur appareil
+ • Push natif : vérifier réception FCM après ce refactor de App.tsx
+ • Taille bundle : chunk globe 3D (Three.js) reste exclu au runtime natif
+   via `canUseGlobeView()` (détecte Capacitor.getPlatform())
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/index.css · web/app/src/App.tsx · web/app/src/lib/platformShell.ts (nouveau)
+ ios/apptel/src/lib/platformShell.ts (nouveau) · commun/scripts/sync-src.js
+ ios/apptel/src/{index.css, types.ts, App.tsx, lib/feedUserPrefs.ts} → supprimés
+ ios/apptel/src/pages/{HomePage,ActualiteTabPage,DmPage,SalonPage,LivePage}.tsx → supprimés
+ ios/apptel/src/components/{NearbyPeoplePanel,MainTabNav,RoomTheaterLayout,
+   ChatPanel,FloatingSalonChat,MapSalonListenSheet,NotificationBell}.tsx → supprimés
+
+BUILD (si vérifié)
+-----
+ ios/apptel → npm run build / npm run lint / npm test → à vérifier (Phase 4)
+
+================================================================================
+Fin MODIF 1358 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1359 — Fix régression Tailwind directive @source (suite MODIF 1358)
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suite à MODIF 1358 (suppression ios/apptel/src/index.css), l'app mobile
+ s'affichait entièrement non stylée (« l'affichage n'est pas bon du tout ») :
+ aucune classe utilitaire Tailwind (rounded-xl, backdrop-blur-sm, h-dvh,
+ flex-col…) n'était générée pour le build apptel, seul le CSS custom écrit à
+ la main (.ms-*, .live-video-container…) était présent. CSS servi ~170 kB
+ au lieu de ~450-600 kB attendus (build prod : 136 kB au lieu de 450 kB).
+
+ Cause : la directive `@source "../../../ios/apptel/src";` ajoutée en
+ Phase 0 pointait dans le SENS INVERSE de ce qui était nécessaire. `@source`
+ se résout relativement au fichier CSS lui-même (web/app/src/index.css),
+ quel que soit le projet Vite qui le compile — donc cette directive scanne
+ ios/apptel/src (quasi vide) dans les DEUX builds. Or Tailwind v4 détecte
+ automatiquement les classes en scannant la racine du projet Vite COURANT :
+ pour apptel c'est `ios/apptel/` (vide), pas `web/app/` où vit tout le code
+ réel. Sans source explicite vers web/app/src, zéro classe Tailwind générée
+ côté mobile.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/index.css
+ ─────────────────
+ • Ajout `@source "./";` (scanne web/app/src — indispensable pour apptel)
+ • Conservé `@source "../../../ios/apptel/src";` (couvre les overrides
+   natifs restants si l'un venait à utiliser des classes Tailwind)
+
+VÉRIFICATION
+-----
+ • Dev apptel (:4082) : CSS servi 169 941 → 601 102 octets après fix
+   (rounded-xl, backdrop-blur-sm, h-dvh, flex-col présents)
+ • Build prod apptel : index-*.css 136.45 kB → 450.28 kB
+ • Build prod web/app inchangé/cohérent : index-*.css 459.00 kB (pas de
+   régression côté web)
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/index.css
+
+BUILD (si vérifié)
+-----
+ ios/apptel → npm run build → ✅ (CSS 450.28 kB)
+ web/app → npm run build → ✅ (CSS 459.00 kB, pas de régression)
+
+================================================================================
+Fin MODIF 1359 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1360 — Fix image de fond AuthPage manquante en dev mobile (:4082)
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Après MODIF 1359, le style Auth revient mais le fond « espace » est absent
+ sur le dev server mobile (`npm run mobile:dev`, :4082). L'image
+ `auth-space-bg.png` existe pourtant bien dans web/app/public/ et
+ commun/backend/public/ (jamais supprimée, contrairement à ce qui avait été
+ suspecté) : le composant la référence via un chemin absolu codé en dur
+ `url('/auth-space-bg.png')`.
+
+ Cause réelle : chaque projet Vite (web/app base='/', ios/apptel base='/tel/')
+ ne sert son dossier `public/` QUE sous son propre `base` en dev. Le serveur
+ apptel (:4082) sert donc cette image sous `/tel/auth-space-bg.png`, jamais
+ sous `/auth-space-bg.png` (racine) — d'où un 404 silencieux en dev mobile.
+ En production ça fonctionnait par coïncidence (le backend Express sert une
+ copie du fichier à la racine du domaine, indépendamment des sous-dossiers
+ /assets/ et /tel/), mais pas dans l'environnement de dev isolé de chaque app.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/AuthSpaceBackground.tsx
+ ─────────────────
+ • `url('/auth-space-bg.png')` → `` url('${import.meta.env.BASE_URL}auth-space-bg.png') ``
+   (résout en '/auth-space-bg.png' pour le web, '/tel/auth-space-bg.png'
+   pour apptel — cohérent avec le `base` réel de chaque build)
+
+ ios/apptel/public/auth-space-bg.png (nouveau, copie)
+ ─────────────────
+ • Ajouté pour que le dev server apptel serve l'image localement sous
+   /tel/ (même pattern que les icônes PWA déjà dupliquées dans ce dossier)
+
+VÉRIFICATION
+-----
+ • Dev apptel (:4082) : GET /tel/auth-space-bg.png → 200, 222705 octets
+ • Build prod apptel : commun/backend/public/tel/auth-space-bg.png généré
+   automatiquement (copie du publicDir apptel) → 222705 octets, cohérent
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/AuthSpaceBackground.tsx
+ ios/apptel/public/auth-space-bg.png (nouveau)
+
+BUILD (si vérifié)
+-----
+ ios/apptel → npm run build → ✅ (asset présent dans public/tel/)
+
+================================================================================
+Fin MODIF 1360 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1361 — Fix crash mobile « useMusicPlayer must be used within MusicPlayerProvider »
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Après MODIF 1358 (App.tsx apptel supprimé → hérite du App.tsx web complet,
+ avec onglet Musique/MusicPlayerBar), l'app mobile crashait au chargement :
+ AppErrorBoundary affichait « useMusicPlayer must be used within
+ MusicPlayerProvider ». `ios/apptel/src/main.tsx` (conservé comme override
+ légitime — bootstrap natif) n'enveloppait pas `<App />` dans
+ `<MusicPlayerProvider>`, contrairement à web/app/src/main.tsx : son arbre
+ de providers datait de l'ancien App.tsx apptel (sans onglet Musique), jamais
+ mis à jour lors du refactor de parité.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/main.tsx
+ ─────────────────
+ • Ajout `<MusicPlayerProvider>` autour de `<App />` (requis par
+   MusicPlayerBar + MusicTabPage désormais hérités du web)
+ • Ajout `<MsdevEnvIndicator />` (parité avec web/app/src/main.tsx —
+   pastille visuelle « MSDEV », no-op hors environnement msdev)
+ • Réordonné `<GlobalErrorPopup />` avant `<AuthProvider>` (aligné sur
+   web/app/src/main.tsx)
+ • Les 3 providers de contexte du projet (AuthContext, DmUnreadContext,
+   MusicPlayerContext) sont désormais tous présents dans apptel, comme
+   côté web — plus aucun hook de contexte manquant
+
+VÉRIFICATION
+-----
+ • Dev apptel (:4082) : main.tsx transformé confirmé avec MusicPlayerProvider
+   + MsdevEnvIndicator dans l'arbre JSX rendu
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/main.tsx
+
+================================================================================
+Fin MODIF 1361 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1362 — FAB carte unique « + » avec menu chat (Live/Event/Salon)
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur la carte (HomePage), 3 boutons distincts « + Lives », « + Event »,
+ « + Salon » s'affichaient côte à côte en bas à gauche. Sur mobile, cela
+ prenait trop de place horizontale (scroll horizontal caché via CSS) et
+ nuisait à la lisibilité. Demande : un seul bouton « + » qui ouvre une
+ bulle façon chat (« Que veux-tu faire ? ») proposant les 3 choix, la
+ sélection lançant directement le flux de création correspondant.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapCreateActionFab.tsx (nouveau)
+ ─────────────────
+ • Nouveau composant partagé (web + apptel via fallback Vite) : un FAB rond
+   violet « + » (rotation 45° quand ouvert) qui bascule l'affichage d'une
+   bulle de chat au-dessus (rôle dialog, fermeture au clic extérieur/Échap).
+ • La bulle liste 3 options façon quick-reply : 🎥 Démarrer un live,
+   📅 Créer un événement, 🎵 Créer un salon — chacune avec un sous-titre et
+   reprend les états disabled existants (starting/mediaSetupOpen pour le
+   live, eventPublishing pour l'event).
+ • Sélectionner une option ferme la bulle puis déclenche le callback
+   existant (liveStartFlow.startLive / setEventModalOpen / setShowCreateSalon)
+   — aucun changement des flux/modales de création eux-mêmes.
+
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • Remplacé le bloc des 3 boutons `.ms-map-salon-fab` par
+   `<MapCreateActionFab ... />`. Supprimé la constante CSS
+   `MAP_CREATE_FAB_BTN` et l'import `USERNAME_WAVE_CLASS` devenus inutiles.
+
+ web/app/src/index.css
+ ─────────────────
+ • Ajout `.ms-map-create-chat` (+ keyframe `ms-map-create-chat-in`, respecte
+   `prefers-reduced-motion`) pour l'animation d'ouverture de la bulle.
+ • Ajout modificateur `.ms-map-salon-fab.ms-map-create-menu` (colonne forcée,
+   pas de max-width/scroll horizontal) pour neutraliser les anciennes règles
+   de mise en ligne horizontale (media queries mobile/écran court) héritées
+   du triptyque de boutons, sans toucher aux autres usages de
+   `.ms-map-salon-fab` (positionnement bas-gauche, mode quick-wins).
+ • Supprimé la règle désormais morte `.ms-map-salon-fab .ms-map-create-fab`.
+
+ web/app/src/locales/fr.json, web/app/src/locales/en.json
+ ─────────────────
+ • Nouvelles clés `map.createFabAria`, `map.createChatTitle`,
+   `map.createChatLive(Hint)`, `map.createChatEvent(Hint)`,
+   `map.createChatSalon(Hint)`. Réutilisation des clés aria existantes
+   (`map.createLiveFabAria`, `map.createEventFabAria`, `home.createSalon`)
+   comme aria-label des options de la bulle.
+
+VÉRIFICATION
+-----
+ • web/app → npx tsc --noEmit → ✅
+ • ios/apptel → npx eslint (nouveau fichier) → ✅
+ • Dev apptel (:4082/tel/) : HMR sans erreur après les modifs (HomePage.tsx,
+   index.css, MapCreateActionFab.tsx, locales)
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapCreateActionFab.tsx (nouveau)
+ web/app/src/pages/HomePage.tsx
+ web/app/src/index.css
+ web/app/src/locales/fr.json
+ web/app/src/locales/en.json
+
+================================================================================
+Fin MODIF 1362 — 2026-08-11
 ================================================================================

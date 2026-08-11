@@ -53,7 +53,7 @@ chattr +i "$BACKUP" 2>/dev/null || echo "Note: chattr +i indisponible — backup
 
 # Retirer l'ancien fichier piège (config :80 HTTP-only)
 if [ -f /root/Caddyfile.production ]; then
-  if ! grep -q 'getsoundy.com' /root/Caddyfile.production; then
+  if ! grep -q 'onscen.com' /root/Caddyfile.production; then
     mv /root/Caddyfile.production /root/Caddyfile.production.OLD_HTTP_ONLY
     echo "→ /root/Caddyfile.production déplacé (était HTTP-only :80)"
   fi

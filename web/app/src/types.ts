@@ -1233,7 +1233,8 @@ export interface AppNotification {
     | 'mention'
     | 'support_contact'
     | 'support_reply'
-    | 'support_resolved';
+    | 'support_resolved'
+    | 'subscription_payment_failed';
   senderId: string;
   senderName: string;
   senderAvatarUrl?: string;

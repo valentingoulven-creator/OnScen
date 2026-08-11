@@ -88,7 +88,7 @@ foreach ($f in $caddyFiles) {
         & scp @sshOpts $local "${VPS}:${REMOTE}/deploy/$f" 2>&1
     }
 }
-Write-Host "  → Synchronisation Caddy (getsoundy.com + HTTPS)..." -ForegroundColor Cyan
+Write-Host "  → Synchronisation Caddy (onscen.com + HTTPS)..." -ForegroundColor Cyan
 $caddyOut = & ssh @sshOpts $VPS "sed -i 's/\r$//' $REMOTE/deploy/*.sh && chmod +x $REMOTE/deploy/*.sh && bash $REMOTE/deploy/install-caddy-guard.sh" 2>&1
 Write-Host $caddyOut
 if ("$caddyOut" -notmatch "Caddy guard install") {
@@ -126,8 +126,8 @@ Write-Host "`n  --- Health check ---" -ForegroundColor Cyan
 $health = & ssh @sshOpts $VPS "curl -sf http://localhost:3000/health 2>/dev/null || curl -sf http://localhost/health 2>/dev/null || echo 'Pas de /health — vérifiez le port'" 2>&1
 Write-Host "  $health"
 
-Write-Host "`n  --- Caddy HTTPS (443 + getsoundy.com) ---" -ForegroundColor Cyan
-$caddyCheck = & ssh @sshOpts $VPS "ss -tlnp | grep -E ':443|:80' || true; grep -c getsoundy.com /etc/caddy/Caddyfile 2>/dev/null || echo 0" 2>&1
+Write-Host "`n  --- Caddy HTTPS (443 + onscen.com) ---" -ForegroundColor Cyan
+$caddyCheck = & ssh @sshOpts $VPS "ss -tlnp | grep -E ':443|:80' || true; grep -c onscen.com /etc/caddy/Caddyfile 2>/dev/null || echo 0" 2>&1
 Write-Host $caddyCheck
 
 

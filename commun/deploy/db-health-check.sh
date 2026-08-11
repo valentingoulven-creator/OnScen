@@ -4,7 +4,7 @@
 #   set -a && source /opt/onscen/.env && set +a
 #   bash /opt/onscen/deploy/db-health-check.sh
 # Usage (local via API prod) :
-#   BASE_URL=https://getsoundy.com bash commun/deploy/db-health-check.sh
+#   BASE_URL=https://onscen.com bash commun/deploy/db-health-check.sh
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

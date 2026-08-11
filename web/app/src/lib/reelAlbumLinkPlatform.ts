@@ -44,7 +44,7 @@ const PLATFORM_STYLES: Record<AlbumLinkPlatform, AlbumLinkPlatformStyle> = {
   },
 };
 
-const ONSCEN_HOSTS = new Set(['getsoundy.com', 'www.getsoundy.com', 'localhost', '127.0.0.1']);
+const ONSCEN_HOSTS = new Set(['onscen.com', 'www.onscen.com', 'localhost', '127.0.0.1']);
 
 function isSpotifyHost(host: string): boolean {
   return host === 'open.spotify.com' || host === 'spotify.com' || host.endsWith('.spotify.com');

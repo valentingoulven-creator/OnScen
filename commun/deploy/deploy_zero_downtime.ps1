@@ -463,10 +463,10 @@ if ("$pm2Exists" -match "PM2_MISSING") {
 }
 
 if ($Environment -eq 'preprod') {
-    Write-Host "  -> Synchronisation Caddy (staging.getsoundy.com)..."
+    Write-Host "  -> Synchronisation Caddy (staging.onscen.com)..."
     $caddyCmd = 'sed -i ''s/\r$//'' ' + $REMOTE + '/deploy/*.sh 2>/dev/null; chmod +x ' + $REMOTE + '/deploy/*.sh 2>/dev/null; bash ' + $REMOTE + '/deploy/sync-caddy-staging.sh 2>&1'
 } else {
-    Write-Host "  -> Synchronisation Caddy (getsoundy.com + HTTPS)..."
+    Write-Host "  -> Synchronisation Caddy (onscen.com + HTTPS)..."
     $caddyCmd = 'sed -i ''s/\r$//'' ' + $REMOTE + '/deploy/*.sh 2>/dev/null; chmod +x ' + $REMOTE + '/deploy/*.sh 2>/dev/null; bash ' + $REMOTE + '/deploy/install-caddy-guard.sh 2>&1; rc=$?; if [ $rc -ne 0 ]; then bash ' + $REMOTE + '/deploy/sync-caddy.sh 2>&1; fi'
 }
 $caddyOut = Invoke-Remote $caddyCmd

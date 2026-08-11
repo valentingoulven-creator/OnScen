@@ -22,16 +22,16 @@ describe('detectAlbumLinkPlatform', () => {
     expect(style.label).toBe('OnScen');
   });
 
-  it('detects OnScen via getsoundy.com album link', () => {
+  it('detects OnScen via onscen.com album link', () => {
     const style = detectAlbumLinkPlatform(
-      'https://getsoundy.com/profile/u1?tab=compositions&album=alb-42'
+      'https://onscen.com/profile/u1?tab=compositions&album=alb-42'
     );
     expect(style.platform).toBe('onscen');
     expect(style.label).toBe('OnScen');
   });
 
-  it('detects OnScen for getsoundy.com even without compositions tab', () => {
-    const style = detectAlbumLinkPlatform('https://getsoundy.com/profile/u1');
+  it('detects OnScen for onscen.com even without compositions tab', () => {
+    const style = detectAlbumLinkPlatform('https://onscen.com/profile/u1');
     expect(style.platform).toBe('onscen');
   });
 

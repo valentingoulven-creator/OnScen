@@ -48,9 +48,9 @@ export function MapEventSearchBar({
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const placesSeqRef = useRef(0);
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [query, setQuery] = useState('');
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(-1);
   const [places, setPlaces] = useState<PlaceSearchHit[]>([]);
@@ -121,10 +121,11 @@ export function MapEventSearchBar({
   }, [flatHits]);
 
   const collapse = useCallback(() => {
+    if (query.trim()) return;
     setOpen(false);
     setExpanded(false);
     setActiveIndex(-1);
-  }, []);
+  }, [query]);
 
   const expand = useCallback(() => {
     setExpanded(true);
@@ -133,12 +134,13 @@ export function MapEventSearchBar({
   }, []);
 
   useEffect(() => {
+    if (!expanded) return;
     const onDocPointerDown = (e: PointerEvent) => {
       if (!rootRef.current?.contains(e.target as Node)) collapse();
     };
     document.addEventListener('pointerdown', onDocPointerDown);
     return () => document.removeEventListener('pointerdown', onDocPointerDown);
-  }, [collapse]);
+  }, [collapse, expanded]);
 
   const pickPlace = useCallback(
     (hit: PlaceSearchHit) => {

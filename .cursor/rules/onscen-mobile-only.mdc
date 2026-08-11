@@ -1,0 +1,54 @@
+---
+description: "@mobile-only @apptel-only Modifs UNIQUEMENT app mobile (ios/apptel) — sans toucher web/app"
+alwaysApply: false
+---
+
+# OnScen — mode mobile only
+
+Activer avec **`@mobile-only`** ou **`@apptel-only`** quand la demande concerne **uniquement** l'app mobile (PWA `/tel/` + Capacitor iOS/Android).
+
+## Périmètre autorisé
+
+| Zone | Autorisé |
+|------|----------|
+| `ios/apptel/src/**` | ✅ overrides UI / logique mobile |
+| `ios/apptel/scripts/**`, `capacitor.config*.json` | ✅ build natif |
+| `android/**`, `Smartphone/**` | ✅ scripts APK (si demandé) |
+| `web/app/src/**` | ❌ **interdit** en mode mobile-only |
+| `commun/backend/**` | ❌ sauf demande explicite API |
+
+## Workflow agent
+
+1. **Avant d'override un fichier partagé** :
+   ```powershell
+   npm run mobile:override -- create components/MonComposant.tsx
+   ```
+2. **Modifier uniquement** le fichier sous `ios/apptel/src/`.
+3. **Tester** :
+   ```powershell
+   npm run mobile:dev
+   ```
+   → http://localhost:4082/tel/ (pas `:5173` web)
+4. **Vérifier le périmètre** (optionnel) :
+   ```powershell
+   npm run mobile:check
+   ```
+
+## Règles
+
+- Ne **jamais** éditer `web/app/src/` pour une feature mobile-only — créer l'override apptel.
+- Fix **partagé** web + mobile → hors de ce mode ; utiliser `@onscen-dev` et `web/app/src/`.
+- Conventions : mobile-first, safe-area, touch 44px (`mobile-responsive.mdc`).
+- Changelog : entrée `modification.txt` si changement significatif.
+
+## Commandes utiles
+
+| Commande | Rôle |
+|----------|------|
+| `npm run mobile:override -- create <path>` | Scaffold override depuis web |
+| `npm run mobile:override -- list` | Liste ios/apptel/src |
+| `npm run mobile:dev` | Dev mobile |
+| `npm run mobile:build` | Build PWA tel |
+| `npm run mobile:check` | Garde-fou git (pas de web/app) |
+
+Doc : `commun/docs/ONBOARDING-DEVELOPPEUR.md` § Mobile — `ios/apptel/src/`

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const ONSCEN_BASE_URL = 'https://getsoundy.com';
+const ONSCEN_BASE_URL = 'https://onscen.com';
 
 import { useAuth } from '../context/AuthContext';
 import { canJoinSalonAsParticipant, isMusicPlatformLinkedForSalon } from '../lib/platformConnect';

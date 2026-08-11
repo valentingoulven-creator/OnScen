@@ -29,7 +29,8 @@ function isVisibleNotification(n: AppNotification): boolean {
     n.type === 'mention' ||
     n.type === 'support_contact' ||
     n.type === 'support_reply' ||
-    n.type === 'support_resolved'
+    n.type === 'support_resolved' ||
+    n.type === 'subscription_payment_failed'
   );
 }
 
@@ -53,7 +54,8 @@ function shouldShowToast(n: AppNotification): boolean {
     n.type === 'mention' ||
     n.type === 'support_contact' ||
     n.type === 'support_reply' ||
-    n.type === 'support_resolved'
+    n.type === 'support_resolved' ||
+    n.type === 'subscription_payment_failed'
   );
 }
 
@@ -151,6 +153,8 @@ function notificationEmoji(n: AppNotification): string {
       return '✉️';
     case 'support_resolved':
       return '✅';
+    case 'subscription_payment_failed':
+      return '💳';
     default:
       return '♥';
   }

@@ -14,7 +14,7 @@ let lastAlertAt = 0;
 let timer: ReturnType<typeof setInterval> | null = null;
 
 function uptimeUrl(): string {
-  const base = process.env.WEB_APP_URL?.trim() || 'https://getsoundy.com';
+  const base = process.env.WEB_APP_URL?.trim() || 'https://onscen.com';
   return `${base.replace(/\/$/, '')}/health`;
 }
 
@@ -44,7 +44,7 @@ async function sendUptimeAlert(detail: string): Promise<void> {
   const adminEmail =
     process.env.ALERT_EMAIL?.trim() ||
     process.env.SMTP_ADMIN_EMAIL?.trim() ||
-    'admin@getsoundy.com';
+    'admin@onscen.com';
   const url = uptimeUrl();
   const ts = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' });
 

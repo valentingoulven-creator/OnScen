@@ -6,8 +6,12 @@
  *
  * ARCHITECTURE
  * ------------
- * • app/src/    = SOURCE DE VÉRITÉ (webapp + logique partagée)
- * • ios/apptel/src/ = OVERRIDES SEULEMENT (23 fichiers spécifiques téléphone)
+ * • app/src/    = SOURCE DE VÉRITÉ (webapp + logique partagée) — apptel en
+ *   hérite intégralement (pages, composants, CSS, types) via le plugin Vite.
+ * • ios/apptel/src/ = OVERRIDES MINIMES, uniquement pour du code réellement
+ *   natif (Capacitor : push, deep links, stockage sécurisé, socket, boot).
+ *   Aucune page/composant n'est plus dupliqué ici — parité totale avec le
+ *   web (cf. plan « Parité totale app mobile / web », 2026-08-11).
  *
  * Le plugin Vite `apptelSrcFallback` dans ios/apptel/vite.config.ts charge
  * automatiquement depuis app/src/ tout fichier absent de ios/apptel/src/.
@@ -43,43 +47,34 @@ const TEL_SRC = join(ROOT, 'ios', 'apptel', 'src');
  * Fichiers spécifiques à apptel — présents dans ios/apptel/src/ intentionnellement.
  * Ces fichiers ne sont JAMAIS supprimés par --clean.
  *
- * [CSS]      index.css — styles mobile (safe-area, tailles, polices…)
- * [ENTRY]    main.tsx, App.tsx — routage et initialisation différents
- * [TYPES]    types.ts — types adaptés mobile
- * [COMP]     composants avec UI mobile
- * [LIB]      librairies avec comportement mobile
- * [PAGES]    pages allégées ou réorganisées
- * [WEB-ONLY] fichiers qui n'ont pas d'équivalent dans apptel (dep absente)
+ * [ENTRY]      main.tsx — bootstrap natif (Sentry, permissions, deep links, SW)
+ * [LIB-DIFF]   lib/*.ts qui ont une version web équivalente mais un comportement
+ *              natif différent (URL socket, stockage sécurisé, endpoints API)
+ * [NATIVE-ONLY] fichiers Capacitor sans équivalent web (pas de duplication
+ *              possible — présents uniquement côté apptel)
+ *
+ * Toutes les pages, composants, le CSS et les types sont désormais 100%
+ * partagés depuis app/src/ (aucun override) — voir plan « Parité totale
+ * app mobile / web » (2026-08-11).
  */
 const PROTECTED = new Set([
-  'index.css',
+  // [ENTRY]
   'main.tsx',
-  'App.tsx',
-  'types.ts',
-  'components/AppErrorBoundary.tsx',
-  'components/ChatPanel.tsx',
-  'components/FloatingSalonChat.tsx',
-  'components/MainTabNav.tsx',
-  'components/MapSalonListenSheet.tsx',
-  'components/MapView.tsx',
-  'components/NearbyPeoplePanel.tsx',
-  'components/NotificationBell.tsx',
-  'components/RoomTheaterLayout.tsx',
+  'vite-env.d.ts',
+  // [LIB-DIFF]
   'lib/api.ts',
   'lib/api/core.ts',
   'lib/authStorage.ts',
-  'lib/feedFilter.test.ts',
-  'lib/feedUserPrefs.ts',
-  'lib/nativeServer.ts',
   'lib/socket.ts',
-  'pages/ActualiteTabPage.tsx',
-  'pages/DmPage.tsx',
-  'pages/HomePage.tsx',
-  'pages/LivePage.tsx',
-  'pages/SalonPage.tsx',
-  'pages/UserProfilePage.tsx',
-  'components/GlobeView.tsx',
-  'vite-env.d.ts',
+  'lib/nativeServer.ts',
+  'lib/platformShell.ts',
+  // [NATIVE-ONLY]
+  'lib/nativeBoot.ts',
+  'lib/nativeDeepLink.ts',
+  'lib/nativeOfflineDetection.ts',
+  'lib/sentryNative.ts',
+  'hooks/useNativePushRegistration.ts',
+  'hooks/useAndroidBackButton.ts',
 ]);
 
 // ── couleurs ─────────────────────────────────────────────────────────────────
@@ -239,7 +234,11 @@ function runClean() {
     if (PROTECTED.has(rel)) { kept++; continue; }
     if (appFiles.has(rel)) {
       const same = md5(telFull) === md5(appFiles.get(rel));
-      const tag  = same ? D + '[identique]' : Y + '[différent!]';
+      if (!same) {
+        kept++;
+        continue;
+      }
+      const tag = D + '[identique]' + R;
       console.log('  ' + G + '✗ SUPPRIMÉ' + R + ' ' + tag + R + ' ' + rel);
       if (!DRY_RUN) unlinkSync(telFull);
       removed++;

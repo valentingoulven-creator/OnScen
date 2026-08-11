@@ -68,7 +68,7 @@ if ($LASTEXITCODE -eq 0) {
 
 # Prod publique
 try {
-    $ph = Invoke-WebRequest -Uri 'https://getsoundy.com/health' -UseBasicParsing -TimeoutSec 15
+    $ph = Invoke-WebRequest -Uri 'https://onscen.com/health' -UseBasicParsing -TimeoutSec 15
     Add-Check 'Health prod' ($ph.StatusCode -eq 200) ''
 } catch {
     Add-Check 'Health prod' $false $_.Exception.Message
@@ -84,7 +84,7 @@ try {
 }
 
 try {
-    $shDns = Invoke-WebRequest -Uri 'https://staging.getsoundy.com/health' -UseBasicParsing -TimeoutSec 10
+    $shDns = Invoke-WebRequest -Uri 'https://staging.onscen.com/health' -UseBasicParsing -TimeoutSec 10
     Add-Check 'Health staging (DNS)' ($shDns.StatusCode -eq 200) ''
 } catch {
     Add-Check 'Health staging (DNS)' $false 'Ajouter A staging -> 51.159.170.181 (OVH, voir commun/scripts/add-staging-dns-ovh.md)'

@@ -1,18 +1,15 @@
 #!/usr/bin/env node
 /**
- * Extrait les pins SPKI SHA-256 pour onscen.com + getsoundy.com (SSL pinning Android).
+ * Extrait les pins SPKI SHA-256 pour onscen.com (SSL pinning Android).
  *
- * Domaine canonique `onscen.com` (2026-08-10, cf. commun/docs/ONSCEN-DOMAINE.md) et legacy
- * `getsoundy.com` dual-hostés sur des certificats Caddy/Let's Encrypt DISTINCTS (CN et
- * empreintes différentes, vérifié — pas un SAN partagé) : les deux domaines nécessitent
- * chacun leur propre <domain-config> avec pin-set, sinon `onscen.com` (utilisé par
- * capacitor.config.prod.json + VITE_API_URL mobile) retombe sur le <base-config> sans
- * pinning.
+ * getsoundy.com décommissionné (2026-08-11, hard stop côté Caddy, cf.
+ * commun/docs/ONSCEN-DOMAINE.md) — seul le domaine canonique `onscen.com` (utilisé par
+ * capacitor.config.prod.json + VITE_API_URL mobile) est pinné désormais.
  *
  * Pin le certificat feuille (leaf, rotation ~90j) ET le certificat intermédiaire (issuer,
- * rotation beaucoup plus rare) comme pin de secours par domaine — recommandation OWASP
- * « au moins 2 pins » pour éviter de « bricker » l'app au prochain renouvellement TLS si
- * un seul pin (le leaf) est utilisé.
+ * rotation beaucoup plus rare) comme pin de secours — recommandation OWASP « au moins
+ * 2 pins » pour éviter de « bricker » l'app au prochain renouvellement TLS si un seul
+ * pin (le leaf) est utilisé.
  *
  * Usage : node commun/scripts/fetch-cert-pins.mjs [--write]
  */
@@ -22,7 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const HOSTS = ['onscen.com', 'getsoundy.com'];
+const HOSTS = ['onscen.com'];
 // commun/scripts/ -> racine repo = deux niveaux au-dessus (restructuration monorepo du 09/07/2026 ;
 // l'ancien chemin à un seul niveau pointait vers commun/ios/... et n'écrivait jamais le bon fichier).
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -115,9 +112,9 @@ ${pinLines}
 
   const xml = `<?xml version="1.0" encoding="utf-8"?>
 <!-- Généré par commun/scripts/fetch-cert-pins.mjs — renouveler avant expiration.
-     onscen.com (canonique) + getsoundy.com (legacy) : certificats Caddy/Let's Encrypt
-     DISTINCTS, chacun avec 2 pins (leaf + intermédiaire de secours, recommandation OWASP)
-     pour éviter de bloquer l'app au prochain renouvellement TLS du leaf seul. -->
+     onscen.com uniquement (getsoundy.com décommissionné, 2026-08-11) : 2 pins
+     (leaf + intermédiaire de secours, recommandation OWASP) pour éviter de bloquer
+     l'app au prochain renouvellement TLS du leaf seul. -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>

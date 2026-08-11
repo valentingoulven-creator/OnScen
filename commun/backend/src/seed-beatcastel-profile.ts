@@ -209,7 +209,7 @@ function ensureBeatCastelFeedPosts(): number {
       eventType: 'autre',
       eventLocation: 'Castelnau-le-Lez, France',
       eventDate: eventDateIso(14, 20),
-      eventLinkUrl: 'https://getsoundy.com',
+      eventLinkUrl: 'https://onscen.com',
       daysAgo: 6,
     },
     {

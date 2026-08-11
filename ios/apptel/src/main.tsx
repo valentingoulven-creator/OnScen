@@ -21,7 +21,9 @@ if (IS_NATIVE_BUILD) {
 import { AppErrorBoundary } from './components/AppErrorBoundary.tsx';
 import { AuthProvider } from './context/AuthContext';
 import { DmUnreadProvider } from './context/DmUnreadContext.tsx';
+import { MusicPlayerProvider } from './context/MusicPlayerContext.tsx';
 import { GlobalErrorPopup } from './components/GlobalErrorPopup.tsx';
+import { MsdevEnvIndicator } from './components/MsdevEnvBadge.tsx';
 
 const isMsdevBuild = import.meta.env.VITE_APP_ENV === 'msdev';
 
@@ -36,10 +38,13 @@ const rootEl = document.getElementById('root')!;
 createRoot(rootEl).render(
   <StrictMode>
     <AppErrorBoundary>
+      <GlobalErrorPopup />
       <AuthProvider>
         <DmUnreadProvider>
-          <App />
-          <GlobalErrorPopup />
+          <MusicPlayerProvider>
+            <MsdevEnvIndicator />
+            <App />
+          </MusicPlayerProvider>
         </DmUnreadProvider>
       </AuthProvider>
     </AppErrorBoundary>

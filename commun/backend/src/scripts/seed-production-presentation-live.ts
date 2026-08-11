@@ -72,7 +72,7 @@ async function main(): Promise<void> {
         legacyLivesPgRemoved: legacyPgRemoved,
         presentation,
         postgres: pgSaved,
-        liveUrl: `https://getsoundy.com/live/${presentation.liveId}`,
+        liveUrl: `https://onscen.com/live/${presentation.liveId}`,
       },
       null,
       2

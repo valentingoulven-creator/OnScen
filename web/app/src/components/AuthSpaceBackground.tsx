@@ -1,7 +1,16 @@
 /** Full-viewport space background for login / signup flows. */
 import type { ReactNode } from 'react';
 
-const AUTH_BG_IMAGE = "url('/auth-space-bg.png')";
+/**
+ * `import.meta.env.BASE_URL` (pas un chemin absolu codé en dur) : le web
+ * tourne à la racine ('/') mais apptel tourne sous '/tel/' (PWA + Capacitor)
+ * — chaque projet Vite ne sert son `public/` que sous son propre `base` en
+ * dev. `auth-space-bg.png` est dupliqué dans web/app/public/ ET
+ * ios/apptel/public/ (comme les icônes PWA) pour que les deux dev servers
+ * le trouvent localement ; en prod le backend sert aussi une copie à la
+ * racine du domaine, mais cette résolution reste correcte dans tous les cas.
+ */
+const AUTH_BG_IMAGE = `url('${import.meta.env.BASE_URL}auth-space-bg.png')`;
 
 type AuthPageShellProps = {
   children: ReactNode;
