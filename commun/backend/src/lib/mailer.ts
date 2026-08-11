@@ -244,6 +244,54 @@ export async function sendVerificationEmail(params: {
   }
 }
 
+export async function sendAccountActivatedEmail(params: {
+  toEmail: string;
+  username: string;
+}): Promise<void> {
+  if (!isEmailConfigured()) {
+    if (process.env.APP_ENV === 'production') {
+      console.warn('[mailer] Email non configuré — notification activation compte non envoyée.');
+    }
+    return;
+  }
+
+  const from = getEmailFrom('OnScen');
+  const loginUrl = `${process.env.WEB_APP_URL ?? 'https://onscen.com'}/auth`;
+  const subject = 'Votre compte OnScen est activé';
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+      <h2 style="color:#7c3aed;margin-top:0;">🎵 Bonne nouvelle, ${params.username} !</h2>
+      <p style="color:#374151;font-size:15px;">
+        Votre compte OnScen a été validé par un administrateur. Vous pouvez maintenant vous connecter.
+      </p>
+      <div style="text-align:center;margin:32px 0;">
+        <a href="${loginUrl}"
+           style="display:inline-block;background:#7c3aed;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">
+          Se connecter →
+        </a>
+      </div>
+      <p style="color:#9ca3af;font-size:12px;margin-top:24px;">
+        OnScen — <a href="https://onscen.com" style="color:#7c3aed;">onscen.com</a>
+      </p>
+    </div>
+  `;
+
+  const text = [
+    `Bonjour ${params.username},`,
+    '',
+    'Votre compte OnScen a été validé par un administrateur. Vous pouvez maintenant vous connecter :',
+    loginUrl,
+  ].join('\n');
+
+  try {
+    await sendEmail({ from, to: params.toEmail, subject, text, html });
+    console.info(`[mailer] Email activation compte envoyé à ${params.toEmail}`);
+  } catch (err) {
+    console.error('[mailer] Échec envoi email activation compte:', err);
+  }
+}
+
 export async function sendPasswordResetEmail(params: {
   toEmail: string;
   username: string;

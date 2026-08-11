@@ -15,7 +15,7 @@ interface MapEventMapInfoPanelProps {
   onPostUpdated?: (postId: string, patch: Partial<FeedPost>) => void;
 }
 
-/** Fiche aperçu événement ancrée sur la carte (mobile : bottom sheet, desktop : coin haut-gauche). */
+/** Fiche aperçu événement ancrée sur la carte (centrée dans le viewport). */
 export function MapEventMapInfoPanel({
   marker,
   post,
@@ -79,14 +79,14 @@ export function MapEventMapInfoPanel({
 
   return (
     <div
-      className="absolute inset-x-3 bottom-[max(4.25rem,calc(0.75rem+env(safe-area-inset-bottom)))] z-[35] pointer-events-auto w-[min(calc(100%-1.5rem),20rem)] max-w-md mx-auto sm:inset-x-auto sm:bottom-auto sm:top-3 sm:left-3 sm:right-auto sm:mx-0 sm:w-full sm:max-w-[17.5rem]"
+      className="ms-map-event-preview-panel"
       role="region"
       aria-label={t('map.eventPreviewAria', {
         title: previewTitle,
         defaultValue: `Aperçu de l'événement ${previewTitle}`,
       })}
     >
-      <div className="relative overflow-hidden rounded-2xl border border-purple-500/45 bg-[#12121a] shadow-[0_0_22px_rgba(168,85,247,0.18)]">
+      <div className="ms-map-event-preview-panel__card relative overflow-hidden rounded-2xl border border-purple-500/45 bg-[#12121a] shadow-[0_0_22px_rgba(168,85,247,0.18)]">
         <MapEventPreviewCard
           post={activePost}
           locationCoords={locationCoords}

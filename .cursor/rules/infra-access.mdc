@@ -28,7 +28,7 @@ Etat cible : `commun/scripts/verify-full-access.ps1` → 20+/22 checks OK.
 | Scaleway CLI | OK | `~/.config/scw/config.yaml` |
 | Deploy prod | OK | `commun/scripts/deploy-prod.ps1` (demande explicite) |
 | Deploy preprod | OK | `commun/scripts/deploy-preprod.ps1` |
-| Health prod | OK | https://getsoundy.com/health |
+| Health prod | OK | https://onscen.com/health |
 | Health staging | OK | http://51.159.170.181/health (`env: preproduction`) |
 
 ## Scripts
@@ -57,7 +57,7 @@ ssh onscen-staging "curl -s http://127.0.0.1:3000/health"
 
 ## Limites connues
 
-- **DNS staging** : ajouter `staging.getsoundy.com` A → 51.159.170.181 (voir `docs/ENVIRONNEMENTS.md`).
+- **DNS staging** : ajouter `staging.onscen.com` A → 51.159.170.181 (voir `docs/ENVIRONNEMENTS.md`).
 - **psql local** : optionnel ; DB accessible via SSH VPS.
 - **Deploy prod** : demande explicite utilisateur uniquement.
 

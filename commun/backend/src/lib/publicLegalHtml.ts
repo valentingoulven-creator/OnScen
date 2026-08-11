@@ -78,7 +78,7 @@ export function renderPublicLegalHtml(docKey: string, lang: AppLocale = 'fr'): s
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(doc.title)} — OnScen</title>
-  <meta name="description" content="${escapeHtml(doc.title)} — OnScen (getsoundy.com)">
+  <meta name="description" content="${escapeHtml(doc.title)} — OnScen (onscen.com)">
   <style>
     :root { color-scheme: dark; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; line-height: 1.6; max-width: 48rem; margin: 0 auto; padding: 1.5rem; background: #0b0b0f; color: #e5e7eb; }
@@ -102,7 +102,7 @@ export function renderPublicLegalHtml(docKey: string, lang: AppLocale = 'fr'): s
 ${sections}
   </main>
   <footer>
-    <p><a href="https://getsoundy.com/">getsoundy.com</a> ·
+    <p><a href="https://onscen.com/">onscen.com</a> ·
     <a href="/privacy?lang=${lang}">${ui.footerPrivacy}</a> ·
     <a href="/terms?lang=${lang}">${ui.footerTerms}</a> ·
     <a href="/legal/mentions?lang=${lang}">${ui.footerMentions}</a></p>

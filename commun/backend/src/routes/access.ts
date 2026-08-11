@@ -36,6 +36,7 @@ import {
 } from '../lib/subscriptions';
 import { getPlatformPlanStatus, getUserPlatformPlan } from '../lib/platformPlans';
 import { logAdminAction } from '../lib/adminAuditLog';
+import { sendAccountActivatedEmail } from '../lib/mailer';
 import {
   findMapSidebarSponsorForEventPost,
   findReelsSponsorForReelId,
@@ -253,6 +254,8 @@ accessRouter.patch('/admin/policy', authenticateJWT, (req: Request, res: Respons
 
 accessRouter.post('/admin/users/:userId/approve', authenticateJWT, (req: Request, res: Response) => {
   if (requireAdmin(req, res) == null) return;
+  const target = db.users.get(req.params.userId);
+  const wasPending = target?.accountStatus === 'pending';
   const user = setUserAccountStatus(req.params.userId, 'active');
   if (!user) {
     res.status(404).json({ error: 'Utilisateur introuvable' });
@@ -260,6 +263,9 @@ accessRouter.post('/admin/users/:userId/approve', authenticateJWT, (req: Request
   }
   schedulePersistUserToPg(user);
   schedulePersist();
+  if (wasPending && user.email) {
+    void sendAccountActivatedEmail({ toEmail: user.email, username: user.username });
+  }
   logAdminAction({
     adminId: (req as Request & { user: { id: string } }).user.id,
     action: 'user_approve',

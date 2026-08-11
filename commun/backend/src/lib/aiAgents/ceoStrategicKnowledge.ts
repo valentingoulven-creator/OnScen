@@ -3,7 +3,7 @@ export function getCeoStrategicKnowledge() {
   return {
     vision:
       'Réseau social musique live + écoute partagée — unifier découverte, salons sync, lives, carte IRL, reels.',
-    productionUrl: 'https://getsoundy.com',
+    productionUrl: 'https://onscen.com',
     tabs: ['Actualités', 'Carte', 'Direct', 'Messages', 'Reels'],
     businessModelPriority: [
       'Sponsors natifs (45–55 % revenu cible M24)',

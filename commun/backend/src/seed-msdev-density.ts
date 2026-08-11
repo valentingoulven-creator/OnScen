@@ -292,7 +292,7 @@ export function seedMsdevDensity(opts?: { force?: boolean }): SeedMsdevDensityRe
       eventDate: eventDateIso(fest.dayOffset, fest.hourUtc),
       eventLocation: fest.location,
       eventType: 'dance',
-      eventLinkUrl: 'https://getsoundy.com',
+      eventLinkUrl: 'https://onscen.com',
     };
     db.feedPosts.unshift(post);
     eventsCreated++;

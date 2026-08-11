@@ -17,7 +17,7 @@ export function parseStoryAppLink(url: string): StoryAppLinkTarget | null {
     const pathMatch = parsed.pathname.match(/^\/profile\/([^/]+)\/?$/i);
     if (!pathMatch) return null;
     const host = parsed.hostname.toLowerCase();
-    const allowedHosts = new Set(['getsoundy.com', 'www.getsoundy.com', 'localhost', '127.0.0.1']);
+    const allowedHosts = new Set(['onscen.com', 'www.onscen.com', 'localhost', '127.0.0.1']);
     if (typeof window !== 'undefined') {
       allowedHosts.add(window.location.hostname.toLowerCase());
     }

@@ -32,7 +32,7 @@ subscribePhoneWebViewport(() => {
   syncPhoneWebViewportClass();
 });
 
-/** Design quick wins — build prod ou navigateur mobile (getsoundy.com). Pas de Google Fonts en natif Capacitor. */
+/** Design quick wins — build prod ou navigateur mobile (onscen.com). Pas de Google Fonts en natif Capacitor. */
 const enableDesignQuickWins =
   !isNativeApp() &&
   (import.meta.env.VITE_DESIGN_QUICK_WINS === '1' || isPhoneWebViewport());

@@ -40,7 +40,7 @@ describe('getProdSaasStatusReport', () => {
     const report = getProdSaasStatusReport();
     expect(report.linkGroups.length).toBeGreaterThan(5);
     const onscen = report.linkGroups.find((g) => g.id === 'onscen');
-    expect(onscen?.links.some((l) => l.url.includes('getsoundy.com'))).toBe(true);
+    expect(onscen?.links.some((l) => l.url.includes('onscen.com'))).toBe(true);
     expect(Array.isArray(report.alerts)).toBe(true);
   });
 
@@ -60,7 +60,7 @@ describe('getProdSaasStatusReport', () => {
     process.env.APP_ENV = 'production';
     process.env.GOOGLE_CLIENT_ID = 'g-id';
     process.env.GOOGLE_CLIENT_SECRET = 'g-secret';
-    process.env.YOUTUBE_CALLBACK_URL = 'https://getsoundy.com/cb';
+    process.env.YOUTUBE_CALLBACK_URL = 'https://onscen.com/cb';
     delete process.env.YOUTUBE_API_KEY;
 
     const report = getProdSaasStatusReport();

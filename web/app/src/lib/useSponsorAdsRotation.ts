@@ -8,6 +8,8 @@ import {
 import { getDisplayDurationMs } from './sponsorDisplaySpec';
 import { SPONSOR_PLACEMENT_BY_FETCH, trackSponsorImpression } from './sponsorTrack';
 
+const SPONSOR_CAROUSEL_FADE_MS = 200;
+
 const SPONSOR_FETCHERS = {
   map: () => api.getMapSponsors(),
   feed: () => api.getFeedSponsors(),
@@ -19,6 +21,8 @@ export function useSponsorAdsRotation(placement: SponsorPlacementFetch) {
   const [ads, setAds] = useState(() => resolvePlacementAds(placement, null));
   const [index, setIndex] = useState(0);
   const [fading, setFading] = useState(false);
+  const indexRef = useRef(0);
+  indexRef.current = index;
 
   useEffect(() => {
     let cancelled = false;
@@ -53,34 +57,46 @@ export function useSponsorAdsRotation(placement: SponsorPlacementFetch) {
     setFading(true);
     window.setTimeout(() => {
       setIndex(nextIndex);
+      indexRef.current = nextIndex;
       setFading(false);
-    }, 180);
+    }, SPONSOR_CAROUSEL_FADE_MS);
   }, []);
 
   useEffect(() => {
-    if (ads.length <= 1) return;
+    if (ads.length <= 1) {
+      setFading(false);
+      return;
+    }
+
     let cancelled = false;
-    let timer: number | undefined;
+    let rotateTimer: number | undefined;
+    let fadeTimer: number | undefined;
+    const startIndex = indexRef.current % ads.length;
 
     const scheduleNext = (currentIndex: number) => {
       if (cancelled) return;
       const currentAd = ads[currentIndex % ads.length];
-      timer = window.setTimeout(() => {
+      if (!currentAd) return;
+
+      rotateTimer = window.setTimeout(() => {
         if (cancelled) return;
         setFading(true);
-        window.setTimeout(() => setFading(false), 180);
-        setIndex((i) => {
-          const nextIndex = (i + 1) % ads.length;
+        fadeTimer = window.setTimeout(() => {
+          if (cancelled) return;
+          const nextIndex = (currentIndex + 1) % ads.length;
+          setIndex(nextIndex);
+          indexRef.current = nextIndex;
+          setFading(false);
           scheduleNext(nextIndex);
-          return nextIndex;
-        });
+        }, SPONSOR_CAROUSEL_FADE_MS);
       }, getDisplayDurationMs(currentAd.displayDurationSec));
     };
 
-    scheduleNext(0);
+    scheduleNext(startIndex);
     return () => {
       cancelled = true;
-      if (timer != null) clearTimeout(timer);
+      if (rotateTimer != null) clearTimeout(rotateTimer);
+      if (fadeTimer != null) clearTimeout(fadeTimer);
     };
   }, [ads]);
 

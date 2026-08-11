@@ -104,7 +104,7 @@ describe('getProviderIssues', () => {
   it('does not flag test_mode_in_production for a verified custom domain', () => {
     process.env.APP_ENV = 'production';
     process.env.RESEND_API_KEY = 're_abcdefgh12345678';
-    process.env.RESEND_FROM = 'OnScen <noreply@getsoundy.com>';
+    process.env.RESEND_FROM = 'OnScen <noreply@onscen.com>';
 
     const issues = getProviderIssues(getProviderDef('resend_email')!);
     expect(issues.some((i) => i.type === 'test_mode_in_production')).toBe(false);

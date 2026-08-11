@@ -3,6 +3,21 @@
 @import "leaflet.markercluster/dist/MarkerCluster.css";
 @import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 
+/* Parité mobile (ios/apptel) : ce fichier est la source unique (fallback Vite
+   apptelSrcFallback). Tailwind v4 détecte automatiquement les classes en
+   scannant le dossier racine du projet Vite COURANT — pour le build apptel,
+   c'est ios/apptel/ (quasi vide désormais), pas web/app/ où vit réellement
+   tout le code (pages, composants). `@source` est résolu relativement à CE
+   fichier CSS, quel que soit le projet Vite qui le compile :
+   - "./" force le scan de web/app/src (indispensable pour apptel, sinon
+     AUCUNE classe Tailwind utilisée dans web/app/src n'est générée →
+     app entièrement non stylée sur mobile).
+   - "../../../ios/apptel/src" couvre les quelques overrides natifs restants
+     (utile si l'un d'eux venait à utiliser des classes Tailwind).
+   Voir ios/apptel/vite.config.ts (apptelSrcFallback). */
+@source "./";
+@source "../../../ios/apptel/src";
+
 /* ── Performance mobile iOS ─────────────────────────────────────────── */
 
 /* Supprime le flash bleu/gris au tap sur iOS */
@@ -559,7 +574,7 @@ body {
   padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
 }
 
-/* ── Coque téléphone web (getsoundy.com mobile) ─────────────────── */
+/* ── Coque téléphone web (onscen.com mobile) ─────────────────── */
 .ms-phone-shell {
   width: 100%;
   max-width: var(--phone-max-w);
@@ -955,10 +970,6 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   .feed-scroll [class*='text-[10px]'] {
     font-size: 0.6875rem;
     line-height: 1.25;
-  }
-
-  .ms-map-viewport {
-    min-height: min(240px, 48dvh);
   }
 }
 
@@ -3033,12 +3044,146 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   position: relative;
   flex: 1 1 auto;
   flex-basis: 0;
-  min-height: min(280px, 52dvh);
+  min-height: 0;
   min-width: 0;
   width: 100%;
   max-width: 100%;
   overflow: hidden;
   touch-action: none;
+  --ms-map-chrome-bottom: 1rem;
+  --ms-map-chrome-right: 0.75rem;
+  --ms-map-chrome-left: 0.75rem;
+}
+
+.ms-app-shell--bottom-tabs .ms-map-viewport,
+.ms-app-shell--bottom-tab .ms-map-viewport {
+  --ms-map-chrome-bottom: calc(var(--tab-nav-total-h, 4.5rem) + 0.75rem);
+}
+
+/* Zoom — centré desktop ; colonne bas-droite sur écrans compacts */
+.ms-map-zoom-control {
+  position: absolute;
+  right: var(--ms-map-chrome-right);
+  top: 50%;
+  transform: translateY(calc(-50% - 1.75rem));
+  z-index: 30;
+}
+
+.ms-map-salon-fab {
+  bottom: var(--ms-map-chrome-bottom);
+  left: var(--ms-map-chrome-left);
+}
+
+.ms-map-recenter-fab {
+  bottom: var(--ms-map-chrome-bottom);
+  right: var(--ms-map-chrome-right);
+}
+
+/* FAB unique "+" (menu chat créer live/event/salon) : toujours en colonne
+   (bulle de chat au-dessus du bouton), jamais la disposition ligne/scroll
+   horizontal héritée de l'ancien triptyque de boutons +Lives/+Event/+Salon.
+   Spécificité (2 classes) > règles .ms-map-salon-fab des media queries ci-dessous. */
+.ms-map-salon-fab.ms-map-create-menu {
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: none;
+  overflow: visible;
+}
+
+.ms-map-filter-stack {
+  max-width: calc(100% - 3.25rem);
+}
+
+/* Sidebar gauche — colonne carte plus étroite : contrôles compacts */
+@media (max-width: 639px) {
+  .ms-map-zoom-control {
+    top: auto;
+    bottom: calc(var(--ms-map-chrome-bottom) + 3.25rem);
+    transform: none;
+  }
+
+  .ms-map-zoom-slider__track,
+  .ms-map-zoom-slider__range {
+    height: 4.5rem;
+  }
+
+  .ms-map-salon-fab {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.375rem;
+    max-width: min(calc(100% - 4.25rem), 15rem);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-block: 2px;
+  }
+
+  .ms-map-salon-fab::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ms-map-filter-stack {
+    max-width: calc(100% - 3rem);
+    row-gap: 0.25rem;
+  }
+
+  .ms-map-filter-stack .ms-map-filter-btn {
+    min-height: 1.75rem;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.625rem;
+  }
+
+  .ms-map-event-search {
+    max-width: calc(100% - 3rem);
+  }
+}
+
+@media (max-height: 560px) {
+  .ms-map-zoom-control {
+    top: auto;
+    bottom: calc(var(--ms-map-chrome-bottom) + 3.25rem);
+    transform: none;
+  }
+
+  .ms-map-zoom-slider__track,
+  .ms-map-zoom-slider__range {
+    height: 3.5rem;
+  }
+
+  .ms-map-salon-fab {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    max-width: min(calc(100% - 4.25rem), 14rem);
+    overflow-x: auto;
+  }
+}
+
+/* Aperçu événement pin — centré dans le viewport carte (hors tab bar) */
+.ms-map-event-preview-panel {
+  position: absolute;
+  z-index: 35;
+  inset-inline: 0;
+  top: 0.75rem;
+  bottom: var(--ms-map-chrome-bottom);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 0.75rem;
+  pointer-events: none;
+}
+
+.ms-map-event-preview-panel__card {
+  pointer-events: auto;
+  width: 100%;
+  max-width: min(20rem, 100%);
+}
+
+@media (min-width: 640px) {
+  .ms-map-event-preview-panel__card {
+    max-width: 17.5rem;
+  }
 }
 
 .ms-map-viewport .leaflet-container {
@@ -3196,6 +3341,129 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   }
 }
 
+/* Reels — recherche collapsée (loupe seule par défaut) */
+.ms-reels-search {
+  display: flex;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.ms-reels-search__inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 2.75rem;
+  transition: width 0.22s ease;
+}
+
+.ms-reels-search--open .ms-reels-search__inner {
+  width: 100%;
+}
+
+.ms-reels-search__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  min-height: 44px;
+  min-width: 44px;
+  border-radius: 9999px;
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: rgba(216, 180, 254, 0.85);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.ms-reels-search__toggle:hover {
+  border-color: rgba(192, 132, 252, 0.45);
+  color: #e9d5ff;
+}
+
+.ms-reels-search__toggle:active {
+  transform: scale(0.95);
+}
+
+.ms-reels-search__field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  height: 2.75rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ms-reels-search__field:focus-within {
+  border-color: rgba(192, 132, 252, 0.5);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.3),
+    0 0 0 2px rgba(168, 85, 247, 0.2);
+}
+
+.ms-reels-search__input {
+  width: 100%;
+  height: 100%;
+  padding: 0 2rem 0 2.25rem;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  outline: none;
+}
+
+.ms-reels-search__input::placeholder {
+  color: rgba(156, 163, 175, 0.9);
+}
+
+.ms-reels-search__input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.ms-reels-search__clear {
+  position: absolute;
+  right: 0.375rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  min-width: 28px;
+  min-height: 28px;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 1.125rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.ms-reels-search__clear:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-reels-search__inner {
+    transition: none;
+  }
+}
+
 /* Reels — viewport plein écran sous header + safe-area bas */
 .ms-reels-root {
   flex: 1 1 auto;
@@ -3227,7 +3495,8 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   align-items: stretch;
   flex-direction: column;
   box-sizing: border-box;
-  will-change: scroll-position;
+  scroll-behavior: smooth;
+  scroll-snap-type: y mandatory;
   transform: translateZ(0);
 }
 
@@ -3241,12 +3510,28 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
   /* paint omis — Safari iOS peut masquer/couper les vidéos dans un contain:paint */
   contain: layout style;
 }
 
+.reel-slide > video,
+.reel-slide > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
 .reels-track::-webkit-scrollbar {
   display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reels-track {
+    scroll-behavior: auto;
+  }
 }
 
 @keyframes reel-heart-pop {
@@ -3405,9 +3690,25 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   animation: live-gift-picker-in 0.18s ease-out;
 }
 
+@keyframes ms-map-create-chat-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.ms-map-create-chat {
+  animation: ms-map-create-chat-in 0.16s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .live-gift-burst,
   .live-gift-picker,
+  .ms-map-create-chat,
   .live-indicator-dot,
   .reel-heart-pop,
   .reel-double-tap-heart {
@@ -6220,19 +6521,19 @@ button.live-theater-chrome-btn.live-theater-chrome-btn--onscen-wave:hover {
 }
 
 [data-design-quick-wins="1"] .ms-map-salon-fab {
-  bottom: calc(var(--tab-nav-total-h) + 0.75rem);
+  bottom: var(--ms-map-chrome-bottom, calc(var(--tab-nav-total-h) + 0.75rem));
 }
 
 [data-design-quick-wins="1"] .ms-map-recenter-fab {
-  bottom: calc(var(--tab-nav-total-h) + 0.75rem);
+  bottom: var(--ms-map-chrome-bottom, calc(var(--tab-nav-total-h) + 0.75rem));
 }
 
 [data-design-quick-wins="1"] .ms-map-filter-stack {
   flex-direction: row;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
-  max-width: min(22rem, calc(100vw - 5rem));
+  max-width: calc(100% - 3.25rem);
   min-height: 2rem;
   overflow-x: auto;
   overflow-y: visible;

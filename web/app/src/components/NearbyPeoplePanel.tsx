@@ -132,7 +132,7 @@ interface NearbyPeoplePanelProps {
 type SidebarSectionFilterKind = 'events' | 'lives' | 'salon' | 'sponso';
 
 const SIDEBAR_HEADER_FILTER_BASE =
-  'shrink-0 min-h-[28px] px-2 rounded-full border text-[8px] font-bold leading-none whitespace-nowrap flex items-center justify-center gap-0.5 active:scale-95 transition overflow-visible';
+  'shrink-0 w-7 h-7 min-w-[28px] min-h-[28px] rounded-full border flex items-center justify-center active:scale-95 transition overflow-visible';
 
 const SIDEBAR_HEADER_FILTER_STYLES: Record<
   SidebarSectionFilterKind,
@@ -160,20 +160,6 @@ const SIDEBAR_HEADER_FILTER_STYLES: Record<
   },
 };
 
-const SIDEBAR_FILTER_SHORT_LABEL_KEYS: Record<SidebarSectionFilterKind, string> = {
-  lives: 'map.sidebarFilterLivesShort',
-  salon: 'map.sidebarFilterSalonShort',
-  events: 'map.sidebarFilterEventsShort',
-  sponso: 'map.sidebarFilterSponsoShort',
-};
-
-const SIDEBAR_FILTER_SHORT_LABEL_DEFAULTS: Record<SidebarSectionFilterKind, string> = {
-  lives: 'Lives',
-  salon: 'Salon',
-  events: 'Évènement',
-  sponso: 'Sponso',
-};
-
 function SidebarSectionFilterChipIcon({
   kind,
   active,
@@ -184,30 +170,30 @@ function SidebarSectionFilterChipIcon({
   switch (kind) {
     case 'lives':
       return (
-        <span className="relative flex h-2 w-2 shrink-0">
+        <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden>
           {active ? (
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
           ) : null}
           <span
-            className={`relative inline-flex rounded-full h-2 w-2 ${active ? 'bg-red-500' : 'bg-white/25'}`}
+            className={`relative inline-flex rounded-full h-2.5 w-2.5 ${active ? 'bg-red-500' : 'bg-white/25'}`}
           />
         </span>
       );
     case 'salon':
       return (
-        <span aria-hidden className="shrink-0 flex h-2 w-2 items-center justify-center text-[8px] leading-none">
+        <span aria-hidden className="shrink-0 flex items-center justify-center text-[10px] leading-none">
           🎵
         </span>
       );
     case 'events':
       return (
-        <span aria-hidden className="shrink-0 flex h-2 w-2 items-center justify-center text-[8px] leading-none">
+        <span aria-hidden className="shrink-0 flex items-center justify-center text-[10px] leading-none">
           📅
         </span>
       );
     case 'sponso':
       return (
-        <span aria-hidden className="shrink-0 flex h-2 w-2 items-center justify-center text-[8px] leading-none">
+        <span aria-hidden className="shrink-0 flex items-center justify-center text-[10px] leading-none">
           ✨
         </span>
       );
@@ -227,11 +213,7 @@ function SidebarSectionFilterChip({
   onToggle: () => void;
   title: string;
 }) {
-  const { t } = useTranslation();
   const styles = SIDEBAR_HEADER_FILTER_STYLES[kind];
-  const shortLabel = t(SIDEBAR_FILTER_SHORT_LABEL_KEYS[kind], {
-    defaultValue: SIDEBAR_FILTER_SHORT_LABEL_DEFAULTS[kind],
-  });
   return (
     <button
       type="button"
@@ -245,7 +227,6 @@ function SidebarSectionFilterChip({
       className={`${SIDEBAR_HEADER_FILTER_BASE} ${active ? styles.active : styles.inactive}`}
     >
       <SidebarSectionFilterChipIcon kind={kind} active={active} />
-      {shortLabel}
     </button>
   );
 }
@@ -800,7 +781,7 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
           ? 'ms-map-sidebar-panel shrink-0 w-full max-h-[min(52dvh,22rem)] sm:max-h-[min(58vh,28rem)] flex flex-col min-h-0 overflow-hidden bg-[var(--ms-surface)] border-t border-[var(--ms-border)] z-20'
           : showEventsBrowseList
             ? 'ms-map-sidebar-panel shrink-0 w-[min(92vw,22rem)] min-w-[16rem] sm:w-72 flex flex-col min-h-0 overflow-hidden bg-[var(--ms-surface)] border-r border-[var(--ms-border)] z-20'
-            : 'ms-map-sidebar-panel shrink-0 w-[min(38vw,10.5rem)] min-w-[7.5rem] sm:w-56 flex flex-col min-h-0 overflow-hidden bg-[var(--ms-surface)] border-r border-[var(--ms-border)] z-20'
+            : 'ms-map-sidebar-panel shrink-0 w-[min(34vw,9rem)] min-w-[6.5rem] sm:w-[min(38vw,10.5rem)] sm:min-w-[7.5rem] lg:w-56 flex flex-col min-h-0 overflow-hidden bg-[var(--ms-surface)] border-r border-[var(--ms-border)] z-20'
       }
     >
       <div className="shrink-0 px-2.5 sm:px-3 py-2.5 border-b border-[var(--ms-border)]">

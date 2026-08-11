@@ -1,4 +1,4 @@
-# commun/scripts/deploy-preprod.ps1 - Deploiement PREPRODUCTION (staging.getsoundy.com)
+# commun/scripts/deploy-preprod.ps1 - Deploiement PREPRODUCTION (staging.onscen.com)
 # Usage : powershell -ExecutionPolicy Bypass -File commun/scripts/deploy-preprod.ps1
 param(
     [switch]$SkipBuild,
@@ -17,10 +17,10 @@ Set-Location $root
 
 Write-Host ''
 Write-Host ' ==============================================' -ForegroundColor Magenta
-Write-Host '   DEPLOY PREPROD -> staging.getsoundy.com' -ForegroundColor Magenta
+Write-Host '   DEPLOY PREPROD -> staging.onscen.com' -ForegroundColor Magenta
 Write-Host ' ==============================================' -ForegroundColor Magenta
 Write-Host '   VPS    : 51.159.170.181 (/opt/onscen)'
-Write-Host '   Health : https://staging.getsoundy.com/health'
+Write-Host '   Health : https://staging.onscen.com/health'
 Write-Host '   Script : commun/deploy/deploy_zero_downtime.ps1 -Environment preprod'
 Write-Host ' ==============================================' -ForegroundColor Magenta
 Write-Host ''

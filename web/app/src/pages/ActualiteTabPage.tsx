@@ -2288,45 +2288,6 @@ export function ActualiteTabPage({
                     : null}
                 </p>
               ) : null}
-              {!loading &&
-                recentFollowingPosts.length === 0 &&
-                !(showOlderFollowing && olderFollowingPosts.length > 0) && (
-                <div className="flex flex-col items-center gap-2 py-8 px-4 text-center">
-                  <p className="text-sm text-gray-300">
-                    {posts.length === 0
-                      ? t('feed.followingEmpty', {
-                          defaultValue: 'Aucune publication de vos abonnements pour le moment.',
-                        })
-                      : t('feed.followingRecentEmpty', {
-                          defaultValue:
-                            'Aucune publication de vos abonnements sur les 2 derniers jours.',
-                        })}
-                  </p>
-                  {posts.length === 0 ? (
-                    <p className="text-xs text-[var(--ms-text-muted)] max-w-xs">
-                      {t('feed.followingEmptyHint', {
-                        defaultValue:
-                          'Suivez des artistes depuis la carte ou leurs profils pour remplir votre fil d’accueil.',
-                      })}
-                    </p>
-                  ) : olderFollowingRaw.length > 0 ? (
-                    <p className="text-xs text-[var(--ms-text-muted)] max-w-sm">
-                      {t('feed.followingRecentEmptyHint', {
-                        count: olderFollowingRaw.length,
-                        defaultValue:
-                          '{{count}} publication(s) datent de plus de 2 jours — touchez « Afficher plus » pour les voir.',
-                      })}
-                    </p>
-                  ) : canOfferMoreFollowing ? (
-                    <p className="text-xs text-[var(--ms-text-muted)] max-w-sm">
-                      {t('feed.followingRecentEmptyHintLoadMore', {
-                        defaultValue:
-                          'D’autres publications peuvent exister — touchez « Afficher plus » pour charger la suite.',
-                      })}
-                    </p>
-                  ) : null}
-                </div>
-              )}
               {recentFollowingPosts.length > 0 ? (
                 <div className="space-y-0 min-w-0">
                   {recentFollowingPosts.map((post, postIndex) =>

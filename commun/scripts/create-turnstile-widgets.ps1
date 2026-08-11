@@ -203,11 +203,11 @@ try {
 $defs = @{
     staging = @{
         Name    = 'OnScen Turnstile Staging'
-        Domains = @('localhost', '127.0.0.1', 'staging.onscen.com', 'staging.getsoundy.com')
+        Domains = @('localhost', '127.0.0.1', 'staging.onscen.com', 'staging.onscen.com')
     }
     prod    = @{
         Name    = 'OnScen Turnstile Production'
-        Domains = @('getsoundy.com', 'www.getsoundy.com', 'onscen.com', 'www.onscen.com')
+        Domains = @('onscen.com', 'www.onscen.com', 'onscen.com', 'www.onscen.com')
     }
 }
 

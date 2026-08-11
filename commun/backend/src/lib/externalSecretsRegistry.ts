@@ -53,8 +53,8 @@ export const EXTERNAL_SECRET_PROVIDERS: ExternalSecretProviderDef[] = [
     fields: [
       { key: 'GOOGLE_CLIENT_ID', kind: 'public', format: 'id', required: true, placeholder: '123456789-xxxx.apps.googleusercontent.com' },
       { key: 'GOOGLE_CLIENT_SECRET', kind: 'secret', format: 'token', required: true, placeholder: 'GOCSPX-…' },
-      { key: 'GOOGLE_CALLBACK_URL', kind: 'public', format: 'httpUrl', required: true, placeholder: 'https://getsoundy.com/api/auth/google/callback' },
-      { key: 'YOUTUBE_CALLBACK_URL', kind: 'public', format: 'httpUrl', required: false, placeholder: 'https://getsoundy.com/api/auth/youtube/callback' },
+      { key: 'GOOGLE_CALLBACK_URL', kind: 'public', format: 'httpUrl', required: true, placeholder: 'https://onscen.com/api/auth/google/callback' },
+      { key: 'YOUTUBE_CALLBACK_URL', kind: 'public', format: 'httpUrl', required: false, placeholder: 'https://onscen.com/api/auth/youtube/callback' },
     ],
   },
   {
@@ -70,8 +70,8 @@ export const EXTERNAL_SECRET_PROVIDERS: ExternalSecretProviderDef[] = [
     fields: [
       { key: 'FACEBOOK_APP_ID', kind: 'public', format: 'id', required: true, placeholder: '123456789012345' },
       { key: 'FACEBOOK_APP_SECRET', kind: 'secret', format: 'token', required: true, placeholder: '32 caractères hexadécimaux' },
-      { key: 'FACEBOOK_CALLBACK_URL', kind: 'public', format: 'httpUrl', required: true, placeholder: 'https://getsoundy.com/api/auth/facebook/callback' },
-      { key: 'INSTAGRAM_CALLBACK_URL', kind: 'public', format: 'httpUrl', required: false, placeholder: 'https://getsoundy.com/api/auth/instagram/callback' },
+      { key: 'FACEBOOK_CALLBACK_URL', kind: 'public', format: 'httpUrl', required: true, placeholder: 'https://onscen.com/api/auth/facebook/callback' },
+      { key: 'INSTAGRAM_CALLBACK_URL', kind: 'public', format: 'httpUrl', required: false, placeholder: 'https://onscen.com/api/auth/instagram/callback' },
     ],
   },
   {
@@ -118,7 +118,7 @@ export const EXTERNAL_SECRET_PROVIDERS: ExternalSecretProviderDef[] = [
       { key: 'S3_ENDPOINT', kind: 'public', format: 'httpUrl', required: true, placeholder: 'https://s3.fr-par.scw.cloud' },
       { key: 'S3_ACCESS_KEY_ID', kind: 'secret', format: 'token', required: true, placeholder: 'SCW…' },
       { key: 'S3_SECRET_ACCESS_KEY', kind: 'secret', format: 'token', required: true, placeholder: '40+ caractères' },
-      { key: 'S3_PUBLIC_BASE_URL', kind: 'public', format: 'httpUrl', required: false, placeholder: 'https://cdn.getsoundy.com' },
+      { key: 'S3_PUBLIC_BASE_URL', kind: 'public', format: 'httpUrl', required: false, placeholder: 'https://cdn.onscen.com' },
     ],
   },
   {
@@ -126,7 +126,7 @@ export const EXTERNAL_SECRET_PROVIDERS: ExternalSecretProviderDef[] = [
     helpUrl: 'https://resend.com/api-keys',
     fields: [
       { key: 'RESEND_API_KEY', kind: 'secret', format: 'token', required: true, placeholder: 're_…' },
-      { key: 'RESEND_FROM', kind: 'public', format: 'freeText', required: false, placeholder: 'OnScen <noreply@getsoundy.com>' },
+      { key: 'RESEND_FROM', kind: 'public', format: 'freeText', required: false, placeholder: 'OnScen <noreply@onscen.com>' },
     ],
   },
   {
@@ -143,7 +143,7 @@ export const EXTERNAL_SECRET_PROVIDERS: ExternalSecretProviderDef[] = [
     fields: [
       { key: 'VAPID_PUBLIC_KEY', kind: 'public', format: 'token', required: true, placeholder: 'BN…' },
       { key: 'VAPID_PRIVATE_KEY', kind: 'secret', format: 'token', required: true, placeholder: '…' },
-      { key: 'VAPID_SUBJECT', kind: 'public', format: 'mailtoOrUrl', required: false, placeholder: 'mailto:admin@getsoundy.com' },
+      { key: 'VAPID_SUBJECT', kind: 'public', format: 'mailtoOrUrl', required: false, placeholder: 'mailto:admin@onscen.com' },
     ],
   },
   {

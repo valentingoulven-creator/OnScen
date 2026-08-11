@@ -11,5 +11,6 @@ alwaysApply: false
 | `@onscen-dev` | `onscen-dev.mdc` | Dev (alias court) |
 | `@onscen-dev-agent` | `onscen-dev-agent.mdc` | Dev (règle complète) |
 | `@onscen-ceo-ia` | `onscen-ceo-ia.mdc` | Stratégie, business |
+| `@mobile-only` | `onscen-mobile-only.mdc` | App mobile uniquement (`ios/apptel/`) |
 
 Si le menu `@` est vide : ouvrir le dossier **`c:\Dev\Soundy`** (racine avec `.cursor/rules/`). Voir `commun/docs/CURSOR-RULES-TROUBLESHOOTING.md`.

@@ -23,8 +23,8 @@ describe('resolveCorsOrigin', () => {
 
   it('returns configured origins in production', () => {
     process.env.APP_ENV = 'production';
-    process.env.CORS_ORIGIN = 'https://getsoundy.com, https://www.getsoundy.com';
-    expect(resolveCorsOrigin()).toEqual(['https://getsoundy.com', 'https://www.getsoundy.com']);
+    process.env.CORS_ORIGIN = 'https://onscen.com, https://www.onscen.com';
+    expect(resolveCorsOrigin()).toEqual(['https://onscen.com', 'https://www.onscen.com']);
   });
 
   it('allows * in development when CORS_ORIGIN is missing', () => {

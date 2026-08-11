@@ -1,4 +1,4 @@
-# Deploy preprod — staging.getsoundy.com apres CI verte sur main/master
+# Deploy preprod — staging.onscen.com apres CI verte sur main/master
 #
 # Secrets GitHub requis (Settings → Secrets and variables → Actions) :
 #   STAGING_SSH_PRIVATE_KEY — cle privee SSH (ed25519) autorisee sur 51.159.170.181
@@ -91,7 +91,7 @@ jobs:
         run: |
           $urls = @(
             'http://51.159.170.181/health',
-            'https://staging.getsoundy.com/health'
+            'https://staging.onscen.com/health'
           )
           $ok = $false
           foreach ($u in $urls) {

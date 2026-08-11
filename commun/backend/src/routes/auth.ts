@@ -82,6 +82,17 @@ import {
 } from '../lib/mailer';
 import { verifyTurnstileToken } from '../lib/turnstile';
 
+function issueVerificationToken(user: User): { token: string; url: string } {
+  const token = crypto.randomBytes(32).toString('hex');
+  user.verificationToken = token;
+  user.verificationTokenExpiry = Date.now() + 24 * 60 * 60 * 1000;
+  db.users.set(user.id, user);
+  schedulePersistUserToPg(user);
+  schedulePersist();
+  const appUrl = process.env.WEB_APP_URL ?? 'https://onscen.com';
+  return { token, url: `${appUrl}/verify-email?token=${token}` };
+}
+
 export const authRouter = Router();
 
 const exportDataLimiter = rateLimit({
@@ -884,6 +895,33 @@ authRouter.get('/verify-email', (req: Request, res: Response) => {
   schedulePersistUserToPg(user);
   schedulePersist();
   res.json({ ok: true, message: 'Adresse e-mail vérifiée avec succès !' });
+});
+
+/** Renvoi de l'e-mail de vérification (anti-énumération : toujours 200). */
+authRouter.post('/resend-verification-email', async (req: Request, res: Response) => {
+  const { email, turnstileToken } = req.body ?? {};
+  if (!(await verifyTurnstileToken(turnstileToken, req.ip))) {
+    res.status(400).json({
+      error: 'Vérification anti-robot requise. Rechargez la page et réessayez.',
+      code: 'turnstile_failed',
+    });
+    return;
+  }
+  if (!email || typeof email !== 'string') {
+    res.status(400).json({ error: 'Adresse e-mail requise' });
+    return;
+  }
+
+  const user = db.users.findByEmailLower(email);
+  if (!user || user.emailVerified !== false) {
+    res.json({ ok: true });
+    return;
+  }
+
+  const { url: verificationUrl } = issueVerificationToken(user);
+  void sendVerificationEmail({ toEmail: user.email, username: user.username, verificationUrl });
+
+  res.json({ ok: true });
 });
 
 /** Demande de réinitialisation de mot de passe */

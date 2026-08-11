@@ -163,6 +163,32 @@ export const authApi = {
   getUserProfile: (token: string, userId: string) =>
     request<{ user: import('../../types').User }>(`/auth/profile/${userId}`, {}, token),
 
+  forgotPassword: (email: string, turnstileToken?: string | null) =>
+    fetch(`${API}/auth/forgot-password`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: headers(),
+      body: JSON.stringify({ email, turnstileToken: turnstileToken ?? undefined }),
+    }).then(async (res) => {
+      if (!res.ok) {
+        throw await parseApiError(res);
+      }
+      return res.json() as Promise<{ ok: boolean }>;
+    }),
+
+  resendVerificationEmail: (email: string, turnstileToken?: string | null) =>
+    fetch(`${API}/auth/resend-verification-email`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: headers(),
+      body: JSON.stringify({ email, turnstileToken: turnstileToken ?? undefined }),
+    }).then(async (res) => {
+      if (!res.ok) {
+        throw await parseApiError(res);
+      }
+      return res.json() as Promise<{ ok: boolean }>;
+    }),
+
   webauthnRegisterOptions: (token: string) =>
     request<import('@simplewebauthn/browser').PublicKeyCredentialCreationOptionsJSON>(
       '/auth/webauthn/register/options',

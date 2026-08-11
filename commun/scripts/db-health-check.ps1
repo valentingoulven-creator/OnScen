@@ -1,6 +1,6 @@
 # DB + backup health check (local or prod API)
 param(
-    [string]$BaseUrl = 'https://getsoundy.com',
+    [string]$BaseUrl = 'https://onscen.com',
     [string]$BackupDir = '',
     [int]$MaxBackupAgeHours = 36
 )

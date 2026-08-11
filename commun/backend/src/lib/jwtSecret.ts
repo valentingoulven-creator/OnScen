@@ -10,7 +10,7 @@ export function isPreproductionEnv(): boolean {
   return process.env.APP_ENV === 'preproduction';
 }
 
-/** Production strict (getsoundy.com) — pas la pré-prod (NODE_ENV=production sur staging). */
+/** Production strict (onscen.com) — pas la pré-prod (NODE_ENV=production sur staging). */
 export function isProductionEnv(): boolean {
   return process.env.APP_ENV === 'production';
 }

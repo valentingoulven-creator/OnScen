@@ -1,6 +1,6 @@
 # Smoke test API stability - public endpoints (no auth required)
 param(
-    [string]$BaseUrl = 'https://getsoundy.com',
+    [string]$BaseUrl = 'https://onscen.com',
     [int]$HealthRepeats = 10
 )
 

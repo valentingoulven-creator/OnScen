@@ -70,6 +70,10 @@ import { ConfirmModal } from '../components/ConfirmModal';
 
 const SWIPE_THRESHOLD_PX = 22;
 const SWIPE_VELOCITY_PX_MS = 0.32;
+/** Délai lecture après changement de slide (ms) — court pour enchaînement fluide. */
+const REEL_PLAY_SCHEDULE_MS = 12;
+/** Tolérance snap scroll (px) avant correction. */
+const REEL_SCROLL_SNAP_TOLERANCE_PX = 6;
 const REELS_UNMUTED_KEY = 'onscen_reels_unmuted';
 /** Zone centrale (tap) : pause / lecture — 30 %–70 % de la largeur et hauteur. */
 const CENTER_TAP_MIN = 0.3;
@@ -358,6 +362,7 @@ export function ReelsTabPage({
 
   const activeItem = displayItems[activeIndex];
   const activeReel = displayItemOrganicReel(activeItem);
+  const focusedIndex = scrollAnchorIndex;
   const searchEmpty = searchActive && !feedLoading && displayItems.length === 0;
 
   useEffect(() => {
@@ -571,10 +576,32 @@ export function ReelsTabPage({
     if (!el) return;
     const h = el.clientHeight;
     el.scrollTo({ top: clamped * h, behavior: scrollBehavior });
-    setActiveIndex(clamped);
-    setScrollAnchorIndex(clamped);
     scrollAnchorIndexRef.current = clamped;
+    setScrollAnchorIndex(clamped);
+    if (scrollBehavior === 'auto' || clamped !== activeIndexRef.current) {
+      activeIndexRef.current = clamped;
+      setActiveIndex(clamped);
+    }
   }, [displayItems.length]);
+
+  const commitFocusedIndex = useCallback((clamped: number, opts?: { pauseOthers?: boolean }) => {
+    if (clamped !== scrollAnchorIndexRef.current) {
+      scrollAnchorIndexRef.current = clamped;
+      setScrollAnchorIndex(clamped);
+    }
+    if (clamped === activeIndexRef.current) return;
+    playGenerationRef.current += 1;
+    if (playScheduleRef.current) {
+      clearTimeout(playScheduleRef.current);
+      playScheduleRef.current = null;
+    }
+    if (opts?.pauseOthers !== false) {
+      const nextReelId = reelsRef.current[clamped]?.key;
+      if (nextReelId) pauseInactiveReelsMediaInDom(nextReelId);
+    }
+    activeIndexRef.current = clamped;
+    setActiveIndex(clamped);
+  }, []);
 
   const updateScrollAnchorFromScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -588,45 +615,31 @@ export function ReelsTabPage({
     return clamped;
   }, [displayItems.length]);
 
-  const settleScrollPosition = useCallback(() => {
+  const settleScrollPosition = useCallback((scrollBehavior: ScrollBehavior = 'smooth') => {
     const el = scrollRef.current;
     if (!el || touchActive.current || el.clientHeight === 0) return;
     const index = Math.round(el.scrollTop / el.clientHeight);
     const clamped = Math.max(0, Math.min(reelsRef.current.length - 1, index));
     const targetTop = clamped * el.clientHeight;
-    if (Math.abs(el.scrollTop - targetTop) > 2) {
-      el.scrollTo({ top: targetTop, behavior: 'auto' });
+    const drift = Math.abs(el.scrollTop - targetTop);
+    if (drift > REEL_SCROLL_SNAP_TOLERANCE_PX) {
+      el.scrollTo({ top: targetTop, behavior: scrollBehavior });
     }
-    if (clamped !== activeIndexRef.current) {
-      setActiveIndex(clamped);
-    }
-    if (clamped !== scrollAnchorIndexRef.current) {
-      scrollAnchorIndexRef.current = clamped;
-      setScrollAnchorIndex(clamped);
-    }
-  }, []);
+    commitFocusedIndex(clamped);
+  }, [commitFocusedIndex]);
 
   const syncIndexFromScroll = useCallback(() => {
     const clamped = updateScrollAnchorFromScroll();
     if (clamped == null) return;
-    if (touchActive.current) return;
-    if (clamped !== activeIndexRef.current) {
-      playGenerationRef.current += 1;
-      if (playScheduleRef.current) {
-        clearTimeout(playScheduleRef.current);
-        playScheduleRef.current = null;
-      }
-      const nextItem = reelsRef.current[clamped];
-      const nextReelId = nextItem?.key;
-      if (nextReelId) pauseInactiveReelsMediaInDom(nextReelId);
-      setActiveIndex(clamped);
+    if (!touchActive.current && clamped !== activeIndexRef.current) {
+      commitFocusedIndex(clamped);
     }
     if (scrollSettleTimerRef.current) clearTimeout(scrollSettleTimerRef.current);
     scrollSettleTimerRef.current = window.setTimeout(() => {
       scrollSettleTimerRef.current = null;
-      settleScrollPosition();
-    }, 140);
-  }, [displayItems.length, settleScrollPosition, updateScrollAnchorFromScroll]);
+      settleScrollPosition('smooth');
+    }, 180);
+  }, [commitFocusedIndex, settleScrollPosition, updateScrollAnchorFromScroll]);
 
   const snapIndexFromScroll = useCallback((): number => {
     const el = scrollRef.current;
@@ -642,7 +655,7 @@ export function ReelsTabPage({
       touchStartY.current = null;
 
       const resumeAfterSwipe = (targetIndex: number) => {
-        goToIndex(targetIndex, 'auto');
+        goToIndex(targetIndex, 'smooth');
       };
 
       const el = scrollRef.current;
@@ -651,7 +664,7 @@ export function ReelsTabPage({
       }
 
       const scrollSnap = snapIndexFromScroll();
-      const baseIndex = activeIndexRef.current;
+      const baseIndex = scrollAnchorIndexRef.current;
 
       if (start == null) {
         resumeAfterSwipe(scrollSnap);
@@ -911,7 +924,7 @@ export function ReelsTabPage({
   );
 
   const schedulePlayActiveReel = useCallback(
-    (delayMs = 48, fromStart = true) => {
+    (delayMs = REEL_PLAY_SCHEDULE_MS, fromStart = true) => {
       if (playScheduleRef.current) clearTimeout(playScheduleRef.current);
       playScheduleRef.current = window.setTimeout(() => {
         playScheduleRef.current = null;
@@ -1027,7 +1040,7 @@ export function ReelsTabPage({
     const reelId = activeReel?.id ?? null;
     const fromStart = reelId != null && lastScheduledReelIdRef.current !== reelId;
     lastScheduledReelIdRef.current = reelId;
-    schedulePlayActiveReel(48, fromStart);
+    schedulePlayActiveReel(REEL_PLAY_SCHEDULE_MS, fromStart);
     return () => {
       if (playScheduleRef.current) clearTimeout(playScheduleRef.current);
     };
@@ -1061,10 +1074,21 @@ export function ReelsTabPage({
   const resolveMuted = useCallback(() => mutedRef.current, []);
 
   useEffect(() => {
-    const onResize = () => goToIndex(activeIndexRef.current);
+    const onResize = () => goToIndex(activeIndexRef.current, 'auto');
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, [goToIndex]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof el.addEventListener !== 'function') return;
+    const onScrollEnd = () => {
+      if (touchActive.current) return;
+      settleScrollPosition('auto');
+    };
+    el.addEventListener('scrollend', onScrollEnd);
+    return () => el.removeEventListener('scrollend', onScrollEnd);
+  }, [settleScrollPosition]);
 
   /** Re-scroll when the viewport height becomes available (first paint / rotation). */
   useEffect(() => {
@@ -1115,7 +1139,7 @@ export function ReelsTabPage({
     finishTouchGesture(endY);
     setScrollSnapDuringTouch(false);
     if (wasSwipe && !mutedRef.current && isActive && !playbackPausedRef.current) {
-      playActiveReel(activeIndexRef.current, false, false);
+      schedulePlayActiveReel(REEL_PLAY_SCHEDULE_MS, false);
     }
   };
 
@@ -1125,8 +1149,8 @@ export function ReelsTabPage({
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') goToIndex(activeIndex + 1);
-    if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') goToIndex(activeIndex - 1);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') goToIndex(focusedIndex + 1);
+    if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') goToIndex(focusedIndex - 1);
   };
 
   const toggleHeart = async () => {
@@ -1245,8 +1269,8 @@ export function ReelsTabPage({
           Chargement…
         </div>
       )}
-      <div className="reels-viewport flex flex-1 min-h-0 w-full justify-center">
-        <div className="relative flex flex-1 min-h-0 w-full max-w-lg">
+      <div className="reels-viewport flex flex-1 min-h-0 w-full">
+        <div className="relative flex flex-1 min-h-0 w-full lg:max-w-lg lg:mx-auto">
           <ReelsSearchBar
             value={searchQuery}
             onChange={setSearchQuery}
@@ -1274,26 +1298,29 @@ export function ReelsTabPage({
             onTouchCancel={onTouchCancel}
           >
             {displayItems.map((item, index) => {
+              const slideFocused = index === focusedIndex;
+              const slideNearFocus = Math.abs(index - focusedIndex) <= 1;
               return item.kind === 'sponsor' ? (
                 <ReelsSponsoredSlide
                   key={item.key}
                   ad={item.ad}
-                  isActive={index === activeIndex}
-                  muted={index === activeIndex ? muted : true}
+                  isActive={slideFocused}
+                  muted={slideFocused ? muted : true}
                   videoRef={(el) => {
                     if (el) videoRefsById.current.set(item.key, el);
                     else videoRefsById.current.delete(item.key);
                   }}
-                  onTapCenter={index === activeIndex ? togglePlaybackPause : undefined}
-                  showPlaybackPaused={index === activeIndex && playbackPaused}
+                  onTapCenter={slideFocused ? togglePlaybackPause : undefined}
+                  showPlaybackPaused={slideFocused && playbackPaused}
                   resolveMuted={resolveMuted}
                 />
               ) : (
                 <ReelSlide
                   key={item.key}
                   reel={item.reel}
-                  isActive={index === activeIndex}
-                  muted={index === activeIndex ? muted : true}
+                  isActive={slideFocused}
+                  isNearFocus={slideNearFocus}
+                  muted={slideFocused ? muted : true}
                   videoRef={(el) => {
                     if (el) videoRefsById.current.set(item.key, el);
                     else videoRefsById.current.delete(item.key);
@@ -1302,10 +1329,10 @@ export function ReelsTabPage({
                     if (el) audioRefsById.current.set(item.key, el);
                     else audioRefsById.current.delete(item.key);
                   }}
-                  onTapForSound={index === activeIndex ? tapVideoForSound : undefined}
-                  onTapCenter={index === activeIndex ? togglePlaybackPause : undefined}
-                  onDoubleTapLike={index === activeIndex ? likeReelOnDoubleTap : undefined}
-                  showPlaybackPaused={index === activeIndex && playbackPaused}
+                  onTapForSound={slideFocused ? tapVideoForSound : undefined}
+                  onTapCenter={slideFocused ? togglePlaybackPause : undefined}
+                  onDoubleTapLike={slideFocused ? likeReelOnDoubleTap : undefined}
+                  showPlaybackPaused={slideFocused && playbackPaused}
                   resolveMuted={resolveMuted}
                   onOpenAuthor={onOpenProfile}
                 />
@@ -1824,6 +1851,7 @@ const ReelSlide = memo(
   function ReelSlide({
     reel,
     isActive,
+    isNearFocus = false,
     muted,
     videoRef,
     audioRef,
@@ -1836,6 +1864,7 @@ const ReelSlide = memo(
   }: {
     reel: MusicReel;
     isActive: boolean;
+    isNearFocus?: boolean;
     muted: boolean;
     videoRef: (el: HTMLVideoElement | null) => void;
     audioRef: (el: HTMLAudioElement | null) => void;
@@ -2128,12 +2157,11 @@ const ReelSlide = memo(
             src={reel.videoUrl}
             poster={posterSrc || undefined}
             className="absolute inset-0 w-full h-full object-cover cursor-pointer"
-            style={{ willChange: 'transform' }}
             playsInline
             autoPlay={false}
             muted={separateAudio || muted}
             loop
-            preload={isActive ? 'auto' : 'none'}
+            preload={isActive ? 'auto' : isNearFocus ? 'metadata' : 'none'}
             onPointerDown={handleVideoPointerDown}
             onPointerUp={handleVideoPointerUp}
             onPointerLeave={holdHandlers.onPointerLeave}
@@ -2227,6 +2255,7 @@ const ReelSlide = memo(
   (prev, next) =>
     prev.reel === next.reel &&
     prev.isActive === next.isActive &&
+    prev.isNearFocus === next.isNearFocus &&
     prev.muted === next.muted &&
     prev.showPlaybackPaused === next.showPlaybackPaused
 );

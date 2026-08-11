@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# Vérifie que getsoundy.com / staging passent bien par Cloudflare (sans token zone DNS).
+# Vérifie que onscen.com / staging passent bien par Cloudflare (sans token zone DNS).
 # Usage : powershell -File commun/scripts/cloudflare-verify-cdn.ps1
 $ErrorActionPreference = 'Continue'
 
@@ -27,15 +27,15 @@ Write-Host '=== Cloudflare CDN verify ==='
 
 $checks = @()
 
-Write-Host "`n[prod] https://getsoundy.com/health"
-$checks += Test-Headers 'https://getsoundy.com/health' @('Server', 'CF-RAY', 'Cf-Cache-Status')
+Write-Host "`n[prod] https://onscen.com/health"
+$checks += Test-Headers 'https://onscen.com/health' @('Server', 'CF-RAY', 'Cf-Cache-Status')
 
-Write-Host "`n[staging] https://staging.getsoundy.com/health"
-$checks += Test-Headers 'https://staging.getsoundy.com/health' @('Server', 'CF-RAY')
+Write-Host "`n[staging] https://staging.onscen.com/health"
+$checks += Test-Headers 'https://staging.onscen.com/health' @('Server', 'CF-RAY')
 
 Write-Host "`n[prod] HTTP -> HTTPS"
 try {
-  $r = Invoke-WebRequest -Uri 'http://getsoundy.com/health' -Method Head -MaximumRedirection 0 -TimeoutSec 15 -UseBasicParsing
+  $r = Invoke-WebRequest -Uri 'http://onscen.com/health' -Method Head -MaximumRedirection 0 -TimeoutSec 15 -UseBasicParsing
 } catch {
   if ($_.Exception.Response) {
     $code = [int]$_.Exception.Response.StatusCode
@@ -51,8 +51,8 @@ try {
 $asset = '/assets/vendor-misc-DuKqaIJt.css'
 Write-Host "`n[prod] asset cache $asset"
 try {
-  $null = Invoke-WebRequest -Uri "https://getsoundy.com$asset" -Method Head -TimeoutSec 20 -UseBasicParsing
-  $r2 = Invoke-WebRequest -Uri "https://getsoundy.com$asset" -Method Head -TimeoutSec 20 -UseBasicParsing
+  $null = Invoke-WebRequest -Uri "https://onscen.com$asset" -Method Head -TimeoutSec 20 -UseBasicParsing
+  $r2 = Invoke-WebRequest -Uri "https://onscen.com$asset" -Method Head -TimeoutSec 20 -UseBasicParsing
   $cache = $r2.Headers['Cf-Cache-Status']
   Write-Host "  Cf-Cache-Status (2e hit): $cache"
   $checks += ($cache -eq 'HIT' -or $cache -eq 'REVALIDATED')
@@ -62,7 +62,7 @@ try {
 }
 
 Write-Host "`n[DNS] résolution publique"
-foreach ($hostname in @('getsoundy.com', 'staging.getsoundy.com', 'www.getsoundy.com')) {
+foreach ($hostname in @('onscen.com', 'staging.onscen.com', 'www.onscen.com')) {
   try {
     $ips = [System.Net.Dns]::GetHostAddresses($hostname) | ForEach-Object { $_.IPAddressToString }
     $cf = ($ips | Where-Object { $_ -match '^188\.114\.' }).Count -gt 0

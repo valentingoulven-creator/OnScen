@@ -12,8 +12,8 @@
   "hostCountry": "France",
   "mediatorName": "Plateforme européenne de règlement en ligne des litiges (ODR)",
   "mediatorUrl": "https://ec.europa.eu/consumers/odr/",
-  "dpoEmail": "admin@getsoundy.com",
-  "contactEmail": "admin@getsoundy.com",
-  "privacyEmail": "admin@getsoundy.com",
-  "productionDomain": "https://getsoundy.com"
+  "dpoEmail": "admin@onscen.com",
+  "contactEmail": "admin@onscen.com",
+  "privacyEmail": "admin@onscen.com",
+  "productionDomain": "https://onscen.com"
 }

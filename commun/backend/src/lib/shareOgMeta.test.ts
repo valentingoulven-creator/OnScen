@@ -3,7 +3,7 @@ import { db } from '../models/schema';
 import { resolveShareOgMeta, injectOgMetaIntoHtml } from './shareOgMeta';
 
 describe('shareOgMeta', () => {
-  const baseUrl = 'https://getsoundy.com';
+  const baseUrl = 'https://onscen.com';
 
   beforeEach(() => {
     db.salons.clear();
@@ -35,7 +35,7 @@ describe('shareOgMeta', () => {
     expect(meta?.title).toContain('Soirée Funk');
     expect(meta?.title).toContain('YouTube');
     expect(meta?.description).toContain('DJ Test');
-    expect(meta?.canonicalUrl).toBe('https://getsoundy.com/salon/salon_test');
+    expect(meta?.canonicalUrl).toBe('https://onscen.com/salon/salon_test');
   });
 
   it('ignore les salons bloqués admin', () => {

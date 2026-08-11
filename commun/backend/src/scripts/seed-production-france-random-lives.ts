@@ -38,8 +38,8 @@ async function main(): Promise<void> {
       {
         ...result,
         postgres: pgSaved,
-        mapHint: 'https://getsoundy.com/map — filtre Lives, centrer sur la France',
-        liveUrls: result.lives.map((l) => `https://getsoundy.com/live/${l.id}`),
+        mapHint: 'https://onscen.com/map — filtre Lives, centrer sur la France',
+        liveUrls: result.lives.map((l) => `https://onscen.com/live/${l.id}`),
       },
       null,
       2

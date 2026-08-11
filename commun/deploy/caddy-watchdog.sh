@@ -19,12 +19,12 @@ port_443_up() {
 }
 
 caddyfile_ok() {
-  [ -f "$CURRENT" ] && grep -q 'getsoundy.com' "$CURRENT"
+  [ -f "$CURRENT" ] && grep -q 'onscen.com' "$CURRENT"
 }
 
 pick_source() {
   for src in "${SOURCES[@]}"; do
-    if [ -f "$src" ] && grep -q 'getsoundy.com' "$src"; then
+    if [ -f "$src" ] && grep -q 'onscen.com' "$src"; then
       echo "$src"
       return 0
     fi
@@ -35,7 +35,7 @@ pick_source() {
 restore() {
   local src reason="$1"
   if ! src="$(pick_source)"; then
-    log "CRITIQUE — aucune source valide (getsoundy.com) : ${SOURCES[*]}"
+    log "CRITIQUE — aucune source valide (onscen.com) : ${SOURCES[*]}"
     return 1
   fi
   log "RESTAURATION ($reason) depuis $src"
@@ -58,7 +58,7 @@ fi
 
 if ! caddyfile_ok; then
   broken=true
-  reasons+=("Caddyfile sans getsoundy.com")
+  reasons+=("Caddyfile sans onscen.com")
 fi
 
 if [ "$broken" = true ]; then

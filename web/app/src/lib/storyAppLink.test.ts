@@ -4,7 +4,7 @@ import { parseStoryAppLink } from './storyAppLink';
 describe('storyAppLink', () => {
   it('parse album link', () => {
     const target = parseStoryAppLink(
-      'https://getsoundy.com/profile/u1?tab=compositions&album=alb-42'
+      'https://onscen.com/profile/u1?tab=compositions&album=alb-42'
     );
     expect(target).toEqual({ kind: 'album', userId: 'u1', albumId: 'alb-42' });
   });
@@ -18,6 +18,6 @@ describe('storyAppLink', () => {
 
   it('rejects external links', () => {
     expect(parseStoryAppLink('https://example.com/profile/u1?tab=compositions&album=a')).toBeNull();
-    expect(parseStoryAppLink('https://getsoundy.com/profile/u1?tab=music')).toBeNull();
+    expect(parseStoryAppLink('https://onscen.com/profile/u1?tab=music')).toBeNull();
   });
 });

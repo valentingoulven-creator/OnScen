@@ -4,6 +4,8 @@ Rapports produits par `@onscen-dev-agent` à chaque session de développement si
 
 | Date | Rapport | Mission | Statut |
 |------|---------|---------|--------|
+| 2026-08-11 | [decommission-getsoundy](./rapports/2026-08-11-decommission-getsoundy.md) | Décommissionnement complet de `getsoundy.com` (hard stop Caddy prod+staging, emails, OAuth callbacks, bug bundle frontend contaminé) — `onscen.com` seul domaine fonctionnel | ⚠️ |
+| 2026-08-11 | [verif-mobile-post-migration-domaine](./rapports/2026-08-11-verif-mobile-post-migration-domaine.md) | Vérification terrain iOS/Android post-migration domaine `onscen.com` — build Gradle réel + fix deep links Android et cert pinning manquants sur le nouveau domaine canonique | ✅ |
 | 2026-08-10 | [audit-technique-complet](./rapports/2026-08-10-audit-technique-complet.md) | Audit 12 phases + synthèse dans `commun/docs/audit/2026-08-11/` (lecture seule, npm audit + tests) | ✅ |
 | 2026-08-08 | [fix-compat-ios-android](./rapports/2026-08-08-fix-compat-ios-android.md) | Correctifs audit compat iOS/Android : safe-area duo, dépendance LiveKit apptel, viewer mobile (annonce épinglée + sondage) | ✅ |
 | 2026-08-08 | [audit-compat-ios-android](./rapports/2026-08-08-audit-compat-ios-android.md) | Audit compatibilité web ↔ iOS Capacitor / APK Android du Config live (MODIF 1341) — révèle que le panel hôte live entier n'est pas porté sur mobile | ⚠️ |

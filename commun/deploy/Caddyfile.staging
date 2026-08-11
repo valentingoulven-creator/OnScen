@@ -1,4 +1,4 @@
-# OnScen — Caddyfile PREPROD (staging.getsoundy.com)
+# OnScen — Caddyfile PREPROD (staging.onscen.com)
 # Deploy : deploy/Caddyfile.staging -> /opt/onscen/deploy/Caddyfile.staging -> /etc/caddy/Caddyfile
 #
 # Preprod ouverte (UI + API) — pas d'indexation (X-Robots-Tag). Health/assets/API inchangés.
@@ -22,10 +22,7 @@ staging.onscen.com {
 	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
 }
 
-staging.getsoundy.com {
-	import staging_handlers
-	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
-}
+# Ancien domaine legacy staging décommissionné (2026-08-11) — pas de bloc = hard stop TLS.
 
 # Acces par IP pendant configuration DNS
 http://51.159.170.181 {

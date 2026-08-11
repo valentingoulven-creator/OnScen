@@ -22,12 +22,18 @@ if [ ! -f "$SOURCE" ]; then
   exit 1
 fi
 
-if ! grep -qE 'onscen\.com|getsoundy\.com' "$SOURCE"; then
-  log "ERREUR — source invalide (onscen.com / getsoundy.com absent) : $SOURCE"
+if ! grep -q 'onscen.com' "$SOURCE"; then
+  log "ERREUR — source invalide (onscen.com absent) : $SOURCE"
   exit 1
 fi
 
-if grep -qE '^:80[[:space:]]*\{' "$SOURCE" && ! grep -q 'getsoundy.com' "$SOURCE"; then
+# getsoundy.com décommissionné (2026-08-11) — refuser toute réintroduction accidentelle.
+if grep -q 'getsoundy.com' "$SOURCE"; then
+  log "ERREUR — getsoundy.com détecté dans le Caddyfile source, domaine décommissionné, refus d'installer"
+  exit 1
+fi
+
+if grep -qE '^:80[[:space:]]*\{' "$SOURCE" && ! grep -q 'onscen_handlers' "$SOURCE"; then
   log "ERREUR — refus d'installer un Caddyfile HTTP-only :80"
   exit 1
 fi

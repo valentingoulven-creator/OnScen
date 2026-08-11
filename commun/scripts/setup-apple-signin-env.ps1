@@ -51,4 +51,4 @@ scp $tmpLocal "${sshHost}:${remoteEnv}.apple"
 ssh $sshHost "cat ${remoteEnv}.apple >> ${remoteEnv}.tmp && mv ${remoteEnv}.tmp $remoteEnv && rm -f ${remoteEnv}.apple && chmod 600 $remoteEnv && pm2 restart $pm2App --update-env"
 
 Remove-Item $tmpLocal -Force -ErrorAction SilentlyContinue
-Write-Host "OK — tester : curl https://getsoundy.com/api/auth/providers (apple: true)"
+Write-Host "OK — tester : curl https://onscen.com/api/auth/providers (apple: true)"

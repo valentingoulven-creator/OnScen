@@ -79,7 +79,7 @@ import {
 import type { ChatMessage, DmContact, Live, AppNotification, PlaybackState } from '../types';
 import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys';
 
-const ONSCEN_BASE_URL = 'https://getsoundy.com';
+const ONSCEN_BASE_URL = 'https://onscen.com';
 const LIVE_MAX_DURATION_MS = 8 * 60 * 60 * 1000;
 
 const LIVE_CHAT_HIDDEN_KEY = 'onscen_live_chat_hidden';

@@ -2,10 +2,10 @@
  * Crée ou met à jour un compte administrateur (mot de passe temporaire + changement obligatoire à la connexion).
  *
  * Usage msdev (depuis commun/backend/) :
- *   $env:ADMIN_EMAIL='admin@getsoundy.com'; $env:ADMIN_PASSWORD='Bonjour123!'; npx ts-node src/scripts/create-admin-user.ts
+ *   $env:ADMIN_EMAIL='admin@onscen.com'; $env:ADMIN_PASSWORD='Bonjour123!'; npx ts-node src/scripts/create-admin-user.ts
  *
  * Usage production (VPS) :
- *   ADMIN_EMAIL=admin@getsoundy.com ADMIN_PASSWORD='...' APP_ENV=production node dist/commun/scripts/create-admin-user.js
+ *   ADMIN_EMAIL=admin@onscen.com ADMIN_PASSWORD='...' APP_ENV=production node dist/commun/scripts/create-admin-user.js
  */
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
@@ -29,7 +29,7 @@ dotenv.config({ path: getMsdevEnvPath() });
 const email = (
   process.env.ADMIN_EMAIL ||
   process.env.PROD_ADMIN_EMAIL ||
-  'admin@getsoundy.com'
+  'admin@onscen.com'
 )
   .trim()
   .toLowerCase();

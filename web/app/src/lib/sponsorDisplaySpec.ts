@@ -8,7 +8,7 @@ export const SPONSOR_DISPLAY_DURATION_MIN_SEC = 5;
 export const SPONSOR_DISPLAY_DURATION_MAX_SEC = 60;
 
 /** Bandeau carte : plancher côté app (évite rotation trop rapide au pan / refetch). */
-export const MAP_BANNER_MIN_DISPLAY_SEC = 12;
+export const MAP_BANNER_MIN_DISPLAY_SEC = 15;
 
 export const SPONSOR_ACCENT_GRADIENTS: Record<SponsorAccent, string> = {
   purple: 'from-purple-600/90 via-violet-700/80 to-purple-900/90',

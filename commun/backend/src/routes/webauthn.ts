@@ -34,11 +34,11 @@ import {
 } from '../lib/pgWebAuthn';
 
 // ── Relying Party configuration ───────────────────────────────────────────────
-const rpID   = process.env.WEBAUTHN_RP_ID   ?? 'getsoundy.com';
+const rpID   = process.env.WEBAUTHN_RP_ID   ?? 'onscen.com';
 const rpName = process.env.WEBAUTHN_RP_NAME ?? 'OnScen';
 /** Accepts a comma-separated list of origins for multi-origin setups (e.g. ngrok). */
 function getExpectedOrigins(): string[] {
-  const env = process.env.WEBAUTHN_ORIGIN ?? 'https://getsoundy.com';
+  const env = process.env.WEBAUTHN_ORIGIN ?? 'https://onscen.com';
   return env.split(',').map((o) => o.trim()).filter(Boolean);
 }
 

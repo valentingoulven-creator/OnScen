@@ -22,7 +22,7 @@ describe('filterValidUsers', () => {
     const donorTest = {
       id: 'user_stripe_donor_test',
       username: 'DonorTest',
-      email: 'donor-test@getsoundy.com',
+      email: 'donor-test@onscen.com',
       age: 25,
       memberSince: 1700000000000,
     };
@@ -31,7 +31,7 @@ describe('filterValidUsers', () => {
     expect(skippedIds).toEqual(['user_stripe_donor_test']);
     expect(isValidUserRecord(donorTest)).toBe(false);
     expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining('donor-test@getsoundy.com')
+      expect.stringContaining('donor-test@onscen.com')
     );
     warn.mockRestore();
   });

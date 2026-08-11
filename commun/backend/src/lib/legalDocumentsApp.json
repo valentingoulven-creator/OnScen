@@ -13,7 +13,7 @@
       },
       {
         "heading": "Activité du service",
-        "body": "OnScen est une application sociale autour de la musique : salons d’écoute géolocalisés, lives, messagerie, carte des utilisateurs et contenus musicaux via YouTube. OnScen n’est pas un service de rencontre sentimental.\n\nDomaine de production : getsoundy.com"
+        "body": "OnScen est une application sociale autour de la musique : salons d’écoute géolocalisés, lives, messagerie, carte des utilisateurs et contenus musicaux via YouTube. OnScen n’est pas un service de rencontre sentimental.\n\nDomaine de production : onscen.com"
       },
       {
         "heading": "Propriété intellectuelle",
@@ -59,7 +59,7 @@
       },
       {
         "heading": "5. Contenus et musique",
-        "body": "Vous êtes seul responsable des contenus que vous publiez (messages, propositions de morceaux, reels, stories, lives, photos de profil).\n\nOrientation artistique : reels, stories, lives et publications visuelles doivent mettre en avant une activité liée au chant, à la musique, à la danse ou à toute forme d’expression artistique ou de performance scénique. Les contenus de jeu vidéo, IRL sans dimension artistique, vlogs ou formats généralistes non musicaux ne sont pas autorisés et peuvent être retirés sans préavis.\n\nUploads audio (compositions, reels) : vous ne pouvez publier que des créations dont vous êtes l'auteur ou pour lesquelles vous disposez des droits d'exploitation nécessaires. OnScen peut analyser automatiquement les fichiers audio uploadés (empreinte ACRCloud) pour détecter des correspondances avec des morceaux commerciaux protégés et refuser la publication en cas de correspondance.\n\nPour signaler une utilisation non autorisée de votre musique : admin@getsoundy.com (voir aussi le signalement « Droits d'auteur » dans l'application).\n\nLa lecture musicale dans les salons s'effectue via YouTube : vous devez disposer des droits et abonnements nécessaires auprès de Google/YouTube. OnScen ne fournit pas de licence musicale propre et ne remplace pas les conditions d'utilisation de YouTube.\n\nSalons YouTube :\n• La lecture utilise le lecteur officiel YouTube IFrame API ; en production, la vidéo doit rester visible (pas de mode audio seul).\n• L'aperçu d'écoute depuis la carte est limité à 10 minutes par session pour les participants ; ouvrez le salon pour poursuivre.\n\nVous accordez à l'éditeur une licence non exclusive, mondiale et gratuite pour héberger, afficher et diffuser vos contenus dans le cadre du fonctionnement du Service."
+        "body": "Vous êtes seul responsable des contenus que vous publiez (messages, propositions de morceaux, reels, stories, lives, photos de profil).\n\nOrientation artistique : reels, stories, lives et publications visuelles doivent mettre en avant une activité liée au chant, à la musique, à la danse ou à toute forme d’expression artistique ou de performance scénique. Les contenus de jeu vidéo, IRL sans dimension artistique, vlogs ou formats généralistes non musicaux ne sont pas autorisés et peuvent être retirés sans préavis.\n\nUploads audio (compositions, reels) : vous ne pouvez publier que des créations dont vous êtes l'auteur ou pour lesquelles vous disposez des droits d'exploitation nécessaires. OnScen peut analyser automatiquement les fichiers audio uploadés (empreinte ACRCloud) pour détecter des correspondances avec des morceaux commerciaux protégés et refuser la publication en cas de correspondance.\n\nPour signaler une utilisation non autorisée de votre musique : admin@onscen.com (voir aussi le signalement « Droits d'auteur » dans l'application).\n\nLa lecture musicale dans les salons s'effectue via YouTube : vous devez disposer des droits et abonnements nécessaires auprès de Google/YouTube. OnScen ne fournit pas de licence musicale propre et ne remplace pas les conditions d'utilisation de YouTube.\n\nSalons YouTube :\n• La lecture utilise le lecteur officiel YouTube IFrame API ; en production, la vidéo doit rester visible (pas de mode audio seul).\n• L'aperçu d'écoute depuis la carte est limité à 10 minutes par session pour les participants ; ouvrez le salon pour poursuivre.\n\nVous accordez à l'éditeur une licence non exclusive, mondiale et gratuite pour héberger, afficher et diffuser vos contenus dans le cadre du fonctionnement du Service."
       },
       {
         "heading": "6. Géolocalisation et visibilité",
@@ -131,7 +131,7 @@
       },
       {
         "heading": "5. Gérer vos choix",
-        "body": "• Refuser ou accepter les cookies non essentiels via la bannière affichée lors de votre première visite web.\n• Modifier votre choix : Paramètres > Préférences cookies.\n• Effacer les cookies via les paramètres de votre navigateur.\n\nContact : admin@getsoundy.com"
+        "body": "• Refuser ou accepter les cookies non essentiels via la bannière affichée lors de votre première visite web.\n• Modifier votre choix : Paramètres > Préférences cookies.\n• Effacer les cookies via les paramètres de votre navigateur.\n\nContact : admin@onscen.com"
       }
     ]
   },
@@ -289,7 +289,7 @@
     "sections": [
       {
         "heading": "1. Objet",
-        "body": "Les présentes Règles de la communauté complètent les Conditions générales d'utilisation (CGU). Elles décrivent ce qui est autorisé ou interdit sur OnScen (getsoundy.com) pour préserver un environnement centré sur la **musique, les arts du spectacle et les sorties**.\n\nEn cas de contradiction, les CGU prévalent. Tout manquement peut entraîner avertissement, restriction de fonctionnalités, retrait de contenu ou suspension de compte."
+        "body": "Les présentes Règles de la communauté complètent les Conditions générales d'utilisation (CGU). Elles décrivent ce qui est autorisé ou interdit sur OnScen (onscen.com) pour préserver un environnement centré sur la **musique, les arts du spectacle et les sorties**.\n\nEn cas de contradiction, les CGU prévalent. Tout manquement peut entraîner avertissement, restriction de fonctionnalités, retrait de contenu ou suspension de compte."
       },
       {
         "heading": "2. Contenus autorisés",
@@ -389,7 +389,7 @@
       },
       {
         "heading": "7. Contact commercial",
-        "body": "Campagnes B2B : admin@getsoundy.com"
+        "body": "Campagnes B2B : admin@onscen.com"
       }
     ]
   },
@@ -493,7 +493,7 @@
       },
       {
         "heading": "2. Achats intégrés (IAP)",
-        "body": "• Sur **iOS et Android**, les achats numériques consommables dans l'app (abonnements créateurs, pourboires, OnScen+, contenus numériques) doivent en principe passer par **Apple In-App Purchase** et **Google Play Billing**, conformément aux règles des stores (ex. Apple App Store Review Guideline 3.1.1).\n\n• Sur le **site web** (getsoundy.com), les paiements peuvent être traités via **Stripe** selon les Conditions de monétisation créateurs.\n\n• OnScen met en place des **garde-fous** empêchant les flux Stripe non conformes dans les builds natifs lorsque les IAP ne sont pas encore disponibles. L'objectif produit est d'**aligner** web et mobile sur les règles stores avant diffusion App Store / Play."
+        "body": "• Sur **iOS et Android**, les achats numériques consommables dans l'app (abonnements créateurs, pourboires, OnScen+, contenus numériques) doivent en principe passer par **Apple In-App Purchase** et **Google Play Billing**, conformément aux règles des stores (ex. Apple App Store Review Guideline 3.1.1).\n\n• Sur le **site web** (onscen.com), les paiements peuvent être traités via **Stripe** selon les Conditions de monétisation créateurs.\n\n• OnScen met en place des **garde-fous** empêchant les flux Stripe non conformes dans les builds natifs lorsque les IAP ne sont pas encore disponibles. L'objectif produit est d'**aligner** web et mobile sur les règles stores avant diffusion App Store / Play."
       },
       {
         "heading": "3. Sign in with Apple",
@@ -523,7 +523,7 @@
     "sections": [
       {
         "heading": "1. Objet",
-        "body": "Cette page liste les **prestataires** qui traitent des données personnelles pour le compte de OnScen (getsoundy.com), dans le cadre de l'hébergement, de la sécurité, des paiements, de la modération ou des communications.\n\nElle complète la Politique de confidentialité. Une version contractuelle (DPA art. 28) est disponible pour les partenaires B2B sur demande."
+        "body": "Cette page liste les **prestataires** qui traitent des données personnelles pour le compte de OnScen (onscen.com), dans le cadre de l'hébergement, de la sécurité, des paiements, de la modération ou des communications.\n\nElle complète la Politique de confidentialité. Une version contractuelle (DPA art. 28) est disponible pour les partenaires B2B sur demande."
       },
       {
         "heading": "2. Sous-traitants principaux",

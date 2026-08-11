@@ -52,7 +52,7 @@ jobs:
         working-directory: web/app
         env:
           VITE_APP_ENV: production
-          VITE_WEB_APP_URL: https://getsoundy.com
+          VITE_WEB_APP_URL: https://onscen.com
         run: npm run build
 
       - name: App — unit tests
@@ -84,6 +84,6 @@ jobs:
         working-directory: web/app
         env:
           E2E_SKIP_SERVER: '1'
-          E2E_BASE_URL: https://staging.getsoundy.com
-          E2E_API_URL: https://staging.getsoundy.com
+          E2E_BASE_URL: https://staging.onscen.com
+          E2E_API_URL: https://staging.onscen.com
         run: npm run test:e2e

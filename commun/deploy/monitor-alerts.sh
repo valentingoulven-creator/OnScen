@@ -54,7 +54,7 @@ SMTP_USER=$(get_env SMTP_USER "")
 SMTP_PASS=$(get_env SMTP_PASS "")
 SMTP_FROM_RAW=$(get_env SMTP_FROM "")
 SMTP_FROM="${SMTP_FROM_RAW:-OnScen Monitoring <${SMTP_USER}>}"
-SMTP_ADMIN_EMAIL=$(get_env SMTP_ADMIN_EMAIL "admin@getsoundy.com")
+SMTP_ADMIN_EMAIL=$(get_env SMTP_ADMIN_EMAIL "admin@onscen.com")
 ALERT_EXTRA_EMAILS=$(get_env ALERT_EXTRA_EMAILS "")
 
 RESEND_API_KEY=$(get_env RESEND_API_KEY "")
@@ -137,9 +137,9 @@ send_alert_email() {
   if [[ -n "$ALERT_EXTRA_EMAILS" ]]; then
     recipients="${recipients},${ALERT_EXTRA_EMAILS}"
   fi
-  # Toujours inclure admin@getsoundy.com
-  if [[ "$recipients" != *"admin@getsoundy.com"* ]]; then
-    recipients="${recipients},admin@getsoundy.com"
+  # Toujours inclure admin@onscen.com
+  if [[ "$recipients" != *"admin@onscen.com"* ]]; then
+    recipients="${recipients},admin@onscen.com"
   fi
 
   if [[ "$RESEND_ENABLED" == "true" ]]; then
@@ -224,8 +224,8 @@ PYEOF
 }
 
 HOSTNAME_VAL=$(hostname 2>/dev/null || echo "vps")
-SERVER_LINE="Serveur : getsoundy.com (51.159.164.100 — ${HOSTNAME_VAL})"
-ADMIN_URL="https://getsoundy.com/admin?tab=monitoring"
+SERVER_LINE="Serveur : onscen.com (51.159.164.100 — ${HOSTNAME_VAL})"
+ADMIN_URL="https://onscen.com/admin?tab=monitoring"
 
 # ── Vérification disque ───────────────────────────────────────────────────────
 DISK_USED=$(df / | awk 'NR==2 {gsub(/%/,"",$5); print int($5)}' 2>/dev/null || echo "0")
@@ -235,7 +235,7 @@ if [[ "$DISK_USED" -ge "$DISK_THRESHOLD" ]]; then
     SEVERITY=$( [[ "$DISK_USED" -ge 95 ]] && echo "CRITIQUE" || echo "AVERTISSEMENT" )
     send_alert_email \
       "💾 [OnScen ${SEVERITY}] Disque ${DISK_USED}% — seuil ${DISK_THRESHOLD}%" \
-      "Stockage disque élevé sur getsoundy.com
+      "Stockage disque élevé sur onscen.com
 
 ${SERVER_LINE}
 Heure     : $(date '+%Y-%m-%d %H:%M:%S %Z')
@@ -258,7 +258,7 @@ if [[ -n "$RAM_INFO" ]]; then
       SEVERITY=$( [[ "$RAM_PERCENT" -ge 95 ]] && echo "CRITIQUE" || echo "AVERTISSEMENT" )
       send_alert_email \
         "🧠 [OnScen ${SEVERITY}] RAM ${RAM_PERCENT}% — seuil ${RAM_THRESHOLD}%" \
-        "RAM élevée sur getsoundy.com
+        "RAM élevée sur onscen.com
 
 ${SERVER_LINE}
 Heure  : $(date '+%Y-%m-%d %H:%M:%S %Z')
@@ -288,7 +288,7 @@ if [[ "$CPU_PERCENT" -ge "$CPU_THRESHOLD" ]]; then
     TOP_OUTPUT=$(top -bn1 2>/dev/null | head -15 || echo "(unavailable)")
     send_alert_email \
       "⚙️ [OnScen ${SEVERITY}] CPU ${CPU_PERCENT}% — seuil ${CPU_THRESHOLD}%" \
-      "CPU élevé sur getsoundy.com
+      "CPU élevé sur onscen.com
 
 ${SERVER_LINE}
 Heure     : $(date '+%Y-%m-%d %H:%M:%S %Z')
@@ -333,7 +333,7 @@ except Exception as e:
         rm -f "/tmp/onscen_alert_pm2_crash" 2>/dev/null || true
         send_alert_email \
           "💥 [OnScen CRITIQUE] Redémarrage PM2 détecté (+${DIFF})" \
-          "Crash PM2 détecté sur getsoundy.com
+          "Crash PM2 détecté sur onscen.com
 
 ${SERVER_LINE}
 Heure          : $(date '+%Y-%m-%d %H:%M:%S %Z')

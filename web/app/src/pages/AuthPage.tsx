@@ -7,6 +7,7 @@ import { CURRENT_TERMS_VERSION, type LegalKey } from '../content/legal';
 import { peekPendingSalonJoin } from '../lib/salonDeepLink';
 import { forgotPasswordHref } from '../lib/forgotPasswordRoute';
 import { api } from '../lib/api';
+import { ApiRequestError } from '../lib/api/core';
 import { isNativeIos } from '../lib/nativePlatform';
 import { OnScenLogo } from '../components/OnScenLogo';
 import { PasswordStrengthBar } from '../components/PasswordStrengthBar';
@@ -60,11 +61,11 @@ export function AuthPage() {
   const isMsdev = import.meta.env.VITE_APP_ENV === 'msdev';
   const isPreprod = import.meta.env.VITE_APP_ENV === 'preproduction';
   const isProduction = import.meta.env.VITE_APP_ENV === 'production';
-  /** Connexion Google grisée en prod (getsoundy.com) — msdev/preprod inchangés. */
+  /** Connexion Google grisée en prod (onscen.com) — msdev/preprod inchangés. */
   const googleOAuthDisabled = isProduction;
   const demoLoginEmail = (
     import.meta.env.VITE_DEMO_LOGIN_EMAIL ||
-    (isMsdev ? 'listener@msdev.local' : isPreprod ? 'admin@staging.getsoundy.com' : '')
+    (isMsdev ? 'listener@msdev.local' : isPreprod ? 'admin@staging.onscen.com' : '')
   ).trim();
   const demoLoginPassword = (
     import.meta.env.VITE_DEMO_LOGIN_PASSWORD ||
@@ -86,6 +87,10 @@ export function AuthPage() {
   const [inviteCode, setInviteCode] = useState('');
   const [accessConfig, setAccessConfig] = useState<PublicAccessConfig | null>(null);
   const [registerSuccess, setRegisterSuccess] = useState('');
+  const [showResendVerification, setShowResendVerification] = useState(false);
+  const [resendVerificationBusy, setResendVerificationBusy] = useState(false);
+  const [resendVerificationMsg, setResendVerificationMsg] = useState('');
+  const [resendTurnstileToken, setResendTurnstileToken] = useState<string | null>(null);
   const [legalPreview, setLegalPreview] = useState<LegalKey | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -107,6 +112,31 @@ export function AuthPage() {
   // ── Biometric / Face ID ───────────────────────────────────────────────────
   const [biometricSupported, setBiometricSupported] = useState(false);
   const [biometricLoading, setBiometricLoading]     = useState(false);
+
+  const handleResendVerification = async () => {
+    if (!email.trim()) {
+      setResendVerificationMsg('Indiquez votre adresse e-mail.');
+      return;
+    }
+    if (turnstileRequired && !resendTurnstileToken) {
+      setResendVerificationMsg('Vérification anti-robot requise.');
+      return;
+    }
+    setResendVerificationBusy(true);
+    setResendVerificationMsg('');
+    try {
+      await api.resendVerificationEmail(email.trim(), resendTurnstileToken);
+      setResendVerificationMsg(
+        'Si un compte non vérifié existe pour cette adresse, un nouvel e-mail de vérification a été envoyé.'
+      );
+      setShowResendVerification(false);
+      setError('');
+    } catch (err) {
+      setResendVerificationMsg(err instanceof Error ? err.message : 'Erreur réseau');
+    } finally {
+      setResendVerificationBusy(false);
+    }
+  };
 
   const checkUsername = useCallback((value: string) => {
     if (usernameTimer.current) clearTimeout(usernameTimer.current);
@@ -422,6 +452,9 @@ export function AuthPage() {
         setMode('login');
       } else {
         setError(msg);
+        if (err instanceof ApiRequestError && err.code === 'email_not_verified') {
+          setShowResendVerification(true);
+        }
       }
     } finally {
       setLoading(false);
@@ -853,14 +886,58 @@ export function AuthPage() {
           {error && (
             <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2">
               <span className="text-red-400 shrink-0 mt-0.5">⚠</span>
-              <p className="text-red-400 text-sm">{error}</p>
+              <div className="min-w-0 space-y-2">
+                <p className="text-red-400 text-sm">{error}</p>
+                {showResendVerification && mode === 'login' && (
+                  <div className="space-y-2 pt-1">
+                    {turnstileRequired && (
+                      <TurnstileWidget
+                        className="flex justify-center min-h-[65px]"
+                        onToken={setResendTurnstileToken}
+                        theme="dark"
+                      />
+                    )}
+                    <button
+                      type="button"
+                      disabled={resendVerificationBusy}
+                      onClick={() => void handleResendVerification()}
+                      className="text-sm font-semibold text-purple-400 underline hover:text-purple-300 disabled:opacity-50"
+                    >
+                      {resendVerificationBusy ? 'Envoi…' : 'Renvoyer l’e-mail de vérification'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {resendVerificationMsg && (
+            <div className="flex items-start gap-2 bg-purple-500/10 border border-purple-500/30 rounded-xl px-3 py-2">
+              <p className="text-purple-300 text-sm">{resendVerificationMsg}</p>
             </div>
           )}
 
           {registerSuccess && (
-            <div className="flex items-start gap-2 bg-green-500/10 border border-green-500/30 rounded-xl px-3 py-2">
-              <span className="text-green-400 shrink-0 mt-0.5">✓</span>
-              <p className="text-green-400 text-sm">{registerSuccess}</p>
+            <div className="flex flex-col gap-2 bg-green-500/10 border border-green-500/30 rounded-xl px-3 py-2">
+              <div className="flex items-start gap-2">
+                <span className="text-green-400 shrink-0 mt-0.5">✓</span>
+                <p className="text-green-400 text-sm">{registerSuccess}</p>
+              </div>
+              {turnstileRequired && (
+                <TurnstileWidget
+                  className="flex justify-center min-h-[65px]"
+                  onToken={setResendTurnstileToken}
+                  theme="dark"
+                />
+              )}
+              <button
+                type="button"
+                disabled={resendVerificationBusy}
+                onClick={() => void handleResendVerification()}
+                className="text-sm font-semibold text-purple-400 underline hover:text-purple-300 disabled:opacity-50 self-start"
+              >
+                {resendVerificationBusy ? 'Envoi…' : 'Renvoyer l’e-mail de vérification'}
+              </button>
             </div>
           )}
 
