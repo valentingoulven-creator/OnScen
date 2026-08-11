@@ -4,7 +4,9 @@
 #   powershell -File commun/scripts/setup-turnstile-vps.ps1 -Target prod
 #   powershell -File commun/scripts/setup-turnstile-vps.ps1 -Target both
 #
-# Clés réelles (dashboard Cloudflare → Turnstile) :
+# Clés réelles (dashboard ou API) :
+#   $env:CLOUDFLARE_API_TOKEN='cfat_...'; powershell -File commun/scripts/create-turnstile-widgets.ps1 -Apply
+#   # ou manuellement :
 #   $env:TURNSTILE_SITE_KEY='...'; $env:TURNSTILE_SECRET_KEY='...'; ... -UseRealKeys
 #
 # Sans clés réelles : clés de test Cloudflare (toujours « pass » — OK preprod, pas pour anti-bot prod).
