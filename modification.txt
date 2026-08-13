@@ -40181,3 +40181,79 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 1389 — 2026-08-11
 ================================================================================
+
+================================================================================
+MODIF 1390 - Refonte médias feed (vidéo native/YouTube), globe et carte — Soundly Dev
+Date : 2026-08-13
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Commit + push + déploiement prod de travaux en cours sur le repo (feed médias,
+ globe, carte) accumulés depuis le dernier checkpoint (d53a9d05). Demande
+ utilisateur : « commit push deploy ».
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/feedPostMedia.ts (nouveau)
+ ─────────────────
+ • Résolution unifiée des médias d'une publication feed : galerie d'images,
+   miniatures YouTube, vidéo native (data:/blob:/mp4), id vidéo YouTube.
+
+ web/app/src/components/FeedPost{ContentText,MediaPreview,NativeVideo,VideoControls,YoutubePlayer}.tsx (nouveaux)
+ ─────────────────
+ • Remplacent l'ancien aperçu d'images simple par un rendu média complet
+   (texte, image, vidéo native avec contrôles custom, lecteur YouTube intégré).
+
+ GlobeView.tsx / globe3d/*
+ ─────────────────
+ • Nettoyage imports inutilisés (MapBounds), constantes/assets du globe
+   réorganisés (globeAssets.ts nouveau), filtrage pays/capitales affiné.
+
+ Carte
+ ─────────────────
+ • MapFilterMosaicPopup.tsx (nouveau), EventCardMapCompact ajusté,
+   feedEventCountry.ts (nouveau, filtrage événements par pays),
+   NearbyPeoplePanel ajustements.
+
+ liveContentCategory.ts (nouveau)
+ ─────────────────
+ • Catégorisation/filtrage des lives par contenu (dance/music/...).
+
+ Fix build bloquant avant déploiement
+ ─────────────────
+ • GlobeView.tsx : import de type `MapBounds` inutilisé (TS6133) — supprimé.
+ • liveContentCategory.test.ts : fixture `playbackState` incomplète par
+   rapport au type `PlaybackState` (manquait platform/trackId/progressMs/
+   updatedAt) — corrigée.
+
+ .gitignore
+ ─────────────────
+ • Ajout `commun/backend/public/uploads/` (contenu runtime utilisateur —
+   2 bannières sponsor s'étaient glissées dans le staging git, jamais commit).
+
+VÉRIFICATIONS (build réel avant déploiement)
+-----
+ • web/app (tsc -b) → ✅ (après fix des 2 erreurs ci-dessus)
+ • commun/backend (tsc --noEmit) → ✅
+ • vitest (feedPostMedia, feedEventCountry, liveContentCategory, mapEventFilter,
+   globe3d/constants, horizontalScrollCarousel) → ✅ 51/51 tests
+ • Clés ACRCloud : confirmé avec l'utilisateur — volontairement absentes pour
+   ce déploiement (question posée conformément à la consigne permanente)
+
+FICHIERS MODIFIÉS
+-----
+ 62 fichiers (voir commit b3928ecd) : web/app/src/{components,lib,pages,locales}/*,
+ ios/apptel/src/{components,lib}/* (LivePipPreviewFloat, livePipPosition),
+ .gitignore
+
+BUILD (vérifié)
+-----
+ web/app/ → tsc -b && vite build → ✅
+ commun/backend/ → tsc build:prod → ✅
+ Déploiement zero-downtime prod (commun/scripts/deploy-prod.ps1) → ✅
+ https://onscen.com/health → 200 OK (post-déploiement)
+
+================================================================================
+Fin MODIF 1390 — 2026-08-13
+================================================================================
