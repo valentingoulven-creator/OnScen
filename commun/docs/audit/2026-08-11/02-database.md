@@ -3,6 +3,8 @@
 **Date :** 2026-08-10  
 **Périmètre :** `commun/backend/src/db/`, `lib/pgStore*.ts`, `commun/deploy/*backup*`
 
+> **🔄 Rafraîchissement 2026-08-11 (soir)** : aucun changement DB (schéma, migrations, backups) identifié depuis ce matin. Les correctifs du jour (RESEND_FROM, notifications, ouverture inscriptions, getsoundy) n'affectent pas cette phase. Constats et recommandations ci-dessous inchangés.
+
 ---
 
 ## 2.1 Schéma & normalisation

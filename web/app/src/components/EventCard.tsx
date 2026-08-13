@@ -175,16 +175,20 @@ export function EventCard({
     );
   }
 
-  /** Carrousel horizontal : hauteur hero */
+  /** Carrousel horizontal : ratio lié à la largeur carte (photo entière, sans crop). */
   const heroClass = isCarousel
     ? isSidebar
-      ? 'h-14'
+      ? 'aspect-[2/1]'
       : isCompact
-        ? 'h-24'
-        : 'h-32'
+        ? 'aspect-[2/1]'
+        : 'aspect-video'
     : isCompact
       ? 'aspect-[2/1]'
       : 'aspect-video';
+
+  const heroImageClass = isCarousel
+    ? 'absolute inset-0 h-full w-full object-contain object-center'
+    : 'absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover/hero:scale-105';
 
   const badgeIconClass = isSidebar ? 'w-2 h-2' : isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3';
   const badgeTextClass = isSidebar ? 'text-[8px]' : isCompact ? 'text-[9px]' : 'text-[10px]';
@@ -233,13 +237,23 @@ export function EventCard({
     )
   ) : null;
 
+  const profileAvatarSize = isCarousel || isCompact ? 'xs' : 'sm';
+  const profileNameClass = isCarousel
+    ? 'text-[10px] font-semibold truncate block'
+    : isCompact
+      ? 'text-[10px] font-semibold truncate block'
+      : 'text-xs font-semibold truncate block';
+  const profileRoleClass = isCarousel
+    ? 'text-[9px] text-purple-400/80'
+    : 'text-[10px] text-purple-400/80';
+
   const profileIdentity = (
     <>
       <UserAvatarOnline
         userId={post.author.id}
         avatarUrl={post.author.avatarUrl}
         username={post.author.username}
-        size="sm"
+        size={profileAvatarSize}
       />
       <div className="min-w-0 flex-1">
         <UsernameDisplay
@@ -247,9 +261,9 @@ export function EventCard({
           usernameColor={post.author.usernameColor}
           usernameWaveFrom={post.author.usernameWaveFrom}
           usernameWaveTo={post.author.usernameWaveTo}
-          className="text-xs font-semibold truncate block"
+          className={profileNameClass}
         />
-        <p className="text-[10px] text-purple-400/80">Organisateur</p>
+        <p className={profileRoleClass}>Organisateur</p>
       </div>
     </>
   );
@@ -268,7 +282,9 @@ export function EventCard({
 
   const profileRowInsideCard = !canOpenAuthor ? (
     <div className={profileRowBorder}>
-      <div className={`flex items-center gap-2 min-w-0 ${profileActions ? 'flex-1' : 'w-full'}`}>
+      <div
+        className={`flex items-center min-w-0 ${isCarousel ? 'gap-1.5' : 'gap-2'} ${profileActions ? 'flex-1' : 'w-full'}`}
+      >
         {profileIdentity}
       </div>
       {profileActionsSlot}
@@ -276,14 +292,14 @@ export function EventCard({
   ) : null;
 
   const profileRowOutsideCard = canOpenAuthor ? (
-    <div className={`${isCompact ? 'px-2.5 pb-2.5' : 'px-3 pb-3'}`}>
+    <div className={`${isCarousel ? 'px-2 pb-2' : isCompact ? 'px-2.5 pb-2.5' : 'px-3 pb-3'}`}>
       <div className={profileRowBorder}>
         <button
           type="button"
           onClick={openAuthorProfile}
-          className={`flex items-center gap-2 min-w-0 flex-1 text-left rounded-lg -mx-1 px-1 py-0.5 hover:bg-purple-900/25 active:bg-purple-900/35 transition min-h-[44px] ${
-            profileActions ? '' : 'w-full'
-          }`}
+          className={`flex items-center gap-1.5 min-w-0 flex-1 text-left rounded-lg -mx-1 px-1 py-0.5 hover:bg-purple-900/25 active:bg-purple-900/35 transition ${
+            isCarousel ? 'min-h-9' : 'min-h-[44px]'
+          } ${profileActions ? '' : 'w-full'}`}
           aria-label={t('reels.openAuthorProfile', {
             username: post.author.username,
             defaultValue: `Voir le profil de ${post.author.username}`,
@@ -307,7 +323,7 @@ export function EventCard({
           alt=""
           loading="lazy"
           onError={() => setHeroImageFailed(true)}
-          className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover/hero:scale-105"
+          className={heroImageClass}
         />
       ) : (
         <div
@@ -343,7 +359,7 @@ export function EventCard({
         </span>
       </div>
 
-      {primaryEventDate ? (
+      {primaryEventDate && !isCarousel ? (
         <div
           className={`absolute pointer-events-none ${
             isSidebar
@@ -493,9 +509,9 @@ export function EventCard({
     <div
       className={
         embedded
-          ? `group relative text-left w-full ${isCarousel ? 'events-carousel-card snap-start snap-always' : ''}`
+          ? `group relative text-left w-full ${isCarousel ? 'events-carousel-card snap-center snap-always' : ''}`
           : `group relative text-left overflow-hidden rounded-xl border border-purple-500/40 bg-[#12121a] shadow-[0_0_24px_rgba(168,85,247,0.12)] hover:border-purple-400/55 hover:shadow-[0_0_28px_rgba(168,85,247,0.22)] transition-all ${
-              isCarousel ? 'events-carousel-card snap-start snap-always' : 'w-full'
+              isCarousel ? 'events-carousel-card snap-center snap-always' : 'w-full'
             }`
       }
     >

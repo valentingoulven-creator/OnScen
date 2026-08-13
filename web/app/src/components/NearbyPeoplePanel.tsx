@@ -6,7 +6,7 @@ import {
   mapDetailTierLabel,
   type MapSidebarContent,
 } from '../lib/mapSidebarContent';
-import { getLivesGlobeViewportRadiusKm, type MapViewDetailState } from '../lib/mapMarkerVisibility';
+import { type MapViewDetailState } from '../lib/mapMarkerVisibility';
 import type { MapEventFilterCriteria } from '../lib/mapEventFilter';
 import { MapEventsBrowseList } from './MapEventsBrowseList';
 import { useMapEventsBrowseData } from '../hooks/useMapEventsBrowseData';
@@ -751,15 +751,6 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
   });
   const showFollowingSidebarLayout = content.noFilters;
 
-  const livesInViewViewportSubtitle = useMemo(() => {
-    if (!livesFilterOn || detail.mapStyle !== 'globe') return undefined;
-    const km = getLivesGlobeViewportRadiusKm(detail.tier, detail.globeAltitude);
-    return t('map.sidebarLivesViewportGlobeKm', {
-      defaultValue: 'Viewport globe · {{km}} km (● violet)',
-      km,
-    });
-  }, [livesFilterOn, detail, t]);
-
   const summaryParts: string[] = [];
   if (eventCount > 0) {
     summaryParts.push(`${eventCount} événement${eventCount !== 1 ? 's' : ''}`);
@@ -1028,7 +1019,6 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
                   label={t('map.sidebarLivesInView', { defaultValue: 'Lives' })}
                   items={content.lives}
                   emptyText={livesInViewEmptyText}
-                  headerSubtitle={livesInViewViewportSubtitle}
                   {...sectionProps('lvInView', content.lives.length)}
                   renderItem={(live) => (
                     <LiveSidebarRow

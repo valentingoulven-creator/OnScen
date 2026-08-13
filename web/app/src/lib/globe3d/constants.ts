@@ -31,11 +31,48 @@ export const GLOBE_DRAG_ROTATE_BASE_SPEED = 0.55;
 /** Parallaxe nuages (rad/s à la distance de référence), un peu plus lent que la Terre. */
 export const GLOBE_CLOUDS_PARALLAX_SPEED = 0.004;
 
-export const TEXTURE_PATHS = {
-  day: '/globe/earth-blue-marble.jpg',
-  bump: '/globe/earth-topology.png',
-  specular: '/globe/earth-water.png',
-  clouds: '/globe/earth-clouds.png',
-  starfield: '/globe/stars-enhanced.jpg',
-  starfieldLow: '/globe/night-sky.png',
-} as const;
+import { isAppTelBuild } from '../nativePlatform';
+
+/** Préfixe assets globe — `/tel/` PWA, `./` Capacitor, `/` web. */
+export function resolveGlobeAssetBase(): string {
+  let base = import.meta.env.BASE_URL || '/';
+  if (typeof window !== 'undefined') {
+    const path = window.location.pathname;
+    if (path.startsWith('/tel/') || path === '/tel') {
+      return '/tel/';
+    }
+  }
+  if (isAppTelBuild() && (base === '/' || base === '')) {
+    return '/tel/';
+  }
+  return base.endsWith('/') ? base : `${base}/`;
+}
+
+/** Préfixe BASE_URL (`/`, `/tel/`, `./`) → URL absolue (fetch + Three.js, web + apptel + Capacitor). */
+export function globeAssetPath(relativePath: string): string {
+  const clean = relativePath.replace(/^\//, '');
+  const base = resolveGlobeAssetBase();
+  if (typeof window !== 'undefined' && window.location?.href) {
+    try {
+      return new URL(clean, new URL(base, window.location.href)).href;
+    } catch {
+      /* fall through */
+    }
+  }
+  return `${base}${clean}`;
+}
+
+/** Chemins textures — résolus au runtime via globeAssetPath (pas au chargement module). */
+export function getGlobeTexturePaths() {
+  return {
+    day: globeAssetPath('globe/earth-blue-marble.jpg'),
+    bump: globeAssetPath('globe/earth-topology.png'),
+    specular: globeAssetPath('globe/earth-water.png'),
+    clouds: globeAssetPath('globe/earth-clouds.png'),
+    starfield: globeAssetPath('globe/stars-enhanced.jpg'),
+    starfieldLow: globeAssetPath('globe/night-sky.png'),
+  } as const;
+}
+
+/** @deprecated Préférer getGlobeTexturePaths() — conservé pour compat tests. */
+export const TEXTURE_PATHS = getGlobeTexturePaths();

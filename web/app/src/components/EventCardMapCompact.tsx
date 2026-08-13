@@ -172,7 +172,7 @@ export function EventCardMapCompact({
             alt=""
             loading="lazy"
             onError={() => setHeroImageFailed(true)}
-            className="absolute inset-0 h-full w-full object-cover"
+            className="absolute inset-0 h-full w-full object-contain object-center"
           />
         ) : (
           <div

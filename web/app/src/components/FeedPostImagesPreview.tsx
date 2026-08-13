@@ -6,16 +6,23 @@ import { FeedPostImageGallery } from './FeedPostImageGallery';
 interface FeedPostImagesPreviewProps {
   post: Pick<FeedPost, 'id' | 'imageUrl' | 'imageUrls'>;
   label?: string;
+  variant?: 'feed' | 'modal';
+  initialIndex?: number;
 }
 
 /** Images d'une publication dans le fil (unique ou galerie). */
-export function FeedPostImagesPreview({ post, label = 'Publication' }: FeedPostImagesPreviewProps) {
+export function FeedPostImagesPreview({
+  post,
+  label = 'Publication',
+  variant = 'feed',
+  initialIndex = 0,
+}: FeedPostImagesPreviewProps) {
   const urls = getFeedPostImageUrls(post);
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(initialIndex);
 
   useEffect(() => {
-    setIndex(0);
-  }, [post.id, urls.join('|')]);
+    setIndex(initialIndex);
+  }, [post.id, urls.join('|'), initialIndex]);
 
   if (urls.length === 0) return null;
 
@@ -25,7 +32,7 @@ export function FeedPostImagesPreview({ post, label = 'Publication' }: FeedPostI
       index={index}
       onIndexChange={setIndex}
       label={label}
-      variant="feed"
+      variant={variant}
     />
   );
 }

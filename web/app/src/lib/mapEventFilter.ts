@@ -17,7 +17,7 @@ import { isSidebarFollowingEvent } from './mapSidebarContent';
 import { isValidLatLng } from './mapCoords';
 import { resolveEventCoordsSync, resolveEventCityCoordsSync } from './mapEventCoords';
 import { getDistanceKm } from './mapMarkerVisibility';
-import type { FeedPost, MapEventMarker } from '../types';
+import type { FeedPost, MapEventCityCluster, MapEventMarker } from '../types';
 
 export const DEFAULT_EVENT_FILTER_RADIUS_KM = 30;
 
@@ -345,6 +345,19 @@ export function filterMapEventsByEventType(
   eventType: FeedEventType
 ): MapEventMarker[] {
   return events.filter((event) => normalizeFeedEventType(event.eventType) === eventType);
+}
+
+/** Clusters carte : ne garde que les événements du type demandé. */
+export function filterMapEventClustersByEventType(
+  clusters: MapEventCityCluster[],
+  eventType: FeedEventType
+): MapEventCityCluster[] {
+  return clusters
+    .map((cluster) => {
+      const events = filterMapEventsByEventType(cluster.events, eventType);
+      return { ...cluster, events, count: events.length };
+    })
+    .filter((cluster) => cluster.count > 0);
 }
 
 /** Ne garde que les publications du type feed. */

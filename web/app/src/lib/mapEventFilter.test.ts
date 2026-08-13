@@ -13,6 +13,7 @@ import {
   EMPTY_EVENT_FILTER,
   filterFeedPostsByEventCriteria,
   filterMapEventsByCriteria,
+  filterMapEventClustersByEventType,
   filterMapEventsOnCalendarDay,
   filterMapEventsOnCalendarDays,
   filterMapEventPinsForView,
@@ -536,5 +537,27 @@ describe('applyMapEventDayPinFilterForMap', () => {
     const result = applyMapEventDayPinFilterForMap([sponso, regular], todayKey);
 
     expect(result.map((event) => event.id)).toEqual(['sponso-future', 'regular-today']);
+  });
+});
+
+describe('filterMapEventClustersByEventType', () => {
+  it('keeps clusters with matching events only', () => {
+    const clusters = [
+      {
+        cityKey: 'paris',
+        cityLabel: 'Paris',
+        latitude: 48.85,
+        longitude: 2.35,
+        count: 2,
+        events: [
+          { id: 'a', latitude: 48.85, longitude: 2.35, title: 'Danse', eventType: 'dance' as const },
+          { id: 'b', latitude: 48.85, longitude: 2.35, title: 'Chant', eventType: 'chant' as const },
+        ],
+      },
+    ];
+    const result = filterMapEventClustersByEventType(clusters, 'dance');
+    expect(result).toHaveLength(1);
+    expect(result[0]!.events.map((e) => e.id)).toEqual(['a']);
+    expect(result[0]!.count).toBe(1);
   });
 });

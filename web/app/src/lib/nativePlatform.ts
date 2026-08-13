@@ -32,3 +32,19 @@ export function isNativeApp(): boolean {
   const platform = getCapacitorBridge()?.getPlatform?.();
   return platform === 'ios' || platform === 'android';
 }
+
+/**
+ * Retourne true uniquement dans le build mobile « tel » (ios/apptel) : app
+ * Capacitor native OU PWA /tel/ (dev :4082/tel/, prod onscen.com/tel/).
+ * false sur le site web principal (onscen.com), même en viewport étroit —
+ * utile pour réserver des features UI au mobile sans dépendre de la largeur
+ * d'écran (cf. MODIF « sidebar carte → popup mosaïque »).
+ */
+export function isAppTelBuild(): boolean {
+  if (isNativeApp()) return true;
+  try {
+    return import.meta.env.BASE_URL.includes('/tel');
+  } catch {
+    return false;
+  }
+}

@@ -2,14 +2,15 @@ import { useEffect } from 'react';
 import { useTexture } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { EquirectangularReflectionMapping } from 'three';
-import { TEXTURE_PATHS } from '../../lib/globe3d/constants';
+import { getGlobeTexturePaths } from '../../lib/globe3d/constants';
 
 interface StarfieldProps {
   lowPower?: boolean;
 }
 
 export function Starfield({ lowPower = false }: StarfieldProps) {
-  const starTexture = useTexture(lowPower ? TEXTURE_PATHS.starfieldLow : TEXTURE_PATHS.starfield);
+  const textures = getGlobeTexturePaths();
+  const starTexture = useTexture(lowPower ? textures.starfieldLow : textures.starfield);
   const { scene } = useThree();
 
   useEffect(() => {

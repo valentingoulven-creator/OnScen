@@ -80,6 +80,9 @@ function postToMapEventMarker(
     authorUsernameColor: post.author.usernameColor,
     authorUsernameWaveFrom: post.author.usernameWaveFrom,
     authorUsernameWaveTo: post.author.usernameWaveTo,
+    ...(post.imageUrl || post.imageUrls?.[0]
+      ? { imageUrl: post.imageUrl || post.imageUrls?.[0] }
+      : {}),
     ...(opts?.isSponsored ? { isSponsored: true } : {}),
     ...(post.eventTaggedUsers?.length ? { eventTaggedUsers: post.eventTaggedUsers } : {}),
   };

@@ -1,4 +1,4 @@
-﻿# Logs
+# Logs
 logs
 *.log
 npm-debug.log*
@@ -15,6 +15,7 @@ android/keystore.properties
 android/*.jks
 android/*.keystore
 android
+public/globe
 *.local
 
 # Editor directories and files
