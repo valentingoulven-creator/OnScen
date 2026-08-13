@@ -1,12 +1,14 @@
-# Audit technique OnScen (Soundy) — 2026-08-10 (rafraîchi 2026-08-11, correctifs 2026-08-11)
+# Audit technique OnScen — 2026-08-10 (rafraîchi 2026-08-11 matin et soir, correctifs déployés 2026-08-11)
 
 > **Emplacement :** `commun/docs/audit/2026-08-11/` (consolidé depuis la racine `audit/` le 2026-08-11).
 
-Audit initialement **lecture seule** ; une session de correctifs a été menée le 2026-08-11 sur demande explicite du fondateur, limitée aux points techniquement actionnables sans décision légale/business ni opération infra irréversible.
+Audit initialement **lecture seule** ; deux sessions de correctifs ont été menées le 2026-08-11 sur demande explicite du fondateur, limitées aux points techniquement actionnables sans décision légale/business ni opération infra irréversible.
 
-**Rafraîchissement 2026-08-11 :** re-vérification `npm audit`, tests backend et plusieurs constats (mineurs/géo, captcha, Sentry mobile) sur l'état actuel du working tree (correctifs non commités depuis le 08-10).
+**Rafraîchissement 2026-08-11 (matin) :** re-vérification `npm audit`, tests backend et plusieurs constats (mineurs/géo, captcha, Sentry mobile) sur l'état actuel du working tree (correctifs non commités depuis le 08-10).
 
-**Correctifs 2026-08-11 (MODIF 1352) :** `jspdf` (C8), bug de build production bloquant découvert et corrigé, régression géo mineurs (E15, 95 % des comptes actifs concernés), vérifications/durcissements infra prod (Sightengine fail-closed, rétention logs, privilèges rôle DB, process `soundy-auth` supprimé). Voir [00-synthese.md](./00-synthese.md) pour le détail complet, le statut déployé/non déployé, et la liste des points **hors scope** (légal, business, infra à risque).
+**Correctifs 2026-08-11 matin (MODIF 1352) :** `jspdf` (C8), bug de build production bloquant découvert et corrigé, régression géo mineurs (E15, 95 % des comptes actifs concernés), vérifications/durcissements infra prod (Sightengine fail-closed, rétention logs, privilèges rôle DB, process `soundy-auth` supprimé).
+
+**Rafraîchissement 2026-08-11 (soir) :** vérification directe sur le build déployé en prod (`dist/`, `public/assets/`, `.env` VPS) — Turnstile, âge/mineurs et `jspdf` sont désormais **confirmés déployés**, pas seulement codés. Nouveaux constats intégrés : ouverture des inscriptions publiques (`ACCESS_REGISTRATION_MODE=open`), décommission `getsoundy.com`, correction branding e-mail (`RESEND_FROM`), et aggravation du problème OAuth Google (`deleted_client`, plus grave que le « mode Testing » signalé initialement). Voir [00-synthese.md](./00-synthese.md) pour le détail complet, le statut déployé/vérifié, et la liste des points **hors scope** (légal, business, infra à risque).
 
 | Fichier | Phase |
 |---------|--------|

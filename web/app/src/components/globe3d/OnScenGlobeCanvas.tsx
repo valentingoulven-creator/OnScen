@@ -71,7 +71,7 @@ export function OnScenGlobeCanvas({
         camera={{ position: [0, 0, CAMERA_DEFAULT_DISTANCE], fov: 45, near: 0.01, far: 2000 }}
         gl={{
           antialias,
-          alpha: true,
+          alpha: false,
           powerPreference: sceneProps.lowPower ? 'default' : 'high-performance',
           preserveDrawingBuffer: false,
         }}

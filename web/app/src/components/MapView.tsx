@@ -295,14 +295,6 @@ interface MapViewProps {
   /** Compte Dev : repositionner les marqueurs sur la carte sombre. */
   devMarkerDragEnabled?: boolean;
   onDevMarkerDragEnd?: (ref: DevMapMarkerRef, lat: number, lng: number) => void;
-  /** Filtre Lives : cercle rayon de référence (centre requête nearby). */
-  livesListRadius?: { center: [number, number]; radiusKm: number; unlimitedQuery?: boolean } | null;
-  /** Zone viewport utilisée pour la liste sidebar (carte plate, zoom ville+). */
-  livesListViewportBounds?: MapBounds | null;
-  /** Filtre Lives : cercle viewport sidebar (POV globe, violet). */
-  livesListViewportCircle?: { lat: number; lng: number; radiusKm: number } | null;
-  /** Filtre Lives : cercle pins live (POV globe, rouge). */
-  livesListPinCircle?: { lat: number; lng: number; radiusKm: number } | null;
 }
 
 function escapeHtml(value: string): string {
@@ -372,17 +364,12 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   eventBrowsePinFallbackNearest = false,
   devMarkerDragEnabled = false,
   onDevMarkerDragEnd,
-  livesListRadius = null,
-  livesListViewportBounds = null,
-  livesListViewportCircle = null,
-  livesListPinCircle = null,
 }: MapViewProps, ref) {
   const mapRef = useRef<HTMLDivElement>(null);
   const globeViewRef = useRef<GlobeViewHandle | null>(null);
   const mapInstance = useRef<L.Map | null>(null);
   // Separate layer for salons + lives (always visible, small count).
   const salonLiveLayerRef = useRef<L.LayerGroup | null>(null);
-  const livesRadiusOverlayLayerRef = useRef<L.LayerGroup | null>(null);
   const majorCityLayerRef = useRef<L.LayerGroup | null>(null);
   const eventsLayerRef = useRef<L.LayerGroup | null>(null);
   // Cluster group for person markers.
@@ -1022,7 +1009,6 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
 
     // Salon / live markers — regular group (counts stay low).
     salonLiveLayerRef.current = L.layerGroup().addTo(map);
-    livesRadiusOverlayLayerRef.current = L.layerGroup().addTo(map);
     majorCityLayerRef.current = L.layerGroup().addTo(map);
     eventsLayerRef.current = L.layerGroup().addTo(map);
 
@@ -1182,65 +1168,12 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       map.remove();
       mapInstance.current = null;
       salonLiveLayerRef.current = null;
-      livesRadiusOverlayLayerRef.current = null;
       majorCityLayerRef.current = null;
       eventsLayerRef.current = null;
       personClusterRef.current = null;
       capitalsLayerRef.current = null;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  /** Filtre Lives : cercle rayon de référence + rectangle viewport (liste sidebar). */
-  useEffect(() => {
-    const map = mapInstance.current;
-    const layer = livesRadiusOverlayLayerRef.current;
-    if (!map || !layer) return;
-    layer.clearLayers();
-    if (!livesListRadius) return;
-
-    const [centerLat, centerLng] = livesListRadius.center;
-    const { radiusKm } = livesListRadius;
-    if (!isValidLatLng(centerLat, centerLng) || radiusKm <= 0) return;
-
-    L.circle([centerLat, centerLng], {
-      radius: radiusKm * 1000,
-      color: '#f87171',
-      weight: 2,
-      opacity: 0.92,
-      dashArray: '10 8',
-      fillColor: '#ef4444',
-      fillOpacity: 0.07,
-      interactive: false,
-    }).addTo(layer);
-
-    L.circleMarker([centerLat, centerLng], {
-      radius: 6,
-      color: '#fecaca',
-      fillColor: '#ef4444',
-      fillOpacity: 0.95,
-      weight: 2,
-      interactive: false,
-    }).addTo(layer);
-
-    const b = livesListViewportBounds;
-    if (b && isValidLatLng(b.south, b.west) && isValidLatLng(b.north, b.east)) {
-      L.rectangle(
-        [
-          [b.south, b.west],
-          [b.north, b.east],
-        ],
-        {
-          color: '#c084fc',
-          weight: 2,
-          opacity: 0.85,
-          dashArray: '6 5',
-          fillColor: '#a855f7',
-          fillOpacity: 0.06,
-          interactive: false,
-        }
-      ).addTo(layer);
-    }
-  }, [livesListRadius, livesListViewportBounds, flatReveal]);
 
   // iOS Safari : recalcule taille + tuiles au retour onglet (carte grise / globe figé).
   useEffect(() => {
@@ -1999,8 +1932,6 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
               eventsFilterOn={eventsFilterOn}
               devMarkerDragEnabled={devMarkerDragEnabled}
               onDevMarkerDragEnd={onDevMarkerDragEnd}
-              livesListViewportCircle={livesListViewportCircle}
-              livesListPinCircle={livesListPinCircle}
             />
           </GlobeErrorBoundary>
         </Suspense>
@@ -2020,35 +1951,6 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
         }}
         data-map-style={mapStyle}
       />
-
-      {livesListViewportCircle || livesListPinCircle || livesListViewportBounds ? (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[25] pointer-events-none max-w-[min(100%,22rem)] px-2">
-          <div className="rounded-xl border border-purple-500/35 bg-[#0b0b0f]/90 backdrop-blur-sm px-3 py-2 text-[10px] sm:text-[11px] text-gray-200 leading-snug text-center shadow-lg space-y-1">
-            {livesListPinCircle ? (
-              <p className="text-red-300/90">
-                <span className="font-bold">●</span> Pins live{' '}
-                <span className="font-semibold text-white tabular-nums">
-                  {Math.round(livesListPinCircle.radiusKm)} km
-                </span>{' '}
-                — cercle rouge (POV)
-              </p>
-            ) : null}
-            {livesListViewportCircle ? (
-              <p className="text-purple-300/90">
-                <span className="font-bold">●</span> Viewport sidebar{' '}
-                <span className="font-semibold text-white tabular-nums">
-                  {livesListViewportCircle.radiusKm} km
-                </span>{' '}
-                — cercle violet
-              </p>
-            ) : livesListViewportBounds ? (
-              <p className="text-purple-300/90">
-                <span className="font-bold">▭</span> Rectangle violet = lives listés dans le panneau
-              </p>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }));

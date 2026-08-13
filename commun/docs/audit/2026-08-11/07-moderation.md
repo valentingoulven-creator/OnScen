@@ -3,6 +3,8 @@
 **Date :** 2026-08-10  
 **Périmètre :** `sightengine*`, `contentModeration`, `liveContentSampling.ts`, `contentReports.ts`, `chatModerationPolicy.ts`
 
+> **🔄 Rafraîchissement 2026-08-11 (soir)** : aucun changement de modération identifié depuis ce matin. Point de vigilance indirect : l'ouverture des inscriptions publiques (`ACCESS_REGISTRATION_MODE=open`, cf. [06-ddos](./06-ddos.md)) augmente le volume potentiel de nouveaux comptes/contenus à modérer — aucune mesure de scaling modération spécifique identifiée en réaction à ce changement.
+
 ---
 
 ## 7.1 Modération automatisée UGC (images / vidéos / reels)

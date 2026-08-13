@@ -5,9 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { FeedPostInteractions } from './FeedPostInteractions';
 import { LinkifiedText } from './LinkifiedText';
 import { UsernameDisplay } from './UsernameDisplay';
-import { getFeedPostImageUrls } from '../lib/feedPostMedia';
+import { FeedPostMediaPreview } from './FeedPostMediaPreview';
 import type { FeedPost } from '../types';
-import { FeedPostImageGallery } from './FeedPostImageGallery';
 
 interface FeedPostDetailModalProps {
   open: boolean;
@@ -37,19 +36,15 @@ export function FeedPostDetailModal({
   const { t, i18n } = useTranslation();
   const { token } = useAuth();
   const [activePost, setActivePost] = useState<FeedPost | null>(null);
-  const [imageIndex, setImageIndex] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (open && post) {
       setActivePost(post);
-      setImageIndex(initialImageIndex);
     }
     if (!open) setActivePost(null);
-  }, [open, post, initialImageIndex]);
-
-  const imageUrls = activePost ? getFeedPostImageUrls(activePost) : [];
+  }, [open, post]);
 
   useEffect(() => {
     if (!open) return;
@@ -146,24 +141,13 @@ export function FeedPostDetailModal({
                     {toolbar ? <div className="pt-1">{toolbar}</div> : null}
                   </div>
 
-                  {imageUrls.length > 0 ? (
-                    <FeedPostImageGallery
-                      urls={imageUrls}
-                      index={imageIndex}
-                      onIndexChange={setImageIndex}
-                      label={t('profile.publicationDetail', { defaultValue: 'Publication' })}
-                    />
-                  ) : null}
-
-                  {activePost.videoUrl ? (
-                    <video
-                      src={activePost.videoUrl}
-                      controls
-                      playsInline
-                      preload="metadata"
-                      className="w-full max-h-[min(55dvh,24rem)] bg-black"
-                    />
-                  ) : null}
+                  <FeedPostMediaPreview
+                    key={activePost.id}
+                    post={activePost}
+                    variant="modal"
+                    label={t('profile.publicationDetail', { defaultValue: 'Publication' })}
+                    initialImageIndex={initialImageIndex}
+                  />
 
                   {activePost.content?.trim() ? (
                     <div className="px-4">

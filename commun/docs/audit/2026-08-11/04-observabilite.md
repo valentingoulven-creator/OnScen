@@ -3,6 +3,8 @@
 **Date :** 2026-08-10 (rafraîchi 2026-08-11)  
 **Périmètre :** `lib/errorMonitoring.ts`, `web/app/src/lib/sentry.ts`, `sentryFilters.ts`, `adminDiagnostics.ts`, `ios/apptel/src/lib/sentryNative.ts`, deploy logs
 
+> **🔄 Rafraîchissement 2026-08-11 (soir)** : Sentry web confirmé présent dans le bundle prod déployé ce soir (`grep Sentry` positif sur `index-*.js`). Sentry mobile (`ios/apptel/src/lib/sentryNative.ts`) toujours **non vérifiable sans build store réel** — statut inchangé (code présent, déploiement store non confirmé).
+
 ---
 
 ## 4.1 Couverture Sentry par environnement

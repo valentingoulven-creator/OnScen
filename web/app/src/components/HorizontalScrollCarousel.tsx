@@ -18,6 +18,40 @@ function ChevronRightIcon({ className }: { className?: string }) {
 
 const SCROLL_EDGE_EPS = 4;
 
+/** Index de l’enfant dont le centre est le plus proche du centre du viewport scrollable. */
+export function getClosestHorizontalScrollIndex(
+  scrollLeft: number,
+  clientWidth: number,
+  children: ReadonlyArray<{ offsetLeft: number; offsetWidth: number }>
+): number {
+  if (children.length === 0) return 0;
+  const viewportCenter = scrollLeft + clientWidth / 2;
+  let closestIdx = 0;
+  let closestDist = Infinity;
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    const childCenter = child.offsetLeft + child.offsetWidth / 2;
+    const dist = Math.abs(childCenter - viewportCenter);
+    if (dist < closestDist) {
+      closestDist = dist;
+      closestIdx = i;
+    }
+  }
+  return closestIdx;
+}
+
+/** scrollLeft pour centrer un enfant dans le conteneur horizontal. */
+export function scrollLeftToCenterChild(
+  clientWidth: number,
+  scrollWidth: number,
+  child: { offsetLeft: number; offsetWidth: number }
+): number {
+  const cardCenter = child.offsetLeft + child.offsetWidth / 2;
+  const raw = cardCenter - clientWidth / 2;
+  const maxScroll = Math.max(0, scrollWidth - clientWidth);
+  return Math.max(0, Math.min(raw, maxScroll));
+}
+
 /** Distance de scroll = (largeur item + gap) × stepCount. */
 export function computeHorizontalScrollAmount(
   itemWidth: number,
@@ -84,8 +118,23 @@ export function HorizontalScrollCarousel({
     (direction: 'left' | 'right') => {
       const el = scrollRef.current;
       if (!el) return;
-      const firstCard = el.firstElementChild as HTMLElement | null;
-      if (!firstCard) return;
+      const children = Array.from(el.children).filter(
+        (node): node is HTMLElement => node instanceof HTMLElement
+      );
+      if (children.length === 0) return;
+
+      if (scrollStepCount <= 1) {
+        const currentIdx = getClosestHorizontalScrollIndex(el.scrollLeft, el.clientWidth, children);
+        const targetIdx =
+          direction === 'left'
+            ? Math.max(0, currentIdx - 1)
+            : Math.min(children.length - 1, currentIdx + 1);
+        const scrollLeft = scrollLeftToCenterChild(el.clientWidth, el.scrollWidth, children[targetIdx]);
+        el.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+        return;
+      }
+
+      const firstCard = children[0];
       const gap = parseFloat(getComputedStyle(el).columnGap || getComputedStyle(el).gap || '12') || 12;
       const amount = computeHorizontalScrollAmount(firstCard.offsetWidth, gap, scrollStepCount);
       el.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });

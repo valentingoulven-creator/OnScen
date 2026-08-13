@@ -1,7 +1,7 @@
 import { useTexture } from '@react-three/drei';
 import type { ThreeEvent } from '@react-three/fiber';
 import { SRGBColorSpace } from 'three';
-import { EARTH_RADIUS, TEXTURE_PATHS } from '../../lib/globe3d/constants';
+import { EARTH_RADIUS, getGlobeTexturePaths } from '../../lib/globe3d/constants';
 import { vector3ToLonLat } from '../../lib/globe3d/geoMath';
 
 interface EarthProps {
@@ -10,10 +10,11 @@ interface EarthProps {
 }
 
 export function Earth({ useBumpMap, onGlobeDblClick }: EarthProps) {
+  const textures = getGlobeTexturePaths();
   const [dayMap, bumpMap, specularMap] = useTexture([
-    TEXTURE_PATHS.day,
-    TEXTURE_PATHS.bump,
-    TEXTURE_PATHS.specular,
+    textures.day,
+    textures.bump,
+    textures.specular,
   ]);
   dayMap.colorSpace = SRGBColorSpace;
   dayMap.anisotropy = 8;

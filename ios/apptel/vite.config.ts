@@ -87,6 +87,29 @@ function apptelSrcFallback() {
   };
 }
 
+/** Copie web/app/public/globe → ios/apptel/public/globe (servi sous /tel/globe/ ou ./globe/). */
+function syncGlobePublicAssets() {
+  const globeSrc = path.resolve(__dirname, '../../web/app/public/globe');
+  const globeDest = path.resolve(__dirname, 'public/globe');
+
+  const sync = () => {
+    if (!fs.existsSync(globeSrc)) {
+      console.warn('[apptel] globe assets source missing:', globeSrc);
+      return;
+    }
+    fs.mkdirSync(path.dirname(globeDest), { recursive: true });
+    fs.cpSync(globeSrc, globeDest, { recursive: true, force: true });
+    const count = fs.readdirSync(globeDest).length;
+    console.log(`[apptel] globe assets synced (${count} files) → public/globe`);
+  };
+
+  return {
+    name: 'apptel-sync-globe-public',
+    buildStart: sync,
+    configureServer: sync,
+  };
+}
+
 function msdevBackendUsesHttps(): boolean {
   if (process.env.MSDEV_HTTPS === '1' || process.env.MSDEV_HTTPS_PROXY === '1') return true;
   try {
@@ -119,6 +142,7 @@ export default defineConfig({
     'import.meta.env.VITE_SOCKET_URL': JSON.stringify(process.env.VITE_SOCKET_URL || ''),
   },
   plugins: [
+    syncGlobePublicAssets(),
     apptelSrcFallback(),
     react(),
     tailwindcss(),
@@ -276,11 +300,7 @@ export default defineConfig({
           if (id.includes('socket.io-client')) return 'vendor-socketio';
           if (id.includes('livekit-client') || id.includes('@livekit/')) return 'vendor-livekit';
           if (id.includes('leaflet') || id.includes('react-leaflet')) return 'vendor-map';
-          // Globe 3D (Three.js/R3F) : chunk isolé, jamais chargé sur natif
-          // (canUseGlobeView() exclut ios/android) — atteint uniquement via
-          // le dynamic-import de GlobeView côté PWA/web mobile. Résolu via
-          // web/app/node_modules (pas de dépendance @react-three/* propre à
-          // apptel — cf. apptelSrcFallback qui overlay web/app/src).
+          // Globe 3D (Three.js/R3F) : chunk isolé — chargé via dynamic-import GlobeView.
           if (id.includes('/three/') || id.includes('/three-') || id.includes('@react-three')) {
             return 'vendor-globe';
           }

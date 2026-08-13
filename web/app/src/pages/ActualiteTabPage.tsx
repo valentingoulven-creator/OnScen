@@ -28,7 +28,8 @@ import {
   EVENTS_COUNTRY_FALLBACK,
 } from '../lib/countryDisplay';
 import { FeedTrendingUsersSection } from '../components/FeedTrendingUsersSection';
-import { FeedPostImagesPreview } from '../components/FeedPostImagesPreview';
+import { FeedPostMediaPreview } from '../components/FeedPostMediaPreview';
+import { FeedPostContentText } from '../components/FeedPostContentText';
 import { resolveEventCoords } from '../lib/mapEventCoords';
 import { dispatchMapEventsRefresh, dispatchMapOpenCreateSalon } from '../lib/mapUiEvents';
 import type { CommentAlign, FeedPost, FeedPostComment, MapStory, MusicNewsItem, StoryTaggedUser, TrendingUser } from '../types';
@@ -593,7 +594,7 @@ function ActualitesContent({
             {featuredUserSounds.map((item) => (
               <NewsArticleCard
                 key={`${item.kind}-${item.id}`}
-                className="w-[300px] shrink-0 snap-start"
+                className="w-[300px] shrink-0 snap-center"
                 imageUrl={item.imageUrl}
                 title={item.title}
                 excerpt={item.excerpt}
@@ -815,19 +816,8 @@ const PostCard = memo(function PostCard({
       )}
 
       {/* Content */}
-      {post.content.trim() ? (
-        <p className="text-sm text-gray-200 whitespace-pre-wrap break-words">{post.content}</p>
-      ) : null}
-      <FeedPostImagesPreview post={post} />
-      {post.videoUrl && (
-        <video
-          src={post.videoUrl}
-          controls
-          playsInline
-          preload="metadata"
-          className="w-full rounded-lg max-h-80 bg-[#1e1e2f]"
-        />
-      )}
+      <FeedPostContentText content={post.content} />
+      <FeedPostMediaPreview post={post} variant="feed" />
 
       {/* Reshared original post embed */}
       {post.resharedFrom && (
@@ -852,21 +842,8 @@ const PostCard = memo(function PostCard({
             />
             <span className="text-[10px] text-gray-600 shrink-0">{formatWhen(post.resharedFrom.createdAt)}</span>
           </button>
-          {post.resharedFrom.content.trim() && (
-            <p className="text-xs text-gray-300 whitespace-pre-wrap break-words line-clamp-4">
-              {post.resharedFrom.content}
-            </p>
-          )}
-          <FeedPostImagesPreview post={post.resharedFrom} label="Republication" />
-          {post.resharedFrom.videoUrl && (
-            <video
-              src={post.resharedFrom.videoUrl}
-              controls
-              playsInline
-              preload="metadata"
-              className="w-full rounded-md max-h-48 bg-[#1e1e2f]"
-            />
-          )}
+          <FeedPostContentText content={post.resharedFrom.content} className="text-xs text-gray-300" />
+          <FeedPostMediaPreview post={post.resharedFrom} label="Republication" variant="feed" />
         </div>
       )}
 
@@ -1032,7 +1009,9 @@ export function ActualiteTabPage({
     feedStoriesByUser,
     setFeedStoriesByUser,
   } = useActualiteFeedLoader(token, isActive, showNews);
-  const homeSponsoredEvents = useMapSidebarSponsoredEvents(isActive && !showNews ? token : null);
+  const homeSponsoredEvents = useMapSidebarSponsoredEvents(isActive && !showNews ? token : null, {
+    profileCity: user?.city,
+  });
 
   const [publishing, setPublishing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -2071,8 +2050,10 @@ export function ActualiteTabPage({
                 Actualités
               </button>
 
-              <div className="rounded-xl border border-[var(--ms-border)] bg-[var(--ms-surface)] p-3 space-y-2">
-                    <p className="text-xs text-[var(--ms-text-muted)] font-medium uppercase tracking-wide">{t('feed.publish')}</p>
+              <div className="rounded-xl border border-[var(--ms-border)] bg-[var(--ms-surface)] p-2 space-y-1.5">
+                    <p className="text-[10px] text-[var(--ms-text-muted)] font-semibold uppercase tracking-wider px-0.5">
+                      {t('feed.publish')}
+                    </p>
                     <input
                       ref={mediaFileInputRef}
                       type="file"
@@ -2090,27 +2071,27 @@ export function ActualiteTabPage({
                       onPaste={handleComposePaste}
                       placeholder={t('feed.placeholder')}
                       title="Coller une image (Ctrl+V)"
-                      rows={3}
+                      rows={2}
                       maxLength={2000}
-                      className="w-full rounded-xl bg-[var(--ms-bg)] border border-[var(--ms-border)] px-3 py-2 text-sm text-[var(--ms-text)] placeholder:text-[var(--ms-text-muted)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--ms-accent)]/50"
+                      className="w-full rounded-lg bg-[var(--ms-bg)] border border-[var(--ms-border)] px-2.5 py-1.5 text-xs text-[var(--ms-text)] placeholder:text-[var(--ms-text-muted)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--ms-accent)]/50"
                     />
 
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       {!isEvent ? (
                         <button
                           type="button"
                           onClick={() => setEventModalOpen(true)}
-                          className="flex items-center gap-2 min-h-11 min-w-11 px-2 rounded-lg text-xs font-semibold text-purple-300 hover:bg-purple-950/30 transition flex-1 min-w-0 text-left"
+                          className="flex items-center gap-1.5 min-h-11 min-w-11 px-1.5 rounded-lg text-[11px] font-semibold text-purple-300 hover:bg-purple-950/30 transition flex-1 min-w-0 text-left"
                           aria-label={t('feed.createEvent')}
                         >
-                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
+                          <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
                             <rect x="3" y="4" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" />
                             <path strokeLinecap="round" d="M16 2v4M8 2v4M3 10h18" />
                           </svg>
                           <span className="truncate">{t('feed.createEvent')}</span>
                         </button>
                       ) : null}
-                      <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                      <div className="flex items-center gap-1 shrink-0 ml-auto">
                         <button
                           type="button"
                           disabled={
@@ -2122,19 +2103,19 @@ export function ActualiteTabPage({
                           onClick={() => mediaFileInputRef.current?.click()}
                           title={t('feed.attachMedia')}
                           aria-label={t('feed.attachMedia')}
-                          className={`min-w-11 min-h-11 flex items-center justify-center p-1.5 rounded-lg transition disabled:opacity-40 ${
+                          className={`min-w-11 min-h-11 flex items-center justify-center p-1 rounded-lg transition disabled:opacity-40 ${
                             imageUrl.trim() || videoUrl.trim()
                               ? 'text-purple-300 bg-purple-900/40'
                               : 'text-[var(--ms-text-muted)] hover:text-gray-300 hover:bg-[var(--ms-surface-2)]'
                           }`}
                         >
-                          <MediaAttachIcon className="w-4 h-4" />
+                          <MediaAttachIcon className="w-3.5 h-3.5" />
                         </button>
                         <button
                           type="button"
                           disabled={!canPublish || publishing || mediaAttaching || editorOpen}
                           onClick={() => void publish()}
-                          className="min-h-11 rounded-lg bg-[var(--ms-accent)] hover:bg-purple-500 px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
+                          className="min-h-11 rounded-lg bg-[var(--ms-accent)] hover:bg-purple-500 px-3 py-1 text-xs font-semibold text-white disabled:opacity-40"
                         >
                           {publishing ? t('feed.publishing') : t('feed.publish')}
                         </button>
@@ -2142,12 +2123,12 @@ export function ActualiteTabPage({
                     </div>
 
                     {isEvent && (
-                      <div className="flex items-start gap-2 p-3 rounded-xl bg-purple-950/30 border border-purple-500/25">
+                      <div className="flex items-start gap-1.5 p-2 rounded-lg bg-purple-950/30 border border-purple-500/25">
                         {imageUrl.trim() ? (
                           <img
                             src={imageUrl}
                             alt=""
-                            className="h-12 w-12 rounded-lg object-cover bg-[#1e1e2f] border border-[#2a2a3d] shrink-0"
+                            className="h-10 w-10 rounded-md object-cover bg-[#1e1e2f] border border-[#2a2a3d] shrink-0"
                           />
                         ) : null}
                         <div className="flex-1 min-w-0">
@@ -2199,15 +2180,15 @@ export function ActualiteTabPage({
                     )}
 
                     {(imageUrl.trim() || imageAttaching) && (
-                      <div className="flex items-start gap-2">
+                      <div className="flex items-start gap-1.5">
                         {imageUrl.trim() ? (
                           <img
                             src={imageUrl}
                             alt="Aperçu"
-                            className="h-20 w-20 rounded-lg object-cover bg-[#1e1e2f] border border-[#2a2a3d] shrink-0"
+                            className="h-14 w-14 rounded-md object-cover bg-[#1e1e2f] border border-[#2a2a3d] shrink-0"
                           />
                         ) : (
-                          <div className="h-20 w-20 rounded-lg bg-[#1e1e2f] border border-[#2a2a3d] animate-pulse shrink-0" />
+                          <div className="h-14 w-14 rounded-md bg-[#1e1e2f] border border-[#2a2a3d] animate-pulse shrink-0" />
                         )}
                         <div className="min-w-0 flex-1 pt-0.5">
                           <p className="text-[10px] text-gray-300">
@@ -2226,17 +2207,17 @@ export function ActualiteTabPage({
                       </div>
                     )}
                     {(videoUrl.trim() || videoAttaching) && (
-                      <div className="flex items-start gap-2">
+                      <div className="flex items-start gap-1.5">
                         {videoUrl.trim() ? (
                           <video
                             src={videoUrl}
                             controls
                             playsInline
                             preload="metadata"
-                            className="h-24 w-36 rounded-lg object-cover bg-[#1e1e2f] border border-[#2a2a3d] shrink-0"
+                            className="h-20 w-28 rounded-md object-cover bg-[#1e1e2f] border border-[#2a2a3d] shrink-0"
                           />
                         ) : (
-                          <div className="h-24 w-36 rounded-lg bg-[#1e1e2f] border border-[#2a2a3d] animate-pulse shrink-0" />
+                          <div className="h-20 w-28 rounded-md bg-[#1e1e2f] border border-[#2a2a3d] animate-pulse shrink-0" />
                         )}
                         <div className="min-w-0 flex-1 pt-0.5">
                           <p className="text-[10px] text-gray-300">

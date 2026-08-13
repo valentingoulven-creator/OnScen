@@ -3,6 +3,8 @@
 **Date :** 2026-08-10  
 **Périmètre :** `web/app/src/content/legal/`, `lib/legalDocuments*.ts`, routes `/api/legal`, CMP cookies
 
+> **🔄 Rafraîchissement 2026-08-11 (soir)** : `commun/msdev/legal-publisher.json` (VPS prod) référençait encore `contact@getsoundy.com` et `productionDomain: getsoundy.com` — corrigé vers `onscen.com` / `admin@onscen.com` (MODIF 1356). Nouveau : e-mail « Votre compte OnScen est activé » ajouté au flux `admin_approval`, et renvoi de l'e-mail de vérification désormais possible (`POST /auth/resend-verification-email`) — améliore l'accès de l'utilisateur bloqué sans email valide.
+
 ---
 
 ## 9.1 Existence & accessibilité
@@ -62,3 +64,5 @@
 ## 9.6 Synthèse phase 9
 
 Documentation **riche** ; écarts restants **DPA** (contractuel), **cohérence commission dons** (30 % texte vs 50 % env — audit antérieur, à valider juridiquement). **Rétention logs vérifiée conforme le 2026-08-11** (voir ci-dessus).
+
+**Mise à jour 2026-08-11 (soir) :** cohérence domaine légal restaurée (`legal-publisher.json` prod pointait encore vers `getsoundy.com`) ; UX de vérification email complétée (renvoi possible, notification d'activation).

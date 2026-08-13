@@ -15,6 +15,9 @@ import { MapEventDetailModal } from '../components/MapEventDetailModal';
 import { MapEventMapInfoPanel } from '../components/MapEventMapInfoPanel';
 import { MapEventFilterSheet } from '../components/MapEventFilterSheet';
 import { MapCreateActionFab } from '../components/MapCreateActionFab';
+import { MapFilterMosaicPopup } from '../components/MapFilterMosaicPopup';
+import { useCompactMapViewport } from '../hooks/usePhoneWebViewport';
+import { isAppTelBuild } from '../lib/nativePlatform';
 import {
   MapSalonFilterSheet,
   getDefaultSalonFilterCriteria,
@@ -109,8 +112,6 @@ import {
   filterMapEventMarkersInMapView,
   filterMarkersInViewport,
   getGlobeCapitalVisibleRadiusKm,
-  getLivesGlobePinDisplayRadiusKm,
-  getLivesGlobeViewportRadiusKm,
   getDistanceKm,
   getFlatMapDetailTier,
   getMapBoundsCenter,
@@ -179,7 +180,6 @@ import {
   canUseGlobeView,
   disableGlobeView,
   GLOBE_UNAVAILABLE_EVENT,
-  isWebGLSupported,
   tryReEnableGlobeView,
   MAP_STYLE_STORAGE_KEY,
   shouldForceFlatMap,
@@ -320,7 +320,7 @@ export function HomePage({
     () => canUsePreciseGeo(user),
     [user?.birthDate, user?.age]
   );
-  const sidebarSponsoredEvents = useMapSidebarSponsoredEvents(token);
+  const sidebarSponsoredEvents = useMapSidebarSponsoredEvents(token, { profileCity: user?.city });
   const { devMarkerDragEnabled, overrides, onDevMarkerDragEnd } = useDevMapMarkerDrag();
   const mapSponsoredPostIds = useMemo(
     () => new Set(sidebarSponsoredEvents.posts.map((post) => post.id)),
@@ -386,6 +386,14 @@ export function HomePage({
   const [locating, setLocating] = useState(false);
   const [loadingNearby, setLoadingNearby] = useState(true);
   const [showNearbyPeople, setShowNearbyPeople] = useState(getMapSidebarListVisible);
+  /**
+   * Popup mosaïque (remplace la sidebar carte) : réservé au build mobile « tel »
+   * (ios/apptel natif ou PWA /tel/) — jamais sur le site web principal, même en
+   * fenêtre étroite (demande explicite : web garde sidebar + boutons filtre d'origine).
+   */
+  const compactMapViewport = useCompactMapViewport();
+  const mosaicUiEnabled = isAppTelBuild() && compactMapViewport;
+  const [mapMosaicOpen, setMapMosaicOpen] = useState(false);
   const [mapStyle, setMapStyle] = useState<MapStyle>(() => {
     const saved = localStorage.getItem(MAP_STYLE_KEY) as MapStyle | null;
     if (shouldForceFlatMap() || (saved === 'globe' && !canUseGlobeView())) {
@@ -1174,44 +1182,6 @@ export function HomePage({
   const mapLivesForMapView = mapLivesForView;
   const mapPeopleForMapViewDev = mapPeopleForView;
 
-  /** Filtre Lives : visualisation viewport sur la carte / globe (violet). */
-  const livesListViewportBoundsOverlay = useMemo(() => {
-    if (!livesFilterOn || mapDetailMapStyle !== 'flat' || mapDetailTier === 'overview') {
-      return null;
-    }
-    return mapDetailBounds;
-  }, [livesFilterOn, mapDetailMapStyle, mapDetailTier, mapDetailBounds]);
-
-  /** Globe : cercle violet = viewport sidebar « Lives » (centre POV + rayon tier). */
-  const livesListViewportCircleOverlay = useMemo(() => {
-    if (!livesFilterOn || mapDetailMapStyle !== 'globe') return null;
-    const [lat, lng] = globeLiveAnchor;
-    if (!isValidLatLng(lat, lng)) return null;
-    const radiusKm = getLivesGlobeViewportRadiusKm(mapDetailTier, mapDetailGlobeAltitude);
-    return { lat, lng, radiusKm };
-  }, [
-    livesFilterOn,
-    mapDetailMapStyle,
-    mapDetailTier,
-    mapDetailGlobeAltitude,
-    globeLiveAnchor,
-  ]);
-
-  /** Globe : cercle rouge = rayon d’affichage des pins live (POV + zoom). */
-  const livesListPinCircleOverlay = useMemo(() => {
-    if (!livesFilterOn || mapDetailMapStyle !== 'globe') return null;
-    const [lat, lng] = globeLiveAnchor;
-    if (!isValidLatLng(lat, lng)) return null;
-    const radiusKm = getLivesGlobePinDisplayRadiusKm(mapDetailTier, mapDetailGlobeAltitude);
-    return { lat, lng, radiusKm };
-  }, [
-    livesFilterOn,
-    mapDetailMapStyle,
-    mapDetailTier,
-    mapDetailGlobeAltitude,
-    globeLiveAnchor,
-  ]);
-
   const mapEventsForMapPinsDev = useMemo(
     () => applyDevMarkerOverridesToEvents(mapEventsForMapPins, overrides),
     [mapEventsForMapPins, overrides]
@@ -1806,6 +1776,10 @@ export function HomePage({
 
   const anyBrowseSheetOpen =
     mapFilterPopupOpen || showEventsBrowseSheet || showLivesBrowseSheet || showSalonBrowseSheet;
+
+  const mapFilterMosaicTitle = t('map.filterMosaicOpenTitle', {
+    defaultValue: 'Filtres et contenu carte',
+  });
 
   const disableSalonFilter = useCallback(() => {
     pendingMapFilterNearbyReloadRef.current = true;
@@ -3820,50 +3794,48 @@ export function HomePage({
 
       {token && user && <StartLiveFlowModals flow={liveStartFlow} />}
 
-      {showNearbyPeople ? (
-        selectedEventCluster && !livesFilterOn ? (
-          <MapCityEventsPanel
-            layout="side"
-            cluster={selectedEventClusterForPanel ?? selectedEventCluster}
-            detailTier={mapDetailState.tier}
-            favoriteIds={favoriteIds}
-            onEventClick={handleSidebarMapEventZoom}
-            onBack={clearEventClusterSelection}
-            onHide={() => setNearbyPeopleVisible(false)}
-          />
-        ) : (
-          <NearbyPeoplePanel
-            layout="side"
-            content={mapSidebarPanelContent}
-            detail={mapDetailState}
-            loading={loadingNearby}
-            eventsLoading={loadingMapEvents}
-            selectedSalonId={selected?.id}
-            onPersonClick={handleSidebarPersonClick}
-            onSalonClick={handleSidebarSalonClick}
-            onLiveClick={handleSidebarLiveClick}
-            onEventClick={handleSidebarMapEventZoom}
-            onHide={() => setNearbyPeopleVisible(false)}
-            eventsFilterOn={sidebarEventsFilterOn}
-            livesFilterOn={sidebarLivesFilterOn}
-            salonFilterOn={salonFilterOn}
-            eventsBrowseMode={false}
-            eventsBrowse={mapEventsBrowseConfig}
-            sponsoredEventPosts={sidebarSponsoredEvents.posts}
-            onSponsoredEventOpen={handleBrowseEventZoomOnMap}
-            onSponsoredEventPostChange={sidebarSponsoredEvents.patchPost}
-            mapFilterLivesFollowingOn={sidebarMapFilterLivesFollowing}
-            mapFilterSalonsFollowingOn={sidebarMapFilterSalonsFollowing}
-            mapFilterEventsFollowingOn={sidebarMapFilterEventsFollowing}
-            mapFilterSponsoOn={sidebarMapFilterSponso}
-            onToggleMapFilterLivesFollowing={toggleSidebarMapFilterLivesFollowing}
-            onToggleMapFilterSalonsFollowing={toggleSidebarMapFilterSalonsFollowing}
-            onToggleMapFilterEventsFollowing={
-              token ? toggleSidebarMapFilterEventsFollowing : undefined
-            }
-            onToggleMapFilterSponso={token ? toggleSidebarMapFilterSponso : undefined}
-          />
-        )
+      {showNearbyPeople && selectedEventCluster && !livesFilterOn ? (
+        <MapCityEventsPanel
+          layout="side"
+          cluster={selectedEventClusterForPanel ?? selectedEventCluster}
+          detailTier={mapDetailState.tier}
+          favoriteIds={favoriteIds}
+          onEventClick={handleSidebarMapEventZoom}
+          onBack={clearEventClusterSelection}
+          onHide={() => setNearbyPeopleVisible(false)}
+        />
+      ) : mosaicUiEnabled ? null : showNearbyPeople ? (
+        <NearbyPeoplePanel
+          layout="side"
+          content={mapSidebarPanelContent}
+          detail={mapDetailState}
+          loading={loadingNearby}
+          eventsLoading={loadingMapEvents}
+          selectedSalonId={selected?.id}
+          onPersonClick={handleSidebarPersonClick}
+          onSalonClick={handleSidebarSalonClick}
+          onLiveClick={handleSidebarLiveClick}
+          onEventClick={handleSidebarMapEventZoom}
+          onHide={() => setNearbyPeopleVisible(false)}
+          eventsFilterOn={sidebarEventsFilterOn}
+          livesFilterOn={sidebarLivesFilterOn}
+          salonFilterOn={salonFilterOn}
+          eventsBrowseMode={false}
+          eventsBrowse={mapEventsBrowseConfig}
+          sponsoredEventPosts={sidebarSponsoredEvents.posts}
+          onSponsoredEventOpen={handleBrowseEventZoomOnMap}
+          onSponsoredEventPostChange={sidebarSponsoredEvents.patchPost}
+          mapFilterLivesFollowingOn={sidebarMapFilterLivesFollowing}
+          mapFilterSalonsFollowingOn={sidebarMapFilterSalonsFollowing}
+          mapFilterEventsFollowingOn={sidebarMapFilterEventsFollowing}
+          mapFilterSponsoOn={sidebarMapFilterSponso}
+          onToggleMapFilterLivesFollowing={toggleSidebarMapFilterLivesFollowing}
+          onToggleMapFilterSalonsFollowing={toggleSidebarMapFilterSalonsFollowing}
+          onToggleMapFilterEventsFollowing={
+            token ? toggleSidebarMapFilterEventsFollowing : undefined
+          }
+          onToggleMapFilterSponso={token ? toggleSidebarMapFilterSponso : undefined}
+        />
       ) : (
         <button
           type="button"
@@ -3997,9 +3969,6 @@ export function HomePage({
           eventBrowsePinFallbackNearest={mapEventBrowsePinFallbackNearest}
           devMarkerDragEnabled={devMarkerDragEnabled}
           onDevMarkerDragEnd={onDevMarkerDragEnd}
-          livesListViewportBounds={livesListViewportBoundsOverlay}
-          livesListViewportCircle={livesListViewportCircleOverlay}
-          livesListPinCircle={livesListPinCircleOverlay}
         />
         </div>
         {mapStyle === 'globe' && (
@@ -4068,7 +4037,7 @@ export function HomePage({
             onInteractionEnd={handleMapZoomSliderDragEnd}
             className="ms-map-zoom-control"
             mapStyle={mapStyle}
-            onToggleMapStyle={isWebGLSupported() ? toggleMapStyle : undefined}
+            onToggleMapStyle={canUseGlobeView() ? toggleMapStyle : undefined}
             mapStyleFlatLabel={t('map.globeView', { defaultValue: 'Vue globe satellite' })}
             mapStyleGlobeLabel={t('map.flatView', { defaultValue: 'Vue carte sombre' })}
           />
@@ -4199,10 +4168,16 @@ export function HomePage({
           <div className="ms-map-globe-row flex items-center gap-1.5 shrink-0">
             <button
               type="button"
-              onClick={openMapFilterPopup}
-              title={mapBrowsePopupTitle}
-              aria-label={mapBrowsePopupTitle}
-              aria-expanded={anyBrowseSheetOpen}
+              onClick={() => {
+                if (mosaicUiEnabled) {
+                  setMapMosaicOpen((v) => !v);
+                  return;
+                }
+                openMapFilterPopup();
+              }}
+              title={mosaicUiEnabled ? mapFilterMosaicTitle : mapBrowsePopupTitle}
+              aria-label={mosaicUiEnabled ? mapFilterMosaicTitle : mapBrowsePopupTitle}
+              aria-expanded={mosaicUiEnabled ? mapMosaicOpen : anyBrowseSheetOpen}
               aria-pressed={anyMapFilterActive}
               className={`${MAP_STACK_ICON_BTN} relative ${
                 anyMapFilterActive
@@ -4214,6 +4189,48 @@ export function HomePage({
             </button>
           </div>
         </div>
+
+        {mosaicUiEnabled && (
+          <MapFilterMosaicPopup
+            open={mapMosaicOpen}
+            onClose={() => setMapMosaicOpen(false)}
+            content={mapSidebarPanelContent}
+            livesFilterOn={livesFilterOn}
+            onToggleLivesFilter={toggleLivesFilter}
+            salonFilterOn={salonFilterOn}
+            onToggleSalonFilter={onSalonFilterClick}
+            showEventFilter={Boolean(token)}
+            eventsFilterOn={eventsFilterOn}
+            eventsLoading={loadingMapEvents && mapEvents.length === 0}
+            onToggleEventFilter={onEventFilterClick}
+            onLiveClick={(live) => {
+              setMapMosaicOpen(false);
+              handleSidebarLiveClick(live);
+            }}
+            onSalonClick={(salon) => {
+              setMapMosaicOpen(false);
+              handleSidebarSalonClick(salon);
+            }}
+            onEventClick={(event) => {
+              setMapMosaicOpen(false);
+              handleSidebarMapEventZoom(event);
+            }}
+            onPersonClick={(person) => {
+              setMapMosaicOpen(false);
+              handleSidebarPersonClick(person);
+            }}
+            sponsoredEventPosts={sidebarSponsoredEvents.posts}
+            onSponsoredEventOpen={(post) => {
+              setMapMosaicOpen(false);
+              handleBrowseEventZoomOnMap(post);
+            }}
+            showGlobeButton={canUseGlobeView()}
+            onShowGlobe={() => {
+              if (mapStyle !== 'globe') toggleMapStyle();
+              setMapMosaicOpen(false);
+            }}
+          />
+        )}
 
         {selected && !isOwnActiveHostedSalon(selected) && (
           <MapSalonListenSheet

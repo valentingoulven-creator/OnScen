@@ -75,7 +75,9 @@ export function detectWebGLSupport(force = false): WebGLSupportResult {
   const gl =
     tryCreateContext(canvas, 'webgl2', attrs) ??
     tryCreateContext(canvas, 'webgl', attrs) ??
-    tryCreateContext(canvas, 'experimental-webgl', attrs);
+    tryCreateContext(canvas, 'experimental-webgl', attrs) ??
+    tryCreateContext(canvas, 'webgl2', { ...attrs, alpha: false, antialias: false }) ??
+    tryCreateContext(canvas, 'webgl', { ...attrs, alpha: false, antialias: false });
 
   if (!gl) {
     cached = { supported: false, reason: 'context-unavailable' };
@@ -148,14 +150,6 @@ export function disableGlobeView(): void {
 
 /** True when globe 3D can be attempted (probe OK and no prior runtime failure this session). */
 export function canUseGlobeView(): boolean {
-  // Globe 3D (Three.js) is web-only — excluded from Capacitor native builds for perf/battery.
-  try {
-    const platform = (window as unknown as { Capacitor?: { getPlatform?: () => string } })
-      .Capacitor?.getPlatform?.();
-    if (platform === 'ios' || platform === 'android') return false;
-  } catch {
-    /* web / SSR */
-  }
   reconcileGlobeSessionDisableFlagOnce();
   return isWebGLSupported() && !shouldForceFlatMap();
 }

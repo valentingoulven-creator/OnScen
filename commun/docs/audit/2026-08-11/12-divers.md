@@ -2,6 +2,8 @@
 
 **Date :** 2026-08-10
 
+> **🔄 Rafraîchissement 2026-08-11 (soir)** : aucun changement identifié sur accessibilité, DR, SPOF ou licences OSS depuis ce matin. Le diff non commité sur les composants carte/globe (cf. [01-stack](./01-stack.md)) est une dette d'hygiène de repo à surveiller, sans lien avec les points ci-dessous.
+
 ---
 
 ## 12.1 Accessibilité (WCAG)

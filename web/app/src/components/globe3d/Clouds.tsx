@@ -7,7 +7,7 @@ import {
   CLOUDS_RADIUS,
   GLOBE_CLOUDS_PARALLAX_SPEED,
   GLOBE_ROTATION_REF_DISTANCE,
-  TEXTURE_PATHS,
+  getGlobeTexturePaths,
 } from '../../lib/globe3d/constants';
 
 interface CloudsProps {
@@ -17,7 +17,7 @@ interface CloudsProps {
 
 export function Clouds({ parallaxActive = false }: CloudsProps) {
   const { camera } = useThree();
-  const cloudsMap = useTexture(TEXTURE_PATHS.clouds);
+  const cloudsMap = useTexture(getGlobeTexturePaths().clouds);
   const meshRef = useRef<Mesh>(null);
 
   useFrame((_, delta) => {

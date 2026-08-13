@@ -3,6 +3,8 @@
 **Date :** 2026-08-10  
 **Périmètre :** `server.ts`, `routes/auth.ts`, `middleware/`, `lib/accessControl.test.ts`, headers, cookies
 
+> **🔄 Rafraîchissement 2026-08-11 (soir)** : inscriptions prod ouvertes (`ACCESS_REGISTRATION_MODE=open`) + Turnstile déployé (voir [06-ddos §6.3](./06-ddos.md)). Nouveau endpoint `POST /auth/resend-verification-email` ajouté (anti-énumération, rate-limité, Turnstile requis) — comblant un gap UX/sécurité (utilisateur bloqué si lien de vérification expiré sans moyen de le renouveler). Correctif branding e-mail (`RESEND_FROM` : `Soundy` → `OnScen`) déployé — cf. §5.9 (nouveau). Historique Git secrets (§5.5) **inchangé, toujours critique** (commit `72370fc8` toujours présent, vérifié `git log` ce soir).
+
 ---
 
 ## 5.1 Authentification
@@ -14,6 +16,7 @@
 | JWT / session | Cookie httpOnly `onscen_auth` + `tokenVersion` révocation ; expiration configurée | faible | Rotation `JWT_SECRET` runbook |
 | Brute force | `authLimiter` + limiters WebAuthn/2FA ; Redis store en prod | faible | — |
 | Simulation msdev | Comptes démo mots de passe connus | faible | Désactiver routes msdev en prod (garde existante) |
+| Renvoi vérification e-mail | ✅ **Ajouté 08-11** : `POST /auth/resend-verification-email` — Turnstile requis, rate limit 8/15 min (`AUTH_RATE_LIMIT_SENSITIVE_PATHS`), réponse 200 uniforme (anti-énumération d'emails) | résolu | Ajouter test dédié (actuellement couvert indirectement par `authEmailVerification.test.ts`) |
 
 ---
 
@@ -78,6 +81,16 @@
 
 ---
 
-## 5.8 Synthèse phase 5
+## 5.9 Hygiène e-mails transactionnels (nouveau — 08-11 soir)
 
-Surface auth solide ; **priorité absolue = purge historique Git secrets** ; renforcer CSP et quotas upload.
+| Point | Constat | Risque | Recommandation |
+|-------|---------|--------|----------------|
+| Expéditeur | ✅ **Corrigé 08-11** : `RESEND_FROM` en prod affichait `Soundy <onboarding@resend.dev>` — fuite de l'ancien nom de marque dans un champ visible par **tous les utilisateurs** recevant un e-mail (vérification, reset password, activation). Corrigé en `OnScen <onboarding@resend.dev>` | résolu | Basculer vers `noreply@onscen.com` dès le domaine vérifié dans Resend (actuellement sandbox `resend.dev`) |
+| Activation compte | ✅ **Ajouté** : e-mail « Votre compte OnScen est activé » envoyé automatiquement quand un admin approuve un compte `pending` (mode `admin_approval`) | résolu | — |
+| Notification fondateur | ✅ **Ajouté** (MODIF 1354) : email à `valentin.goulven@gmail.com` à chaque inscription — utile comme garde-fou manuel maintenant que les inscriptions sont ouvertes (cf. [06-ddos](./06-ddos.md)) | faible | Surveiller le volume si la croissance s'accélère (bruit) |
+
+---
+
+## 5.10 Synthèse phase 5
+
+Surface auth solide ; **priorité absolue = purge historique Git secrets** (inchangé, vérifié toujours présent) ; renforcer CSP et quotas upload. Gaps UX de sécurité comblés le 08-11 (renvoi vérification email, branding email cohérent).

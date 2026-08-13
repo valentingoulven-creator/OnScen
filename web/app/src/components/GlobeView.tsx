@@ -24,6 +24,7 @@ import { isValidLatLng } from '../lib/mapCoords';
 import { isWebGLError } from '../lib/webglSupport';
 import { getCityMapView } from '../lib/mapEventClusters';
 import { buildEventClusterKey, buildSalonLivePeopleKey } from '../lib/mapMarkersKey';
+import { verifyGlobeAssetsReachable } from '../lib/globeAssets';
 import { loadGlobeCountryFeatures } from '../lib/globeCountries';
 import { prepareGlobeCountries } from '../lib/globe3d/prepareCountries';
 import { CAMERA_DEFAULT_ALTITUDE } from '../lib/globe3d/constants';
@@ -43,7 +44,6 @@ import {
   getGlobeCapitalVisibleRadiusKm,
   getGlobeDetailTier,
   getMapMarkerVisibility,
-  type MapBounds,
   type MapDetailTier,
 } from '../lib/mapMarkerVisibility';
 import { toGlobeCapitalLabels, type GlobeCapitalLabel } from '../lib/worldCapitals';
@@ -194,11 +194,6 @@ export interface GlobeViewProps {
   /** Compte Dev : repositionner les marqueurs sur le globe. */
   devMarkerDragEnabled?: boolean;
   onDevMarkerDragEnd?: (ref: DevMapMarkerRef, lat: number, lng: number) => void;
-  /** Filtre Lives : cercle rayon de référence + zone sidebar (carte plate). */
-  livesListRadius?: { lat: number; lng: number; radiusKm: number } | null;
-  livesListViewportBounds?: MapBounds | null;
-  livesListViewportCircle?: { lat: number; lng: number; radiusKm: number } | null;
-  livesListPinCircle?: { lat: number; lng: number; radiusKm: number } | null;
 }
 
 export interface GlobeViewHandle {
@@ -266,8 +261,6 @@ export const GlobeView = memo(
       onGlobeAltitudeLive,
       devMarkerDragEnabled = false,
       onDevMarkerDragEnd,
-      livesListViewportCircle = null,
-      livesListPinCircle = null,
     }: GlobeViewProps,
     ref
   ) {
@@ -325,7 +318,10 @@ export const GlobeView = memo(
 
     const reportGlobeUnavailable = useCallback((err?: unknown) => {
       if (globeUnavailableReportedRef.current) return;
-      if (err != null && !isWebGLError(err)) return;
+      if (err != null && !isWebGLError(err)) {
+        console.warn('[GlobeView] non-WebGL globe error (no session disable):', err);
+        return;
+      }
       globeUnavailableReportedRef.current = true;
       onGlobeUnavailableRef.current?.();
     }, []);
@@ -398,6 +394,17 @@ export const GlobeView = memo(
       },
       [schedulePovChange, refreshGlobeCapitalRegion, emitGlobeViewCenter]
     );
+
+    useEffect(() => {
+      let cancelled = false;
+      void verifyGlobeAssetsReachable().then((ok) => {
+        if (cancelled || ok) return;
+        console.warn('[GlobeView] globe asset probe failed — attempting render anyway');
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []);
 
     useEffect(() => {
       let cancelled = false;
@@ -986,8 +993,6 @@ export const GlobeView = memo(
               onGlobeUnavailable={reportGlobeUnavailable}
               devMarkerDragEnabled={devMarkerDragEnabled}
               onDevMarkerDragEnd={onDevMarkerDragEnd}
-              livesListViewportCircle={livesListViewportCircle}
-              livesListPinCircle={livesListPinCircle}
             />
           </Suspense>
         )}

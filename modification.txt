@@ -39036,3 +39036,1148 @@ FICHIERS MODIFIÉS
 ================================================================================
 Fin MODIF 1362 — 2026-08-11
 ================================================================================
+
+================================================================================
+MODIF 1363 — Sidebar carte remplacée par popup mosaïque (mobile compact uniquement)
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur mobile (écran étroit), la colonne latérale permanente NearbyPeoplePanel
+ (aside .ms-map-sidebar-panel, sponso/lives/salons/events/personnes) restait
+ toujours affichée (ou son rail replié 44px), grignotant l'espace carte utile
+ même sans filtre actif. Demande utilisateur : que ce contenu apparaisse
+ depuis le bouton filtre (icône entonnoir), sous forme de petite mosaïque,
+ avec la possibilité d'activer les filtres Lives/Salon/Événement — desktop
+ inchangé (plus de place disponible).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx (nouveau)
+ ─────────────────
+ • Popup ancré sous le bouton filtre (rôle dialog, fermeture clic
+   extérieur/Échap) : 3 chips Lives/Salon/Event en haut (mêmes handlers que
+   les puces existantes .ms-map-filter-stack) + grille mosaïque (4 colonnes)
+   de vignettes avatar (lives/salons/events dédupliqués, suivis puis dans la
+   zone puis suggestions, plafond 9/catégorie et 21 au total) avec badge
+   emoji par type. Tap vignette = même action que l'ancienne sidebar
+   (PiP live/salon, zoom+détail événement) puis ferme le popup.
+
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • Nouveau hook `useCompactMapViewport()` (déjà existant dans
+   hooks/usePhoneWebViewport.ts, jusqu'ici inutilisé sur cette page) pour
+   détecter le mobile compact.
+ • Bouton filtre (FilterIcon) : sur mobile compact, bascule désormais
+   `MapFilterMosaicPopup` au lieu d'ouvrir les browse sheets/MapCurrentFilterPopup
+   existants (comportement desktop 100% inchangé).
+ • Colonne NearbyPeoplePanel + bouton rail « Afficher la liste carte » :
+   masqués sur mobile compact (plus de place carte). Le panneau
+   MapCityEventsPanel (clic sur un cluster événement ville) reste, lui,
+   inchangé sur toutes tailles d'écran — fonctionnalité distincte de la
+   sidebar informative.
+
+ web/app/src/locales/fr.json, web/app/src/locales/en.json
+ ─────────────────
+ • Nouvelles clés `map.filterMosaicOpenTitle/Title/Empty`.
+
+VÉRIFICATION
+-----
+ • web/app → npx tsc --noEmit → ✅
+ • ios/apptel → npx eslint (fichiers modifiés) → ✅ (0 erreur, warnings
+   pré-existants sans rapport)
+ • Dev apptel (:4082/tel/) : HMR sans erreur après les modifs
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx (nouveau)
+ web/app/src/pages/HomePage.tsx
+ web/app/src/locales/fr.json
+ web/app/src/locales/en.json
+
+================================================================================
+Fin MODIF 1363 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1364 — Popup mosaïque filtre carte restreinte au build mobile « tel »
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ MODIF 1363 masquait la sidebar carte (NearbyPeoplePanel) et basculait le
+ bouton filtre vers MapFilterMosaicPopup dès que le viewport était étroit
+ (`useCompactMapViewport`), y compris sur le site web principal (fenêtre
+ navigateur redimensionnée en largeur téléphone). Demande utilisateur :
+ annuler ce comportement sur le web — sidebar + bouton filtre d'origine
+ doivent rester inchangés sur onscen.com, la popup mosaïque ne doit
+ s'afficher que sur le build mobile « tel » (app native Capacitor ou
+ PWA /tel/, ex. localhost:4082/tel/).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/nativePlatform.ts
+ ─────────────────
+ • Nouvelle fonction `isAppTelBuild()` : true si app Capacitor native
+   (`isNativeApp()`) OU si `import.meta.env.BASE_URL` contient `/tel`
+   (build/dev-server ios/apptel) ; false sur le site web principal
+   (base `/`), quelle que soit la largeur de fenêtre.
+
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • Nouvelle constante dérivée `mosaicUiEnabled = isAppTelBuild() &&
+   compactMapViewport`, qui remplace `compactMapViewport` pour toutes les
+   décisions liées à la popup mosaïque (masquage NearbyPeoplePanel, bascule
+   du bouton filtre, rendu de MapFilterMosaicPopup). Sur le web, même en
+   fenêtre étroite, la sidebar et le popup de filtres/browse sheets
+   d'origine restent donc affichés ; seul le build tel bascule vers la
+   mosaïque.
+
+VÉRIFICATION
+-----
+ • web/app → npx tsc --noEmit → ✅
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/nativePlatform.ts → +isAppTelBuild()
+ web/app/src/pages/HomePage.tsx → mosaicUiEnabled restreint au build tel
+
+================================================================================
+Fin MODIF 1364 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1365 — Popup mosaïque carte (tel) : plein écran permanent + catégories sidebar
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande utilisateur (mode @mobile-only) sur MapFilterMosaicPopup (tel
+ uniquement, cf. MODIF 1364) :
+ 1. Afficher la popup en plein écran systématiquement (avant : plein écran
+    seulement quand un filtre Lives/Salon/Event était actif, sinon petite
+    popup ancrée sous le bouton filtre).
+ 2. Par défaut (aucun filtre carte actif), reprendre les mêmes catégories que
+    l'ancienne sidebar NearbyPeoplePanel : carrousel Sponso + Événement/Live/
+    Salon suivi — la mosaïque ne montrait jusqu'ici que les comptes suivis
+    mélangés dans une seule grille, sans Sponso (absent du tout).
+ 3. Ajuster le contenu affiché selon le(s) filtre(s) sélectionné(s), en
+    reprenant le même regroupement Suivi / Zone visible / Suggestions (+ En
+    direct pour Lives) que la sidebar, au lieu d'une grille unique mélangeant
+    lives/salons/events sans distinction.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx
+ ─────────────────
+ • Réécriture : toujours `fixed inset-0` plein écran (suppression de la
+   variante « petite popup ancrée » et du listener pointerdown « clic
+   extérieur », devenu sans objet en plein écran ; Échap reste actif).
+ • Contenu désormais organisé en sections (comme la sidebar) au lieu d'une
+   grille unique : `MosaicSection[]` calculé selon `content.noFilters` /
+   `livesFilterOn` / `salonFilterOn` / `eventsFilterOn` — reprend exactement
+   les groupes Suivi/Zone/Suggestions(+En direct) de NearbyPeoplePanel, cap
+   12 tuiles/section.
+ • Nouveaux types de tuile mosaïque : `eventCluster` (villes groupées, tap =
+   1er événement du cluster) et `person` (« En direct », filtre Lives) et
+   `sponso` (posts sponsorisés — vignette image du post ou avatar auteur,
+   badge ✨ `SPONSOR_EVENT_ICON`).
+ • Nouvelles props `onPersonClick`, `sponsoredEventPosts`,
+   `onSponsoredEventOpen` (mêmes données que celles déjà utilisées par
+   NearbyPeoplePanel).
+
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • `MapFilterMosaicPopup` reçoit désormais `sponsoredEventPosts=
+   {sidebarSponsoredEvents.posts}`, `onSponsoredEventOpen` et `onPersonClick`
+   (même source de données que NearbyPeoplePanel, juste re-branchée sur la
+   popup mosaïque — aucune nouvelle logique métier).
+
+NOTE ARCHITECTURE (@mobile-only)
+-----
+ Cette feature est display-gated par `isAppTelBuild()` (MODIF 1364) : elle ne
+ s'active jamais sur le web, quel que soit l'endroit où vit le code. Plutôt
+ que de créer un override ios/apptel/src/pages/HomePage.tsx (fork complet
+ d'un fichier de 4200+ lignes, régression vs. la suppression des overrides
+ pages faite en Phase 1 de la parité mobile/web), le changement reste dans
+ web/app/src/ — sans effet sur le web grâce au gate existant.
+
+VÉRIFICATION
+-----
+ • web/app → npx tsc --noEmit → ✅
+ • Dev apptel (:4082/tel/) : HMR sans erreur après la réécriture
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx → réécrit (sections + plein écran permanent)
+ web/app/src/pages/HomePage.tsx → props sponso/personne branchées sur la popup
+
+================================================================================
+Fin MODIF 1365 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1366 — Popup mosaïque carte (tel) : bouton retour carte plus visible
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retour utilisateur : dans la popup mosaïque plein écran (MODIF 1365), pas de
+ moyen visible de fermer la popup pour revenir à la carte/globe. Le bouton
+ existait (icône ✕ seule, 36×36px, gris sur fond sombre) mais était trop peu
+ visible/identifiable comme action de retour, et sous la taille minimale de
+ cible tactile 44×44px (règle mobile-responsive).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx
+ ─────────────────
+ • Bouton fermeture remplacé par un bouton « Retour à la carte » explicite :
+   flèche ← + libellé texte, fond contrasté (bg-[#16161f] + bordure), cible
+   tactile 44px (min-h-11, conforme mobile-responsive.mdc). Bouton globe
+   aligné sur la même hauteur (min-h-11).
+
+ web/app/src/locales/fr.json, web/app/src/locales/en.json
+ ─────────────────
+ • Nouvelle clé `map.filterMosaicBackToMap` (« Retour à la carte » / « Back
+   to map »).
+
+VÉRIFICATION
+-----
+ • web/app → npx tsc --noEmit → ✅
+ • locales fr/en.json → JSON.parse → ✅
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx → bouton retour carte visible + 44px
+ web/app/src/locales/fr.json, web/app/src/locales/en.json → clé filterMosaicBackToMap
+
+================================================================================
+Fin MODIF 1366 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1367 — Popup mosaïque carte (tel) : ajout croix de fermeture
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande utilisateur : ajouter une croix (✕) dédiée pour fermer la popup
+ mosaïque, en complément du bouton « Retour à la carte » (MODIF 1366).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx
+ ─────────────────
+ • En-tête : bouton ✕ (44×44px) ajouté à droite, à côté du bouton globe —
+   même action `onClose` que « Retour à la carte » (deux affordances de
+   fermeture désormais disponibles).
+
+VÉRIFICATION
+-----
+ • web/app → npx tsc --noEmit → ✅
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx → croix fermeture ajoutée
+
+================================================================================
+Fin MODIF 1367 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1368 — Popup mosaïque carte (tel) : bouton globe dans la rangée de filtres
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande utilisateur : ajouter un bouton globe à droite du chip « Event »
+ (rangée de filtres Lives/Salon/Event), pour revenir voir le résultat sur la
+ carte/globe directement depuis cette rangée (en plus du bouton globe déjà
+ présent dans l'en-tête).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx
+ ─────────────────
+ • Bouton 🌐 icône seule (shrink-0, ~36×36px) ajouté après le chip Event,
+   même action `onShowGlobe` (ferme la popup + bascule la carte en vue
+   globe) — visible seulement si `showGlobeButton && onShowGlobe` (WebGL
+   dispo), comme le bouton globe de l'en-tête.
+
+VÉRIFICATION
+-----
+ • web/app → npx tsc --noEmit → ✅
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx → bouton globe ajouté rangée filtres
+
+================================================================================
+Fin MODIF 1368 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1369 — Popup mosaïque carte (tel) : sections « Suivi » toujours visibles
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retour utilisateur : la catégorie « Salon suivi » n'apparaissait pas dans la
+ popup mosaïque par défaut (aucun filtre actif). Cause : MODIF 1365 masquait
+ entièrement une section « Suivi » (Événement/Live/Salon) si elle était vide
+ — alors que l'ancienne sidebar affichait toujours l'en-tête de catégorie
+ (avec un message « Aucun contenu suivi. ») même à 0 élément, pour que la
+ catégorie reste repérable. Idem pour les sections Zone visible/Suggestions
+ sous chaque filtre Lives/Salon/Event.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx
+ ─────────────────
+ • `MosaicSection` : nouveaux champs optionnels `emptyKey`/`emptyDefault` ;
+   `MosaicSectionBlock` affiche ce texte à la place de la grille quand
+   `tiles.length === 0`.
+ • Sections « Suivi » (Événement/Live/Salon) et « Zone visible »/
+   « Suggestions » sous chaque filtre : toujours poussées dans la liste
+   (plus de `if (items.length > 0)`), avec le même texte vide que
+   NearbyPeoplePanel (`sidebarEventsFollowingEmpty`, `sidebarFollowingEmpty`,
+   `sidebarSuggestionsEmpty`, `sidebarLivesEmpty`/`sidebarLivesZoomHint`,
+   `sidebarSalonsEmpty`, `sidebarEventsEmpty`). Sponso et « En direct »
+   (personnes) restent masqués si vides (comportement d'origine identique).
+
+VÉRIFICATION
+-----
+ • web/app → npx tsc --noEmit → ✅
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx → sections Suivi toujours visibles + texte vide
+
+================================================================================
+Fin MODIF 1369 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1370 — Popup mosaïque carte (tel) : image évènement au lieu de l'avatar
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retour utilisateur : la tuile évènement dans la popup mosaïque affichait
+ l'avatar de l'auteur (dicebear) au lieu de la photo de l'évènement, faute
+ de champ image sur `MapEventMarker`.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/types.ts
+ ─────────────────
+ • `MapEventMarker` : nouveau champ optionnel `imageUrl` (photo de la
+   publication évènement — priorité sur l'avatar auteur en miniature).
+
+ web/app/src/lib/mapFeedEvents.ts
+ ─────────────────
+ • `postToMapEventMarker` : renseigne `imageUrl` depuis
+   `post.imageUrl || post.imageUrls?.[0]` si présent.
+
+ web/app/src/components/MapFilterMosaicPopup.tsx
+ ─────────────────
+ • `tileVisual` (kind `event`) : `avatarUrl` = `tile.data.imageUrl ||
+   tile.data.authorAvatarUrl` — affiche la photo de l'évènement si dispo,
+   sinon retombe sur l'avatar de l'auteur comme avant.
+
+VÉRIFICATION
+-----
+ • web/app → npx vitest run (mapFeedEvents/mapEventFilter/mapSidebarContent/
+   mapEventClusters) → ✅ 79 tests
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/types.ts → champ imageUrl sur MapEventMarker
+ web/app/src/lib/mapFeedEvents.ts → mapping imageUrl depuis FeedPost
+ web/app/src/components/MapFilterMosaicPopup.tsx → tuile évènement utilise imageUrl
+
+================================================================================
+Fin MODIF 1370 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1371 — Popup mosaïque carte (tel) : retrait catégorie « Lives » (zone)
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retour utilisateur : retirer la catégorie « Lives » (zone visible, sous le
+ filtre Lives actif) de la popup mosaïque — doublon avec le pin carte, jugée
+ inutile dans ce contexte compact.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx
+ ─────────────────
+ • Bloc `livesFilterOn` : suppression de la section `map.sidebarLivesInView`
+   (« Lives » / zone visible / `content.lives` + `content.zoomTooWide`).
+   Ne restent que « Live suivi » et « Suggestions » (+ « En direct » si
+   personnes en live).
+
+VÉRIFICATION
+-----
+ • web/app → npx tsc --noEmit → ✅
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx → section Lives (zone) retirée
+
+================================================================================
+Fin MODIF 1371 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1372 — Popup mosaïque carte (tel) : retrait catégorie « Salons » (zone)
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retour utilisateur : retirer la catégorie « Salons » (zone visible, sous le
+ filtre Salon actif) de la popup mosaïque — même logique que MODIF 1371 pour
+ les Lives.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx
+ ─────────────────
+ • Bloc `salonFilterOn` : suppression de la section `map.sidebarSalonsInView`
+   (« Salons » / zone visible / `content.salons`). Ne restent que « Salon
+   suivi » et « Suggestions ».
+
+VÉRIFICATION
+-----
+ • web/app → npx tsc --noEmit → ✅
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx → section Salons (zone) retirée
+
+================================================================================
+Fin MODIF 1372 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1373 — Popup mosaïque carte (tel) : Sponso masqué sous filtres Lives/Salon
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retour utilisateur : la catégorie « Sponso » (événements sponsorisés) restait
+ visible même quand le filtre Lives ou Salon était actif — hors sujet dans
+ ce contexte (contenu événement).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx
+ ─────────────────
+ • Section Sponso : condition d'affichage passe de
+   `sponsoredEventPosts.length > 0` à
+   `sponsoredEventPosts.length > 0 && !livesFilterOn && !salonFilterOn`.
+   Reste visible par défaut (aucun filtre) et sous le filtre Event.
+
+VÉRIFICATION
+-----
+ • web/app → npx tsc --noEmit → ✅
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx → Sponso masqué sous Lives/Salon
+
+================================================================================
+Fin MODIF 1373 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1374 — PiP live (mobile only) : position conservée entre ouvertures
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retour utilisateur (mode @mobile-only) : le PiP de prévisualisation live
+ (LivePipPreviewFloat) revenait à sa position par défaut à chaque nouvelle
+ ouverture (le hook `useDraggableVideoPip` recevait `live.id` en `resetKey`,
+ qui force un reset de position). L'utilisateur veut qu'il reste où il l'a
+ laissé (drag).
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/lib/livePipPosition.ts (nouveau, tel-only)
+ ─────────────────
+ • `getLivePipPosition(fallback)` / `setLivePipPosition(pos)` — persistance
+   de la position du PiP live via `localStorage` (clé `ms-live-pip-pos`).
+
+ ios/apptel/src/components/LivePipPreviewFloat.tsx (override mobile)
+ ─────────────────
+ • `useDraggableVideoPip(true, onClose, () => getLivePipPosition(defaultVideoPipPos))`
+   — plus de `resetKey` (live.id) : la position initiale relit désormais la
+   dernière position connue (localStorage) au lieu du centre par défaut.
+ • `useEffect` sur `pip.position` → `setLivePipPosition(...)` à chaque
+   déplacement, pour que le prochain live ouvert réutilise cette position.
+ • web/app/src/components/LivePipPreviewFloat.tsx inchangé (web garde le
+   comportement d'origine — reset à la position par défaut à chaque live).
+
+VÉRIFICATION
+-----
+ • ios/apptel → npx tsc -b --force → ✅
+ • npm run mobile:override -- list → override + tel-only bien détectés
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/lib/livePipPosition.ts → nouveau helper persistance position (tel-only)
+ ios/apptel/src/components/LivePipPreviewFloat.tsx → override : position persistée
+
+================================================================================
+Fin MODIF 1374 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1375 — Carrousel Sponso / fil : centrage carte au clic flèche
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retour utilisateur : dans le carrousel Sponso (fil d'accueil), l'image de
+ l'événement n'était pas centrée après un clic sur les flèches — le scroll
+ avançait d'un offset fixe (largeur carte + gap) sans aligner la carte au
+ centre du viewport.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/HorizontalScrollCarousel.tsx
+ ─────────────────
+ • Nouveaux helpers exportés `getClosestHorizontalScrollIndex` et
+   `scrollLeftToCenterChild`.
+ • Quand `scrollStepCount <= 1` (Sponso, « Les nouveautés », etc.) : les
+   flèches centrent la carte précédente/suivante via `scrollTo` au lieu de
+   `scrollBy`. Carrousels à pas fractionné (stories rings 3.5) inchangés.
+
+ web/app/src/components/EventCard.tsx
+ ─────────────────
+ • Layout carousel : `snap-start` → `snap-center` pour cohérence swipe + flèches.
+
+ web/app/src/pages/ActualiteTabPage.tsx
+ ─────────────────
+ • Carrousel « Les nouveautés » : `snap-start` → `snap-center`.
+
+ web/app/src/components/horizontalScrollCarousel.test.ts
+ ─────────────────
+ • Tests unitaires pour les helpers de centrage.
+
+VÉRIFICATION
+-----
+ • web/app → npx vitest run horizontalScrollCarousel.test.ts → ✅ 4 tests
+ • web/app → npx tsc --noEmit → ✅
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/HorizontalScrollCarousel.tsx → centrage au clic flèche
+ web/app/src/components/EventCard.tsx → snap-center carousel
+ web/app/src/pages/ActualiteTabPage.tsx → snap-center featured sounds
+ web/app/src/components/horizontalScrollCarousel.test.ts → tests centrage
+
+================================================================================
+Fin MODIF 1375 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1376 — Fil d'accueil : bloc « Publier » plus compact
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retour utilisateur : le bloc composeur « PUBLIER » (textarea + Créer un
+ événement + Publier) dans le fil d'accueil prenait trop de place verticale.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/ActualiteTabPage.tsx
+ ─────────────────
+ • Conteneur : `p-3 space-y-2` → `p-2 space-y-1.5`, label en `text-[10px]`.
+ • Textarea : 3 → 2 lignes, `text-xs`, padding réduit.
+ • Rangée actions : gaps resserrés, bouton Publier `text-xs px-3`, icônes
+   légèrement plus petites — touch targets conservés à min-h-11 (44px).
+ • Aperçus événement / image / vidéo attachée : vignettes et paddings réduits.
+
+VÉRIFICATION
+-----
+ • web/app → lint ActualiteTabPage.tsx → ✅
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/ActualiteTabPage.tsx → composeur Publier compact
+
+================================================================================
+Fin MODIF 1376 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1377 — Fil d'accueil : texte publication tronqué + « Plus » / « Moins »
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retour utilisateur : les publications longues dans le fil (PostCard) affichent
+ tout le texte — demande d'afficher la première ligne par défaut avec un lien
+ « Plus » pour déplier le message complet (web + apptel, code partagé).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/FeedPostContentText.tsx (nouveau)
+ ─────────────────
+ • Composant réutilisable : `line-clamp-1` par défaut, détection overflow via
+   ResizeObserver ; bouton « Plus » / « Moins » (touch min-h-11) si le texte
+   dépasse une ligne ou une fois déplié.
+
+ web/app/src/pages/ActualiteTabPage.tsx
+ ─────────────────
+ • PostCard : contenu principal et republication utilisent FeedPostContentText
+   (remplace paragraphe plein texte et line-clamp-4 fixe sur reshared).
+
+ web/app/src/locales/fr.json · en.json
+ ─────────────────
+ • Clés feed.showMore / feed.showLess (« Plus » / « Moins »).
+
+VÉRIFICATION
+-----
+ • web/app → npx tsc --noEmit → ✅
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/FeedPostContentText.tsx → nouveau composant troncature
+ web/app/src/pages/ActualiteTabPage.tsx → PostCard utilise FeedPostContentText
+ web/app/src/locales/fr.json · en.json → traductions Plus/Moins
+
+================================================================================
+Fin MODIF 1377 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1378 — Carrousel événements (Sponso) : images −25 %
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retour utilisateur : réduire de 25 % la taille des images dans les cartes
+ événement du carrousel (ex. bloc Sponso fil d'accueil).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/EventCard.tsx
+ ─────────────────
+ • Hero carrousel : h-32→h-24 (défaut), h-24→h-[4.5rem] (compact),
+   h-14→h-[2.625rem] (sidebar) — hauteur image −25 %.
+
+ web/app/src/index.css
+ ─────────────────
+ • `.events-carousel-card` max-width : 20rem→15rem (défaut), 13.5→10.125rem
+   (compact), 12.75→9.5625rem (sidebar) — largeur carte −25 %, image proportionnelle.
+
+VÉRIFICATION
+-----
+ • lint EventCard.tsx → ✅
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/EventCard.tsx → hero carrousel −25 %
+ web/app/src/index.css → largeur carte carrousel −25 %
+
+================================================================================
+Fin MODIF 1378 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1379 — Globe 3D apptel : assets /tel/globe + BASE_URL + natif Capacitor
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Vue globe 3D « indisponible » sur apptel (/tel/ et Capacitor) : textures
+ chargées en `/globe/...` (404 — dossier absent de ios/apptel/public/) ;
+ pas de préfixe BASE_URL pour le build `/tel/` ; blocage volontaire
+ canUseGlobeView() sur ios/android natif.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/globe3d/constants.ts
+ ─────────────────
+ • `globeAssetPath(relativePath)` — préfixe import.meta.env.BASE_URL
+   (`/`, `/tel/`, `./`) ; TEXTURE_PATHS utilisent globeAssetPath().
+
+ web/app/src/lib/globeCountries.ts
+ ─────────────────
+ • GeoJSON frontières : fetch via globeAssetPath('globe/countries-110m.geojson').
+
+ web/app/src/lib/webglSupport.ts
+ ─────────────────
+ • canUseGlobeView() : retrait exclusion Capacitor ios/android — globe autorisé
+   si WebGL OK et pas de flag session d'échec.
+
+ ios/apptel/vite.config.ts
+ ─────────────────
+ • Plugin `syncGlobePublicAssets` : copie web/app/public/globe →
+   ios/apptel/public/globe au dev et au build (servi sous /tel/globe/ ou ./globe/).
+
+ ios/apptel/.gitignore
+ ─────────────────
+ • public/globe (copie générée, source = web/app/public/globe).
+
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • Bouton globe mosaïque + toggle carte : canUseGlobeView() (plus
+   isWebGLSupported() seul).
+
+VÉRIFICATION
+-----
+ • web/app → npx tsc --noEmit → ✅
+ • ios/apptel → npx tsc -b --force → ✅
+ • sync manuelle globe → 8 fichiers dans ios/apptel/public/globe
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/globe3d/constants.ts → globeAssetPath + TEXTURE_PATHS
+ web/app/src/lib/globeCountries.ts → GeoJSON via BASE_URL
+ web/app/src/lib/webglSupport.ts → globe autorisé apptel natif si WebGL OK
+ ios/apptel/vite.config.ts → plugin sync assets globe
+ ios/apptel/.gitignore → ignore public/globe copié
+ web/app/src/pages/HomePage.tsx → canUseGlobeView pour boutons globe
+
+================================================================================
+Fin MODIF 1379 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1380 — Fil actualité : lecture vidéo inline (YouTube + native) — OnScen Dev
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les publications communauté avec miniature YouTube (img.youtube.com) n’étaient
+ qu’une image statique. L’utilisateur demande que toutes les vidéos soient
+ jouables directement dans le fil, avec pause et couper/activer le son (web + tel).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/feedPostMedia.ts
+ ─────────────────
+ • parseYoutubeThumbnailVideoId, resolveFeedPostYoutubeVideoId,
+   resolveFeedPostNativeVideoUrl, getFeedPostNonYoutubeImageUrls.
+
+ web/app/src/components/FeedPostMediaPreview.tsx (nouveau)
+ web/app/src/components/FeedPostYoutubePlayer.tsx (nouveau)
+ web/app/src/components/FeedPostNativeVideo.tsx (nouveau)
+ web/app/src/components/FeedPostVideoControls.tsx (nouveau)
+ ─────────────────
+ • Orchestrateur médias fil : lecteur YouTube IFrame API (sans controls natifs),
+   vidéo HTML5 native, galerie images filtrée ; overlay pause + mute.
+
+ web/app/src/pages/ActualiteTabPage.tsx
+ web/app/src/components/FeedPostDetailModal.tsx
+ ─────────────────
+ • Remplacement FeedPostImagesPreview + <video controls> par FeedPostMediaPreview.
+
+ web/app/src/components/FeedPostImagesPreview.tsx
+ ─────────────────
+ • Props variant + initialIndex pour réutilisation modal.
+
+ web/app/src/locales/fr.json · en.json
+ ─────────────────
+ • Clés feed.videoPlay/Pause/Mute/Unmute, youtubeConsentRequired, etc.
+
+ web/app/src/lib/feedPostMedia.test.ts
+ ─────────────────
+ • Tests parsing miniature YouTube et résolution URLs.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/feedPostMedia.ts → détection YouTube / vidéo native
+ web/app/src/components/FeedPostMediaPreview.tsx → orchestrateur (nouveau)
+ web/app/src/components/FeedPostYoutubePlayer.tsx → lecteur YT inline (nouveau)
+ web/app/src/components/FeedPostNativeVideo.tsx → HTML5 inline (nouveau)
+ web/app/src/components/FeedPostVideoControls.tsx → contrôles (nouveau)
+ web/app/src/pages/ActualiteTabPage.tsx → PostCard médias inline
+ web/app/src/components/FeedPostDetailModal.tsx → modal publication
+ web/app/src/components/FeedPostImagesPreview.tsx → variant / initialIndex
+ web/app/src/locales/fr.json · en.json → i18n contrôles vidéo
+ web/app/src/lib/feedPostMedia.test.ts → tests
+
+BUILD (si vérifié)
+-----
+ web/app → npx tsc --noEmit → ✅
+ web/app → vitest feedPostMedia.test.ts → ✅ (10 tests)
+
+================================================================================
+Fin MODIF 1380 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1381 — Carrousel événements : photo hero entière (object-contain) — OnScen Dev
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Dans le carrousel Sponso / événements du fil, la photo de couverture était
+ rognée (object-cover + hauteur fixe h-24). L'utilisateur veut voir la photo
+ entièrement (web + tel).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/EventCard.tsx
+ ─────────────────
+ • Carrousel : aspect-video / aspect-[2/1] (hauteur proportionnelle à la carte).
+ • Image hero carrousel : object-contain object-center (plus de crop).
+
+ web/app/src/components/EventCardMapCompact.tsx
+ ─────────────────
+ • Même object-contain pour sidebar carte.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/EventCard.tsx → hero carrousel ratio + contain
+ web/app/src/components/EventCardMapCompact.tsx → contain sidebar
+
+================================================================================
+Fin MODIF 1381 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1382 — Carrousel événements : date retirée du hero photo — OnScen Dev
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur les cartes événement du carrousel fil, la date en overlay sur la photo
+ masquait l'image. L'utilisateur demande de la retirer du hero (web + tel).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/EventCard.tsx
+ ─────────────────
+ • Overlay date (badge bas-gauche sur la photo) masqué si layout carousel.
+ • Dates toujours visibles dans le corps de la carte sous la photo.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/EventCard.tsx → pas de date sur hero carrousel
+
+================================================================================
+Fin MODIF 1382 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1383 — Carrousel événements : nom organisateur plus compact — OnScen Dev
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur les cartes événement du carrousel fil, le nom du profil organisateur
+ était trop grand par rapport à la carte étroite.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/EventCard.tsx
+ ─────────────────
+ • Carrousel : avatar xs, username 10px, label « Organisateur » 9px.
+ • Rangée profil : gap et padding réduits.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/EventCard.tsx → profil compact carrousel
+
+================================================================================
+Fin MODIF 1383 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1384 — Sponso carte : filtre par pays utilisateur — OnScen Dev
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La mosaïque / carrousel Sponso carte affichait tous les événements sponsorisés.
+ L'utilisateur veut n'afficher que ceux du pays détecté (géoloc / ville profil).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/feedEventCountry.ts (nouveau)
+ ─────────────────
+ • feedPostMatchesEventCountry / filterFeedPostsByEventCountry (aligné backend).
+
+ web/app/src/hooks/useMapSidebarSponsoredEvents.ts
+ ─────────────────
+ • Filtre posts par countryCode (useEventsCountry) — défaut activé.
+
+ web/app/src/pages/HomePage.tsx · ActualiteTabPage.tsx
+ ─────────────────
+ • profileCity passé au hook Sponso.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/feedEventCountry.ts → filtre pays événement (nouveau)
+ web/app/src/lib/feedEventCountry.test.ts → tests
+ web/app/src/hooks/useMapSidebarSponsoredEvents.ts → filtre pays
+ web/app/src/pages/HomePage.tsx → profileCity hook
+ web/app/src/pages/ActualiteTabPage.tsx → profileCity hook
+
+================================================================================
+Fin MODIF 1384 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1385 — Mosaïque carte Event : filtres Danse / Musique / Art — OnScen Dev
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sous le filtre Event de la mosaïque carte (tel), l'utilisateur veut des icônes
+ pour lister les événements par type : danse, chant/musique, art.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx
+ ─────────────────
+ • Barre de chips 💃 🎶 🎨 + « Tous » quand filtre Event actif.
+ • Filtre appliqué aux sections Suivi / Zone / Suggestions.
+
+ web/app/src/lib/mapEventFilter.ts
+ ─────────────────
+ • filterMapEventClustersByEventType pour les clusters ville.
+
+ web/app/src/locales/fr.json · en.json
+ ─────────────────
+ • Clés map.mosaicEventType*.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx → chips type événement
+ web/app/src/lib/mapEventFilter.ts → filtre clusters par type
+ web/app/src/lib/mapEventFilter.test.ts → test cluster
+ web/app/src/locales/fr.json · en.json → i18n
+
+================================================================================
+Fin MODIF 1385 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1386 — Globe 3D apptel : URLs textures + probe non bloquante — OnScen Dev
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La vue globe ne s'affichait pas sur apptel (/tel/, Capacitor) : URLs textures
+ mal résolues (BASE_URL vs pathname /tel/), probe assets trop stricte (HEAD/Range
+ sur 7 fichiers) désactivait le globe pour la session.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/globe3d/constants.ts
+ ─────────────────
+ • resolveGlobeAssetBase() — détecte /tel/ via pathname + isAppTelBuild().
+ • globeAssetPath() — URL absolue fiable web / PWA / Capacitor (./).
+
+ web/app/src/lib/globeAssets.ts
+ ─────────────────
+ • verifyGlobeAssetsReachable : GET puis HEAD, 2 URLs critiques seulement.
+
+ web/app/src/components/GlobeView.tsx
+ ─────────────────
+ • Probe assets = warning seulement (ne bloque plus le canvas).
+ • reportGlobeUnavailable : session disable uniquement sur erreur WebGL.
+
+ ios/apptel/vite.config.ts
+ ─────────────────
+ • syncGlobePublicAssets (déjà présent) — build copie public/globe → tel/globe.
+
+ web/app/src/lib/globe3d/constants.test.ts
+ ─────────────────
+ • Tests URLs /tel/, web, Capacitor ./.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/globe3d/constants.ts → resolveGlobeAssetBase
+ web/app/src/lib/globeAssets.ts → probe allégée
+ web/app/src/components/GlobeView.tsx → rendu non bloqué
+ web/app/src/lib/globe3d/constants.test.ts → tests (nouveau)
+
+BUILD (si vérifié)
+-----
+ web/app → vitest globe3d/constants + tsc → ✅
+ ios/apptel → tsc -b → ✅
+
+================================================================================
+Fin MODIF 1386 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1387 — Mosaïque carte Lives : filtres Danse / Musique / Art — OnScen Dev
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sous le filtre Lives de la mosaïque carte (tel), l'utilisateur veut les mêmes
+ chips type que pour Event (Tous · Danse · Musique · Art).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx
+ ─────────────────
+ • Barre chips 🔴 Tous · 💃 · 🎶 · 🎨 quand filtre Lives actif.
+ • Filtre appliqué aux sections Suivi et Suggestions (contentCategory live).
+ • Composant partagé MosaicSubtypeFilterBar (Event + Lives).
+
+ web/app/src/lib/liveContentCategory.ts
+ ─────────────────
+ • normalizeLiveContentCategory · filterLivesByContentCategory.
+
+ web/app/src/locales/fr.json · en.json
+ ─────────────────
+ • map.mosaicLiveTypeFilterAria.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapFilterMosaicPopup.tsx → chips Lives
+ web/app/src/lib/liveContentCategory.ts → filtre catégorie live
+ web/app/src/lib/liveContentCategory.test.ts → tests (nouveau)
+ web/app/src/locales/fr.json · en.json → i18n
+
+BUILD (si vérifié)
+-----
+ web/app → vitest liveContentCategory + tsc → ✅
+
+================================================================================
+Fin MODIF 1387 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1388 — Carte / globe Lives : retrait cercles rayon + info km pins — OnScen Dev
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur la vue globe et la carte plate (filtre Lives), l'utilisateur ne veut plus
+ voir le cercle rouge de rayon pins, ni la légende km en bas de carte, ni le
+ sous-titre viewport dans la sidebar.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • Suppression overlays livesListViewportBounds / Circle / PinCircle.
+
+ web/app/src/components/MapView.tsx
+ ─────────────────
+ • Suppression couche Leaflet cercle rouge + rectangle viewport.
+ • Suppression bandeau bas « Pins live X km — cercle rouge ».
+
+ web/app/src/components/GlobeView.tsx · globe3d/OnScenGlobeScene.tsx
+ ─────────────────
+ • Suppression anneaux OnScenGlobeQueryRadiusRing (rouge + violet).
+
+ web/app/src/components/NearbyPeoplePanel.tsx
+ ─────────────────
+ • Suppression sous-titre « Viewport globe · X km ».
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/HomePage.tsx → plus d'overlays rayon Lives
+ web/app/src/components/MapView.tsx → carte plate sans cercles debug
+ web/app/src/components/GlobeView.tsx → props overlay retirées
+ web/app/src/components/globe3d/OnScenGlobeScene.tsx → plus d'anneaux rayon
+ web/app/src/components/NearbyPeoplePanel.tsx → plus de sous-titre km
+
+BUILD (si vérifié)
+-----
+ web/app → tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 1388 — 2026-08-11
+================================================================================
+
+================================================================================
+MODIF 1389 — Rafraîchissement audit technique 12 phases (soir) — OnScen Dev
+Date : 2026-08-11
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande utilisateur : audit complet 12 phases + synthèse (stack, DB, PostGIS,
+ observabilité, sécurité, DDoS, modération, APIs, CGU/RGPD, YouTube, légal,
+ divers). Un audit quasi identique existait déjà, daté du même jour
+ (commun/docs/audit/2026-08-11/). Décision validée avec l'utilisateur :
+ rafraîchir l'audit existant plutôt que dupliquer, en ré-vérifiant chaque
+ constat sur l'état RÉEL du code et de la prod (pas seulement le code source),
+ et en intégrant les changements du jour (décommission getsoundy.com,
+ ouverture inscriptions ACCESS_REGISTRATION_MODE=open, correctifs
+ notifications MODIF 1357).
+
+CHANGEMENTS / FIX (lecture seule — aucun code applicatif modifié)
+-----
+ Vérifications effectuées
+ ─────────────────
+ • npm audit backend + web → 0 vulnérabilité (re-confirmé).
+ • Suite de tests backend → 512/513 (1 timeout flaky sur
+   livekitEgressStop.test.ts, non bloquant, sans lien avec un correctif audit).
+ • VPS prod : confirmation directe que Turnstile (chunk TurnstileWidget-*.js),
+   les age gates mineurs (dist/lib/ageGates.js, MIN_LIVE_AGE=16) et jspdf sont
+   DÉPLOYÉS (pas seulement codés comme noté ce matin).
+ • VPS prod : ACCESS_REGISTRATION_MODE=open confirmé (inscriptions ouvertes).
+ • VPS prod : RESEND_FROM='OnScen <onboarding@resend.dev>' confirmé (fix du jour).
+ • git log : commit secrets historique (72370fc8) toujours présent — C4 inchangé.
+ • Nouveau constat : OAuth Google signalé cassé en prod (deleted_client),
+   probablement lié à la migration de domaine — aggrave E1 (était « mode
+   Testing », semble désormais un client supprimé côté Google Console).
+ • Nouveau constat E17 : inscriptions ouvertes sans plafond de rythme
+   automatique (seule protection = Turnstile + email manuel fondateur).
+
+ Rapports mis à jour
+ ─────────────────
+ commun/docs/audit/2026-08-11/00-synthese.md → réécriture complète (statuts
+   déployés confirmés, E17/E18 ajoutés, E1 aggravé, priorités mises à jour).
+ commun/docs/audit/2026-08-11/{01-stack,02-database,03-postgis,04-observabilite,
+   05-securite,06-ddos,07-moderation,08-api-externes,09-cgu-rgpd,10-youtube,
+   11-legalite-globale,12-divers}.md → bandeau "Rafraîchissement 08-11 (soir)"
+   + mise à jour ciblée des lignes concernées par les changements du jour.
+ commun/docs/audit/2026-08-11/README.md → résumé des deux vagues de correctifs.
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/audit/2026-08-11/*.md → rafraîchissement, aucun code applicatif touché
+
+BUILD (si vérifié)
+-----
+ N/A — travail de documentation/audit uniquement (lecture seule sur le code)
+
+================================================================================
+Fin MODIF 1389 — 2026-08-11
+================================================================================

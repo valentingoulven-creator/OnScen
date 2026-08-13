@@ -88,7 +88,7 @@ button, a, [role="button"], input[type="button"], input[type="submit"], label {
 .events-carousel-card {
   flex: 0 0 calc(100% - var(--events-carousel-peek));
   width: calc(100% - var(--events-carousel-peek));
-  max-width: min(20rem, calc(100% - var(--events-carousel-peek)));
+  max-width: min(15rem, calc(100% - var(--events-carousel-peek)));
   flex-shrink: 0;
   touch-action: pan-x;
 }
@@ -98,7 +98,7 @@ button, a, [role="button"], input[type="button"], input[type="submit"], label {
 }
 
 .events-carousel--compact .events-carousel-card {
-  max-width: min(13.5rem, calc(100% - var(--events-carousel-peek)));
+  max-width: min(10.125rem, calc(100% - var(--events-carousel-peek)));
 }
 
 .events-carousel--sidebar {
@@ -108,7 +108,7 @@ button, a, [role="button"], input[type="button"], input[type="submit"], label {
 .events-carousel--sidebar .events-carousel-card {
   flex: 0 0 calc(100% - var(--events-carousel-peek));
   width: calc(100% - var(--events-carousel-peek));
-  max-width: min(12.75rem, calc(100% - var(--events-carousel-peek)));
+  max-width: min(9.5625rem, calc(100% - var(--events-carousel-peek)));
 }
 
 .events-carousel > * {

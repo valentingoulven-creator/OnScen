@@ -1817,6 +1817,8 @@ export interface MapEventMarker {
   authorUsernameColor?: string;
   authorUsernameWaveFrom?: string;
   authorUsernameWaveTo?: string;
+  /** Photo de la publication événement (miniature carte/popup — priorité sur l'avatar auteur). */
+  imageUrl?: string;
   /** Événement sponsorisé sidebar carte — icône ✨ sur pins / popups. */
   isSponsored?: boolean;
 }

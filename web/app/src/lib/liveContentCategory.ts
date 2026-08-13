@@ -28,3 +28,19 @@ export function liveContentCategorySummaryLabel(category: LiveContentCategory): 
       return 'Musique';
   }
 }
+
+/** Lives sans catégorie → musique (aligné setup live par défaut). */
+export function normalizeLiveContentCategory(
+  category?: LiveContentCategory | null
+): LiveContentCategory {
+  return isLiveContentCategory(category) ? category : 'music';
+}
+
+export function filterLivesByContentCategory<T extends { contentCategory?: LiveContentCategory }>(
+  lives: T[],
+  category: LiveContentCategory
+): T[] {
+  return lives.filter(
+    (live) => normalizeLiveContentCategory(live.contentCategory) === category
+  );
+}

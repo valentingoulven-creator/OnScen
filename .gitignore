@@ -58,6 +58,10 @@ commun/scripts/dns-onscen-log.txt
 backend/tile-cache/
 commun/backend/tile-cache/
 
+# Uploads utilisateurs (sponsors, photos...) — contenu runtime, jamais commit
+commun/backend/public/uploads/
+backend/public/uploads/
+
 # Snapshots de compte (restauration admin) — données privées runtime, jamais commit
 backend/data/
 commun/backend/data/
