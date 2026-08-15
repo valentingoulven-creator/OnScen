@@ -79,6 +79,7 @@ const ALERT_ICONS: Record<AlertType, string> = {
   csam_risk_detected: '🚸',
   live_content_flagged: '📵',
   urgent_content_report: '🚩',
+  registration_spike: '📈',
 };
 
 const ALERT_LABELS: Record<AlertType, string> = {
@@ -96,6 +97,7 @@ const ALERT_LABELS: Record<AlertType, string> = {
   csam_risk_detected: 'Contenu potentiellement impliquant un mineur bloqué automatiquement',
   live_content_flagged: 'Contenu live suspect détecté et diffusion coupée automatiquement',
   urgent_content_report: 'Signalement utilisateur urgent (illégal / mineur)',
+  registration_spike: 'Pic d’inscriptions (quota journalier ou IP)',
 };
 
 const ALERT_UNITS: Partial<Record<AlertType, string>> = {

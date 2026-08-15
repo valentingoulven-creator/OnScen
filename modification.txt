@@ -41641,5 +41641,28 @@ BUILD
 Fin MODIF 1435 — 2026-08-15
 ================================================================================
 
+================================================================================
+MODIF 1436 — Build prod : alert registration_spike — Soundly Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ tsc prod échoue : AlertType registration_spike sans icône / libellé.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/alertNotifier.ts
+ ─────────────────
+ • ALERT_ICONS / ALERT_LABELS : registration_spike
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/alertNotifier.ts → maps AlertType complets
+
+================================================================================
+Fin MODIF 1436 — 2026-08-15
+================================================================================
+
 
 
