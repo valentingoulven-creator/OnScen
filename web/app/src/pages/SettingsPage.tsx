@@ -14,6 +14,7 @@ import { api } from '../lib/api';
 import { PasswordStrengthBar } from '../components/PasswordStrengthBar';
 import { getPasswordStrengthAsync } from '../lib/passwordStrength';
 import { BiometricSetup } from '../components/BiometricSetup';
+import { isWebAuthnOffered } from '../lib/webAuthnUi';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { CreatorStripeConnectCard } from '../components/CreatorStripeConnectCard';
 import { DonationSheet } from '../components/DonationSheet';
@@ -739,9 +740,11 @@ export function SettingsPage({
                 </SettingsGroup>
               </div>
 
-              <div className="pt-3">
-                <BiometricSetup />
-              </div>
+              {isWebAuthnOffered() && (
+                <div className="pt-3">
+                  <BiometricSetup />
+                </div>
+              )}
 
               <div className="pt-3">
                 <SettingsGroup>

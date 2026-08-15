@@ -41664,5 +41664,36 @@ FICHIERS MODIFIÉS
 Fin MODIF 1436 — 2026-08-15
 ================================================================================
 
+================================================================================
+MODIF 1437 — Web prod : plus de Face ID / empreinte — Soundly Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En production, ne plus proposer ni appeler l’API Face ID / empreinte (WebAuthn)
+ sur le site web. L’app native conserve la biométrie.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/webAuthnUi.ts
+ ─────────────────
+ • isWebAuthnOffered() : false sur web prod, true en natif / hors prod
+
+ commun/backend/src/lib/webAuthnPublic.ts
+ ─────────────────
+ • 403 WEBAUTHN_WEB_DISABLED si client web + APP_ENV=production
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/AuthPage.tsx → plus de bouton biométrie en web prod
+ web/app/src/pages/SettingsPage.tsx → plus de bloc Face ID en web prod
+ web/app/src/components/BiometricSetup.tsx → no-op si non offert
+ commun/backend/src/routes/webauthn.ts → garde API
+
+================================================================================
+Fin MODIF 1437 — 2026-08-15
+================================================================================
+
 
 

@@ -4,6 +4,7 @@ Rapports produits par `@onscen-dev-agent` à chaque session de développement si
 
 | Date | Rapport | Mission | Statut |
 |------|---------|---------|--------|
+| 2026-08-15 | [web-prod-sans-webauthn](./rapports/2026-08-15-web-prod-sans-webauthn.md) | Plus de Face ID / empreinte sur le web en prod | ✅ |
 | 2026-08-15 | [android-aab-deeplinks-2-0-2](./rapports/2026-08-15-android-aab-deeplinks-2-0-2.md) | Deep links /reels /auth + AAB release 2.0.2 | ✅ |
 | 2026-08-15 | [audit-cto-risques-restants](./rapports/2026-08-15-audit-cto-risques-restants.md) | Mitigations de tous les risques CTO encore ouverts | ⚠️ |
 | 2026-08-15 | [audit-cto-web-mobile](./rapports/2026-08-15-audit-cto-web-mobile.md) | Audit CTO web + iOS/Android + correctifs P0/P1 codables | ⚠️ |

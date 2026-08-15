@@ -14,6 +14,7 @@ import { startRegistration } from '@simplewebauthn/browser';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { ConfirmModal } from './ConfirmModal';
+import { isWebAuthnOffered } from '../lib/webAuthnUi';
 
 interface StoredCredential {
   id: string;
@@ -33,6 +34,7 @@ function isWebAuthnSupported(): boolean {
 export function BiometricSetup() {
   const { t } = useTranslation();
   const { token } = useAuth();
+  const offered = isWebAuthnOffered();
 
   const [supported, setSupported]     = useState<boolean | null>(null);
   const [credentials, setCredentials] = useState<StoredCredential[]>([]);
@@ -42,34 +44,32 @@ export function BiometricSetup() {
   const [error, setError]             = useState('');
   const [success, setSuccess]         = useState('');
 
-  // Vérifie la disponibilité de la biométrie sur la plateforme
   useEffect(() => {
-    if (!isWebAuthnSupported()) {
+    if (!offered || !isWebAuthnSupported()) {
       setSupported(false);
       return;
     }
     window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
       .then(setSupported)
       .catch(() => setSupported(false));
-  }, []);
+  }, [offered]);
 
-  // Charge les credentials existants
   const loadCredentials = useCallback(async () => {
-    if (!token) return;
+    if (!offered || !token) return;
     try {
       const res = await api.webauthnGetCredentials(token);
       setCredentials(res.credentials);
     } catch {
       setCredentials([]);
     }
-  }, [token]);
+  }, [offered, token]);
 
   useEffect(() => {
     void loadCredentials();
   }, [loadCredentials]);
 
   const handleEnable = async () => {
-    if (!token) return;
+    if (!offered || !token) return;
     setError('');
     setSuccess('');
     setLoading(true);
@@ -98,7 +98,7 @@ export function BiometricSetup() {
   };
 
   const handleRemove = async (credentialId: string) => {
-    if (!token) return;
+    if (!offered || !token) return;
     setError('');
     setSuccess('');
     setRemoving(credentialId);
@@ -113,7 +113,8 @@ export function BiometricSetup() {
     }
   };
 
-  // Navigateur sans support WebAuthn
+  if (!offered) return null;
+
   if (supported === false) {
     return (
       <div className="rounded-xl bg-[#12121a] border border-[#1e1e2f] p-4">
