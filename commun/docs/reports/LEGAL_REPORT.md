@@ -60,7 +60,7 @@
 
 #### LEG-RGPD-003 — ÉLEVÉ : Localisation géographique des données en production
 
-**Description :** PostgreSQL est déployé sur un VPS (`getsoundy.com`). Si le VPS est hors UE/EEE, tout transfert de données hors UE nécessite des clauses contractuelles types (CCT) ou un accord de transfert adéquat.
+**Description :** PostgreSQL est déployé sur un VPS (`onscen.com`). Si le VPS est hors UE/EEE, tout transfert de données hors UE nécessite des clauses contractuelles types (CCT) ou un accord de transfert adéquat.
 
 **Références :**
 - RGPD Art. 44-49 — transferts vers pays tiers

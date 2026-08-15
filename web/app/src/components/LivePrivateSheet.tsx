@@ -63,7 +63,7 @@ export function LivePrivateSheet({ target, onClose, onOpenProfile }: LivePrivate
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center ms-modal-overlay bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center ms-modal-overlay bg-black/60" onClick={onClose}>
       <div
         className="flex flex-col w-full max-w-md max-h-[70dvh] bg-[#12121a] rounded-2xl border border-[#2d2d3d] shadow-2xl"
         onClick={(e) => e.stopPropagation()}

@@ -57,6 +57,9 @@ export function isEmailConfigured(): boolean {
 export function getEmailFrom(fallbackName = 'OnScen'): string {
   if (process.env.RESEND_FROM) return process.env.RESEND_FROM;
   if (process.env.SMTP_FROM) return process.env.SMTP_FROM;
+  if (process.env.APP_ENV === 'production') {
+    throw new Error('RESEND_FROM ou SMTP_FROM obligatoire en production');
+  }
   if (process.env.RESEND_API_KEY) return `${fallbackName} <onboarding@resend.dev>`;
   return `${fallbackName} <${process.env.SMTP_USER}>`;
 }

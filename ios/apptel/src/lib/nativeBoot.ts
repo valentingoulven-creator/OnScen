@@ -16,4 +16,10 @@ export async function requestNativePermissions(): Promise<void> {
   } catch {
     /* lives / profil photo limités */
   }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((track) => track.stop());
+  } catch {
+    /* lives / reels audio limités */
+  }
 }

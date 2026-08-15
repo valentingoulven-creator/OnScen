@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
+import { canUsePreciseGeo } from '../lib/geoAgePolicy';
 import { api } from '../lib/api';
 import type { MajorCityDto } from '../lib/api/geo';
 import {
@@ -16,7 +18,7 @@ type LocationMode = 'gps' | 'city';
 
 function segmentClass(active: boolean, variant: SessionLocationVariant): string {
   const base =
-    'flex-1 min-h-[40px] px-2 py-1.5 rounded-lg border text-center flex items-center justify-center gap-1.5 transition-colors text-xs font-semibold';
+    'flex-1 min-h-11 px-2 py-1.5 rounded-lg border text-center flex items-center justify-center gap-1.5 transition-colors text-xs font-semibold';
   if (active) {
     return variant === 'salon'
       ? `${base} border-purple-500/60 bg-purple-500/10 text-white`
@@ -122,9 +124,11 @@ export function SessionLocationPicker({
   token,
 }: SessionLocationPickerProps) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const preciseGeoOk = canUsePreciseGeo(user);
   const cityModeInitializedRef = useRef(false);
   const [mode, setMode] = useState<LocationMode>(() =>
-    value.source === 'my_position' ? 'gps' : 'city'
+    preciseGeoOk && value.source === 'my_position' ? 'gps' : 'city'
   );
   const [locating, setLocating] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -201,7 +205,15 @@ export function SessionLocationPicker({
     }
   }, [mode, nearestCities, citiesLoading, isCitySelected, pickMajorCity]);
 
+  useEffect(() => {
+    if (!preciseGeoOk && mode === 'gps') setMode('city');
+  }, [preciseGeoOk, mode]);
+
   const requestMyPosition = async () => {
+    if (!preciseGeoOk) {
+      setMode('city');
+      return;
+    }
     if (!geoAvailable) {
       setGeoError(t('sessionLocation.geoUnavailable'));
       return;
@@ -251,6 +263,7 @@ export function SessionLocationPicker({
       </div>
 
       <div className="flex gap-1.5">
+        {preciseGeoOk && (
         <button
           type="button"
           onClick={() => {
@@ -263,6 +276,7 @@ export function SessionLocationPicker({
           <IcoPin className="w-3.5 h-3.5 shrink-0" />
           <span className="truncate">{t('sessionLocation.myPosition')}</span>
         </button>
+        )}
         <button
           type="button"
           onClick={() => {
@@ -286,7 +300,7 @@ export function SessionLocationPicker({
               type="button"
               onClick={() => void requestMyPosition()}
               disabled={locating || !geoAvailable}
-              className={`w-full min-h-[40px] rounded-lg text-xs font-semibold border transition disabled:opacity-40 ${
+              className={`w-full min-h-11 rounded-lg text-xs font-semibold border transition disabled:opacity-40 ${
                 variant === 'salon'
                   ? 'border-purple-500/40 text-purple-200 hover:bg-purple-500/10'
                   : 'border-red-500/40 text-red-200 hover:bg-red-500/10'

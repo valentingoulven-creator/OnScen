@@ -902,7 +902,7 @@ export function LiveKitVideoStage({
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onToggleViewerPlaybackPaused}
-              className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition"
+              className="shrink-0 w-11 h-11 sm:w-6 sm:h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition"
               title={viewerPlaybackPaused ? t('live.viewerResumePlayback') : t('live.viewerPausePlayback')}
               aria-label={viewerPlaybackPaused ? t('live.viewerResumePlayback') : t('live.viewerPausePlayback')}
             >
@@ -913,7 +913,7 @@ export function LiveKitVideoStage({
             type="button"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={videoFloat.onClose}
-            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition text-sm"
+            className="shrink-0 w-11 h-11 sm:w-6 sm:h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition text-sm"
             title={t('live.anchorVideoPip')}
             aria-label={t('live.anchorVideoPip')}
           >
@@ -924,7 +924,7 @@ export function LiveKitVideoStage({
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={!isHost && onLeaveLive ? onLeaveLive : onDismissPip!}
-              className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-red-500/25 transition text-sm leading-none"
+              className="shrink-0 w-11 h-11 sm:w-6 sm:h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-red-500/25 transition text-sm leading-none"
               title={!isHost && onLeaveLive ? t('live.leaveLive') : t('live.closePip')}
               aria-label={!isHost && onLeaveLive ? t('live.leaveLive') : t('live.closePip')}
             >

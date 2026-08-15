@@ -1,6 +1,6 @@
 # Synthèse BIC — Tarifs sponsoring OnScen
 
-**Valentin Goulven · OnScen · getsoundy.com · 3 août 2026**  
+**Valentin Goulven · OnScen · onscen.com · 3 août 2026**  
 Document interne · chiffres indicatifs · recaler avec expert-comptable.
 
 ---

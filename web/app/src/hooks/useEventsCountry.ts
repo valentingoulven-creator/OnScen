@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { canUsePreciseGeo } from '../lib/geoAgePolicy';
 import { geocodeCountryFromQuery } from '../lib/geocodeAddress';
 import { EVENTS_COUNTRY_FALLBACK } from '../lib/countryDisplay';
 
@@ -10,6 +12,8 @@ export function useEventsCountry(options: {
   countryName: string;
 } {
   const { enabled, profileCity } = options;
+  const { user } = useAuth();
+  const preciseGeoOk = canUsePreciseGeo(user);
   const [countryCode, setCountryCode] = useState<string | null>(null);
   const [countryName, setCountryName] = useState<string | null>(null);
 
@@ -38,7 +42,7 @@ export function useEventsCountry(options: {
       }
     };
 
-    if (!navigator.geolocation) {
+    if (!preciseGeoOk || !navigator.geolocation) {
       void applyCountryFallback();
       return () => {
         cancelled = true;
@@ -77,7 +81,7 @@ export function useEventsCountry(options: {
     return () => {
       cancelled = true;
     };
-  }, [enabled, profileCity]);
+  }, [enabled, profileCity, preciseGeoOk]);
 
   return {
     countryCode: countryCode ?? EVENTS_COUNTRY_FALLBACK.code,

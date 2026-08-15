@@ -1,6 +1,6 @@
 # Documents commerciaux — Sponsoring OnScen
 
-Modèles professionnels pour la vente managed de campagnes sponsoring sur [getsoundy.com](https://getsoundy.com).
+Modèles professionnels pour la vente managed de campagnes sponsoring sur [onscen.com](https://onscen.com).
 
 > **Tous les documents de ce dossier sont indicatifs.** Validation par un juriste requise avant signature ou envoi définitif à un annonceur.
 
@@ -16,6 +16,7 @@ Modèles professionnels pour la vente managed de campagnes sponsoring sur [getso
 | **Synthèse BIC (1 page)** | [`JUSTIFICATION-TARIFS-SPONSOR-SYNTHESE-BIC.md`](./JUSTIFICATION-TARIFS-SPONSOR-SYNTHESE-BIC.md) · PDF [`pdf/`](./pdf/) | Pièce jointe dossier BIC |
 | **Modèle de devis** | [`MODELE-DEVIS-SPONSOR.md`](./MODELE-DEVIS-SPONSOR.md) | Proposition commerciale chiffrée (devis seul) |
 | **Devis & contrat type** | [`CONTRAT-TYPE-SPONSOR.md`](./CONTRAT-TYPE-SPONSOR.md) | Devis + CGV / conditions contractuelles combinés |
+| **CGV annonceurs** | [`CGV-ANNONCEURS.md`](./CGV-ANNONCEURS.md) | CGV B2B autonomes (complément du contrat) |
 | **Reporting campagne** | [`REPORTING-SPONSOR-TEMPLATE.md`](./REPORTING-SPONSOR-TEMPLATE.md) | Rapport de performance fin de campagne ou mensuel |
 
 ---
@@ -62,12 +63,10 @@ Autres emplacements produit (hors offre standard actuelle) : `stories_banner`, `
 
 ---
 
-## Grilles tarifaires intégrées (indicatif · sans CPM)
+## Grilles tarifaires (interne uniquement)
 
-- **Unité :** forfait **/ semaine / emplacement** (99 – 149 € HT selon format)
-- **Packs :** Carte 199 € · Actu & Reel 249 € · Musique & Actu 229 € · Complet 499 € / semaine
-- **Remise :** −10 % sur un même pack × 4 semaines consécutives
-- *Évolution future possible vers CPM une fois audience mesurable — voir modèles devis/contrat*
+Les **montants** figurent uniquement dans les justifications internes (`JUSTIFICATION-TARIFS-SPONSOR-*.md`) — BIC / banque.  
+Les documents **envoyés** (devis, contrat, one-pager) **ne portent aucun prix** : mention rouge « À renseigner avant envoi » à remplacer avant transmission.
 
 ---
 
@@ -78,7 +77,7 @@ Autres emplacements produit (hors offre standard actuelle) : `stories_banner`, `
 | `[ANNONCEUR]` | Raison sociale client |
 | `[SIRET]` | SIRET annonceur |
 | `[CONTACT]` | Nom du contact commercial client |
-| `[RAISON_SOCIALE_SOUNDY]` | Éditeur / prestataire |
+| `[RAISON_SOCIALE_ONSCEN]` | Éditeur / prestataire |
 | `[DATE_DEBUT]` / `[DATE_FIN]` | Période campagne |
 | `[ZONE_GEO]` | Ciblage ville / région / France |
 | `[TOTAL_HT_NET]` | Montant HT après remise |

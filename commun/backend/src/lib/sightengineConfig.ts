@@ -122,10 +122,11 @@ export function shouldModerateRemoteImageUrls(): boolean {
  * Par défaut : fail-open en msdev, fail-closed en prod.
  */
 export function sightengineFailOpenOnError(): boolean {
+  if (!isMsdevRuntime()) return false;
   if (process.env.SIGHTENGINE_FAIL_OPEN != null && process.env.SIGHTENGINE_FAIL_OPEN !== '') {
     return envFlag('SIGHTENGINE_FAIL_OPEN', false);
   }
-  return isMsdevRuntime();
+  return true;
 }
 
 export function getSightengineStatusSummary(): {

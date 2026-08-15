@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
+import './components/RoomTheaterLayout.mobile.css';
 import { initAppTheme } from './lib/appTheme';
 import { IS_NATIVE_BUILD } from './lib/nativeServer';
 import { requestNativePermissions } from './lib/nativeBoot';

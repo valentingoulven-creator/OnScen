@@ -125,9 +125,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const timeout = window.setTimeout(() => {
       if (cancelled) return;
       setAuthBootError(i18n.t('errors.serverUnreachable'));
-      void clearStoredToken();
-      setToken(null);
-      setUser(null);
       setAuthBootPending(false);
     }, 20000);
 

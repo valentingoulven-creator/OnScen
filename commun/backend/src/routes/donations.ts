@@ -26,7 +26,9 @@ import {
   recordLiveDonation,
   userMeetsDonationAgeFromProfile,
 } from '../lib/donations';
-import { CREATOR_MONETIZATION_MIN_AGE } from '../lib/ageGates';
+import { CREATOR_MONETIZATION_MIN_AGE, creatorMeetsMonetizationAgeFromProfile } from '../lib/ageGates';
+import { rejectIfNativePayments } from '../lib/clientPlatform';
+import { rejectIfStripeTestInProduction } from '../lib/stripeLiveGuard';
 import { schedulePersist } from '../lib/persist';
 import {
   donationPaymentIntentExistsInPg,
@@ -151,6 +153,8 @@ donationsRouter.get('/connect-status', authenticateJWT, async (req: Request, res
 });
 
 donationsRouter.post('/connect-onboard', authenticateJWT, async (req: Request, res: Response) => {
+  if (rejectIfNativePayments(req, res)) return;
+  if (rejectIfStripeTestInProduction(res)) return;
   if (isDonationSimulationMode() && !isStripeConfigured()) {
     res.status(400).json({
       error: 'Stripe Connect en dev : ajoute STRIPE_SECRET_KEY et STRIPE_PUBLISHABLE_KEY dans commun/msdev/.env',
@@ -172,6 +176,13 @@ donationsRouter.post('/connect-onboard', authenticateJWT, async (req: Request, r
   const user = db.users.get(userId);
   if (!user) {
     res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+  if (!creatorMeetsMonetizationAgeFromProfile(user)) {
+    res.status(403).json({
+      error: `Monétisation disponible à partir de ${CREATOR_MONETIZATION_MIN_AGE} ans.`,
+      code: 'CREATOR_MONETIZATION_AGE_REQUIRED',
+    });
     return;
   }
 
@@ -289,6 +300,8 @@ donationsRouter.post('/simulate', authenticateJWT, (req: Request, res: Response)
 });
 
 donationsRouter.post('/create-intent', authenticateJWT, async (req: Request, res: Response) => {
+  if (rejectIfNativePayments(req, res)) return;
+  if (rejectIfStripeTestInProduction(res)) return;
   if (isDonationSimulationMode()) {
     res.status(400).json({ error: 'Utilisez la simulation en mode msdev' });
     return;
@@ -317,6 +330,13 @@ donationsRouter.post('/create-intent', authenticateJWT, async (req: Request, res
     res.status(403).json({
       error: 'Vous devez avoir 18 ans ou plus pour effectuer un don (date de naissance requise sur votre profil).',
       code: 'DONATION_AGE_REQUIRED',
+    });
+    return;
+  }
+  if (ageConfirmed !== true) {
+    res.status(400).json({
+      error: 'Confirmation d’âge requise.',
+      code: 'AGE_CONFIRMATION_REQUIRED',
     });
     return;
   }

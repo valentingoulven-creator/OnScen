@@ -4,19 +4,21 @@
 > **Validation juridique requise** avant signature ou facturation définitive.
 > **Phase de lancement :** OnScen démarre sa base d'utilisateurs. La tarification ci-dessous est donc **forfaitaire, à la semaine**, et **ne repose ni sur un volume de vues/impressions, ni sur un CPM**. Elle évoluera vers un modèle à l'audience une fois un volume d'utilisateurs actifs mesurable atteint (voir §"Évolution tarifaire").
 
+<p class="price-todo-banner" style="color:#b91c1c;font-weight:800;background:#fef2f2;border:2px solid #dc2626;padding:12px 16px;border-radius:8px;text-align:center;">⚠ PRIX À RENSEIGNER AVANT ENVOI DU DEVIS — ne pas transmettre ce document tant que les montants n’ont pas été saisis.</p>
+
 ---
 
 ## En-tête
 
 | | |
 |---|---|
-| **Éditeur** | [RAISON_SOCIALE_SOUNDY] |
+| **Éditeur** | [RAISON_SOCIALE_ONSCEN] |
 | **Forme juridique** | [FORME_JURIDIQUE] |
-| **Siège social** | [ADRESSE_SOUNDY] |
-| **SIRET** | [SIRET_SOUNDY] |
-| **TVA intracommunautaire** | [TVA_SOUNDY] |
-| **Email commercial** | [EMAIL_COMMERCIAL] · admin@getsoundy.com |
-| **Site** | [https://getsoundy.com](https://getsoundy.com) |
+| **Siège social** | [ADRESSE_ONSCEN] |
+| **SIRET** | [SIRET_ONSCEN] |
+| **TVA intracommunautaire** | [TVA_ONSCEN] |
+| **Email commercial** | [EMAIL_COMMERCIAL] · admin@onscen.com |
+| **Site** | [https://onscen.com](https://onscen.com) |
 
 | | |
 |---|---|
@@ -43,7 +45,7 @@
 
 ## Objet du devis
 
-Campagne de **sponsoring natif par emplacement** sur l'application OnScen ([getsoundy.com](https://getsoundy.com)) — réseau social musique live, carte géolocalisée, salons, lives et Reels.
+Campagne de **sponsoring natif par emplacement** sur l'application OnScen ([onscen.com](https://onscen.com)) — réseau social musique live, carte géolocalisée, salons, lives et Reels.
 
 **Objectif annonceur :** [OBJECTIF_CAMPAGNE] *(ex. : remplissage soirée du [DATE_EVENEMENT] · notoriété locale · teaser sortie album)*
 
@@ -67,11 +69,11 @@ Chaque ligne correspond à **un emplacement dédié** : une campagne = un format
 
 | Code produit | Emplacement (libellé commercial) | Inclus au devis | Prix indicatif HT / semaine |
 |--------------|-----------------------------------|-----------------|-----------------------------|
-| `feed_inline` | **Fil d'actualité** — carte native entre les posts | [ ] Oui [ ] Non | **149 €** |
-| `map_banner` | **Carte · bandeau** — carrousel en tête de la carte | [ ] Oui [ ] Non | **129 €** |
-| `map_sidebar_events` | **Carte · icône Sponso** — pin ✨ + carrousel événements sponsorisés (sidebar) | [ ] Oui [ ] Non | **99 €** |
-| `reels_sponsored` | **Reel sponsorisé** — plein écran 9:16 | [ ] Oui [ ] Non | **129 €** |
-| `music_tab` | **Onglet Musique** — encart sponsorisé dans l'espace Musique | [ ] Oui [ ] Non | **119 €** |
+| `feed_inline` | **Fil d'actualité** — carte native entre les posts | [ ] Oui [ ] Non | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| `map_banner` | **Carte · bandeau** — carrousel en tête de la carte | [ ] Oui [ ] Non | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| `map_sidebar_events` | **Carte · icône Sponso** — pin ✨ + carrousel événements sponsorisés (sidebar) | [ ] Oui [ ] Non | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| `reels_sponsored` | **Reel sponsorisé** — plein écran 9:16 | [ ] Oui [ ] Non | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| `music_tab` | **Onglet Musique** — encart sponsorisé dans l'espace Musique | [ ] Oui [ ] Non | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
 
 *Badge « Sponsorisé » sur chaque emplacement (DSA / RGPD). L'emplacement `music_tab` est commercialisé dès mise à disposition technique ; à défaut, report ou substitution sur un emplacement équivalent avec accord écrit.*
 
@@ -81,10 +83,10 @@ Chaque ligne correspond à **un emplacement dédié** : une campagne = un format
 
 | Ligne | Emplacement | Semaines | Prix unitaire HT / sem. | Montant HT |
 |-------|-------------|----------|-------------------------|------------|
-| 1 | [LIBELLE_EMPLACEMENT_1] (`[CODE_1]`) | [SEM_1] | [PRIX_UNIT_1] € | [MONTANT_1] € |
-| 2 | [LIBELLE_EMPLACEMENT_2] (`[CODE_2]`) | [SEM_2] | [PRIX_UNIT_2] € | [MONTANT_2] € |
-| 3 | [LIBELLE_EMPLACEMENT_3] (`[CODE_3]`) | [SEM_3] | [PRIX_UNIT_3] € | [MONTANT_3] € |
-| | **Sous-total emplacements** | | | **[SOUS_TOTAL] €** |
+| 1 | [LIBELLE_EMPLACEMENT_1] (`[CODE_1]`) | [SEM_1] | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| 2 | [LIBELLE_EMPLACEMENT_2] (`[CODE_2]`) | [SEM_2] | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| 3 | [LIBELLE_EMPLACEMENT_3] (`[CODE_3]`) | [SEM_3] | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| | **Sous-total emplacements** | | | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
 
 ---
 
@@ -94,28 +96,28 @@ Alternative au choix ligne à ligne : **forfait pack** pour une même semaine (o
 
 | Pack | Emplacements inclus | Prix indicatif HT / semaine | Économie vs somme des lignes |
 |------|---------------------|----------------------------|------------------------------|
-| **Pack Carte** | Bandeau carte + icône Sponso | **199 €** | ~13 % *(vs 129 + 99 €)* |
-| **Pack Actu & Reel** | Fil d'actualité + Reel sponsorisé | **249 €** | ~11 % *(vs 149 + 129 €)* |
-| **Pack Musique & Actu** | Onglet Musique + Fil d'actualité | **229 €** | ~12 % *(vs 119 + 149 €)* |
-| **Pack Complet** | Les **5 emplacements** ci-dessus | **499 €** | ~20 % *(vs 625 €)* |
+| **Pack Carte** | Bandeau carte + icône Sponso | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| **Pack Actu & Reel** | Fil d'actualité + Reel sponsorisé | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| **Pack Musique & Actu** | Onglet Musique + Fil d'actualité | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| **Pack Complet** | Les **5 emplacements** ci-dessus | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
 
 | Option pack | Semaines | Montant HT |
 |-------------|----------|------------|
-| [ ] Pack [NOM_PACK] | [NOMBRE_SEMAINES] | **[MONTANT_PACK] €** |
+| [ ] Pack [NOM_PACK] | [NOMBRE_SEMAINES] | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
 
-*Remise **−10 %** sur le montant pack pour engagement **4 semaines consécutives** (même pack). Remise **sponsor fondateur −25 %** sur 6 mois *(témoignage + logo site, stock limité).*
+*Toute remise (engagement multi-semaines, sponsor fondateur) doit être **saisie ci-dessus** avant envoi. Ne pas laisser les mentions rouges dans le document transmis à l’annonceur.*
 
 ---
 
 ## Options & prestations complémentaires
 
-| Option | Détail | Montant HT (€) |
-|--------|--------|----------------|
-| Création graphique (1 format) | Logo, bannière ou visuel story aux specs OnScen | [150 – 400] |
-| Montage reel 9:16 | Vidéo ≤ 30 s recommandé | [400 – 900] |
-| Remise engagement 6 mois | −10 % | [ ] Applicable |
-| Remise engagement 12 mois | −15 % | [ ] Applicable |
-| Remise sponsor fondateur | −25 % sur 6 mois *(témoignage + logo site)* | [ ] Applicable |
+| Option | Détail | Montant HT |
+|--------|--------|------------|
+| Création graphique (1 format) | Logo, bannière ou visuel story aux specs OnScen | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| Montage reel 9:16 | Vidéo ≤ 30 s recommandé | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| Remise engagement 6 mois | [POURCENTAGE_REMISE_6M] % | [ ] Applicable |
+| Remise engagement 12 mois | [POURCENTAGE_REMISE_12M] % | [ ] Applicable |
+| Remise sponsor fondateur | [POURCENTAGE_REMISE_FONDATEUR] % *(témoignage + logo site)* | [ ] Applicable |
 
 ---
 
@@ -123,11 +125,11 @@ Alternative au choix ligne à ligne : **forfait pack** pour une même semaine (o
 
 | | Montant |
 |---|---------|
-| **Total HT** | **[TOTAL_HT] €** |
-| Remise commerciale ([LIBELLE_REMISE]) | − [MONTANT_REMISE] € |
-| **Total HT après remise** | **[TOTAL_HT_NET] €** |
-| TVA ([TAUX_TVA] %) | [MONTANT_TVA] € |
-| **Total TTC** | **[TOTAL_TTC] €** |
+| **Total HT** | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| Remise commerciale ([LIBELLE_REMISE]) | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| **Total HT après remise** | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| TVA ([TAUX_TVA] %) | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| **Total TTC** | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
 
 ---
 
@@ -136,8 +138,8 @@ Alternative au choix ligne à ligne : **forfait pack** pour une même semaine (o
 | Sujet | Condition |
 |-------|-----------|
 | **Modalité** | Emplacement(s) à l'unité [ ] · Pack multi-emplacements [ ] |
-| **Acompte** | [50] % à la commande · solde avant mise en ligne ou à [J+X] jours |
-| **Paiement** | Virement bancaire · IBAN : [IBAN_SOUNDY] · BIC : [BIC_SOUNDY] |
+| **Acompte** | [POURCENTAGE_ACOMPTE] % à la commande · solde avant mise en ligne ou à [J+X] jours |
+| **Paiement** | Virement bancaire · IBAN : [IBAN_ONSCEN] · BIC : [BIC_ONSCEN] |
 | **Délai de mise en ligne** | ≤ 5 jours ouvrés après réception acompte + assets validés |
 | **Engagement de diffusion** | OnScen garantit la **diffusion effective** de l'annonce sur toute la durée contractuelle (pas de garantie de volume de vues, celui-ci dépendant du trafic organique de la plateforme en phase de lancement) |
 | **Assets client** | Logo, bannière, visuel story/reel aux specs OnScen (voir annexe créative) |
@@ -174,8 +176,8 @@ Le présent devis vaut **proposition commerciale** jusqu'à la date de validité
 
 | | |
 |---|---|
-| **Pour [ANNONCEUR]** | **Pour [RAISON_SOCIALE_SOUNDY]** |
-| Nom : [NOM_SIGNATAIRE_CLIENT] | Nom : [NOM_SIGNATAIRE_SOUNDY] |
+| **Pour [ANNONCEUR]** | **Pour [RAISON_SOCIALE_ONSCEN]** |
+| Nom : [NOM_SIGNATAIRE_CLIENT] | Nom : [NOM_SIGNATAIRE_ONSCEN] |
 | Fonction : [FONCTION] | Fonction : [FONCTION] |
 | Date : [DATE_SIGNATURE] | Date : [DATE_SIGNATURE] |
 | Signature : | Signature : |

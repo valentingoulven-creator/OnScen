@@ -1351,7 +1351,7 @@ export function DmPage({
     if (!groupRenameOpen || !activeGroup) return null;
     return (
       <div
-        className="fixed inset-0 z-[60] flex items-center justify-center ms-modal-overlay bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center ms-modal-overlay bg-black/60 backdrop-blur-sm"
         role="dialog"
         aria-modal="true"
         aria-labelledby="group-rename-title"
@@ -1411,7 +1411,7 @@ export function DmPage({
 
     return (
       <div
-        className="fixed inset-0 z-[60] flex items-center justify-center ms-modal-overlay bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center ms-modal-overlay bg-black/60 backdrop-blur-sm"
         role="dialog"
         aria-modal="true"
         aria-labelledby="group-delete-choice-title"
@@ -3853,7 +3853,7 @@ export function DmPage({
 
       {showNewDmSheet && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center ms-modal-overlay bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center ms-modal-overlay bg-black/60 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="new-dm-sheet-title"

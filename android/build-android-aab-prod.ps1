@@ -32,6 +32,7 @@ Push-Location $root
 try {
   npm run build:capacitor:prod --prefix ios/apptel
   npm run cap:sync:android --prefix ios/apptel
+  node (Join-Path $root "ios\apptel\scripts\patch-android-native.mjs")
   Push-Location (Join-Path $root "ios\apptel\android")
   try {
     .\gradlew.bat bundleRelease
@@ -39,7 +40,7 @@ try {
     Pop-Location
   }
   $aabSrc = Join-Path $root "ios\apptel\android\app\build\outputs\bundle\release\app-release.aab"
-  $aabDest = Join-Path $root "android\OnScen-Mobile\Soundy-release-prod.aab"
+  $aabDest = Join-Path $root "android\OnScen-Mobile\OnScen-release-prod.aab"
   if (Test-Path $aabSrc) {
     Copy-Item $aabSrc $aabDest -Force
     Write-Host ""

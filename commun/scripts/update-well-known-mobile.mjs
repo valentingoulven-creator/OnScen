@@ -112,7 +112,15 @@ function main() {
         details: [
           {
             appID: `${teamId}.com.soundy.app`,
-            paths: ['/salon/*', '/live/*', '/profile/*', '/'],
+            paths: [
+              '/',
+              '/salon/*',
+              '/live/*',
+              '/profile/*',
+              '/reels/*',
+              '/tel/*',
+              '/auth/*',
+            ],
           },
         ],
       },

@@ -7,7 +7,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 
-function resolveSentryRelease(slug = 'soundy-web'): string {
+function resolveSentryRelease(slug = 'onscen-web'): string {
   const pkgPath = path.resolve(__dirname, 'package.json');
   const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
   const version = String(pkg.version || '0.0.0');
@@ -73,7 +73,7 @@ export default defineConfig(({ mode }) => {
   const sentryRelease =
     envFromFile.VITE_SENTRY_RELEASE?.trim() ||
     process.env.VITE_SENTRY_RELEASE?.trim() ||
-    resolveSentryRelease('soundy-web');
+    resolveSentryRelease('onscen-web');
   const sentryUploadEnabled = Boolean(
     sentryEnv.SENTRY_AUTH_TOKEN?.trim() &&
       sentryEnv.SENTRY_ORG?.trim() &&

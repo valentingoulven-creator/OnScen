@@ -12,6 +12,7 @@ import {
 import { db } from '../models/schema';
 import { appendContentReport } from './contentReports';
 import { sendMonitoringAlert } from './alertNotifier';
+import { checkCsamHash, rememberBlockedSource } from './csamHashMatch';
 
 export type ModerationContext =
   | 'story'
@@ -145,6 +146,12 @@ export async function moderateImageSource(
     return { allowed: true, skipped: true };
   }
 
+  const hashCheck = await checkCsamHash(trimmed);
+  if (hashCheck.blocked) {
+    await escalateMinorRiskDetection(context, uploaderId, { hash_match: 1 });
+    return { allowed: false, reason: 'minor_risk' };
+  }
+
   if (!isSightengineConfigured()) {
     if (isDeployedEnv()) {
       return {
@@ -157,7 +164,11 @@ export async function moderateImageSource(
   }
 
   const apiResult = await checkImageWithSightengine(trimmed);
-  return resolveApiResult(apiResult, context, uploaderId);
+  const result = await resolveApiResult(apiResult, context, uploaderId);
+  if (!result.allowed && result.reason === 'minor_risk') {
+    rememberBlockedSource(trimmed, 'sightengine_minor_risk');
+  }
+  return result;
 }
 
 export async function moderateVideoSource(
@@ -174,6 +185,12 @@ export async function moderateVideoSource(
     return { allowed: true, skipped: true };
   }
 
+  const hashCheck = await checkCsamHash(trimmed);
+  if (hashCheck.blocked) {
+    await escalateMinorRiskDetection(context, uploaderId, { hash_match: 1 });
+    return { allowed: false, reason: 'minor_risk' };
+  }
+
   if (!isSightengineConfigured()) {
     if (isDeployedEnv()) {
       return {
@@ -186,7 +203,11 @@ export async function moderateVideoSource(
   }
 
   const apiResult = await checkVideoWithSightengine(trimmed, durationSec);
-  return resolveApiResult(apiResult, context, uploaderId);
+  const result = await resolveApiResult(apiResult, context, uploaderId);
+  if (!result.allowed && result.reason === 'minor_risk') {
+    rememberBlockedSource(trimmed, 'sightengine_minor_risk');
+  }
+  return result;
 }
 
 export async function moderateImageSources(

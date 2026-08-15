@@ -21,6 +21,8 @@ const apptelRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 const androidRoot = path.join(apptelRoot, 'android');
 const manifestPath = path.join(androidRoot, 'app/src/main/AndroidManifest.xml');
 const variablesPath = path.join(androidRoot, 'variables.gradle');
+const stringsPath = path.join(androidRoot, 'app/src/main/res/values/strings.xml');
+const leftoverMelosongDir = path.join(androidRoot, 'app/src/main/java/com/melosong');
 
 if (!fs.existsSync(androidRoot)) {
   console.error('[patch-android-native] ios/apptel/android/ absent — lancer "npx cap add android" avant ce script.');
@@ -28,6 +30,26 @@ if (!fs.existsSync(androidRoot)) {
 }
 
 const TARGET_SDK = 36; // Exigence Google Play : API 36 obligatoire pour toute nouvelle app/mise à jour au 31/08/2026.
+const VERSION_CODE = 202;
+const VERSION_NAME = '2.0.2';
+
+function patchAppVersion() {
+  const gradlePath = path.join(androidRoot, 'app/build.gradle');
+  if (!fs.existsSync(gradlePath)) {
+    console.warn('[patch-android-native] app/build.gradle introuvable, version ignorée.');
+    return;
+  }
+  let content = fs.readFileSync(gradlePath, 'utf8');
+  const before = content;
+  content = content.replace(/versionCode\s+\d+/, `versionCode ${VERSION_CODE}`);
+  content = content.replace(/versionName\s+"[^"]+"/, `versionName "${VERSION_NAME}"`);
+  if (content !== before) {
+    fs.writeFileSync(gradlePath, content, 'utf8');
+    console.log(`[patch-android-native] version → ${VERSION_NAME} (${VERSION_CODE})`);
+  } else {
+    console.log('[patch-android-native] version déjà à jour.');
+  }
+}
 
 function patchVariablesGradle() {
   if (!fs.existsSync(variablesPath)) {
@@ -62,6 +84,7 @@ const MANIFEST_CONTENT = `<?xml version="1.0" encoding="utf-8"?>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -98,6 +121,8 @@ const MANIFEST_CONTENT = `<?xml version="1.0" encoding="utf-8"?>
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="onscen.com" android:pathPrefix="/salon" />
                 <data android:scheme="https" android:host="www.onscen.com" android:pathPrefix="/salon" />
+                <data android:scheme="https" android:host="onscen.com" android:pathPrefix="/tel/salon" />
+                <data android:scheme="https" android:host="www.onscen.com" android:pathPrefix="/tel/salon" />
             </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
@@ -105,6 +130,8 @@ const MANIFEST_CONTENT = `<?xml version="1.0" encoding="utf-8"?>
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="onscen.com" android:pathPrefix="/live" />
                 <data android:scheme="https" android:host="www.onscen.com" android:pathPrefix="/live" />
+                <data android:scheme="https" android:host="onscen.com" android:pathPrefix="/tel/live" />
+                <data android:scheme="https" android:host="www.onscen.com" android:pathPrefix="/tel/live" />
             </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
@@ -112,6 +139,26 @@ const MANIFEST_CONTENT = `<?xml version="1.0" encoding="utf-8"?>
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="onscen.com" android:pathPrefix="/profile" />
                 <data android:scheme="https" android:host="www.onscen.com" android:pathPrefix="/profile" />
+                <data android:scheme="https" android:host="onscen.com" android:pathPrefix="/tel/profile" />
+                <data android:scheme="https" android:host="www.onscen.com" android:pathPrefix="/tel/profile" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="onscen.com" android:pathPrefix="/reels" />
+                <data android:scheme="https" android:host="www.onscen.com" android:pathPrefix="/reels" />
+                <data android:scheme="https" android:host="onscen.com" android:pathPrefix="/tel/reels" />
+                <data android:scheme="https" android:host="www.onscen.com" android:pathPrefix="/tel/reels" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="onscen.com" android:pathPrefix="/auth" />
+                <data android:scheme="https" android:host="www.onscen.com" android:pathPrefix="/auth" />
+                <data android:scheme="https" android:host="onscen.com" android:pathPrefix="/tel/auth" />
+                <data android:scheme="https" android:host="www.onscen.com" android:pathPrefix="/tel/auth" />
             </intent-filter>
 
         </activity>
@@ -135,8 +182,41 @@ function patchManifest() {
   console.log('[patch-android-native] AndroidManifest.xml réécrit (permissions + deep links + FileProvider).');
 }
 
+/** Aligne le nom sous l'icône sur iOS (`CFBundleDisplayName` = OnScen). */
+function patchStringsXml() {
+  if (!fs.existsSync(stringsPath)) {
+    console.warn('[patch-android-native] strings.xml introuvable, étape ignorée.');
+    return;
+  }
+  let content = fs.readFileSync(stringsPath, 'utf8');
+  const before = content;
+  content = content.replace(
+    /(<string name="app_name">)[^<]+(<\/string>)/,
+    '$1OnScen$2',
+  );
+  content = content.replace(
+    /(<string name="title_activity_main">)[^<]+(<\/string>)/,
+    '$1OnScen$2',
+  );
+  if (content !== before) {
+    fs.writeFileSync(stringsPath, content, 'utf8');
+    console.log('[patch-android-native] strings.xml : app_name / title → OnScen');
+  } else {
+    console.log('[patch-android-native] strings.xml déjà à jour (OnScen).');
+  }
+}
+
+function removeLeftoverMelosongPackage() {
+  if (!fs.existsSync(leftoverMelosongDir)) return;
+  fs.rmSync(leftoverMelosongDir, { recursive: true, force: true });
+  console.log('[patch-android-native] dossier Java résiduel com.melosong supprimé.');
+}
+
 patchVariablesGradle();
+patchAppVersion();
 patchManifest();
+patchStringsXml();
+removeLeftoverMelosongPackage();
 console.log(
   '[patch-android-native] Terminé. Pense à lancer "npm run mobile:cert-pins" (racine) pour générer' +
     ' network_security_config.xml si absent, puis "npx cap sync android".'

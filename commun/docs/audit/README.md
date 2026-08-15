@@ -2,7 +2,11 @@
 
 ## Document de référence
 
-**Le plus récent et le plus complet :** [2026-08-audit-technique-complet/00-synthese.md](./2026-08-audit-technique-complet/00-synthese.md) (2026-08-07) — audit senior 12 phases (stack, DB, PostGIS, observabilité, sécurité, DDoS, modération/CSAM, APIs externes, légal CGU/RGPD/YouTube/global, divers), spécialisé applications sociales à fort trafic (live streaming, reels, musique). Consolide et actualise `AUDIT-CONSOLIDE.md`.
+**Builds iOS/Android (projets natifs + APK/AAB) :** [2026-08-15-cto-builds-ios-android.md](./2026-08-15-cto-builds-ios-android.md) (2026-08-15)
+
+**Le plus récent (web + mobile, correctifs appliqués) :** [2026-08-15-cto-web-mobile.md](./2026-08-15-cto-web-mobile.md) (2026-08-15)
+
+**Le plus récent et le plus complet (12 phases) :** [2026-08-audit-technique-complet/00-synthese.md](./2026-08-audit-technique-complet/00-synthese.md) (2026-08-07) — audit senior 12 phases (stack, DB, PostGIS, observabilité, sécurité, DDoS, modération/CSAM, APIs externes, légal CGU/RGPD/YouTube/global, divers), spécialisé applications sociales à fort trafic (live streaming, reels, musique). Consolide et actualise `AUDIT-CONSOLIDE.md`.
 
 **Précédent document de référence :** [AUDIT-CONSOLIDE.md](./AUDIT-CONSOLIDE.md) (2026-07-22) — fusion des audits thématiques v1/v2 et vérifications prod.
 

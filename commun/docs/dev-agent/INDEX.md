@@ -4,6 +4,10 @@ Rapports produits par `@onscen-dev-agent` à chaque session de développement si
 
 | Date | Rapport | Mission | Statut |
 |------|---------|---------|--------|
+| 2026-08-15 | [android-aab-deeplinks-2-0-2](./rapports/2026-08-15-android-aab-deeplinks-2-0-2.md) | Deep links /reels /auth + AAB release 2.0.2 | ✅ |
+| 2026-08-15 | [audit-cto-risques-restants](./rapports/2026-08-15-audit-cto-risques-restants.md) | Mitigations de tous les risques CTO encore ouverts | ⚠️ |
+| 2026-08-15 | [audit-cto-web-mobile](./rapports/2026-08-15-audit-cto-web-mobile.md) | Audit CTO web + iOS/Android + correctifs P0/P1 codables | ⚠️ |
+| 2026-08-15 | [live-mobile-chat-onscen](./rapports/2026-08-15-live-mobile-chat-onscen.md) | Chat live mobile : peau OnScen (tokens + wave) à la place du clone Twitch | ✅ |
 | 2026-08-11 | [decommission-getsoundy](./rapports/2026-08-11-decommission-getsoundy.md) | Décommissionnement complet de `getsoundy.com` (hard stop Caddy prod+staging, emails, OAuth callbacks, bug bundle frontend contaminé) — `onscen.com` seul domaine fonctionnel | ⚠️ |
 | 2026-08-11 | [verif-mobile-post-migration-domaine](./rapports/2026-08-11-verif-mobile-post-migration-domaine.md) | Vérification terrain iOS/Android post-migration domaine `onscen.com` — build Gradle réel + fix deep links Android et cert pinning manquants sur le nouveau domaine canonique | ✅ |
 | 2026-08-10 | [audit-technique-complet](./rapports/2026-08-10-audit-technique-complet.md) | Audit 12 phases + synthèse dans `commun/docs/audit/2026-08-11/` (lecture seule, npm audit + tests) | ✅ |

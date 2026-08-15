@@ -7,6 +7,7 @@
 | [`CHECKLIST-VALIDATION-AVOCAT.md`](./CHECKLIST-VALIDATION-AVOCAT.md) | Checklist (source du PDF `00-CHECKLIST`) |
 | [`dossier-avocat-a-valider/`](./dossier-avocat-a-valider/) | **PDF uniquement** — dossier à transmettre à l’avocat |
 | [`RENDEZ-VOUS-AVOCAT.md`](./RENDEZ-VOUS-AVOCAT.md) | Fiche RDV avocat |
+| [`MODELE-RAPPORT-TRANSPARENCE-DSA.md`](./MODELE-RAPPORT-TRANSPARENCE-DSA.md) | Modèle rapport DSA |
 | [`MENTIONS-LEGALES-DONS.md`](./MENTIONS-LEGALES-DONS.md) | Pourboires / commission |
 
 ## Régénérer les PDF

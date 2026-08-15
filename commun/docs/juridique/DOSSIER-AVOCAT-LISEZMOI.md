@@ -1,11 +1,11 @@
-# Dossier avocat — application (nom commercial à finaliser)
+# Dossier avocat — OnScen
 
 **Objectif :** regrouper les documents **à faire relire et valider** par un avocat (droit du numérique, RGPD, contrats B2B, monétisation, stores) avant diffusion définitive ou montée en charge commerciale.
 
 > **Avertissement :** contenu **indicatif** et issu de l’équipe produit / technique. Aucun document ne constitue un avis juridique. Les versions **opposables** sont celles publiées in-app après validation et complétion des placeholders (`{{publisherName}}`, SIREN, etc.).
 
 **Format livrable :** PDF uniquement dans `dossier-avocat-a-valider/`  
-**Contact interne :** admin@getsoundy.com
+**Contact interne :** admin@onscen.com
 
 ---
 
@@ -29,7 +29,7 @@
 | `04-rgpd-entreprise/` | Modèle DPA sous-traitants, modèle AIPD/DPIA | **Moyenne** (art. 28 & 35 RGPD) |
 | `05-audit-et-preparation/` | Fiche RDV, comparatif TI/IG, LEGAL_REPORT, extrait TODO légal | **Contexte** |
 | `06-donnees-editeur/` | Template données éditeur / hébergeur | **Haute** (mentions légales) |
-| `07-annexes-produit/` | One-pager commercial sponsors (tarifs indicatifs) | **Moyenne** |
+| `07-annexes-produit/` | One-pager commercial sponsors (prix à saisir avant envoi) | **Moyenne** |
 
 ---
 
@@ -45,7 +45,7 @@ npm run dossier-avocat --prefix commun/docs/juridique
 
 ## Manques connus (à traiter avec l’avocat)
 
-- **CGV annonceurs standalone** : aujourd’hui intégrées au contrat type sponsor — séparation ou fusion à valider.
+- **CGV annonceurs standalone** : `01-commercial-sponsors/CGV-ANNONCEURS.pdf` — complément du contrat type ; fusion ou maintien séparé à valider.
 - **Comparatif TikTok / Instagram** : voir [`COMPARATIF-JURIDIQUE-TIKTOK-INSTAGRAM.md`](./COMPARATIF-JURIDIQUE-TIKTOK-INSTAGRAM.md) — **5 documents in-app ajoutés** (août 2026) : communauté, branded content, publicité, modération/recours, droits d'auteur.
 - **IAP Apple / Google** vs Stripe web — voir extrait TODO dans `05-audit-et-preparation/`.
 - **Sign in with Apple** si Google OAuth actif sur iOS.

@@ -34,6 +34,7 @@ import {
   isResetPasswordRoute,
   isVerifyEmailRoute,
 } from './lib/forgotPasswordRoute';
+import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { GenreOnboardingPrompt, shouldShowGenrePrompt } from './components/GenreOnboardingPrompt';
 import { SalonPipPreviewFloat } from './components/SalonPipPreviewFloat';
 const LivePipPreviewFloat = lazy(() =>
@@ -1548,6 +1549,7 @@ export default function App() {
       <main
         className="ms-app-main flex-1 min-h-0 min-w-0 w-full overflow-hidden flex flex-col relative"
       >
+        <AppErrorBoundary resetKey={`${tab}:${view.type}`}>
             {user && token && user.onboardingCompleted && view.type === 'home' && !profileOpen && !salonFullScreen && (
               <PlatformConnectPrompt
                 token={token}
@@ -1819,6 +1821,7 @@ export default function App() {
           </div>
         )}
 
+        </AppErrorBoundary>
       </main>
 
       <MusicPlayerBar onOpenProfile={openProfile} />

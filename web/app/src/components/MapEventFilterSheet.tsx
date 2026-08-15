@@ -36,7 +36,7 @@ export function MapEventFilterSheet({
 
   return (
     <div
-      className="fixed inset-0 z-[130] flex items-center justify-center ms-modal-overlay bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center ms-modal-overlay bg-black/70 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="map-event-filter-title"

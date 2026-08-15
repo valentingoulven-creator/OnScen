@@ -53,8 +53,8 @@ export function getAcrCloudMaxSampleBytes(): number {
   return Math.min(envFloat('ACRCLOUD_MAX_SAMPLE_BYTES', 5 * 1024 * 1024), 5 * 1024 * 1024);
 }
 
-/** En prod : erreur API = refus upload si false. */
+/** En prod / préprod : erreur API = refus upload (ignore ACRCLOUD_FAIL_OPEN). */
 export function isAcrCloudFailOpen(): boolean {
   if (isMsdevRuntime()) return envFlag('ACRCLOUD_FAIL_OPEN', true);
-  return envFlag('ACRCLOUD_FAIL_OPEN', false);
+  return false;
 }

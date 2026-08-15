@@ -1,0 +1,72 @@
+/**
+ * Placeholder live théâtre — mobile only.
+ * Le haut était coupé : overflow:hidden + bouton Quitter en absolute
+ * sous le header / coins arrondis du hero.
+ */
+
+.live-video-stage-overlay--theater.live-video-stage-overlay--apptel {
+  justify-content: flex-start;
+  align-items: stretch;
+  padding: 0;
+  overflow: hidden;
+}
+
+.live-video-stage-overlay--apptel .live-video-stage-overlay__top-bar {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+  padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+  padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+  padding-bottom: 0.25rem;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.live-video-stage-overlay--apptel .live-video-stage-overlay__top-bar > * {
+  pointer-events: auto;
+}
+
+.live-video-stage-overlay--apptel .live-video-stage-overlay__body {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem 1rem;
+  overflow: hidden;
+}
+
+.live-video-stage-overlay--apptel .live-video-stage-overlay__card {
+  max-height: 100%;
+  overflow: hidden;
+  gap: 0.625rem;
+  padding: 1rem 0.875rem;
+}
+
+.live-video-stage-overlay--apptel .live-video-stage-overlay__art,
+.live-video-stage-overlay--apptel .live-video-stage-overlay__icon-ring {
+  width: 4.5rem;
+  height: 4.5rem;
+}
+
+@media (max-height: 640px) {
+  .live-video-stage-overlay--apptel .live-video-stage-overlay__art,
+  .live-video-stage-overlay--apptel .live-video-stage-overlay__icon-ring {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+
+  .live-video-stage-overlay--apptel .live-video-stage-overlay__card {
+    gap: 0.5rem;
+    padding: 0.75rem 0.75rem;
+  }
+}
+
+.ms-salon-fullscreen-overlay .room-theater-layout--live-theater-fill {
+  padding-top: 0;
+}

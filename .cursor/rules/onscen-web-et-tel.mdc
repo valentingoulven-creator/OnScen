@@ -1,0 +1,46 @@
+---
+description: Toute demande agent = Web + app tel (sauf @mobile-only ou web-only explicite)
+alwaysApply: true
+---
+
+# OnScen — Web + application tel (défaut agent)
+
+Toute demande à cet agent (feature, bug, UI, UX, copie, comportement) se traite **sur les deux surfaces**, pas seulement le navigateur desktop.
+
+| Surface | Source | Vérifier |
+|---------|--------|----------|
+| **Web** | `web/app/src/` | `npm run dev` → `:5173` |
+| **App tel** | PWA `/tel/` + Capacitor `ios/apptel/` | `npm run mobile:dev` → `:4082/tel/` |
+
+## Workflow
+
+1. Implémenter d’abord dans `web/app/src/` (source partagée).
+2. Chercher un override dans `ios/apptel/src/` (même chemin relatif). S’il existe, **le mettre à jour aussi** — sinon le tel reste sur l’ancien code.
+3. Si le tel a besoin d’un comportement / UI distinct : `npm run mobile:override -- create <chemin>` puis n’éditer que `ios/apptel/src/`.
+4. Conventions tel : `mobile-responsive.mdc` (dvh, touch 44px, bottom-sheet, safe-area).
+
+## Exceptions (un seul canal)
+
+- `@mobile-only` / `@apptel-only` → tel uniquement (`onscen-mobile-only.mdc`).
+- L’utilisateur dit clairement **web only** / **desktop only**.
+- Backend / scripts / infra / admin desktop-only : pas d’UI tel à dupliquer.
+
+Ne pas livrer une feature visible utilisateur sur le web sans avoir vérifié (ou override) l’app tel.
+
+## Quand l’utilisateur dit « démarre localhost »
+
+Expressions : **démarre localhost**, **demarre localhost**, **lancer localhost**, **start localhost**.
+
+**Action** — lancer **les deux** (pas seulement le web) :
+
+```powershell
+npm run dev
+npm run mobile:dev
+```
+
+| Processus | URL |
+|-----------|-----|
+| Web + API msdev | http://localhost:5173 (API :4080) |
+| App tel (PWA / Capacitor) | http://localhost:4082/tel/ |
+
+Vérifier d’abord les terminaux déjà ouverts pour ne pas dupliquer. Si un seul est déjà up, démarrer uniquement l’autre.

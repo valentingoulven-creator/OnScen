@@ -16,6 +16,7 @@
 - Preprod : `commun/scripts/deploy-preprod.ps1` → staging.onscen.com
 - Prod : **ne jamais** déployer sans demande explicite → `commun/scripts/deploy-prod.ps1`
 - Source frontend : `web/app/src/` · mobile overrides : `ios/apptel/src/` uniquement
+- **Défaut agent** : toute demande UI/produit = **Web + app tel** (règle `onscen-web-et-tel.mdc`)
 - **Mobile only** : `@mobile-only` · `npm run mobile:override -- create <chemin>` · `npm run mobile:dev` → `:4082/tel/`
 - Changelog significatif : entrée en fin de `modification.txt`
 - Doc → Google Drive : `npm run docs:gdrive:install` puis `npm run docs:gdrive:watch` (voir `commun/docs/GOOGLE-DRIVE-DOCS-SYNC.md`)

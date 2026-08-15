@@ -47,20 +47,23 @@ Ce script appelle `commun/deploy/deploy_zero_downtime.ps1 -Environment prod -Ver
 - Ne pas confondre `npm run msdev` (ancien flux build+backend seul) avec `npm run dev` (flux dev recommande : Vite HMR + backend).
 - Le deploy VPS **ne remplace pas** le push GitHub : les deux sont requis quand l'utilisateur demande un deploy.
 
-## Quand l'utilisateur dit « dev » / « lancer dev »
+## Quand l'utilisateur dit « démarre localhost » / « dev »
 
-Expressions : **dev**, **lancer dev**, **mode dev**, **demarrer l'app en local**.
+Expressions : **démarre localhost**, **demarre localhost**, **lancer localhost**, **start localhost**, **dev**, **lancer dev**, **mode dev**, **demarrer l'app en local**.
 
-**Action** :
+**Action** — Web **et** app tel (pas le web seul) :
 
 ```powershell
 npm run dev
+npm run mobile:dev
 ```
 
-ou `powershell -ExecutionPolicy Bypass -File commun/scripts/dev-start.ps1` ou `commun/msdev/LANCER-DEV.ps1`.
+ou `powershell -ExecutionPolicy Bypass -File commun/scripts/dev-start.ps1` + `npm run mobile:dev`.
 
 - `APP_ENV=msdev` — jamais la prod.
-- Navigateur : `http://localhost:5173`.
+- Web : `http://localhost:5173` (API :4080).
+- Tel : `http://localhost:4082/tel/`.
+- Vérifier les terminaux déjà ouverts pour ne pas dupliquer.
 
 ## Secrets
 

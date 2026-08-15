@@ -9,8 +9,19 @@ function isProdDeepLinkHost(hostname: string): boolean {
   return PROD_HOSTS.has(hostname.toLowerCase());
 }
 
+/** PWA `/tel/live/…` → chemin Capacitor `/live/…` (base `./`). */
+function toNativeAppPath(pathname: string): string {
+  if (pathname === '/tel' || pathname === '/tel/') return '/';
+  if (pathname.startsWith('/tel/')) {
+    const rest = pathname.slice(4);
+    return rest.startsWith('/') ? rest : `/${rest}`;
+  }
+  return pathname;
+}
+
 function applyDeepLinkPath(pathname: string, search: string, hash: string): void {
-  const path = `${pathname}${search}${hash}`;
+  const nativePath = toNativeAppPath(pathname);
+  const path = `${nativePath}${search}${hash}`;
   if (window.location.pathname + window.location.search + window.location.hash === path) return;
   window.history.pushState({}, '', path);
   window.dispatchEvent(new PopStateEvent('popstate'));

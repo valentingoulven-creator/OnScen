@@ -7,8 +7,23 @@ export const API_BASE = NATIVE_API_BASE;
 /** JWT hors Authorization pour ne pas écraser le Basic Auth Caddy (reverse proxy). */
 export const AUTH_TOKEN_HEADER = 'X-Auth-Token';
 
+function nativeClientHeader(): string {
+  try {
+    const platform = (window as unknown as { Capacitor?: { getPlatform?: () => string } }).Capacitor
+      ?.getPlatform?.();
+    if (platform === 'ios') return 'ios-native';
+    if (platform === 'android') return 'android-native';
+  } catch {
+    /* ignore */
+  }
+  return 'android-native';
+}
+
 export function headers(token?: string | null): HeadersInit {
-  const h: HeadersInit = { 'Content-Type': 'application/json' };
+  const h: HeadersInit = {
+    'Content-Type': 'application/json',
+    'X-OnScen-Client': nativeClientHeader(),
+  };
   if (token) h[AUTH_TOKEN_HEADER] = token;
   return h;
 }

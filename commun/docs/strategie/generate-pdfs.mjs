@@ -94,7 +94,7 @@ function wrapStudy(body) {
   <h1>Étude de marché,<br>business plan<br>&amp; partenaires</h1>
   <p class="cover-sub">Analyse stratégique du réseau social musique live — opportunités sponsors, projections financières et plan commercial.</p>
   <div class="cover-meta">
-    <div class="cover-meta-item"><strong>Site</strong><span>getsoundy.com</span></div>
+    <div class="cover-meta-item"><strong>Site</strong><span>onscen.com</span></div>
     <div class="cover-meta-item"><strong>Date</strong><span>Juillet 2026</span></div>
     <div class="cover-meta-item"><strong>Statut</strong><span>Confidentiel</span></div>
   </div>
@@ -112,7 +112,7 @@ function wrapStudy(body) {
 </div>
 <div class="running-head">
   <span class="brand">OnScen</span>
-  <span>Étude de marché &amp; business plan · getsoundy.com</span>
+  <span>Étude de marché &amp; business plan · onscen.com</span>
 </div>
 <div class="content">${body}</div>`;
 }
@@ -136,7 +136,7 @@ function wrapPremium(body) {
     <h1>OnScen</h1>
     <p class="bp-cover-sub">Réseau social musique live et promoteur d'artistes &amp; d'événements — modèle sponsor natif géolocalisé, projections 36 mois.</p>
     <div class="bp-cover-meta">
-      <div><strong>Site</strong><span>getsoundy.com</span></div>
+      <div><strong>Site</strong><span>onscen.com</span></div>
       <div><strong>Date</strong><span>Juillet 2026</span></div>
       <div><strong>Version</strong><span>Premium v1</span></div>
     </div>
@@ -154,7 +154,7 @@ function wrapPremium(body) {
 </div>
 <div class="bp-running-head">
   <span class="brand">${soundyLogoHtml('header')} OnScen</span>
-  <span>Business Plan Premium · getsoundy.com · Juillet 2026</span>
+  <span>Business Plan Premium · onscen.com · Juillet 2026</span>
 </div>
 <div class="bp-content">${body}</div>`;
 }
@@ -167,7 +167,7 @@ function wrapOnePager(body, heroTitle, heroLead) {
       ${soundyLogoHtml('hero')}
       <span class="onepager-hero-brand">OnScen</span>
     </div>
-    <span class="onepager-hero-url">getsoundy.com</span>
+    <span class="onepager-hero-url">onscen.com</span>
   </div>
   <h1>${heroTitle.replace(/\n/g, '<br>')}</h1>
   <p class="onepager-hero-lead">${heroLead}</p>
@@ -316,7 +316,14 @@ async function generateOne(doc) {
 }
 
 async function main() {
-  for (const doc of DOCS) {
+  const filter = process.argv[2];
+  const docs = filter
+    ? DOCS.filter((d) => d.kind === filter || d.md.includes(filter))
+    : DOCS;
+  if (docs.length === 0) {
+    throw new Error(`Aucun document pour le filtre « ${filter} »`);
+  }
+  for (const doc of docs) {
     await generateOne(doc);
   }
 

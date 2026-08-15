@@ -8,7 +8,7 @@ import { peekPendingSalonJoin } from '../lib/salonDeepLink';
 import { forgotPasswordHref } from '../lib/forgotPasswordRoute';
 import { api } from '../lib/api';
 import { ApiRequestError } from '../lib/api/core';
-import { isNativeIos } from '../lib/nativePlatform';
+import { isNativeApp, isNativeIos } from '../lib/nativePlatform';
 import { OnScenLogo } from '../components/OnScenLogo';
 import { PasswordStrengthBar } from '../components/PasswordStrengthBar';
 import { getPasswordStrengthAsync, preloadPasswordStrength } from '../lib/passwordStrength';
@@ -964,7 +964,7 @@ export function AuthPage() {
           </button>
         </form>
 
-        {(appleOAuthAvailable || (googleOAuthAvailable && !(isNativeIos() && !appleOAuthAvailable))) && (
+        {(appleOAuthAvailable || (googleOAuthAvailable && !(isNativeApp() && isProduction) && !(isNativeIos() && !appleOAuthAvailable))) && (
         <div className="shrink-0 space-y-2">
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-[#1e1e2f]" />
@@ -977,7 +977,7 @@ export function AuthPage() {
               type="button"
               onClick={() => { window.location.href = '/api/auth/apple'; }}
               aria-describedby="apple-oauth-hint"
-              className="w-full flex min-h-[40px] cursor-pointer items-center justify-center gap-3 rounded-xl border border-[#1e1e2f] bg-black px-4 py-2 text-sm transition hover:border-purple-500/50 hover:bg-[#12121a] hover:shadow-[0_0_12px_rgba(139,92,246,0.2)] active:scale-[0.99]"
+              className="w-full flex min-h-11 cursor-pointer items-center justify-center gap-3 rounded-xl border border-[#1e1e2f] bg-black px-4 py-2 text-sm transition hover:border-purple-500/50 hover:bg-[#12121a] hover:shadow-[0_0_12px_rgba(139,92,246,0.2)] active:scale-[0.99]"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" className="shrink-0 fill-white">
                 <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
@@ -986,7 +986,7 @@ export function AuthPage() {
             </button>
           )}
 
-          {googleOAuthAvailable && !(isNativeIos() && !appleOAuthAvailable) && (
+          {googleOAuthAvailable && !(isNativeApp() && isProduction) && !(isNativeIos() && !appleOAuthAvailable) && (
             <>
               <button
                 type="button"
@@ -997,7 +997,7 @@ export function AuthPage() {
                 }}
                 aria-describedby="google-oauth-hint"
                 aria-disabled={googleOAuthDisabled}
-                className={`w-full flex min-h-[40px] items-center justify-center gap-3 rounded-xl border px-4 py-2 text-sm transition ${
+                className={`w-full flex min-h-11 items-center justify-center gap-3 rounded-xl border px-4 py-2 text-sm transition ${
                   googleOAuthDisabled
                     ? 'cursor-not-allowed border-[#1a1a22] bg-[#0a0a0f] opacity-50'
                     : 'cursor-pointer border-[#1e1e2f] bg-[#12121a] active:scale-[0.99] hover:border-purple-500/50 hover:bg-[#1a1a26] hover:shadow-[0_0_12px_rgba(139,92,246,0.2)]'

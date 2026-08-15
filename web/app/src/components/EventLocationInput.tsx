@@ -20,6 +20,8 @@ import {
 } from '../lib/mapEventCoords';
 import { EventLocationMapPicker, formatPickerCoord } from './EventLocationMapPicker';
 import type { LivesGeoPrefs } from '../lib/livesGeo';
+import { useAuth } from '../context/AuthContext';
+import { canUsePreciseGeo } from '../lib/geoAgePolicy';
 
 const DEBOUNCE_MS = 300;
 const MIN_SEARCH_CHARS = 3;
@@ -85,6 +87,8 @@ export function EventLocationInput({
   onCityPicked,
 }: EventLocationInputProps) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const preciseGeoOk = canUsePreciseGeo(user);
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -229,7 +233,7 @@ export function EventLocationInput({
 
   const actionItems: DropdownItem[] = isSearching
     ? [
-        ...(geoAvailable && !cityPickMode ? [{ kind: 'my_position' as const }] : []),
+        ...(geoAvailable && !cityPickMode && preciseGeoOk ? [{ kind: 'my_position' as const }] : []),
         ...(cityPickMode ? [] : [{ kind: 'use_typed' as const, query: trimmed }]),
       ]
     : [];
@@ -307,7 +311,7 @@ export function EventLocationInput({
   };
 
   const pickMyPosition = () => {
-    if (!navigator.geolocation || locating) return;
+    if (!preciseGeoOk || !navigator.geolocation || locating) return;
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {

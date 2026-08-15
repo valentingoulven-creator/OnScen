@@ -21,7 +21,7 @@ export function initialSalonCreateLocation(
   };
 }
 
-/** @deprecated Préférer le choix explicite dans CreateSalonModal (SessionLocationPicker). */
+/** @deprecated Préférer SessionLocationPicker — ne demande plus le GPS (politique mineurs). */
 export async function resolveSalonCreatePosition(
   fallbackLatitude: number,
   fallbackLongitude: number
@@ -30,21 +30,7 @@ export async function resolveSalonCreatePosition(
   if (isFixedMapGeoSource(geo.source)) {
     return { latitude: geo.latitude, longitude: geo.longitude };
   }
-  if (typeof navigator === 'undefined' || !navigator.geolocation) {
-    return { latitude: fallbackLatitude, longitude: fallbackLongitude };
-  }
-  try {
-    const pos = await new Promise<GeolocationPosition>((res, rej) =>
-      navigator.geolocation.getCurrentPosition(res, rej, {
-        enableHighAccuracy: false,
-        timeout: 5000,
-        maximumAge: 120_000,
-      })
-    );
-    return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-  } catch {
-    return { latitude: fallbackLatitude, longitude: fallbackLongitude };
-  }
+  return { latitude: fallbackLatitude, longitude: fallbackLongitude };
 }
 
 /** Playlists bibliothèque (/me/playlists) : verify-access redondant au submit. */

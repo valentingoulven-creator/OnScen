@@ -478,7 +478,7 @@ export function MapStorySheet({ token, onClose, onPublished }: MapStorySheetProp
       ) : null}
 
       {catalogPickerOpen ? (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center ms-modal-overlay bg-black/70 px-0 sm:px-4">
+        <div className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center ms-modal-overlay bg-black/70 px-0 sm:px-4">
           <div
             className="w-full max-w-md max-h-[90dvh] rounded-2xl ms-modal-panel bg-[#12121a] border border-[#2d2d3d] flex flex-col overflow-hidden"
             role="dialog"

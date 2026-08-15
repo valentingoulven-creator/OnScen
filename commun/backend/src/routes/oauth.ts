@@ -35,6 +35,8 @@ import {
   verifyAppleIdToken,
 } from '../lib/appleOAuth';
 import { isMsdevRuntime } from '../lib/msdevGuard';
+import { assertRegistrationVolumeAllowed } from '../lib/registrationVolumeLimit';
+import { isGoogleOAuthPubliclyEnabled } from '../lib/googleOAuthPublic';
 import { redisGetDelJson, redisSetJsonEx } from '../lib/optionalRedis';
 import { createRateLimitStore } from '../lib/rateLimitStore';
 
@@ -173,7 +175,10 @@ interface OAuthProfile {
  * (bcryptjs.compare will return false for any password, keeping the account
  * secure while allowing a password to be set later from settings).
  */
-function findOrCreateOAuthUser(profile: OAuthProfile): { user: User; isNew: boolean } | { error: string } {
+async function findOrCreateOAuthUser(
+  profile: OAuthProfile,
+  ip?: string
+): Promise<{ user: User; isNew: boolean } | { error: string }> {
   const existing = [...db.users.values()].find((u) => u.email === profile.email);
   if (existing) {
     clearPasswordChangeRequiredForOAuthLogin(existing);
@@ -186,6 +191,10 @@ function findOrCreateOAuthUser(profile: OAuthProfile): { user: User; isNew: bool
   const regCheck = assertRegistrationAllowed({});
   if (!regCheck.ok) {
     return { error: regCheck.error };
+  }
+  const volumeCheck = await assertRegistrationVolumeAllowed(ip);
+  if (!volumeCheck.ok) {
+    return { error: volumeCheck.error };
   }
 
   const username = generateUsername(profile.name, profile.email);
@@ -225,11 +234,12 @@ function findUserByAppleSub(sub: string): User | undefined {
   return [...db.users.values()].find((u) => u.passwordHash === applePasswordHash(sub));
 }
 
-function findOrCreateAppleUser(
+async function findOrCreateAppleUser(
   sub: string,
   email: string | undefined,
-  name: string
-): { user: User; isNew: boolean } | { error: string } {
+  name: string,
+  ip?: string
+): Promise<{ user: User; isNew: boolean } | { error: string }> {
   const bySub = findUserByAppleSub(sub);
   if (bySub) {
     clearPasswordChangeRequiredForOAuthLogin(bySub);
@@ -257,6 +267,10 @@ function findOrCreateAppleUser(
   const regCheck = assertRegistrationAllowed({});
   if (!regCheck.ok) {
     return { error: regCheck.error };
+  }
+  const volumeCheck = await assertRegistrationVolumeAllowed(ip);
+  if (!volumeCheck.ok) {
+    return { error: volumeCheck.error };
   }
 
   const username = generateUsername(name, email);
@@ -317,17 +331,13 @@ async function postForm(url: string, body: Record<string, string>): Promise<unkn
  */
 oauthRouter.get('/providers', (_req: Request, res: Response) => {
   res.json({
-    google: Boolean(
-      process.env.GOOGLE_CLIENT_ID &&
-        process.env.GOOGLE_CLIENT_SECRET &&
-        process.env.GOOGLE_CALLBACK_URL,
-    ),
+    google: isGoogleOAuthPubliclyEnabled(),
     facebook: Boolean(
       process.env.FACEBOOK_APP_ID &&
         process.env.FACEBOOK_APP_SECRET &&
         process.env.FACEBOOK_CALLBACK_URL,
     ),
-    youtube: isYoutubeOAuthConfigured(),
+    youtube: isYoutubeOAuthConfigured() && isGoogleOAuthPubliclyEnabled(),
     instagram: isInstagramOAuthConfigured(),
     apple: isAppleOAuthConfigured(),
   });
@@ -451,7 +461,7 @@ const GOOGLE_USER_URL  = 'https://www.googleapis.com/oauth2/v2/userinfo';
 /** GET /api/auth/google — initiates the Google OAuth flow */
 oauthRouter.get('/google', oauthInitLimiter, (_req: Request, res: Response) => {
   const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL } = process.env;
-  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_CALLBACK_URL) {
+  if (!isGoogleOAuthPubliclyEnabled() || !GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_CALLBACK_URL) {
     res.redirect(`${appOrigin()}/?oauth_error=not_configured&provider=google`);
     return;
   }
@@ -500,12 +510,12 @@ oauthRouter.get('/google/callback', oauthInitLimiter, async (req: Request, res: 
 
     if (!info.email) throw new Error('Google profile has no email');
 
-    const result = findOrCreateOAuthUser({
+    const result = await findOrCreateOAuthUser({
       provider: 'google',
       email: info.email,
       name: info.name ?? '',
       avatarUrl: info.picture,
-    });
+    }, req.ip);
     if ('error' in result) {
       res.redirect(`${origin}/?oauth_error=registration_denied&provider=google`);
       return;
@@ -582,7 +592,7 @@ oauthRouter.post(
         return;
       }
 
-      const result = findOrCreateAppleUser(sub, email, name);
+      const result = await findOrCreateAppleUser(sub, email, name, req.ip);
       if ('error' in result) {
         res.redirect(`${origin}/?oauth_error=registration_denied&provider=apple`);
         return;
@@ -658,12 +668,12 @@ oauthRouter.get('/facebook/callback', oauthInitLimiter, async (req: Request, res
       );
     }
 
-    const result = findOrCreateOAuthUser({
+    const result = await findOrCreateOAuthUser({
       provider: 'facebook',
       email: info.email,
       name: info.name ?? '',
       avatarUrl: info.picture?.data?.url,
-    });
+    }, req.ip);
     if ('error' in result) {
       res.redirect(`${origin}/?oauth_error=registration_denied&provider=facebook`);
       return;

@@ -3,7 +3,7 @@
 /** Mentions légales (LCEN / France) — complétez les champs entre crochets avant mise en production. */
 export const mentionsLegales: LegalDocument = {
   title: 'Mentions légales',
-  updated: '22 juin 2026',
+  updated: '15 août 2026',
   sections: [
     {
       heading: 'Éditeur du site et de l\u2019application',
@@ -23,7 +23,7 @@ export const mentionsLegales: LegalDocument = {
     },
     {
       heading: 'Données personnelles et cookies',
-      body: `Le traitement des données personnelles est décrit dans la Politique de confidentialité et le document Conformité RGPD accessibles depuis les paramètres de l\u2019application.\n\nL\u2019application utilise le stockage local du navigateur (localStorage) pour conserver le jeton de session, certaines préférences (rayon de recherche, langue, confidentialité) et des réglages d\u2019affichage.`,
+      body: `Le traitement des données personnelles est décrit dans la Politique de confidentialité et le document Conformité RGPD accessibles depuis les paramètres de l\u2019application.\n\nOnScen utilise :\n• un cookie httpOnly sécurisé (onscen_auth) pour la session web ;\n• le stockage sécurisé de l’appareil (Keychain / Keystore) sur l’application native ;\n• localStorage uniquement pour des préférences non sensibles (langue, rayon carte, consentement cookies).`,
     },
     {
       heading: 'Signalement de contenu illicite',

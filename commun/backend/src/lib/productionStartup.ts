@@ -116,6 +116,13 @@ export function assertProductionStartup(): void {
     );
   }
 
+  if (isProductionEnv() && process.env.GOOGLE_OAUTH_PROD_ENABLED !== '1') {
+    console.warn(
+      '[startup] Google / YouTube OAuth publics coupés (client prod deleted_client). ' +
+        'Après recréation du client console : GOOGLE_OAUTH_PROD_ENABLED=1'
+    );
+  }
+
   if (isProductionEnv() && process.env.STRIPE_SECRET_KEY?.trim().startsWith('sk_test_')) {
     console.warn(
       '[startup] STRIPE_SECRET_KEY est en mode TEST (sk_test_) sur APP_ENV=production — ' +

@@ -1,6 +1,6 @@
 # Justification des tarifs sponsoring OnScen
 
-**Document interne — OnScen (getsoundy.com)**  
+**Document interne — OnScen (onscen.com)**  
 **Auteur :** analyse CTO / produit · **Date :** 3 août 2026  
 **Public :** fondateur (BIC, banque, partenaires, avocat/comptable) · **Statut :** indicatif — chiffres à recaler trimestriellement avec la comptabilité réelle.
 
@@ -280,4 +280,4 @@ Positionnement : **inventaire vertical musique + geo + formats natifs** · prix 
 
 **Packs :** Carte 199 € · Actu & Reel 249 € · Musique & Actu 229 € · Complet 499 €.
 
-*Document interne OnScen · getsoundy.com · À joindre au dossier BIC / pitch partenaires sur demande.*
+*Document interne OnScen · onscen.com · À joindre au dossier BIC / pitch partenaires sur demande.*

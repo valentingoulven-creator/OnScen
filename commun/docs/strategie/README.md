@@ -4,6 +4,7 @@
 |---------|-------------|
 | `ETUDE-MARCHE-BUSINESS-PLAN-PARTENAIRES.md` / `.pdf` | Étude de marché, business plan 36 mois, partenaires |
 | `BUDGET-EMPRIUNT-BANCAIRE-ONSCEN.md` / `.pdf` | Budget prévisionnel & dossier emprunt bancaire / BPI |
+| `BUDGET-EMPRIUNT-BANCAIRE-PRESENTATION.pdf` | Présentation graphique 9 slides (A4 paysage) |
 | `BUSINESS-PLAN-PREMIUM.md` / `.pdf` / `.html` | Business plan premium investisseurs (18 sections, style cabinet) |
 | `ONE-PAGER-SPONSOR-COMMERCIAL.md` / `.pdf` | One-pager commercial sponsors & lieux (bars, festivals) |
 | `ONSCEN-MARKETING-PRESENTATION.pptx` | Présentation marketing PowerPoint — thème sombre (16 slides · sponsors, produit, créateurs) |
@@ -30,6 +31,7 @@ Budget bancaire seul :
 ```powershell
 cd commun/docs/strategie
 npm run pdf:budget-bancaire
+npm run pdf:budget-presentation
 ```
 
 Prérequis : Microsoft Edge (headless).

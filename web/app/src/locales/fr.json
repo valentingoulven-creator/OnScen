@@ -681,7 +681,7 @@
     "giftOtherAmount": "Autre montant",
     "giftTierLabel": "Pourboire {{amount}} euros",
     "donationSheetTitle": "Cadeaux & pourboires",
-    "nativeIapDonation": "Les pourboires ne sont pas disponibles dans l'app mobile. Utilisez onscen.com dans votre navigateur pour soutenir les créateurs.",
+    "nativeIapDonation": "Les pourboires ne sont pas disponibles dans l'application mobile.",
     "donationThanks": "Merci pour votre pourboire !",
     "streamEnded": "Stream terminé",
     "streamEndedHost": "L'hôte a coupé le live.",
@@ -1569,8 +1569,8 @@
     "ageConfirm": "Je certifie avoir 18 ans ou plus et être autorisé à utiliser un moyen de paiement.",
     "simulationNotice": "Simulation — aucun paiement réel en mode développement.",
     "renewsOn": "Renouvellement le {{date}}",
-    "nativeIapNotice": "Les abonnements ne sont pas disponibles dans l'app mobile. Utilisez onscen.com dans votre navigateur pour gérer votre abonnement.",
-    "iosIapNotice": "Les abonnements ne sont pas disponibles dans l'app iOS. Utilisez la version web sur onscen.com pour gérer votre abonnement."
+    "nativeIapNotice": "Les abonnements ne sont pas disponibles dans l'application mobile.",
+    "iosIapNotice": "Les abonnements ne sont pas disponibles dans l'application iOS."
   },
   "support": {
     "title": "Contacter OnScen",

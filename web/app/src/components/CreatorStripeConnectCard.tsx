@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
 import { DONATION_MIN_AGE } from '../lib/donations';
+import { isNativeApp } from '../lib/nativePlatform';
 import type { User } from '../types';
 
 interface CreatorStripeConnectCardProps {
@@ -53,6 +54,7 @@ export function CreatorStripeConnectCard({
   }, [refresh]);
 
   if (!meetsAge) return null;
+  if (isNativeApp()) return null;
   if (loading) {
     return (
       <p className="text-[10px] text-gray-500 text-center py-1">

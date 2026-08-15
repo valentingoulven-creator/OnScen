@@ -111,7 +111,7 @@ function ChatLayoutToggle({
       type="button"
       onClick={onToggle}
       title={toFloating ? 'Mode flottant sur la vidéo' : 'Colonne fixe à droite'}
-      className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-white/10 transition"
+      className="shrink-0 w-11 h-11 sm:w-6 sm:h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-white/10 transition"
       aria-label={toFloating ? 'Passer en mode flottant' : 'Passer en colonne à droite'}
       aria-pressed={dockMode === 'floating'}
     >
@@ -422,7 +422,7 @@ function IntegratedTheaterTopBar({
         <button
           type="button"
           onClick={onToggleChat}
-          className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-white/10 transition text-lg leading-none"
+          className="shrink-0 w-11 h-11 sm:w-6 sm:h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-white/10 transition text-lg leading-none"
           aria-label="Masquer le chat"
         >
           ×
@@ -899,7 +899,7 @@ export function RoomTheaterLayout({
             <button
               type="button"
               onClick={onToggleChat}
-              className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-white/10 transition text-lg leading-none"
+              className="shrink-0 w-11 h-11 sm:w-6 sm:h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-white/10 transition text-lg leading-none"
               aria-label="Masquer le chat"
             >
               ×

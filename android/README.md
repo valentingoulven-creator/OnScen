@@ -1,4 +1,4 @@
-# Stack Android — Soundy
+# Stack Android — OnScen
 
 Build APK/AAB et export PWA standalone pour Android.
 
@@ -16,8 +16,8 @@ Build APK/AAB et export PWA standalone pour Android.
 
 ```bash
 npm run mobile:build            # apptel build + export → OnScen-Mobile/www
-npm run android:apk:prod        # APK → android/OnScen-Mobile/Soundy-debug-prod.apk
-npm run android:aab:prod        # AAB → android/OnScen-Mobile/Soundy-release-prod.aab
+npm run android:apk:prod        # APK → android/OnScen-Mobile/OnScen-debug-prod.apk
+npm run android:aab:prod        # AAB → android/OnScen-Mobile/OnScen-release-prod.aab
 npm run msdev:mobile            # serveur LAN pour tester sur tel
 ```
 

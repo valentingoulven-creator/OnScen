@@ -81,6 +81,7 @@ import {
   sendSignupNotificationEmail,
 } from '../lib/mailer';
 import { verifyTurnstileToken } from '../lib/turnstile';
+import { assertRegistrationVolumeAllowed } from '../lib/registrationVolumeLimit';
 
 function issueVerificationToken(user: User): { token: string; url: string } {
   const token = crypto.randomBytes(32).toString('hex');
@@ -180,6 +181,11 @@ authRouter.post('/register', async (req: Request, res: Response) => {
   const regCheck = assertRegistrationAllowed({ inviteCode });
   if (!regCheck.ok) {
     res.status(regCheck.status).json({ error: regCheck.error });
+    return;
+  }
+  const volumeCheck = await assertRegistrationVolumeAllowed(req.ip);
+  if (!volumeCheck.ok) {
+    res.status(volumeCheck.status).json({ error: volumeCheck.error });
     return;
   }
   if (!acceptTerms) {
@@ -364,7 +370,6 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     res.status(403).json({
       error: "Votre adresse e-mail n'est pas encore vérifiée. Consultez vos e-mails ou demandez un nouveau lien.",
       code: 'email_not_verified',
-      email: user.email,
     });
     return;
   }
@@ -748,23 +753,26 @@ authRouter.patch('/ghost-mode', authenticateJWT, (req: Request, res: Response) =
   res.json({ isGhostMode: user.isGhostMode });
 });
 
-/** Vérification disponibilité du pseudo (sans auth) */
-authRouter.get('/check-username', (req: Request, res: Response) => {
+/** Vérification disponibilité du pseudo (sans auth) — délai constant anti-énumération. */
+authRouter.get('/check-username', async (req: Request, res: Response) => {
+  const started = Date.now();
   const username = String(req.query.username || '').trim();
+  let available = false;
+  let reason: string | null = null;
   if (username.length < 2) {
-    res.json({ available: false, reason: 'Pseudo trop court (min. 2 caractères)' });
-    return;
+    reason = 'Pseudo trop court (min. 2 caractères)';
+  } else if (username.length > 30) {
+    reason = 'Pseudo trop long (max. 30 caractères)';
+  } else if (!/^[a-zA-Z0-9_\-.àâäéèêëîïôùûüç]+$/i.test(username)) {
+    reason = 'Caractères non autorisés dans le pseudo';
+  } else {
+    const taken = Boolean(db.users.findByUsernameLower(username));
+    available = !taken;
+    reason = taken ? "Ce pseudo n'est pas disponible" : null;
   }
-  if (username.length > 30) {
-    res.json({ available: false, reason: 'Pseudo trop long (max. 30 caractères)' });
-    return;
-  }
-  if (!/^[a-zA-Z0-9_\-.àâäéèêëîïôùûüç]+$/i.test(username)) {
-    res.json({ available: false, reason: 'Caractères non autorisés dans le pseudo' });
-    return;
-  }
-  const taken = Boolean(db.users.findByUsernameLower(username));
-  res.json({ available: !taken, reason: taken ? 'Ce pseudo n\'est pas disponible' : null });
+  const wait = 280 - (Date.now() - started);
+  if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+  res.json({ available, reason });
 });
 
 /** Changement de mot de passe */
