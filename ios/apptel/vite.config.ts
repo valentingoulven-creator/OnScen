@@ -211,7 +211,7 @@ export default defineConfig({
     ...(isCapacitorBuild ? [] : [VitePWA({
       registerType: 'autoUpdate',
       injectRegister: false,
-      includeAssets: ['icon.svg', 'favicon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
+      includeAssets: ['icon.png', 'favicon-32x32.png', 'favicon-48x48.png', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
         name: 'OnScen',
         short_name: 'OnScen',
@@ -224,9 +224,9 @@ export default defineConfig({
         lang: 'fr',
         icons: [
           {
-            src: '/icon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
+            src: '/icon.png',
+            sizes: '512x512',
+            type: 'image/png',
             purpose: 'any',
           },
           {

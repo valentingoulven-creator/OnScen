@@ -41695,5 +41695,33 @@ FICHIERS MODIFIÉS
 Fin MODIF 1437 — 2026-08-15
 ================================================================================
 
+================================================================================
+MODIF 1438 — Logo app iOS/Android + favicon onglet — Soundly Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Remplacer l’icône placeholder (carré violet « j ») par le visuel concert +
+ onde 5 barres, sur iOS, Android et l’onglet navigateur.
+
+CHANGEMENTS / FIX
+-----
+ commun/scripts/apply-app-icon.mjs
+ ─────────────────
+ • Recadre le source (retire coins noirs pré-arrondis)
+ • Génère PWA, favicon, AppIcon 1024, mipmaps Android
+
+FICHIERS MODIFIÉS
+-----
+ commun/brand/onscen-app-icon-source.png → source
+ web/app/index.html + ios/apptel/index.html → favicon PNG
+ ios/apptel/.../AppIcon-512@2x.png → 1024 sans alpha
+ web/app/public + ios/apptel/public → pwa/favicon/icon.png
+
+================================================================================
+Fin MODIF 1438 — 2026-08-15
+================================================================================
+
 
 

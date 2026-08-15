@@ -15,6 +15,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const apptelRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -217,6 +218,14 @@ patchAppVersion();
 patchManifest();
 patchStringsXml();
 removeLeftoverMelosongPackage();
+
+const iconScript = path.join(apptelRoot, '../../commun/scripts/apply-app-icon.mjs');
+if (fs.existsSync(iconScript)) {
+  const r = spawnSync(process.execPath, [iconScript], { stdio: 'inherit' });
+  if (r.status !== 0) {
+    console.warn('[patch-android-native] apply-app-icon a échoué (icônes Android non régénérées).');
+  }
+}
 console.log(
   '[patch-android-native] Terminé. Pense à lancer "npm run mobile:cert-pins" (racine) pour générer' +
     ' network_security_config.xml si absent, puis "npx cap sync android".'
