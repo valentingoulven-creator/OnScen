@@ -14,6 +14,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const sourcePath = path.join(root, 'commun/brand/onscen-app-icon-source.png');
+const faviconSvgPath = path.join(root, 'commun/brand/onscen-favicon.svg');
 
 async function loadSharp() {
   const require = createRequire(import.meta.url);
@@ -107,15 +108,19 @@ async function main() {
   await writePng(square, path.join(webPublic, 'pwa-192x192.png'), 192);
   await writePng(square, path.join(webPublic, 'pwa-512x512.png'), 512);
   await writePng(square, path.join(webPublic, 'icon.png'), 512);
-  await writePng(square, path.join(webPublic, 'favicon-32x32.png'), 32);
-  await writePng(square, path.join(webPublic, 'favicon-48x48.png'), 48);
 
   await writePng(square, path.join(telPublic, 'pwa-192x192.png'), 192);
   await writePng(square, path.join(telPublic, 'pwa-512x512.png'), 512);
   await writePng(square, path.join(telPublic, 'icon.png'), 512);
   await writePng(square, path.join(telPublic, 'apple-touch-icon.png'), 180);
-  await writePng(square, path.join(telPublic, 'favicon-32x32.png'), 32);
-  await writePng(square, path.join(telPublic, 'favicon-48x48.png'), 48);
+
+  const faviconSvg = fs.readFileSync(faviconSvgPath);
+  const favicon = sharp(faviconSvg, { density: 384 });
+  for (const destDir of [webPublic, telPublic]) {
+    fs.copyFileSync(faviconSvgPath, path.join(destDir, 'favicon.svg'));
+    await writePng(favicon, path.join(destDir, 'favicon-32x32.png'), 32, { flatten: false });
+    await writePng(favicon, path.join(destDir, 'favicon-48x48.png'), 48, { flatten: false });
+  }
 
   await writePng(square, iosIcon, 1024);
   await writePng(square, resourcesIcon, 1024);

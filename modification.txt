@@ -41723,5 +41723,27 @@ FICHIERS MODIFIÉS
 Fin MODIF 1438 — 2026-08-15
 ================================================================================
 
+================================================================================
+MODIF 1439 — Favicon onglet contrasté (style Insta) — Soundly Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le favicon photo sombre disparaissait dans les onglets Chrome dark.
+ Instagram reste lisible grâce à un glyphe blanc sur dégradé saturé.
+
+CHANGEMENTS / FIX
+-----
+ commun/brand/onscen-favicon.svg
+ ─────────────────
+ • Onde 5 barres blanches épaisses sur dégradé cyan → violet → rose
+ • PNG 32/48 + SVG ; cache-bust ?v=2
+ • Icônes app iOS/Android inchangées (photo concert)
+
+================================================================================
+Fin MODIF 1439 — 2026-08-15
+================================================================================
+
 
 
