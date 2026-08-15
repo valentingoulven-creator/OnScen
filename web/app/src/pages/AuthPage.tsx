@@ -9,6 +9,7 @@ import { forgotPasswordHref } from '../lib/forgotPasswordRoute';
 import { api } from '../lib/api';
 import { ApiRequestError } from '../lib/api/core';
 import { isNativeApp, isNativeIos } from '../lib/nativePlatform';
+import { isWebAuthnOffered } from '../lib/webAuthnUi';
 import { OnScenLogo } from '../components/OnScenLogo';
 import { PasswordStrengthBar } from '../components/PasswordStrengthBar';
 import { getPasswordStrengthAsync, preloadPasswordStrength } from '../lib/passwordStrength';
@@ -19,8 +20,6 @@ import { AuthPageShell } from '../components/AuthSpaceBackground';
 import { TurnstileWidget, isTurnstileEnabledClient } from '../components/TurnstileWidget';
 import { BirthDateInput } from '../components/BirthDateInput';
 import { birthDateErrorMessage, validateBirthDate } from '../lib/profileAge';
-import { startAuthentication } from '@simplewebauthn/browser';
-
 // ─── OAuth provider status ───────────────────────────────────────────────────
 
 const OAUTH_ERROR_MESSAGES: Record<string, (provider: string) => string> = {
@@ -170,7 +169,7 @@ export function AuthPage() {
       setAppleOAuthAvailable(p.apple);
     }).catch(() => {});
 
-    // Vérifie si la biométrie est disponible sur cet appareil/navigateur
+    if (!isWebAuthnOffered()) return;
     if (
       typeof window !== 'undefined' &&
       typeof window.PublicKeyCredential !== 'undefined' &&
@@ -325,9 +324,11 @@ export function AuthPage() {
   }, []);
 
   const handleBiometricLogin = async () => {
+    if (!isWebAuthnOffered()) return;
     setError('');
     setBiometricLoading(true);
     try {
+      const { startAuthentication } = await import('@simplewebauthn/browser');
       const options = await api.webauthnLoginOptions();
       const { sessionId, ...authOptions } = options;
       const authResponse = await startAuthentication({ optionsJSON: authOptions });

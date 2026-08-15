@@ -32,6 +32,7 @@ import {
   updateCredentialCounter,
   deleteCredential,
 } from '../lib/pgWebAuthn';
+import { rejectIfWebAuthnDisabledOnWeb } from '../lib/webAuthnPublic';
 
 // ── Relying Party configuration ───────────────────────────────────────────────
 const rpID   = process.env.WEBAUTHN_RP_ID   ?? 'onscen.com';
@@ -43,6 +44,11 @@ function getExpectedOrigins(): string[] {
 }
 
 export const webauthnRouter = Router();
+
+webauthnRouter.use((req, res, next) => {
+  if (rejectIfWebAuthnDisabledOnWeb(req, res)) return;
+  next();
+});
 
 // ── Rate limiter: 30 req / 15 min per IP ─────────────────────────────────────
 const webauthnLimiter = rateLimit({

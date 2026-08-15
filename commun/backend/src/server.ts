@@ -574,7 +574,7 @@ app.use('/api/auth', authLimiter, authRouter);
 // OAuth routes are mounted separately: the auth code exchange is naturally
 // rate-limited by Google/Facebook, and callback URLs must not be blocked.
 app.use('/api/auth', oauthRouter);
-// WebAuthn / Passkeys (Face ID, Touch ID, empreinte Android, Windows Hello)
+// WebAuthn / Passkeys (natif + web hors prod ; coupé sur le web en production)
 app.use('/api/auth/webauthn', webauthnRouter);
 app.use('/api/auth/2fa', twoFactorRouter);
 app.use('/api/access', accessRouter);
