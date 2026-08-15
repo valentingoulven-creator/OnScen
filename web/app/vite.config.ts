@@ -134,7 +134,7 @@ export default defineConfig(({ mode }) => {
     VitePWA({
       registerType: 'prompt',
       injectRegister: false,
-      includeAssets: ['icon.svg', 'favicon.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
+      includeAssets: ['icon.png', 'favicon-32x32.png', 'favicon-48x48.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
         name: 'OnScen',
         short_name: 'OnScen',
@@ -147,9 +147,9 @@ export default defineConfig(({ mode }) => {
         lang: 'fr',
         icons: [
           {
-            src: '/icon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
+            src: '/icon.png',
+            sizes: '512x512',
+            type: 'image/png',
             purpose: 'any',
           },
           {

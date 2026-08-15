@@ -6,8 +6,10 @@ import { describe, expect, it } from 'vitest';
 const publicDir = join(dirname(fileURLToPath(import.meta.url)), '../../public');
 
 describe('PWA assets', () => {
-  it('icon.svg exists for favicon and manifest', () => {
-    expect(existsSync(join(publicDir, 'icon.svg'))).toBe(true);
+  it('PNG brand icons exist for favicon and manifest', () => {
+    for (const file of ['icon.png', 'favicon-32x32.png', 'favicon-48x48.png']) {
+      expect(existsSync(join(publicDir, file))).toBe(true);
+    }
   });
 
   it('PNG icons exist for home-screen install', () => {
