@@ -38,7 +38,7 @@ export function SalonYoutubeJoinModal({ token, user, onUserUpdated }: SalonYoutu
 
   const modal = (
     <div
-      className="fixed inset-0 z-[115] flex items-center justify-center ms-modal-overlay bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[115] flex items-end sm:items-center justify-center ms-modal-overlay bg-black/60 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="salon-youtube-join-title"

@@ -37,6 +37,24 @@ process.env.VITE_APP_ENV = 'production';
 process.env.VITE_API_URL = 'https://onscen.com/api';
 process.env.VITE_SOCKET_URL = 'https://onscen.com';
 
+const webEnvPath = path.resolve(apptelRoot, '..', '..', 'web', 'app', '.env.production');
+if (fs.existsSync(webEnvPath)) {
+  for (const line of fs.readFileSync(webEnvPath, 'utf8').split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq < 1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    const val = trimmed.slice(eq + 1).trim().replace(/^['"]|['"]$/g, '');
+    if (key.startsWith('VITE_SENTRY_') && !process.env[key]) {
+      process.env[key] = val;
+    }
+  }
+}
+if (!process.env.VITE_SENTRY_RELEASE) {
+  process.env.VITE_SENTRY_RELEASE = `onscen-apptel@${Date.now()}`;
+}
+
 console.log('[capacitor-build-prod] VITE_APP_ENV     =', process.env.VITE_APP_ENV);
 console.log('[capacitor-build-prod] VITE_API_URL     =', process.env.VITE_API_URL);
 console.log('[capacitor-build-prod] VITE_SOCKET_URL  =', process.env.VITE_SOCKET_URL);

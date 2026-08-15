@@ -8,7 +8,7 @@ export const API_BASE = '/api';
 export const AUTH_TOKEN_HEADER = 'X-Auth-Token';
 
 export function headers(token?: string | null): HeadersInit {
-  const h: HeadersInit = { 'Content-Type': 'application/json' };
+  const h: HeadersInit = { 'Content-Type': 'application/json', 'X-OnScen-Client': 'web' };
   if (token) h[AUTH_TOKEN_HEADER] = token;
   return h;
 }

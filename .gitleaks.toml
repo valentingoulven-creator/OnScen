@@ -1,0 +1,13 @@
+title = "OnScen"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Fichiers de doc / exemples / pins publics"
+paths = [
+  '''.*\.md$''',
+  '''.*\.example$''',
+  '''.*\.xcprivacy$''',
+  '''network_security_config\.xml$''',
+]

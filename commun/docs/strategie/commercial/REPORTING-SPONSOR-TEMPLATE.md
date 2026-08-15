@@ -89,7 +89,7 @@
 
 | Métrique | Valeur | Source |
 |----------|--------|--------|
-| Clics trackés (UTM OnScen) | [CLICS_UTM] | `utm_source=soundy&utm_medium=[placement]&utm_campaign=[id]` |
+| Clics trackés (UTM OnScen) | [CLICS_UTM] | `utm_source=onscen&utm_medium=[placement]&utm_campaign=[id]` |
 | Visites landing / billetterie | [VISITES_LANDING] | Analytics annonceur |
 | Conversions (billets, inscriptions) | [CONVERSIONS] | [SOURCE_CONV] |
 

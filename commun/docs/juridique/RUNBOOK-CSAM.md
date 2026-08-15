@@ -9,7 +9,7 @@ Ce document n'est **pas** un texte destiné aux utilisateurs (voir CGU/politique
 
 ## 0. Contacts alertes et SLA interne
 
-- **Destinataires email** : `SMTP_ADMIN_EMAIL` (défaut admin@getsoundy.com) + **`ALERT_EXTRA_EMAILS`** (liste séparée par des virgules dans `.env` VPS — ex. modérateur, fondateur). Configurer au minimum une adresse surveillée **7j/7** pour `csam_risk_detected` et `urgent_content_report`.
+- **Destinataires email** : `SMTP_ADMIN_EMAIL` (défaut admin@onscen.com) + **`ALERT_EXTRA_EMAILS`** (liste séparée par des virgules dans `.env` VPS — ex. modérateur, fondateur). Configurer au minimum une adresse surveillée **7j/7** pour `csam_risk_detected` et `urgent_content_report`.
 - **SLA interne** (aligné CGU, en attente validation avocat) : qualification d'un signalement **urgent** (`illegal`, `csam_risk`) **< 24 h ouvrées** ; action conservatoire (suspension compte) **< 1 h ouvrée** si alerte automatique `minor_risk` ou signalement `csam_risk` crédible.
 - **Signalement utilisateur vs détection auto** :
   - **Détection Sightengine** (`minor_risk`, frame live) → contenu **non publié** ou live **coupé automatiquement** + alerte `csam_risk_detected`.

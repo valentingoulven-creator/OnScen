@@ -27,6 +27,7 @@ import {
   isInstagramOAuthConfigured,
 } from '../lib/instagramOAuth';
 import { canUseMockPlatformConnect } from '../lib/platformMockConnect';
+import { isGoogleOAuthPubliclyEnabled } from '../lib/googleOAuthPublic';
 import { listHostYoutubePlaylists } from '../lib/youtubePlaylists';
 
 export const platformsRouter = Router();
@@ -44,7 +45,7 @@ platformsRouter.get('/status', authenticateJWT, asyncHandler(async (req: Request
   }
   ensurePlatformAccountsFromLegacy(user);
   db.users.set(userId, user);
-  const youtubeOAuthAvailable = isYoutubeOAuthConfigured();
+  const youtubeOAuthAvailable = isYoutubeOAuthConfigured() && isGoogleOAuthPubliclyEnabled();
   const instagramOAuthAvailable = isInstagramOAuthConfigured();
   const oauthConfigured = youtubeOAuthAvailable || instagramOAuthAvailable;
 
@@ -73,7 +74,7 @@ platformsRouter.get('/status', authenticateJWT, asyncHandler(async (req: Request
 }));
 
 platformsRouter.get('/youtube/oauth/url', authenticateJWT, (req: Request, res: Response) => {
-  if (!isYoutubeOAuthConfigured()) {
+  if (!isYoutubeOAuthConfigured() || !isGoogleOAuthPubliclyEnabled()) {
     res.status(404).json({
       error:
         'OAuth Google/YouTube non configuré (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, YOUTUBE_CALLBACK_URL)',

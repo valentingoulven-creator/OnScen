@@ -16,7 +16,7 @@
     "cap:open:ios": "npx cap open ios",
     "cap:add:android": "npx cap add android && node scripts/patch-android-native.mjs",
     "cap:add:ios": "npx cap add ios",
-    "android:apk": "cd android && gradlew.bat assembleDebug",
+    "android:apk": "node scripts/patch-android-native.mjs && cd android && gradlew.bat assembleDebug",
     "pwa:icons": "node scripts/generate-pwa-icons.mjs",
     "lint": "eslint .",
     "preview": "vite preview",

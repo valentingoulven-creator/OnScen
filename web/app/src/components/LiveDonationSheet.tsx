@@ -384,9 +384,9 @@ export function LiveDonationSheet({
 
   if (isNativeApp()) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center ms-modal-overlay bg-black/60" onClick={onClose}>
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center ms-modal-overlay bg-black/60" onClick={onClose}>
         <div
-          className="w-full max-w-md bg-[#12121a] rounded-2xl ms-modal-panel border border-[#2d2d3d] shadow-2xl p-6 pb-8"
+          className="w-full max-w-md bg-[#12121a] rounded-t-2xl sm:rounded-2xl ms-modal-panel border border-[#2d2d3d] shadow-2xl p-6 pb-[max(2rem,env(safe-area-inset-bottom))]"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between mb-4">
@@ -480,9 +480,9 @@ export function LiveDonationSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center ms-modal-overlay bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center ms-modal-overlay bg-black/60" onClick={onClose}>
       <div
-        className="w-full max-w-md bg-[#12121a] rounded-2xl ms-modal-panel border border-[#2d2d3d] shadow-2xl p-4 pb-6 max-h-[90dvh] overflow-y-auto"
+        className="w-full max-w-md bg-[#12121a] rounded-t-2xl sm:rounded-2xl ms-modal-panel border border-[#2d2d3d] shadow-2xl p-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] max-h-[90dvh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

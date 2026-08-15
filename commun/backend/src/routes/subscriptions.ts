@@ -8,6 +8,8 @@ import type {
 } from '../lib/stripeLegacyTypes';
 import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
+import { rejectIfNativePayments } from '../lib/clientPlatform';
+import { rejectIfStripeTestInProduction } from '../lib/stripeLiveGuard';
 import { getJwtSecret, JWT_VERIFY_OPTIONS } from '../lib/jwtSecret';
 import { getStripeClient } from '../lib/stripeClient';
 import { persistSubscriptionCheckoutToPgAsync } from '../lib/pgSubscriptionCheckouts';
@@ -244,6 +246,8 @@ subscriptionsRouter.post('/simulate', authenticateJWT, (req: Request, res: Respo
 });
 
 subscriptionsRouter.post('/create-checkout', authenticateJWT, async (req: Request, res: Response) => {
+  if (rejectIfNativePayments(req, res)) return;
+  if (rejectIfStripeTestInProduction(res)) return;
   if (isSubscriptionSimulationMode()) {
     res.status(400).json({ error: 'Utilisez la simulation en mode msdev' });
     return;
@@ -277,6 +281,13 @@ subscriptionsRouter.post('/create-checkout', authenticateJWT, async (req: Reques
     res.status(403).json({
       error: 'Vous devez avoir 18 ans ou plus pour vous abonner',
       code: 'SUBSCRIPTION_AGE_REQUIRED',
+    });
+    return;
+  }
+  if (ageConfirmed !== true) {
+    res.status(400).json({
+      error: 'Confirmation d’âge requise.',
+      code: 'AGE_CONFIRMATION_REQUIRED',
     });
     return;
   }
@@ -405,6 +416,8 @@ subscriptionsRouter.post('/create-checkout', authenticateJWT, async (req: Reques
 });
 
 subscriptionsRouter.post('/create-portal', authenticateJWT, async (req: Request, res: Response) => {
+  if (rejectIfNativePayments(req, res)) return;
+  if (rejectIfStripeTestInProduction(res)) return;
   if (isSubscriptionSimulationMode()) {
     res.status(400).json({ error: 'Portail Stripe indisponible en simulation' });
     return;

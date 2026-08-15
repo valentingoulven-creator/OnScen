@@ -10,8 +10,15 @@
 
 	header {
 		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		X-Robots-Tag "noindex, nofollow"
+		Permissions-Policy "geolocation=(self), microphone=(self), camera=(self), payment=()"
+		-Server
+	}
+
+	request_body {
+		max_size 25MB
 	}
 
 	encode zstd gzip

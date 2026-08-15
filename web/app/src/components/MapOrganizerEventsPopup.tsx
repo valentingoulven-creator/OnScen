@@ -38,7 +38,7 @@ export function MapOrganizerEventsPopup({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[110] flex items-center justify-center ms-modal-overlay bg-black/65 backdrop-blur-sm"
+      className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center ms-modal-overlay bg-black/65 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label={t('map.organizerEventsTitle', {

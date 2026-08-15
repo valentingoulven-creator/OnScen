@@ -2,7 +2,7 @@
  * Exporte les LegalDocument (web/app/src/content/legal/*.ts) en Markdown
  * dans commun/docs/juridique/_build-dossier-avocat/ (intermédiaire → PDF).
  */
-import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync, rmSync } from 'fs';
 import { dirname, join, relative } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -156,6 +156,9 @@ const uniqueExports = exports.filter((e, i, arr) => {
   return arr.findIndex((x) => x.out === e.out) === i;
 });
 
+if (existsSync(BUILD)) {
+  rmSync(BUILD, { recursive: true, force: true });
+}
 mkdirSync(OUT_USER, { recursive: true });
 mkdirSync(OUT_RGPD, { recursive: true });
 
@@ -181,6 +184,14 @@ const staticCopies = [
   [
     join(REPO, 'commun', 'docs', 'strategie', 'commercial', 'CONTRAT-TYPE-SPONSOR.md'),
     join(BUILD, '01-commercial-sponsors', 'CONTRAT-TYPE-SPONSOR.md'),
+  ],
+  [
+    join(REPO, 'commun', 'docs', 'strategie', 'commercial', 'CGV-ANNONCEURS.md'),
+    join(BUILD, '01-commercial-sponsors', 'CGV-ANNONCEURS.md'),
+  ],
+  [
+    join(REPO, 'commun', 'docs', 'juridique', 'MODELE-RAPPORT-TRANSPARENCE-DSA.md'),
+    join(BUILD, '05-audit-et-preparation', 'MODELE-RAPPORT-TRANSPARENCE-DSA.md'),
   ],
   [
     join(REPO, 'commun', 'docs', 'strategie', 'commercial', 'REPORTING-SPONSOR-TEMPLATE.md'),

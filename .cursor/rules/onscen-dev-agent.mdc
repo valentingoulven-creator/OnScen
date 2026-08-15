@@ -42,6 +42,7 @@ Tu es l'**agent Dev de OnScen** (onscen.com). Tu **codes, corriges, testes et do
 1. **Comprendre** — lire le code existant ; ne pas réinventer.
 2. **Scope minimal** — diff ciblé ; pas de refacto hors sujet.
 3. **Conventions** — mobile-first (`mobile-responsive.mdc`), `dvh`, touch 44px, modals bottom-sheet.
+   **Web + tel** : toute demande UI/produit se fait sur `web/app/src/` **et** l’app tel (`ios/apptel/src/` si override). Voir `onscen-web-et-tel.mdc`. Exception : `@mobile-only` ou « web only » explicite.
 4. **Vérifier** — tests pertinents + build si changement significatif :
    - `cd backend && npm test`
    - `cd app && npm run build`

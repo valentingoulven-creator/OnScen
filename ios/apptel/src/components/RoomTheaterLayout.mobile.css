@@ -1,0 +1,289 @@
+/* Live mobile = Twitch app : player 16:9 pleine largeur, chat sous la vidéo. */
+
+/*
+ * Premier plan au-dessus du header (z-100). Même principe que le fallback
+ * landscape-theater : l’overlay isolé ne gagne jamais contre le bandeau sinon.
+ */
+.ms-app-shell:has(.room-theater-layout--live-theater) header.ms-app-header {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.ms-app-shell:has(.room-theater-layout--live-theater) nav.ms-tab-bar-bottom {
+  z-index: 120 !important;
+}
+
+.ms-salon-fullscreen-overlay:has(.room-theater-layout--live-theater),
+.ms-salon-fullscreen-overlay:has(.room-theater-video-stage--live-theater) {
+  top: 0 !important;
+  z-index: 110 !important;
+}
+
+.ms-salon-fullscreen-overlay .room-theater-layout--live-theater.room-theater-layout--live-theater-fill,
+.ms-salon-fullscreen-overlay .room-theater-layout--live-theater {
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  padding: 0 !important;
+}
+
+.ms-salon-fullscreen-overlay .room-theater-stack-column--live-theater,
+.ms-salon-fullscreen-overlay .room-theater-video-stage--live-theater,
+.ms-salon-fullscreen-overlay .room-theater-video-stage--live-theater .live-video-container--theater,
+.ms-salon-fullscreen-overlay .room-theater-video-stage--live-theater .live-video-theater-body {
+  flex: 1 1 0 !important;
+  align-self: stretch !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  margin-inline: 0 !important;
+}
+
+.ms-salon-fullscreen-overlay .room-theater-video-stage--live-theater .live-theater-stage-stack {
+  flex: 0 0 auto !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  aspect-ratio: 16 / 9 !important;
+  margin-inline: 0 !important;
+}
+
+/* Chat masqué : recentrer le player 16:9 dans l’écran. */
+.ms-salon-fullscreen-overlay
+  .room-theater-video-stage--live-theater
+  .live-video-theater-body:not(:has(.onscen-salle)):not(:has(.tiktok-live-chat)) {
+  justify-content: center !important;
+}
+
+.ms-salon-fullscreen-overlay .room-theater-video-stage--live-theater .live-theater-hero-wrap,
+.ms-salon-fullscreen-overlay .room-theater-video-stage--live-theater .live-theater-hero,
+.ms-salon-fullscreen-overlay .room-theater-video-stage--live-theater .live-theater-hero__frame {
+  flex: 1 1 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  aspect-ratio: unset !important;
+  margin-inline: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.ms-salon-fullscreen-overlay
+  .room-theater-stack-column--live-theater
+  .room-theater-bottom-chat-dock--stacked {
+  flex: 0 0 auto !important;
+  width: 100%;
+  height: min(26dvh, 200px);
+  min-height: 7.5rem;
+  max-height: min(28dvh, 220px);
+  margin-top: 0.375rem;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Player 16:9 : contain (letterbox si le flux n’est pas 16:9), comme Twitch. */
+.ms-salon-fullscreen-overlay .room-theater-video-stage--live-theater .live-video-stage-area video,
+.ms-salon-fullscreen-overlay .room-theater-video-stage--live-theater .live-video-stage-area video.live-stage-video,
+.ms-salon-fullscreen-overlay
+  .room-theater-video-stage--live-theater
+  .live-video-stage-area
+  video.live-cloudflare-stage-video,
+.ms-salon-fullscreen-overlay
+  .room-theater-video-stage--live-theater
+  .live-video-container[data-live-viewer='true']
+  .live-video-stage-area
+  video,
+.ms-salon-fullscreen-overlay
+  .room-theater-video-stage--live-theater
+  .live-video-container[data-live-host='true']
+  .live-video-stage-area
+  video,
+.ms-salon-fullscreen-overlay
+  .room-theater-video-stage--live-theater
+  .live-video-container[data-live-host='true']
+  .live-video-stage-area
+  video.lk-live-stage-video,
+.ms-salon-fullscreen-overlay
+  .room-theater-video-stage--live-theater
+  .live-video-stage-area
+  .lk-participant-media-video {
+  object-fit: contain !important;
+  object-position: center center;
+}
+
+.ms-salon-fullscreen-overlay .live-video-stage-area > .absolute.top-2.left-2.z-30.flex {
+  top: auto !important;
+  left: auto !important;
+  right: 0.5rem !important;
+  bottom: 0.5rem !important;
+  z-index: 40 !important;
+}
+
+.ms-salon-fullscreen-overlay .live-video-stage-area > .live-theater-live-meta {
+  top: 0.5rem !important;
+  left: 0.5rem !important;
+  right: auto !important;
+  bottom: auto !important;
+  justify-self: start !important;
+  align-self: start !important;
+  z-index: 40 !important;
+}
+
+.ms-salon-fullscreen-overlay .room-theater-dock-header--compact {
+  min-height: 2rem;
+  height: 2rem;
+}
+
+.ms-salon-fullscreen-overlay .room-theater-dock-header--compact button,
+.ms-salon-fullscreen-overlay .room-theater-dock-header--compact [role='button'] {
+  width: 2rem !important;
+  height: 2rem !important;
+  min-width: 2rem !important;
+  min-height: 2rem !important;
+}
+
+/*
+ * Fallback : layout web encore en colonne gauche.
+ */
+.ms-salon-fullscreen-overlay .room-theater-side-row--live-left,
+.ms-salon-fullscreen-overlay .room-theater-layout--live-theater-fill .room-theater-side-row--left {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.ms-salon-fullscreen-overlay .room-theater-side-row--live-left .room-theater-video-stage--live-theater {
+  order: 1;
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  min-height: 0;
+}
+
+.ms-salon-fullscreen-overlay .room-theater-layout--live-theater-fill .room-theater-chat-dock--live-left,
+.ms-salon-fullscreen-overlay .room-theater-chat-dock--live-left.room-theater-chat-dock--theater,
+.ms-salon-fullscreen-overlay .room-theater-chat-dock--live-left.room-theater-chat-dock--custom-width {
+  order: 2;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  flex: 0 0 auto !important;
+  height: min(26dvh, 200px);
+  min-height: 7.5rem;
+  border-right: none !important;
+  border-top: 1px solid #1e1e2f;
+}
+
+.ms-salon-fullscreen-overlay .room-theater-chat-dock--live-left .room-theater-chat-dock__resize-handle {
+  display: none !important;
+}
+
+/* Vue immersive (bouton plein écran) : vidéo pleine, chat overlay. */
+.ms-salon-fullscreen-overlay .live-video-container--tiktok-theater .live-video-theater-body {
+  position: relative;
+}
+
+.ms-salon-fullscreen-overlay .live-video-container--tiktok-theater .live-theater-stage-stack,
+.ms-salon-fullscreen-overlay .live-video-container--tiktok-theater .live-theater-hero-wrap,
+.ms-salon-fullscreen-overlay .live-video-container--tiktok-theater .live-theater-hero,
+.ms-salon-fullscreen-overlay .live-video-container--tiktok-theater .live-theater-hero__frame {
+  flex: 1 1 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  aspect-ratio: unset !important;
+}
+
+.ms-salon-fullscreen-overlay .live-video-container--tiktok-theater .live-video-stage-area video {
+  object-fit: cover !important;
+  object-position: center center;
+}
+
+.ms-salon-fullscreen-overlay .live-video-container--tiktok-theater .onscen-salle {
+  position: absolute;
+  inset: 0;
+  z-index: 32;
+  flex: none;
+  height: 100%;
+  padding-bottom: calc(var(--tab-nav-total-h, 4.5rem) + var(--ms-music-player-bar-h, 0px));
+  background: transparent;
+  pointer-events: none;
+}
+
+.ms-salon-fullscreen-overlay .live-video-container--tiktok-theater .onscen-salle__haze {
+  background: linear-gradient(to bottom, rgba(11, 11, 15, 0) 40%, rgba(11, 11, 15, 0.55) 100%);
+  height: 42%;
+  top: auto;
+  bottom: 0;
+}
+
+.ms-salon-fullscreen-overlay .live-video-container--tiktok-theater .onscen-salle__pit {
+  background: transparent;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.ms-salon-fullscreen-overlay .live-video-container--tiktok-theater .onscen-salle__voices,
+.ms-salon-fullscreen-overlay .live-video-container--tiktok-theater .onscen-salle__voice,
+.ms-salon-fullscreen-overlay .live-video-container--tiktok-theater .onscen-salle__catchup {
+  pointer-events: auto;
+}
+
+.ms-salon-fullscreen-overlay .live-video-container--tiktok-theater .onscen-salle__voices {
+  flex: 0 1 auto;
+  max-height: min(38dvh, 280px);
+}
+
+.ms-salon-fullscreen-overlay .live-video-container--tiktok-theater .chat-messages-scroll,
+.ms-salon-fullscreen-overlay .live-video-container--tiktok-theater .live-chat-messages {
+  justify-content: flex-end;
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 22%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%);
+}
+
+/* Téléphone en paysage : live en grand, fosse et dock masqués. */
+@media (orientation: landscape) {
+  .ms-app-shell:has(.room-theater-layout--live-theater) nav.ms-tab-bar-bottom {
+    display: none !important;
+  }
+
+  .ms-salon-fullscreen-overlay:has(.live-video-container--landscape-theater) {
+    top: 0 !important;
+    bottom: 0 !important;
+    z-index: 110 !important;
+  }
+
+  .ms-salon-fullscreen-overlay
+    .live-video-container--landscape-theater
+    .live-theater-stage-stack,
+  .ms-salon-fullscreen-overlay
+    .live-video-container--landscape-theater
+    .live-theater-hero-wrap,
+  .ms-salon-fullscreen-overlay
+    .live-video-container--landscape-theater
+    .live-theater-hero,
+  .ms-salon-fullscreen-overlay
+    .live-video-container--landscape-theater
+    .live-theater-hero__frame {
+    flex: 1 1 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none !important;
+    aspect-ratio: unset !important;
+  }
+
+  .ms-salon-fullscreen-overlay .live-video-container--landscape-theater .onscen-salle,
+  .ms-salon-fullscreen-overlay .live-video-container--landscape-theater .tiktok-live-chat {
+    display: none !important;
+  }
+
+  .ms-salon-fullscreen-overlay
+    .live-video-container--landscape-theater
+    .live-video-stage-area
+    video {
+    object-fit: contain !important;
+  }
+}

@@ -205,7 +205,7 @@ export const FollowUserButton = memo(function FollowUserButton({
 
       {confirmUnfollow && (
         <div
-          className="fixed inset-0 z-[100001] flex items-center justify-center ms-modal-overlay bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-[100001] flex items-end sm:items-center justify-center ms-modal-overlay bg-black/60 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="unfollow-confirm-title"

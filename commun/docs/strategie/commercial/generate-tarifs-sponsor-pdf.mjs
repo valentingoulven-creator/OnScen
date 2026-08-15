@@ -58,13 +58,13 @@ function wrapHtml(mdContent, title, category) {
     <span class="doc-header__brand">OnScen <span>· stratégie commerciale</span></span>
     <span class="doc-header__category">${category}</span>
     <h1 class="doc-header__title" style="border:none;margin-top:10px;padding-bottom:0;">${title}</h1>
-    <p class="doc-meta"><strong>getsoundy.com</strong> · Document interne · Généré le ${TODAY}</p>
+    <p class="doc-meta"><strong>onscen.com</strong> · Document interne · Généré le ${TODAY}</p>
   </header>
   <div class="doc-warning">
     <strong>⚠ Chiffres indicatifs.</strong> Recaler trimestriellement avec factures infra et expert-comptable. Ne constitue pas un audit financier.
   </div>
   ${mdContent}
-  <footer class="doc-footer">OnScen · ${category} · getsoundy.com · ${TODAY}</footer>
+  <footer class="doc-footer">OnScen · ${category} · onscen.com · ${TODAY}</footer>
 </body>
 </html>`;
 }

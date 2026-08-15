@@ -4,6 +4,8 @@
 > **Validation juridique requise** avant toute signature avec un annonceur.
 > **Phase de lancement :** tarification **forfaitaire hebdomadaire**, sans CPM ni engagement sur un volume de vues (voir Annexe A).
 
+<p class="price-todo-banner" style="color:#b91c1c;font-weight:800;background:#fef2f2;border:2px solid #dc2626;padding:12px 16px;border-radius:8px;text-align:center;">⚠ PRIX À RENSEIGNER AVANT ENVOI DU CONTRAT — ne pas transmettre ce document tant que les montants n’ont pas été saisis.</p>
+
 ---
 
 ## PARTIE I — DEVIS
@@ -19,20 +21,20 @@
 | Campagne | [REF_CAMPAGNE] |
 | Période | du [DATE_DEBUT] au [DATE_FIN] ([NOMBRE_SEMAINES] semaine(s)) |
 | Zone | [ZONE_GEO] |
-| **Montant total HT** | **[TOTAL_HT_NET] €** |
-| **Montant total TTC** | **[TOTAL_TTC] €** |
+| **Montant total HT** | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| **Montant total TTC** | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
 
 ### Détail des prestations
 
 | # | Prestation | Emplacement(s) | Semaines | Montant HT |
 |---|------------|----------------|----------|------------|
-| 1 | [LIBELLE_PRESTATION_1] | `[CODE_1]` — [LIBELLE_EMPLACEMENT_1] | [SEM_1] | [MONTANT_1] € |
-| 2 | [LIBELLE_PRESTATION_2] | `[CODE_2]` — [LIBELLE_EMPLACEMENT_2] | [SEM_2] | [MONTANT_2] € |
-| 3 | Pack [NOM_PACK] *(le cas échéant)* | [LISTE_CODES_PACK] | [SEM_PACK] | [MONTANT_3] € |
-| 4 | [OPTIONS_CREA] | — | — | [MONTANT_4] € |
-| | **Total HT** | | | **[TOTAL_HT_NET] €** |
+| 1 | [LIBELLE_PRESTATION_1] | `[CODE_1]` — [LIBELLE_EMPLACEMENT_1] | [SEM_1] | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| 2 | [LIBELLE_PRESTATION_2] | `[CODE_2]` — [LIBELLE_EMPLACEMENT_2] | [SEM_2] | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| 3 | Pack [NOM_PACK] *(le cas échéant)* | [LISTE_CODES_PACK] | [SEM_PACK] | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| 4 | [OPTIONS_CREA] | — | — | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| | **Total HT** | | | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
 
-*Grille de référence : forfait **par emplacement** ou **pack multi-emplacements**, à la semaine, **sans CPM** (palier lancement — Annexe A).*
+*Grille de référence : forfait **par emplacement** ou **pack multi-emplacements**, à la semaine, **sans CPM** (palier lancement — Annexe A). Aucun montant n’est prérempli : saisir les prix convenus avant envoi.*
 
 ---
 
@@ -41,9 +43,9 @@
 ### Article 1 — Parties
 
 **Le Prestataire :**
-[RAISON_SOCIALE_SOUNDY], [FORME_JURIDIQUE], au capital de [CAPITAL] €,
-Siège : [ADRESSE_SOUNDY] · SIRET [SIRET_SOUNDY] · TVA [TVA_SOUNDY]
-Représentée par [NOM_SIGNATAIRE_SOUNDY], [FONCTION],
+[RAISON_SOCIALE_ONSCEN], [FORME_JURIDIQUE], au capital de [CAPITAL] €,
+Siège : [ADRESSE_ONSCEN] · SIRET [SIRET_ONSCEN] · TVA [TVA_ONSCEN]
+Représentée par [NOM_SIGNATAIRE_ONSCEN], [FONCTION],
 Ci-après « **OnScen** » ou « **le Prestataire** ».
 
 **Le Client :**
@@ -58,7 +60,7 @@ OnScen et l'Annonceur sont ci-après désignés ensemble les « **Parties** ».
 
 ### Article 2 — Objet
 
-Le présent contrat a pour objet la diffusion, par OnScen, de contenus publicitaires natifs (« **Annonces** ») au bénéfice de l'Annonceur sur l'application et les services OnScen ([getsoundy.com](https://getsoundy.com)), selon **un ou plusieurs emplacements** (ou un **pack** multi-emplacements), les dates, la zone géographique et le montant définis en Partie I.
+Le présent contrat a pour objet la diffusion, par OnScen, de contenus publicitaires natifs (« **Annonces** ») au bénéfice de l'Annonceur sur l'application et les services OnScen ([onscen.com](https://onscen.com)), selon **un ou plusieurs emplacements** (ou un **pack** multi-emplacements), les dates, la zone géographique et le montant définis en Partie I.
 
 Les emplacements commercialisés à ce stade sont notamment :
 
@@ -103,8 +105,8 @@ L'Annonceur s'engage à :
 
 | Échéance | Montant | Condition |
 |----------|---------|-----------|
-| Acompte | [POURCENTAGE_ACOMPTE] % du TTC soit [MONTANT_ACOMPTE] € TTC | À la signature / commande |
-| Solde | [MONTANT_SOLDE] € TTC | Avant mise en ligne ou à [J+X] jours de la date de début |
+| Acompte | [POURCENTAGE_ACOMPTE] % du TTC soit <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> | À la signature / commande |
+| Solde | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> | Avant mise en ligne ou à [J+X] jours de la date de début |
 
 4.3. Paiement par **virement bancaire** aux coordonnées indiquées sur la facture. Tout retard de paiement pourra entraîner la suspension de la campagne et des pénalités de retard au taux légal.
 
@@ -118,7 +120,7 @@ L'Annonceur s'engage à :
 
 5.2. Délai de mise en ligne cible : **5 jours ouvrés** après réception des éléments complets.
 
-5.3. Toute demande de **report** par l'Annonceur doit être formulée par écrit au moins **[DELAI_PREAVIS] jours** avant la date de début. OnScen fera ses meilleurs efforts pour accommoder le report ; un report à moins de [DELAI_COURT] jours pourra entraîner des frais de reprogrammation de **[MONTANT_FRAIS_REPORT] € HT**.
+5.3. Toute demande de **report** par l'Annonceur doit être formulée par écrit au moins **[DELAI_PREAVIS] jours** avant la date de début. OnScen fera ses meilleurs efforts pour accommoder le report ; un report à moins de [DELAI_COURT] jours pourra entraîner des frais de reprogrammation de <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span>.
 
 ---
 
@@ -148,7 +150,7 @@ L'Annonceur s'engage à :
 
 8.2. Le forfait de sponsoring n'étant pas indexé sur des statistiques d'audience, OnScen ne transmet à l'Annonceur, le cas échéant, que des **éléments de confirmation de diffusion** (captures d'écran, dates). Si des données agrégées et anonymisées de mesure (impressions, clics) deviennent disponibles ultérieurement, elles seront communiquées à titre indicatif uniquement ; aucune donnée nominative d'utilisateur OnScen n'est transmise à l'Annonceur.
 
-8.3. Le cas échéant, les Parties pourront conclure un **accord de sous-traitance (DPA)** — [ ] applicable [ ] non applicable.
+8.3. Le cas échéant, les Parties pourront conclure un **accord de sous-traitation (DPA)** — [ ] applicable [ ] non applicable.
 
 ---
 
@@ -164,7 +166,7 @@ Chaque Partie s'engage à ne pas divulguer les informations commerciales, tarifa
 
 | Moment | Conséquences |
 |--------|--------------|
-| > [DELAI_LONG] jours avant [DATE_DEBUT] | Remboursement acompte hors frais administratifs ([MONTANT_FRAIS_ADMIN] € HT) |
+| > [DELAI_LONG] jours avant [DATE_DEBUT] | Remboursement acompte hors frais administratifs (<span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span>) |
 | Entre [DELAI_LONG] et [DELAI_COURT] jours | Acompte conservé à hauteur de [POURCENTAGE_PENALITE] % |
 | < [DELAI_COURT] jours ou après mise en ligne | Aucun remboursement · solde dû |
 
@@ -196,9 +198,9 @@ Chaque Partie s'engage à ne pas divulguer les informations commerciales, tarifa
 
 Fait en **deux exemplaires originaux**, à **[LIEU_SIGNATURE]**, le **[DATE_SIGNATURE]**.
 
-| **Pour l'Annonceur — [ANNONCEUR]** | **Pour OnScen — [RAISON_SOCIALE_SOUNDY]** |
+| **Pour l'Annonceur — [ANNONCEUR]** | **Pour OnScen — [RAISON_SOCIALE_ONSCEN]** |
 |-------------------------------------|-------------------------------------------|
-| Nom : [NOM_SIGNATAIRE_CLIENT] | Nom : [NOM_SIGNATAIRE_SOUNDY] |
+| Nom : [NOM_SIGNATAIRE_CLIENT] | Nom : [NOM_SIGNATAIRE_ONSCEN] |
 | Fonction : [FONCTION] | Fonction : [FONCTION] |
 | « Lu et approuvé — Bon pour accord » | « Lu et approuvé — Bon pour accord » |
 | Signature : | Signature : |
@@ -207,26 +209,28 @@ Fait en **deux exemplaires originaux**, à **[LIEU_SIGNATURE]**, le **[DATE_SIGN
 
 ## ANNEXE A — Grille tarifaire de référence (indicative, sans CPM)
 
+<p class="price-todo-banner" style="color:#b91c1c;font-weight:800;background:#fef2f2;border:2px solid #dc2626;padding:12px 16px;border-radius:8px;text-align:center;">⚠ AUCUN PRIX N’EST PUBLIÉ DANS CETTE ANNEXE — saisir les montants convenus en Partie I avant envoi du contrat.</p>
+
 ### À l'unité — forfait / semaine / emplacement
 
 | Code | Emplacement | Prix HT / semaine |
 |------|-------------|-------------------|
-| `feed_inline` | Fil d'actualité | 149 € |
-| `map_banner` | Carte · bandeau | 129 € |
-| `map_sidebar_events` | Carte · icône Sponso | 99 € |
-| `reels_sponsored` | Reel sponsorisé | 129 € |
-| `music_tab` | Onglet Musique | 119 € |
+| `feed_inline` | Fil d'actualité | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| `map_banner` | Carte · bandeau | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| `map_sidebar_events` | Carte · icône Sponso | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| `reels_sponsored` | Reel sponsorisé | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| `music_tab` | Onglet Musique | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
 
 ### Packs multi-emplacements — forfait / semaine
 
 | Pack | Emplacements | Prix HT / semaine |
 |------|--------------|-------------------|
-| Pack Carte | `map_banner` + `map_sidebar_events` | 199 € |
-| Pack Actu & Reel | `feed_inline` + `reels_sponsored` | 249 € |
-| Pack Musique & Actu | `music_tab` + `feed_inline` | 229 € |
-| Pack Complet | Les 5 emplacements | 499 € |
+| Pack Carte | `map_banner` + `map_sidebar_events` | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| Pack Actu & Reel | `feed_inline` + `reels_sponsored` | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| Pack Musique & Actu | `music_tab` + `feed_inline` | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
+| Pack Complet | Les 5 emplacements | <span class="price-todo" style="color:#b91c1c;font-weight:800;">À renseigner avant envoi</span> |
 
-> **Aucun CPM n'est appliqué à ce stade.** Prix fixes, indépendants du nombre de vues. Remise **−10 %** sur un même pack pour **4 semaines consécutives**. La tarification à l'audience (CPM) pourra être proposée ultérieurement, avec information préalable, sans effet rétroactif.
+> **Aucun CPM n'est appliqué à ce stade.** Prix fixes, indépendants du nombre de vues. Toute remise (engagement multi-semaines, sponsor fondateur) doit être **saisie en Partie I** avant envoi. La tarification à l'audience (CPM) pourra être proposée ultérieurement, avec information préalable, sans effet rétroactif.
 
 ---
 

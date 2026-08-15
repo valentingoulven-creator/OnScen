@@ -77,6 +77,7 @@ import { adminAiAgentsRouter } from './routes/adminAiAgents';
 import { startServerMonitor } from './lib/serverMonitor';
 import { startSystemMonitor } from './lib/systemMonitor';
 import { setupSentryExpressErrorHandler } from './lib/errorMonitoring';
+import { buildAppleAppSiteAssociation } from './lib/appleAppSiteAssociation';
 import { searchRouter } from './routes/search';
 import { webauthnRouter } from './routes/webauthn';
 import { twoFactorRouter } from './routes/twoFactor';
@@ -423,6 +424,17 @@ app.use((req, res, next) => {
   next();
 });
 
+app.get('/.well-known/apple-app-site-association', (_req, res, next) => {
+  const teamId = process.env.APPLE_TEAM_ID?.trim();
+  if (!teamId || teamId === 'TEAM_ID') {
+    next();
+    return;
+  }
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+  res.json(buildAppleAppSiteAssociation(teamId));
+});
+
 app.use(
   express.static(publicDir, {
     etag: true,
@@ -481,7 +493,7 @@ const authLimiter = rateLimit({
  */
 const usernameCheckLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
-  max: 30,
+  max: 12,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de vérifications. Réessayez plus tard.' },
@@ -497,6 +509,26 @@ const reportsLimiter = rateLimit({
   message: { error: 'Trop de signalements. Réessayez plus tard.' },
   skip: () => isMsdevRuntime(),
   store: createRateLimitStore('reports'),
+});
+
+const sponsorTrackLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de requêtes. Réessayez plus tard.' },
+  skip: () => isMsdevRuntime(),
+  store: createRateLimitStore('sponsors-track'),
+});
+
+const supportContactLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de messages. Réessayez plus tard.' },
+  skip: () => isMsdevRuntime(),
+  store: createRateLimitStore('support-contact'),
 });
 
 const donationsLimiter = rateLimit({
@@ -573,6 +605,7 @@ app.use('/api/subscriptions', subscriptionsLimiter, subscriptionsRouter);
 app.use('/api/network', networkRouter);
 app.use('/api/ratings', ratingsRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/support/contact', supportContactLimiter);
 app.use('/api/support', supportRouter);
 app.use('/api/reels', reelsRouter);
 app.use('/api/compositions', compositionsRouter);
@@ -587,6 +620,7 @@ app.use('/api/legal/reports', reportsLimiter);
 app.use('/api/legal', legalRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/news', newsRouter);
+app.use('/api/sponsors/track', sponsorTrackLimiter);
 app.use('/api/sponsors', sponsorsRouter);
 app.use('/api/trending', trendingRouter);
 app.use('/api/music', musicRouter);

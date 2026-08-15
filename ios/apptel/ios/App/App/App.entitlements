@@ -5,7 +5,9 @@
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:onscen.com</string>
+		<string>applinks:www.onscen.com</string>
 		<string>webcredentials:onscen.com</string>
+		<string>webcredentials:www.onscen.com</string>
 	</array>
 	<key>com.apple.developer.applesignin</key>
 	<array>

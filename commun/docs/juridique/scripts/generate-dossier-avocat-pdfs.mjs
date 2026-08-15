@@ -173,8 +173,8 @@ async function main() {
   const { marked } = await import('marked');
   marked.setOptions({ gfm: true, breaks: false });
 
+  rmSync(PDF_OUT, { recursive: true, force: true });
   mkdirSync(PDF_OUT, { recursive: true });
-  removeNonPdfFiles(PDF_OUT);
 
   const introDocs = [
     {

@@ -88,6 +88,55 @@ function apptelSrcFallback() {
 }
 
 /** Copie web/app/public/globe → ios/apptel/public/globe (servi sous /tel/globe/ ou ./globe/). */
+/**
+ * Vite `base: /tel/` refuse les navigations hors préfixe (erreur
+ * « did you mean to visit /tel/live/… »). Redirige les deep links SPA
+ * (`/live`, `/salon`, `/profile`, …) vers `/tel/…`.
+ */
+function redirectBareSpaToTel() {
+  const spaPrefixes = [
+    '/live',
+    '/salon',
+    '/profile',
+    '/auth',
+    '/settings',
+    '/forgot-password',
+    '/reset-password',
+    '/verify-email',
+  ];
+
+  const skip = (pathname: string) =>
+    pathname.startsWith('/tel') ||
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/socket.io') ||
+    pathname.startsWith('/@') ||
+    pathname.startsWith('/node_modules') ||
+    pathname.startsWith('/src') ||
+    pathname.startsWith('/__vite');
+
+  return {
+    name: 'apptel-redirect-bare-spa',
+    configureServer(server: { middlewares: { use: (fn: (req: { url?: string }, res: { statusCode: number; setHeader: (k: string, v: string) => void; end: () => void }, next: () => void) => void) => void } }) {
+      server.middlewares.use((req, res, next) => {
+        const raw = req.url ?? '/';
+        const pathname = raw.split('?')[0] ?? '/';
+        if (skip(pathname)) {
+          next();
+          return;
+        }
+        const hit = spaPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+        if (!hit) {
+          next();
+          return;
+        }
+        res.statusCode = 302;
+        res.setHeader('Location', `/tel${raw.startsWith('/') ? raw : `/${raw}`}`);
+        res.end();
+      });
+    },
+  };
+}
+
 function syncGlobePublicAssets() {
   const globeSrc = path.resolve(__dirname, '../../web/app/public/globe');
   const globeDest = path.resolve(__dirname, 'public/globe');
@@ -142,6 +191,7 @@ export default defineConfig({
     'import.meta.env.VITE_SOCKET_URL': JSON.stringify(process.env.VITE_SOCKET_URL || ''),
   },
   plugins: [
+    redirectBareSpaToTel(),
     syncGlobePublicAssets(),
     apptelSrcFallback(),
     react(),
@@ -170,7 +220,7 @@ export default defineConfig({
         display: 'standalone' as const,
         background_color: '#0b0b0f',
         theme_color: '#7c3aed',
-        orientation: 'portrait' as const,
+        orientation: 'any' as const,
         lang: 'fr',
         icons: [
           {
@@ -277,6 +327,7 @@ export default defineConfig({
   ],
   server: {
     port: 4082,
+    strictPort: true,
     proxy: {
       '/api': msdevProxy,
       '/socket.io': { ...msdevProxy, ws: true },

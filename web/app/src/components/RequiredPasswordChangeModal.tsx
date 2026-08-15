@@ -58,11 +58,12 @@ export function RequiredPasswordChangeModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[130] flex items-center justify-center ms-modal-overlay bg-black/70">
+    <div className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center ms-modal-overlay bg-black/70">
       <form
         onSubmit={(e) => void handleSubmit(e)}
-        className="w-full max-w-md rounded-2xl ms-modal-panel border border-[#2d2d3d] bg-[#12121a] p-5 shadow-xl space-y-4"
+        className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl ms-modal-panel border border-[#2d2d3d] bg-[#12121a] p-5 shadow-xl space-y-4 pb-[env(safe-area-inset-bottom)]"
         role="dialog"
+        aria-modal="true"
         aria-labelledby="password-change-required-title"
       >
         <h2 id="password-change-required-title" className="text-base font-semibold text-white">

@@ -7,6 +7,8 @@ import { disableGlobeView, isWebGLError } from '../lib/webglSupport';
 
 interface Props {
   children: ReactNode;
+  /** Changement d’onglet / vue : remet l’écran d’erreur à zéro sans recharger l’app. */
+  resetKey?: string;
 }
 
 interface State {
@@ -146,6 +148,14 @@ export class AppErrorBoundary extends Component<Props, State> {
       this.autoResetTimer = setTimeout(() => {
         window.location.reload();
       }, 600);
+    }
+  }
+
+  componentDidUpdate(prevProps: Props): void {
+    if (this.props.resetKey !== undefined && this.props.resetKey !== prevProps.resetKey) {
+      if (this.state.error || this.state.recovering) {
+        this.setState({ error: null, recovering: false });
+      }
     }
   }
 

@@ -5,10 +5,13 @@
       {
         "appID": "TEAM_ID.com.soundy.app",
         "paths": [
+          "/",
           "/salon/*",
           "/live/*",
           "/profile/*",
-          "/"
+          "/reels/*",
+          "/tel/*",
+          "/auth/*"
         ]
       }
     ]

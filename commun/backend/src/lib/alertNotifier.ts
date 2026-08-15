@@ -23,7 +23,8 @@ export type AlertType =
   | 'sightengine_error_rate'
   | 'csam_risk_detected'
   | 'live_content_flagged'
-  | 'urgent_content_report';
+  | 'urgent_content_report'
+  | 'registration_spike';
 
 export interface MonitoringAlert {
   id: string;

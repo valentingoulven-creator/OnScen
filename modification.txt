@@ -40257,3 +40257,1389 @@ BUILD (vérifié)
 ================================================================================
 Fin MODIF 1390 — 2026-08-13
 ================================================================================
+
+================================================================================
+MODIF 1391 — Alignement build Android sur iOS (OnScen) — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le build Android n'était plus aligné sur le projet iOS actuel : nom sous
+ l'icône encore « Soundy », pas de permission vidéo (reels), dossier Java
+ résiduel com.melosong, APK/AAB non recopiés, AAB release daté du 30/06.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/scripts/patch-android-native.mjs
+ ─────────────────
+ • strings.xml forcé à OnScen (miroir CFBundleDisplayName iOS).
+ • READ_MEDIA_VIDEO ajouté (équivalent photothèque iOS pour les reels).
+ • Suppression du package Java vide com.melosong.
+
+ ios/apptel/package.json
+ ─────────────────
+ • `android:apk` réapplique le patch natif avant Gradle.
+
+ android/build-android-apk-prod.ps1 · build-android-aab-prod.ps1 · README.md
+ ─────────────────
+ • Artefacts renommés OnScen-debug-prod.apk / OnScen-release-prod.aab.
+ • Patch natif aussi avant bundleRelease.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/scripts/patch-android-native.mjs → nom + permission vidéo + cleanup
+ ios/apptel/package.json → patch avant assembleDebug
+ android/build-android-apk-prod.ps1 → dest OnScen-debug-prod.apk
+ android/build-android-aab-prod.ps1 → dest OnScen-release-prod.aab + patch
+ android/README.md → noms OnScen
+
+BUILD (si vérifié)
+-----
+ npm run android:apk:prod → BUILD SUCCESSFUL
+ APK : android/OnScen-Mobile/OnScen-debug-prod.apk (19,15 Mo, 2026-08-15)
+ Version inchangée : 2.0.1 (201) — identique iOS
+
+================================================================================
+Fin MODIF 1391 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1392 — Live placeholder mobile : haut coupé — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur mobile (théâtre live plein écran), le placeholder
+ LiveVideoStagePlaceholder était coupé en haut : bouton « Quitter » en
+ position absolute + overflow:hidden du hero (coins arrondis) + safe-area
+ non réservée.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/LiveVideoStagePlaceholder.tsx
+ ─────────────────
+ • Override mobile : barre « Quitter » dans le flux (plus d'absolute).
+ • Corps flex centré sous cette barre, carte limitée à l'espace restant.
+
+ ios/apptel/src/components/LiveVideoStagePlaceholder.css
+ ─────────────────
+ • padding-top safe-area, pochette plus petite, gap fill 0.5rem.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/LiveVideoStagePlaceholder.tsx → override mobile
+ ios/apptel/src/components/LiveVideoStagePlaceholder.css → layout / safe-area
+
+BUILD (si vérifié)
+-----
+ N/A — override CSS/JSX mobile, tester via npm run mobile:dev → :4082/tel/
+
+================================================================================
+Fin MODIF 1392 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1393 — LiveHostTopBar mobile : retrait badge LIVE — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le badge rouge « LIVE » dans la barre du live encombre le titre sur mobile.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/LiveHostTopBar.tsx
+ ─────────────────
+ • Override mobile : badge LIVE retiré. Titre, viewers et chrono conservés.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/LiveHostTopBar.tsx → override sans badge LIVE
+
+================================================================================
+Fin MODIF 1393 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1394 — Bouton don live mobile : icône 🎁 — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton don sur la scène live utilisait un SVG cadeau, différent du 🎁
+ de la barre (LiveHostTopBar).
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/LiveVideoTheaterChrome.tsx
+ ─────────────────
+ • LiveVideoGiftIcon → emoji 🎁 (même logo que le bouton header).
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/LiveVideoTheaterChrome.tsx → override icône don
+
+================================================================================
+Fin MODIF 1394 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1395 — LiveHostTopBar mobile : menu « … » Partager / Signaler — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les boutons Partager et Signaler occupaient la barre du live. Les regrouper
+ derrière un bouton « … ».
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/LiveHostTopBar.tsx
+ ─────────────────
+ • Bouton « … » (44px) ouvre un bottom-sheet : Partager + Signaler.
+ • Bouton Signaler d'origine masqué (toujours cliquable via le menu).
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/LiveHostTopBar.tsx → menu overflow mobile
+
+================================================================================
+Fin MODIF 1395 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1396 — Deep links mobile /tel/ (live, salon, profil) — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Vite apptel (base /tel/) affiche « did you mean to visit /tel/live/… »
+ quand la barre d’adresse est /live/… (replaceState sans préfixe).
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/vite.config.ts
+ ─────────────────
+ • Middleware 302 : /live, /salon, /profile, /auth… → /tel/…
+
+ ios/apptel/src/lib/liveDeepLink.ts
+ ios/apptel/src/lib/salonDeepLink.ts
+ ios/apptel/src/lib/profileDeepLink.ts
+ ─────────────────
+ • get*Path / sync*UrlInBar utilisent BASE_URL (/tel/live/:id).
+ • parse* accepte /tel/… et /live|salon|profile/….
+ • clear* revient à /tel/.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/vite.config.ts → redirect SPA hors /tel/
+ ios/apptel/src/lib/liveDeepLink.ts → override BASE_URL
+ ios/apptel/src/lib/salonDeepLink.ts → override BASE_URL
+ ios/apptel/src/lib/profileDeepLink.ts → override BASE_URL
+
+================================================================================
+Fin MODIF 1396 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1397 — Rebuild Capacitor iOS + Android (deep links /tel/) — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Intégrer les overrides live + deep links /tel/ dans les builds natifs
+ iOS et Android (pas seulement le Vite :4082).
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/lib/nativeDeepLink.ts
+ ─────────────────
+ • Universal / App Link `onscen.com/tel/live|salon|profile/…` → `/live|salon|profile/…`
+   (WebView Capacitor, base `./`).
+
+ ios/apptel/scripts/patch-android-native.mjs
+ ─────────────────
+ • Intent filters App Links : `/tel/live`, `/tel/salon`, `/tel/profile`.
+
+BUILD
+-----
+ npm run capacitor:sync:prod → ✅ iOS + Android (dist → public)
+ npm run android:apk (après sync) → BUILD SUCCESSFUL
+ APK : android/OnScen-Mobile/OnScen-debug-prod.apk (20,48 Mo, 2026-08-15)
+ Version inchangée : 2.0.1
+ IPA : non compilé ici (Xcode / Mac requis) — assets iOS déjà sync
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/lib/nativeDeepLink.ts → strip préfixe /tel
+ ios/apptel/scripts/patch-android-native.mjs → pathPrefix /tel/…
+
+================================================================================
+Fin MODIF 1397 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1398 — Live mobile : chat épinglé en bas — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le chat live épinglé occupait une colonne à gauche (étroite). Le coller
+ sous la vidéo, pleine largeur.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/RoomTheaterLayout.tsx
+ ─────────────────
+ • chatDock `left` + live théâtre → dock `bottom` + stack sous la vidéo.
+ • Bouton pin conservé sur le bandeau bas.
+
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css
+ ─────────────────
+ • Colonne empilée pleine largeur ; chat ~36dvh en bas + safe-area.
+
+ ios/apptel/src/components/FloatingSalonChat.tsx
+ ─────────────────
+ • Libellé pin : « en bas » (plus « à gauche »).
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/RoomTheaterLayout.tsx → override dock bas
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css → layout mobile
+ ios/apptel/src/components/FloatingSalonChat.tsx → copy pin
+
+================================================================================
+Fin MODIF 1398 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1399 — Live chat bas : CSS fallback + Vite :4082 relancé — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le chat restait à gauche : l’ancien Vite :4082 n’avait pas l’override
+ (module web déjà résolu).
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/main.tsx
+ ─────────────────
+ • Import RoomTheaterLayout.mobile.css (toujours chargé).
+
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css
+ ─────────────────
+ • Restack colonne gauche → bandeau bas (même si JS web encore servi).
+
+ ios/apptel/vite.config.ts
+ ─────────────────
+ • strictPort: true (plus de repli silencieux sur :4083).
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/main.tsx → import CSS layout
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css → fallback gauche→bas
+ ios/apptel/vite.config.ts → strictPort
+
+================================================================================
+Fin MODIF 1399 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1400 — Live mobile : scène vidéo trop petite (stack 16:9) — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Après le chat en bas, la vidéo était coincée en bande 16:9 (~260px) :
+ le stack live forçait aspect-ratio + max-height, le chat prenait le reste.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/RoomTheaterLayout.tsx
+ ─────────────────
+ • Stack live : classe live-theater-fill ; stage vidéo flex-1 (plus shrink-0).
+
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css
+ ─────────────────
+ • Hero/vidéo : height 100 %, aspect-ratio unset.
+ • Chat bas ~26dvh (plus 36dvh).
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/RoomTheaterLayout.tsx → fill + flex-1
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css → scène pleine hauteur
+
+================================================================================
+Fin MODIF 1400 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1401 — Live mobile : bandeau chat plus compact — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le header du chat bas (💬 CHAT 👥 ⭐ ×) faisait ~61px (boutons 44px).
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/RoomTheaterLayout.tsx
+ ─────────────────
+ • DockedChatHeader compact sur le stack live (padding + icônes 32px).
+
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css
+ ─────────────────
+ • Header forcé à 2rem ; boutons enfants 32px.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/RoomTheaterLayout.tsx → compact header
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css → hauteur 32px
+
+================================================================================
+Fin MODIF 1401 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1402 — Live mobile : plus de bandes noires (object-fit cover) — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La vidéo live avait des bandes noires haut/bas (object-fit: contain
+ dans un cadre plus haut que 16:9).
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css
+ ─────────────────
+ • object-fit: cover sur la scène théâtre (stack + fallback gauche).
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css → cover
+
+================================================================================
+Fin MODIF 1402 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1403 — Chat live mobile style TikTok — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Remplacer le dock chat (bandeau sous la vidéo) par un overlay façon
+ TikTok Live : messages sur la vidéo, saisie en pilule, scène pleine.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/TikTokLiveChatOverlay.tsx
+ ios/apptel/src/components/TikTokLiveChatOverlay.css
+ ─────────────────
+ • Overlay bas-gauche, bulles translucides, fade haut, input pilule.
+
+ ios/apptel/src/components/RoomTheaterLayout.tsx
+ ─────────────────
+ • Live théâtre : plus de dock bas/gauche ; overlay injecté dans la scène.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/TikTokLiveChatOverlay.tsx → nouveau
+ ios/apptel/src/components/TikTokLiveChatOverlay.css → style TikTok
+ ios/apptel/src/components/RoomTheaterLayout.tsx → overlay live
+
+================================================================================
+Fin MODIF 1403 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1404 — Live meta hôte en haut à droite — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ LiveTheaterLiveMetaBar (avatar + nom + titre) était en bas de la vidéo,
+ sous le chat TikTok.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/LiveVideoTheaterChrome.tsx
+ ─────────────────
+ • Position absolute top-right, aligné à droite, sans dégradé bas.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/LiveVideoTheaterChrome.tsx → haut droite
+ ios/apptel/src/components/LiveVideoTheaterChrome.css → reset gradient
+
+================================================================================
+Fin MODIF 1404 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1405 — Chat TikTok : glisser vers le bas pour remonter — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Pouvoir agrandir le chat et voir l’historique en glissant le doigt
+ vers le bas (geste TikTok Live).
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/TikTokLiveChatOverlay.tsx
+ ─────────────────
+ • Poignée + drag bas → max-height 42→78dvh.
+ • Liste scrollable ; auto-scroll coupé si on lit l’historique.
+
+ ios/apptel/src/components/TikTokLiveChatOverlay.css
+ ─────────────────
+ • touch-action pan-y, plus de justify-end (cassait le scroll).
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/TikTokLiveChatOverlay.tsx → geste expand
+ ios/apptel/src/components/TikTokLiveChatOverlay.css → scroll tactile
+
+================================================================================
+Fin MODIF 1405 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1406 — Live mobile : cover aussi hors stack (overlay TikTok) — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le chat TikTok a quitté le stack-column : le CSS cover ne s’appliquait
+ plus → contain + cadre 590px = bandes noires, live « invisible ».
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css
+ ─────────────────
+ • object-fit: cover scopé sur .room-theater-video-stage--live-theater.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css → cover théâtre
+
+================================================================================
+Fin MODIF 1406 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1407 — Live mobile : retrait bouton 💬 Chat — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton flottant « 💬 Chat » (bas droite) restait visible quand le
+ chat était masqué.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/RoomTheaterLayout.tsx
+ ─────────────────
+ • Plus de toggle 💬 en live théâtre ; overlay TikTok toujours affiché.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/RoomTheaterLayout.tsx → hide chat toggle
+
+================================================================================
+Fin MODIF 1407 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1408 — Live mobile : retrait bouton PiP — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retirer le bouton « Détacher en PiP » du chrome vidéo live.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/LiveVideoTheaterChrome.css
+ ─────────────────
+ • display:none sur le bouton aria-label PiP.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/LiveVideoTheaterChrome.css → hide PiP
+
+================================================================================
+Fin MODIF 1408 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1409 — Live mobile : bouton pause → toggle chat — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton pause du chrome doit afficher / masquer le chat TikTok.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/LiveChromeChatToggle.tsx
+ ─────────────────
+ • Intercepte le clic pause → onToggleChat.
+
+ ios/apptel/src/components/RoomTheaterLayout.tsx
+ ─────────────────
+ • Overlay respecté si chat masqué.
+
+ ios/apptel/src/components/LiveVideoTheaterChrome.css
+ ─────────────────
+ • Cache le 💬 chrome d’origine (doublon).
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/LiveChromeChatToggle.tsx → nouveau
+ ios/apptel/src/components/RoomTheaterLayout.tsx → chatHidden + bridge
+ ios/apptel/src/components/LiveVideoTheaterChrome.css → hide 💬 chrome
+
+================================================================================
+Fin MODIF 1409 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1410 — Live mobile : retrait LiveHostTopBar — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retirer complètement la barre (titre, viewers, timer, 🎁, Quitter).
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/LiveHostTopBar.tsx
+ ─────────────────
+ • Composant rend null.
+
+ ios/apptel/src/components/LiveVideoTheaterChrome.css
+ ─────────────────
+ • .live-viewer-chrome masqué (plus d’espace réservé).
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/LiveHostTopBar.tsx → null
+ ios/apptel/src/components/LiveVideoTheaterChrome.css → hide chrome
+
+================================================================================
+Fin MODIF 1410 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1411 — Live mobile : tap vidéo = pause — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Pause / lecture en tapant la vidéo, plus via le bouton chrome.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/LiveVideoTapToPause.tsx
+ ─────────────────
+ • Clic sur la scène (hors chat / boutons) déclenche pause.
+
+ ios/apptel/src/components/LiveVideoTheaterChrome.css
+ ─────────────────
+ • Bouton pause chrome masqué ; 💬 chat de nouveau visible.
+
+ ios/apptel/src/components/LiveChromeChatToggle.tsx
+ ─────────────────
+ • Supprimé (plus d’interception pause → chat).
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/LiveVideoTapToPause.tsx → nouveau
+ ios/apptel/src/components/RoomTheaterLayout.tsx → tap-to-pause
+ ios/apptel/src/components/LiveVideoTheaterChrome.css → hide pause btn
+ ios/apptel/src/components/LiveChromeChatToggle.tsx → supprimé
+
+================================================================================
+Fin MODIF 1411 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1412 — Live mobile : chrome toujours visible — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Don, nom, chat, etc. disparaissaient (auto-hide 10s + pas de souris).
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/hooks/useLiveVideoChromeAutoHide.ts
+ ─────────────────
+ • chromeVisible toujours true.
+
+ ios/apptel/src/components/LiveVideoTheaterChrome.css
+ ─────────────────
+ • opacity forcée sur la barre d’icônes + meta hôte.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/hooks/useLiveVideoChromeAutoHide.ts → override
+ ios/apptel/src/components/LiveVideoTheaterChrome.css → force visible
+
+================================================================================
+Fin MODIF 1412 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1413 — Live mobile : chat façon Twitch — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le chat overlay TikTok (bulles étroites à gauche) ne ressemblait pas au chat
+ Twitch mobile.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/TikTokLiveChatOverlay.tsx
+ ─────────────────
+ • Overlay pleine largeur : feed + barre de saisie en bas.
+ • Glisser vers le haut agrandit l’historique.
+
+ ios/apptel/src/components/TikTokLiveChatOverlay.css
+ ─────────────────
+ • Messages inline (pseudo coloré + texte), plus de bulles.
+ • Fond dégradé, input style Twitch (#9146ff).
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/TikTokLiveChatOverlay.tsx → layout Twitch
+ ios/apptel/src/components/TikTokLiveChatOverlay.css → style messages / input
+ ios/apptel/src/components/LiveVideoTapToPause.tsx → ignore overlay
+
+================================================================================
+Fin MODIF 1413 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1414 — Live mobile : player 16:9 façon Twitch — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La vidéo remplissait tout l’écran (cover 9:16). Sur Twitch mobile le player
+ est 16:9 en haut, le chat occupe le reste.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css
+ ─────────────────
+ • Cadre vidéo 16:9 pleine largeur, object-fit contain.
+
+ ios/apptel/src/components/TikTokLiveChatOverlay.tsx + .css
+ ─────────────────
+ • Chat en flux sous le player (panneau #0e0e10), plus overlay sur la vidéo.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css → ratio 16:9
+ ios/apptel/src/components/TikTokLiveChatOverlay.tsx → panneau sous player
+ ios/apptel/src/components/TikTokLiveChatOverlay.css → chat solid
+ ios/apptel/src/components/LiveVideoStagePlaceholder.css → plus de padding top
+
+================================================================================
+Fin MODIF 1414 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1415 — Live mobile : saisie au-dessus du dock accueil — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La barre « Envoyer un message » passait sous / sur les boutons d’accueil.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/TikTokLiveChatOverlay.css
+ ─────────────────
+ • padding-bottom: --tab-nav-total-h (+ lecteur musique si présent).
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/TikTokLiveChatOverlay.css → réserve le dock
+
+================================================================================
+Fin MODIF 1415 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1416 — Live mobile : player sous le bandeau header — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le haut de la vidéo 16:9 passait derrière le header OnScen (overlay à y=0).
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css
+ ─────────────────
+ • overlay live : top = --app-header-total-h (bandeau session inclus).
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css → offset header
+
+================================================================================
+Fin MODIF 1416 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1417 — Live mobile : overlay au-dessus du bandeau — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le header (z-100) restait devant le live (overlay z-60). Le décalage top
+ n’avait aucun effet visible.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css
+ ─────────────────
+ • Overlay live z-index 110, top 0 (couvre le bandeau).
+ • Header masqué pendant le live ; dock accueil z-120.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css → live au premier plan
+
+================================================================================
+Fin MODIF 1417 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1418 — Live mobile : nom / titre masqués après 10 s — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le nom + titre restaient collés en haut à droite. Les faire disparaître
+ après 10 s sans action sur la vidéo.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/hooks/useLiveVideoChromeAutoHide.ts
+ ─────────────────
+ • Auto-hide 10 s ; tap sur la scène réaffiche.
+
+ ios/apptel/src/components/LiveVideoTheaterChrome.css
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css
+ ─────────────────
+ • Meta plus forcée visible ; icônes gauche restent.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/hooks/useLiveVideoChromeAutoHide.ts → idle 10 s
+ ios/apptel/src/components/LiveVideoTheaterChrome.css → meta fade
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css → meta fade
+
+================================================================================
+Fin MODIF 1418 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1419 — Live mobile : icônes chrome masquées après 10 s — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les icônes gauche (don, chat, plein écran) restaient visibles en permanence.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/LiveVideoTheaterChrome.css
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css
+ ─────────────────
+ • Plus d’opacity forcée : même auto-hide 10 s que le nom / titre.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/LiveVideoTheaterChrome.css → fade icônes
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css → fade icônes
+
+================================================================================
+Fin MODIF 1419 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1420 — Live mobile : refonte UX chat Twitch — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le chat sous le player restait un flux tassé (bulles aplaties), peu lisible,
+ sans pause / retour en bas.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/TikTokLiveChatOverlay.tsx
+ ─────────────────
+ • Bandeau « Chat ».
+ • Pastille « Chat en pause · Nouveaux messages » si on remonte l’historique.
+
+ ios/apptel/src/components/TikTokLiveChatOverlay.css
+ ─────────────────
+ • Lignes pleine largeur, pseudo coloré, texte 14px.
+ • Dons en barre highlight ; saisie 44px.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/TikTokLiveChatOverlay.tsx → toolbar + jump
+ ios/apptel/src/components/TikTokLiveChatOverlay.css → typo / dons / input
+
+================================================================================
+Fin MODIF 1420 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1421 — Live mobile : peau chat OnScen — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le chat sous le live copiait Twitch (#0e0e10, #9146ff) au lieu des tokens
+ OnScen (reco CTO).
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/TikTokLiveChatOverlay.css
+ ─────────────────
+ • Fond --ms-bg, surface, accent.
+ • Envoi + dons en wave cyan → violet → rose.
+ • Plus d’hex Twitch.
+
+ ios/apptel/src/components/TikTokLiveChatOverlay.tsx
+ ─────────────────
+ • Classe onscen-live-chat.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/TikTokLiveChatOverlay.css → tokens OnScen
+ ios/apptel/src/components/TikTokLiveChatOverlay.tsx → classe marque
+
+================================================================================
+Fin MODIF 1421 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1422 — Live mobile : fosse OnScen (UX originale) — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le chat restait un clone Twitch recoloré, peu esthétique.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/TikTokLiveChatOverlay.tsx + .css
+ ─────────────────
+ • Fosse sous la scène : fondu, voix qui s’estompent, pastille wave.
+ • Saisie en ligne + anneau wave (✦), plus de barre / bouton plein.
+ • Dons en étincelle, rattrapage « Rejoindre le fil ».
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/TikTokLiveChatOverlay.tsx → structure fosse
+ ios/apptel/src/components/TikTokLiveChatOverlay.css → UX originale
+ ios/apptel/src/components/LiveVideoTapToPause.tsx → ignore fosse
+
+================================================================================
+Fin MODIF 1422 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1423 — Live mobile : paysage = cinéma — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Basculer le téléphone ne mettait pas le live en grand (seuil 640px + PWA
+ portrait).
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/LiveLandscapeExpand.tsx
+ ─────────────────
+ • Classe landscape-theater dès que le téléphone est en paysage.
+
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css
+ ─────────────────
+ • Vidéo plein écran, fosse + dock masqués.
+
+ ios/apptel/vite.config.ts
+ ─────────────────
+ • PWA orientation: any.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/LiveLandscapeExpand.tsx → nouveau
+ ios/apptel/src/components/RoomTheaterLayout.tsx → mount
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css → cinéma
+ ios/apptel/vite.config.ts → any
+
+================================================================================
+Fin MODIF 1423 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1424 — Live mobile : plein écran = vue immersive — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton « Plein écran » devait passer en affichage vidéo pleine + chat
+ overlay, pas le fullscreen navigateur.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/LiveTikTokFullscreenToggle.tsx
+ ─────────────────
+ • Intercepte le bouton, toggle --tiktok-theater.
+
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css
+ ─────────────────
+ • Vidéo cover plein cadre, fosse en overlay bas.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/LiveTikTokFullscreenToggle.tsx → nouveau
+ ios/apptel/src/components/RoomTheaterLayout.tsx → mount
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css → vue immersive
+
+================================================================================
+Fin MODIF 1424 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1425 — Live mobile : quitter + aimer le profil — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur le live téléphone, la barre hôte était masquée : plus de bouton pour
+ quitter le live ni pour suivre / aimer le profil de l’hôte.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/LiveHostTopBar.tsx
+ ─────────────────
+ • Portal du trailing (cœur FollowUserButton + Quitter) dans le chrome
+   vidéo bas-droite.
+
+ ios/apptel/src/components/LiveVideoTheaterChrome.css
+ ─────────────────
+ • N’affiche que le cœur et Quitter (dons, signalement, popovers masqués).
+ • Meta hôte reste en haut à gauche.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/LiveHostTopBar.tsx → portal chrome
+ ios/apptel/src/components/LiveVideoTheaterChrome.css → style + filtre
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css → cluster z-30
+
+================================================================================
+Fin MODIF 1425 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1426 — Live mobile : meta hôte en haut à gauche — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le nom / titre du live (LiveTheaterLiveMetaBar) restait en bas à droite
+ (grille stage + align-self/justify-self).
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/LiveVideoTheaterChrome.css
+ ─────────────────
+ • top/left + justify-self/align-self start.
+
+ ios/apptel/src/components/LiveVideoTheaterChrome.tsx
+ ─────────────────
+ • style inline top/left pour forcer la position.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/LiveVideoTheaterChrome.css → haut gauche
+ ios/apptel/src/components/LiveVideoTheaterChrome.tsx → inline
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css → même ancre
+
+================================================================================
+Fin MODIF 1426 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1427 — Live mobile : Quitter en haut à droite — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton Quitter était dans le chrome bas-droite ; le placer en haut à
+ droite de la vidéo.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/LiveHostTopBar.tsx
+ ─────────────────
+ • Clone du bouton Quitter portalé en haut à droite du stage.
+
+ ios/apptel/src/components/LiveVideoTheaterChrome.css
+ ─────────────────
+ • Slot .live-theater-leave-slot ancré top/right.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/LiveHostTopBar.tsx → slot haut-droite
+ ios/apptel/src/components/LiveVideoTheaterChrome.css → position
+
+================================================================================
+Fin MODIF 1427 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1428 — Live mobile : popup dons centrée — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ LiveDonationSheet occupait ~90dvh et paraissait collée en haut.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/LiveVideoTheaterChrome.css
+ ─────────────────
+ • Overlay flex centré + padding.
+ • Panneau max 22rem / 70dvh.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/LiveVideoTheaterChrome.css → popup centrée
+
+================================================================================
+Fin MODIF 1428 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1429 — Live mobile : bouton Quitter visible — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton Quitter avait disparu : extraction du trailing trop fragile,
+ le clone n’était plus monté.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/LiveHostTopBar.tsx
+ ─────────────────
+ • Bouton Quitter dédié, toujours portalé en haut à droite.
+ • Clic → bouton leave caché du trailing.
+
+ ios/apptel/src/components/LiveVideoTheaterChrome.css
+ ─────────────────
+ • z-index 60 + grid-area pour rester au-dessus de la vidéo.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/LiveHostTopBar.tsx → bouton dédié
+ ios/apptel/src/components/LiveVideoTheaterChrome.css → visible
+
+================================================================================
+Fin MODIF 1429 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1430 — Live mobile : cœur à droite du nom — OnScen Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton suivre / aimer était dans le chrome bas-droite ; le placer à
+ droite du nom de l’hôte.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/LiveVideoTheaterChrome.tsx
+ ─────────────────
+ • Slot .live-theater-live-meta__like à côté du nom.
+
+ ios/apptel/src/components/LiveHostTopBar.tsx
+ ─────────────────
+ • Portal du trailing (cœur) dans ce slot.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/LiveVideoTheaterChrome.tsx → slot
+ ios/apptel/src/components/LiveHostTopBar.tsx → portal
+ ios/apptel/src/components/LiveVideoTheaterChrome.css → taille cœur
+
+================================================================================
+Fin MODIF 1430 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1431 - PDF présentation budget emprunt bancaire — Soundly Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Générer un PDF de présentation graphique (9 slides A4 paysage) à partir du
+ dossier BUDGET-EMPRIUNT-BANCAIRE-ONSCEN, pour lecture banque / BPI.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/generate-budget-presentation-pdf.mjs
+ ─────────────────
+ • Nouveau générateur HTML + Edge headless : couverture, objet, 3 scénarios,
+   donut emploi des fonds, barres par poste, trésorerie, jalons T1–T4,
+   remboursement, checklist + vigilances CTO (IAP / infra).
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/strategie/BUDGET-EMPRIUNT-BANCAIRE-PRESENTATION.pdf → livrable
+ commun/docs/strategie/package.json → script pdf:budget-presentation
+ commun/docs/strategie/README.md → entrée + commande
+
+BUILD
+-----
+ npm run pdf:budget-presentation → ✅
+
+================================================================================
+Fin MODIF 1431 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1432 — Documents juridiques OnScen + prix sponsors à saisir — Soundly Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Vérification totale des documents juridiques : plus aucune occurrence Soundy /
+ getsoundy. Sur les documents sponsors destinés à l’envoi, aucun prix prérempli
+ — mention rouge obligatoire avant transmission du contrat / devis.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/strategie/commercial/CONTRAT-TYPE-SPONSOR.md
+ commun/docs/strategie/commercial/MODELE-DEVIS-SPONSOR.md
+ commun/docs/strategie/commercial/CGV-ANNONCEURS.md
+ commun/docs/strategie/ONE-PAGER-SPONSOR-COMMERCIAL.md
+ ─────────────────
+ • Placeholders SOUNDY → ONSCEN, domaine onscen.com, admin@onscen.com
+ • Tous les montants remplacés par mention rouge « À renseigner avant envoi »
+
+ commun/docs/juridique/
+ ─────────────────
+ • LISEZMOI, RUNBOOK-CSAM, LEGAL_REPORT, package-lock : OnScen / onscen.com
+ • MODELE-RAPPORT-TRANSPARENCE-DSA.md promu en source (plus getsoundy)
+ • Export avocat : wipe du build + wipe des PDF avant régénération
+   (plus de reliquats *SOUNDY* / CGV orphelines)
+
+ commun/docs/strategie/commercial/JUSTIFICATION-TARIFS-*.md
+ ─────────────────
+ • Domaine onscen.com — chiffres conservés (docs internes BIC / banque)
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/juridique/dossier-avocat-a-valider/ → 32 PDF régénérés
+ commun/docs/strategie/ONE-PAGER-SPONSOR-COMMERCIAL.pdf → sans prix
+ commun/docs/strategie/commercial/pdf/ → justifications internes (onscen.com)
+
+BUILD
+-----
+ npm run dossier-avocat --prefix commun/docs/juridique → ✅ 32 PDF
+ npm run tarifs-sponsor-pdf --prefix commun/docs/strategie → ✅
+ node generate-pdfs.mjs onepager → ✅
+
+================================================================================
+Fin MODIF 1432 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1433 — Audit CTO web + iOS/Android : gates sécu / IAP / UX — Soundly Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Audit CTO profond (web + app tel). Appliquer toutes les recommandations
+ codables : inscriptions ouvertes sans plafond, Stripe joignable en WebView
+ natif (App Store 3.1.1), GPS mineurs, fail-open prod, modales centrées,
+ crash d’onglet fatal. Hors repo : PhotoDNA, WAF, IAP StoreKit, OAuth Google
+ console, Apple Team ID.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/clientPlatform.ts
+ commun/backend/src/lib/registrationVolumeLimit.ts
+ ─────────────────
+ • Header X-OnScen-Client + 403 NATIVE_IAP_REQUIRED (sans « navigateur »)
+ • Plafond 200/jour + 8/h/IP, alerte registration_spike
+
+ commun/backend/src/routes/auth.ts · oauth.ts · donations.ts · subscriptions.ts
+ ─────────────────
+ • Volume sur register / OAuth new-user
+ • ageConfirmed + blocage natif Stripe
+ • check-username : délai constant + limiter 12/5 min
+
+ web/app/src + ios/apptel/src/lib/api/core.ts
+ ─────────────────
+ • Géo précise masquée si !canUsePreciseGeo
+ • Bottom-sheets + touch 44 px + AppErrorBoundary resetKey
+ • AASA paths /reels /tel /auth ; Sentry slug onscen-web
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/audit/2026-08-15-cto-web-mobile.md → audit
+ commun/docs/dev-agent/rapports/2026-08-15-audit-cto-web-mobile.md → rapport
+
+BUILD
+-----
+ commun/backend vitest (6 files / 38 tests) → ✅
+ web/app npx tsc -b → ✅
+
+================================================================================
+Fin MODIF 1433 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1434 — Mitigations risques CTO restants — Soundly Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Corriger tous les risques encore ouverts après l’audit CTO : CSAM sans
+ hash-matching, Google deleted_client, Stripe test en prod, AASA TEAM_ID,
+ volume inscriptions RAM-only, origin sans headers WAF, pins Android périmés.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/csamHashMatch.ts
+ ─────────────────
+ • SHA-256 local + blocklist persistée ; hook PhotoDNA si clé
+ • Re-upload d’un média déjà refusé (mineur) = blocage immédiat
+
+ commun/backend/src/lib/googleOAuthPublic.ts · stripeLiveGuard.ts
+ ─────────────────
+ • Google/YouTube publics coupés en prod (GOOGLE_OAUTH_PROD_ENABLED=1 pour rouvrir)
+ • Paiements réels refusés si sk_test_ en production
+
+ commun/backend/src/lib/registrationVolumeLimit.ts
+ ─────────────────
+ • Compteurs Redis si REDIS_URL (cluster-safe)
+
+ commun/backend/src/server.ts · appleAppSiteAssociation.ts
+ ─────────────────
+ • AASA servi depuis APPLE_TEAM_ID (plus le placeholder figé)
+
+ commun/deploy/Caddyfile(+staging) · restore-db-staging.sh · .gitleaks.toml
+ ios/apptel/android/.../network_security_config.xml
+ ─────────────────
+ • Headers origin + body 25 Mo ; script restore staging ; pins TLS régénérés
+
+FICHIERS MODIFIÉS
+-----
+ Voir liste ci-dessus + tests associés
+
+BUILD
+-----
+ commun/backend vitest (8 files / 35 tests) → ✅
+ fetch-cert-pins --write → ✅
+
+================================================================================
+Fin MODIF 1434 — 2026-08-15
+================================================================================
+
+================================================================================
+MODIF 1435 — Deep links Android /reels /auth + AAB 2.0.2 — Soundly Dev
+Date : 2026-08-15
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Audit builds : App Links Android incomplets vs AASA ; AAB release du 30/06
+ obsolète.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/scripts/patch-android-native.mjs
+ ─────────────────
+ • Intent filters /reels /auth (+ /tel/…)
+ • versionCode 202 / versionName 2.0.2 (aligné iOS pbxproj)
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/ios/App/App.xcodeproj/project.pbxproj → 2.0.2 (202)
+ android/OnScen-Mobile/OnScen-release-prod.aab → 12,4 Mo (15/08 13:35)
+
+BUILD
+-----
+ npm run android:aab:prod → ✅ BUILD SUCCESSFUL
+
+================================================================================
+Fin MODIF 1435 — 2026-08-15
+================================================================================
+
+
+

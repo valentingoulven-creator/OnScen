@@ -67,7 +67,7 @@ function clamp(n: number, min: number, max: number) {
 
 const HEADER_ICON_BTN =
   'shrink-0 w-11 h-11 flex items-center justify-center rounded transition touch-manipulation';
-const HEADER_ICON_BTN_COMPACT = 'shrink-0 w-6 h-6 flex items-center justify-center rounded transition';
+const HEADER_ICON_BTN_COMPACT = 'shrink-0 w-11 h-11 sm:w-6 sm:h-6 flex items-center justify-center rounded transition';
 
 export interface FloatingSalonChatProps {
   children: ReactNode;
@@ -398,7 +398,7 @@ export function FloatingSalonChat({
               persistBg('transparent');
             }}
             title="Fond transparent"
-            className={`shrink-0 w-6 h-6 flex items-center justify-center rounded transition ${
+            className={`shrink-0 w-11 h-11 sm:w-6 sm:h-6 flex items-center justify-center rounded transition ${
               bgMode === 'transparent'
                 ? 'text-purple-300 bg-purple-900/40'
                 : 'text-gray-500 hover:text-white hover:bg-white/10'
@@ -420,7 +420,7 @@ export function FloatingSalonChat({
               persistBg('gray');
             }}
             title="Fond gris"
-            className={`shrink-0 w-6 h-6 flex items-center justify-center rounded transition ${
+            className={`shrink-0 w-11 h-11 sm:w-6 sm:h-6 flex items-center justify-center rounded transition ${
               bgMode === 'gray'
                 ? 'text-purple-300 bg-purple-900/40'
                 : 'text-gray-500 hover:text-white hover:bg-white/10'

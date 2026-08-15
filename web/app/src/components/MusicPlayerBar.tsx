@@ -345,7 +345,7 @@ export function MusicPlayerBar({
             onClick={prev}
             disabled={!hasPrev}
             aria-label={t('music.playerPrev', { defaultValue: 'Morceau précédent' })}
-            className="w-10 h-10 flex items-center justify-center rounded-full text-gray-300 hover:text-white disabled:opacity-30 disabled:pointer-events-none touch-manipulation"
+            className="w-11 h-11 flex items-center justify-center rounded-full text-gray-300 hover:text-white disabled:opacity-30 disabled:pointer-events-none touch-manipulation"
           >
             <SkipIcon dir="prev" className="w-4 h-4" />
           </button>
@@ -366,7 +366,7 @@ export function MusicPlayerBar({
             onClick={next}
             disabled={!hasNext}
             aria-label={t('music.playerNext', { defaultValue: 'Morceau suivant' })}
-            className="w-10 h-10 flex items-center justify-center rounded-full text-gray-300 hover:text-white disabled:opacity-30 disabled:pointer-events-none touch-manipulation"
+            className="w-11 h-11 flex items-center justify-center rounded-full text-gray-300 hover:text-white disabled:opacity-30 disabled:pointer-events-none touch-manipulation"
           >
             <SkipIcon dir="next" className="w-4 h-4" />
           </button>

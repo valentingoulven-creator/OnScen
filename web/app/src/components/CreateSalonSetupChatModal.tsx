@@ -741,7 +741,7 @@ export function CreateSalonSetupChatModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center ms-modal-overlay bg-black/70 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center ms-modal-overlay bg-black/70 backdrop-blur-[2px]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="create-salon-chat-title"
