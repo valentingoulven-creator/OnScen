@@ -11,10 +11,16 @@
       "name": "soundy-web",
       "command": "bash -lc 'cd web/app && npm run dev -- --host 0.0.0.0 --port 5173'",
       "description": "Frontend Vite · port 5173"
+    },
+    {
+      "name": "onscen-tel",
+      "command": "bash -lc 'cd ios/apptel && npm run dev -- --host 0.0.0.0 --port 4082'",
+      "description": "App tel PWA Capacitor · port 4082/tel/"
     }
   ],
   "ports": [
     { "name": "web", "port": 5173 },
-    { "name": "api", "port": 4080 }
+    { "name": "api", "port": 4080 },
+    { "name": "tel", "port": 4082 }
   ]
 }

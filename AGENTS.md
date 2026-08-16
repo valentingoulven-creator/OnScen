@@ -7,6 +7,7 @@
 ## Cursor Cloud
 
 - **Setup complet :** [`commun/docs/CURSOR-CLOUD-AGENTS.md`](./commun/docs/CURSOR-CLOUD-AGENTS.md)
+- **iOS / Xcode (limites cloud) :** [`commun/docs/CURSOR-CLOUD-IOS-XCODE.md`](./commun/docs/CURSOR-CLOUD-IOS-XCODE.md) — pas de macOS dans la VM ; CI `macos-latest` + PWA tel :4082
 - **Config repo :** `.cursor/environment.json` · sync `npm run cloud:sync` · hook `npm run cloud:sync:install-hook`
 - **Règles @onscen vides dans le chat ?** [`commun/docs/CURSOR-RULES-TROUBLESHOOTING.md`](./commun/docs/CURSOR-RULES-TROUBLESHOOTING.md)
 - **Secrets :** dashboard [Cloud Agents](https://cursor.com/dashboard/cloud-agents) — clés listées dans `.cursor/cloud-secrets.manifest.json` (valeurs depuis `commun/msdev/.env` local, jamais Git)

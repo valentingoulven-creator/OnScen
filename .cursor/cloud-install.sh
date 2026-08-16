@@ -27,4 +27,14 @@ npm install --prefix web/app --no-audit --no-fund
 echo "[cloud-install] npm install commun/backend"
 npm install --prefix commun/backend --no-audit --no-fund
 
-echo "[cloud-install] OK — lancer terminals soundy-api + soundy-web"
+echo "[cloud-install] npm install ios/apptel (Capacitor / tel PWA)"
+npm install --prefix ios/apptel --no-audit --no-fund
+
+echo "[cloud-install] typecheck ios/apptel (sans Xcode)"
+if [[ -f ios/apptel/tsconfig.app.json ]]; then
+  (cd ios/apptel && npx tsc --noEmit -p tsconfig.app.json) || {
+    echo "[cloud-install] WARN — typecheck apptel en échec (voir logs ci-dessus)"
+  }
+fi
+
+echo "[cloud-install] OK — terminals soundy-api + soundy-web + onscen-tel (:4082/tel/)"
