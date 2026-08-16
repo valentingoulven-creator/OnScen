@@ -61,6 +61,13 @@ console.log('[capacitor-build-prod] VITE_SOCKET_URL  =', process.env.VITE_SOCKET
 
 const isWin = process.platform === 'win32';
 const npx = isWin ? 'npx.cmd' : 'npx';
+const node = process.execPath;
+
+const versionSync = spawnSync(node, [path.join(apptelRoot, 'scripts/sync-app-version.mjs')], {
+  cwd: apptelRoot,
+  stdio: 'inherit',
+});
+if (versionSync.status !== 0) process.exit(versionSync.status ?? 1);
 
 const tsc = spawnSync(npx, ['tsc', '-b'], { cwd: apptelRoot, stdio: 'inherit', shell: isWin });
 if (tsc.status !== 0) process.exit(tsc.status ?? 1);

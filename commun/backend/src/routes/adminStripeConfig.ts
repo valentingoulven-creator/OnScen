@@ -11,6 +11,7 @@ import {
   maskStripeSecret,
   validateStripeConfigInput,
 } from '../lib/stripeConfigAdmin';
+import { resolveStripeAccountLive } from '../lib/integrationAccounts';
 
 export const adminStripeConfigRouter = Router();
 
@@ -29,9 +30,11 @@ const stripeConfigUpdateLimiter = rateLimit({
  * GET /api/admin/stripe-config
  * Statut masqué de la config Stripe active (jamais la clé secrète en clair).
  */
-adminStripeConfigRouter.get('/stripe-config', authenticateJWT, (req: Request, res: Response) => {
+adminStripeConfigRouter.get('/stripe-config', authenticateJWT, async (req: Request, res: Response) => {
   if (requireDevStaff(req, res) == null) return;
-  res.json(getStripeConfigStatus());
+  const status = getStripeConfigStatus();
+  status.account = (await resolveStripeAccountLive()) ?? status.account;
+  res.json(status);
 });
 
 /**

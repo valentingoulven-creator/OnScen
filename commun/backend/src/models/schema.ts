@@ -866,6 +866,8 @@ export interface FeedPost {
   eventEndTimes?: (string | null)[];
   /** Comptes tagués (DJ, artiste, partenaire…) — ids utilisateurs. */
   eventTaggedUserIds?: string[];
+  /** Comptes tagués qui ont retiré l'événement de leur onglet profil (l'événement carte reste). */
+  eventProfileHiddenUserIds?: string[];
   /** Lien externe (billetterie, site…) — https uniquement. */
   eventLinkUrl?: string;
   /** Baseline upvotes affichés (sponsor / démo), additionnée aux votes réels. */

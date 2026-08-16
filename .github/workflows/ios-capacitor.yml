@@ -1,12 +1,13 @@
 # OnScen — build iOS Capacitor dans le cloud (macOS)
-# Déclenchement manuel jusqu'à configuration des secrets Apple.
+# Compile unsigned (CODE_SIGNING_ALLOWED=NO) pour attraper les erreurs Xcode.
+# Signature / IPA / TestFlight : décommenter les étapes secrets Apple.
 #
-# Secrets GitHub requis (Settings → Secrets and variables → Actions) :
+# Secrets GitHub requis pour un export signé (Settings → Secrets and variables → Actions) :
 #   APPLE_CERTIFICATE_BASE64       — certificat .p12 encodé en base64
 #   APPLE_CERTIFICATE_PASSWORD     — mot de passe du .p12
 #   APPLE_PROVISIONING_PROFILE_BASE64 — profil .mobileprovision en base64
 #   KEYCHAIN_PASSWORD              — mot de passe keychain temporaire CI
-#   APPLE_TEAM_ID                  — identifiant équipe Apple Developer
+#   APPLE_TEAM_ID                  — identifiant équipe Apple Developer (ne pas inventer)
 #
 # Compte Apple Developer (99 €/an) obligatoire pour installer hors Xcode local.
 # Voir Smartphone/iOS-SANS-MAC-OPTIONS.txt
@@ -40,6 +41,7 @@ jobs:
           cache: 'npm'
           cache-dependency-path: |
             package-lock.json
+            web/app/package-lock.json
             ios/apptel/package-lock.json
 
       - name: Install root dependencies (sync-lan scripts)
@@ -62,9 +64,12 @@ jobs:
       - name: Install apptel dependencies
         run: npm ci
 
-      - name: Build Capacitor web assets
+      - name: Sync marketing version from app-version.json
+        run: node scripts/sync-app-version.mjs
+
+      - name: Build Capacitor web assets (prod API)
         working-directory: .
-        run: npm run build:capacitor --prefix ios/apptel
+        run: npm run capacitor:build:prod
 
       - name: Sync iOS project
         run: npx cap sync ios
@@ -92,19 +97,26 @@ jobs:
       #     mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
       #     echo -n "$APPLE_PROVISIONING_PROFILE_BASE64" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
 
-      - name: Build iOS (unsigned archive — skeleton)
+      - name: Build iOS (unsigned compile check)
         run: |
-          echo "Projet iOS prêt : ios/App/App.xcworkspace"
-          echo "Configurez les secrets Apple puis décommentez l'étape xcodebuild."
-          ls -la ios/App/
-          # xcodebuild -workspace ios/App/App.xcworkspace \
-          #   -scheme App -configuration Release \
-          #   -archivePath $RUNNER_TEMP/OnScen.xcarchive archive \
-          #   CODE_SIGNING_ALLOWED=NO
+          DEST='generic/platform=iOS'
+          if [ -d ios/App/App.xcworkspace ]; then
+            xcodebuild -workspace ios/App/App.xcworkspace \
+              -scheme App -configuration Release \
+              -destination "$DEST" \
+              CODE_SIGNING_ALLOWED=NO \
+              build
+          else
+            xcodebuild -project ios/App/App.xcodeproj \
+              -scheme App -configuration Release \
+              -destination "$DEST" \
+              CODE_SIGNING_ALLOWED=NO \
+              build
+          fi
 
-      - name: Upload iOS workspace artifact
+      - name: Upload iOS project artifact
         uses: actions/upload-artifact@v4
         with:
-          name: melosong-ios-workspace
+          name: onscen-ios-project
           path: ios/apptel/ios/
           if-no-files-found: warn

@@ -100,63 +100,6 @@ function conversationListPrefix(c: Conversation, isGroup: boolean): string {
 
 type View = 'list' | 'thread' | 'groupThread' | 'supportThread' | 'new' | 'createGroup' | 'blocked';
 
-const DM_MATCHES_ONLY_KEY = 'onscen_dm_matches_only';
-
-function readMatchesOnlyFilter(): boolean {
-  try {
-    return localStorage.getItem(DM_MATCHES_ONLY_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function persistMatchesOnlyFilter(value: boolean) {
-  try {
-    localStorage.setItem(DM_MATCHES_ONLY_KEY, value ? '1' : '0');
-  } catch {
-    /* ignore */
-  }
-}
-
-function matchToConversation(m: MusicMatch): Conversation {
-  return {
-    kind: 'dm',
-    userId: m.otherUser.id,
-    username: m.otherUser.username,
-    usernameColor: m.otherUser.usernameColor,
-    usernameWaveFrom: m.otherUser.usernameWaveFrom,
-    usernameWaveTo: m.otherUser.usernameWaveTo,
-    avatarUrl: m.otherUser.avatarUrl,
-    lastMessage: 'Nouveau match musical ♥',
-    lastTimestamp: m.createdAt,
-    isFromMe: false,
-    isMatch: true,
-  };
-}
-
-function buildDisplayedConversations(
-  conversations: Conversation[],
-  matches: MusicMatch[],
-  showMatchesOnly: boolean,
-  isMatchedUser: (userId: string, explicit?: boolean) => boolean
-): Conversation[] {
-  if (!showMatchesOnly) return conversations;
-
-  const matchedConversations = conversations.filter(
-    (c) => !isGroupConversation(c) && isMatchedUser(c.userId ?? '', c.isMatch)
-  );
-  const conversationUserIds = new Set(
-    conversations.filter((c) => c.userId).map((c) => c.userId!)
-  );
-  const matchOnlyRows = matches
-    .filter((m) => !conversationUserIds.has(m.otherUser.id))
-    .map(matchToConversation);
-
-  return [...matchedConversations, ...matchOnlyRows].sort(
-    (a, b) => b.lastTimestamp - a.lastTimestamp
-  );
-}
-
 function normalizeForSearch(value: string): string {
   return value
     .trim()
@@ -321,7 +264,6 @@ export function DmPage({
   const [searchFocused, setSearchFocused] = useState(false);
   const [openMsgMenuId, setOpenMsgMenuId] = useState<string | null>(null);
   const [matches, setMatches] = useState<MusicMatch[]>([]);
-  const [showMatchesOnly, setShowMatchesOnly] = useState(readMatchesOnlyFilter);
   const [pendingRequests, setPendingRequests] = useState<DmRequest[]>([]);
   const [acceptingRequest, setAcceptingRequest] = useState<string | null>(null);
   const [refusingRequest, setRefusingRequest] = useState<string | null>(null);
@@ -427,19 +369,6 @@ export function DmPage({
     (userId: string, explicit?: boolean) => explicit === true || matchedUserIds.has(userId),
     [matchedUserIds]
   );
-
-  const displayedConversations = useMemo(
-    () => buildDisplayedConversations(conversations, matches, showMatchesOnly, isMatchedUser),
-    [conversations, matches, showMatchesOnly, isMatchedUser]
-  );
-
-  const toggleMatchesOnly = () => {
-    setShowMatchesOnly((prev) => {
-      const next = !prev;
-      persistMatchesOnlyFilter(next);
-      return next;
-    });
-  };
 
   const handleMsgDoubleTap = useCallback(
     async (msgId: string) => {
@@ -3495,32 +3424,6 @@ export function DmPage({
           <button
             type="button"
             onClick={() => {
-              if (showMatchesOnly) toggleMatchesOnly();
-            }}
-            className={`flex items-center px-2.5 py-1.5 min-h-[36px] text-[11px] rounded-full border font-semibold whitespace-nowrap shrink-0 ${
-              !showMatchesOnly
-                ? 'bg-purple-600/20 border-purple-500/50 text-purple-200'
-                : 'border-[#2d2d3d] text-gray-400 hover:text-white hover:border-[#3d3d4d]'
-            }`}
-            aria-pressed={!showMatchesOnly}
-          >
-            {t('dm.allConversations', { defaultValue: 'Tous' })}
-          </button>
-          <button
-            type="button"
-            onClick={toggleMatchesOnly}
-            className={`flex items-center px-2.5 py-1.5 min-h-[36px] text-[11px] rounded-full border font-semibold whitespace-nowrap shrink-0 ${
-              showMatchesOnly
-                ? 'bg-pink-600/20 border-pink-500/50 text-pink-300'
-                : 'border-[#2d2d3d] text-gray-400 hover:text-white hover:border-[#3d3d4d]'
-            }`}
-            aria-pressed={showMatchesOnly}
-          >
-            ♥ Matchs
-          </button>
-          <button
-            type="button"
-            onClick={() => {
               loadBlocked();
               setBlockedSearch('');
               setView('blocked');
@@ -3588,7 +3491,7 @@ export function DmPage({
         </div>
       )}
 
-      {!loading && !showMatchesOnly && conversations.length === 0 && pendingRequests.length === 0 && (!activeSupportTicket || activeSupportTicket.status === 'resolved') && (
+      {!loading && conversations.length === 0 && pendingRequests.length === 0 && (!activeSupportTicket || activeSupportTicket.status === 'resolved') && (
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
           <p className="text-gray-400 text-sm mb-4">Aucune conversation pour le moment</p>
           <button
@@ -3601,17 +3504,8 @@ export function DmPage({
         </div>
       )}
 
-      {!loading && showMatchesOnly && displayedConversations.length === 0 && (
-        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-          <p className="text-gray-400 text-sm mb-4">Aucun match pour le moment</p>
-          <p className="text-gray-500 text-xs max-w-xs">
-            Envoyez un cœur musical à quelqu&apos;un qui vous en envoie un pour créer un match.
-          </p>
-        </div>
-      )}
-
       <ul className="flex-1 min-h-0 overflow-y-auto">
-        {!loading && !showMatchesOnly && activeSupportTicket && activeSupportTicket.status !== 'resolved' && (
+        {!loading && activeSupportTicket && activeSupportTicket.status !== 'resolved' && (
           <li key="support">
             <button
               type="button"
@@ -3645,7 +3539,7 @@ export function DmPage({
             </button>
           </li>
         )}
-        {displayedConversations.map((c) => {
+        {conversations.map((c) => {
           const isGroup = isGroupConversation(c);
           const rowKey = isGroup ? c.groupId! : c.userId!;
           const isConvMenuOpen = !isGroup && c.userId ? conversationMenuOpen === c.userId : false;

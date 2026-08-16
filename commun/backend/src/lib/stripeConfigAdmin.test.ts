@@ -117,6 +117,8 @@ describe('getStripeConfigStatus / applyStripeConfig', () => {
     expect(status.mode).toBe('test');
     expect(status.secretKeyMasked).toBe('sk_test_••••0123');
     expect(status.publishableKeyMasked).toBe('pk_test_••••0123');
+    expect(status.account?.email).toBe('valentin.goulven@gmail.com');
+    expect(status.account?.name).toMatch(/test/i);
   });
 
   it('rejects apply when the resolved .env file does not exist', () => {

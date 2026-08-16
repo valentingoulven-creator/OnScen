@@ -41745,5 +41745,714 @@ CHANGEMENTS / FIX
 Fin MODIF 1439 — 2026-08-15
 ================================================================================
 
+================================================================================
+MODIF 1440 — Intégrations : compte lié à chaque clé API — Soundly Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'onglet Admin → Intégrations montrait les clés (masquées) sans indiquer
+ quel compte dashboard / projet a émis la clé — difficile de savoir où
+ se connecter pour tourner une clé.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/integrationAccounts.ts
+ ─────────────────────────────────────────────
+ • Résout e-mail / nom / projet par provider (dérivé env + e-mail opérateur)
+ • Stripe : lecture live GET /v1/account (cache 5 min), repli déclaré
+ • Jamais une valeur secrète renvoyée
+
+ web/app/src/components/AdminIntegrationAccount.tsx
+ ──────────────────────────────────────────────────
+ • Bloc « Compte utilisé » sur chaque carte (Stripe + providers)
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/integrationAccounts.ts → résolution comptes
+ commun/backend/src/lib/externalSecretsAdmin.ts → champ account
+ commun/backend/src/lib/stripeConfigAdmin.ts → champ account
+ commun/backend/src/routes/adminStripeConfig.ts → enrichissement live
+ web/app/src/components/AdminIntegrationAccount.tsx → UI
+ web/app/src/components/AdminExternalSecretProviderCard.tsx → affichage
+ web/app/src/components/AdminStripeConfigCard.tsx → affichage
+ web/app/src/types.ts + locales fr/en → types + i18n
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test (integrationAccounts + externalSecrets + stripeConfig) → ✅ 41/41
+
+================================================================================
+Fin MODIF 1440 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1441 — Intégrations : toutes les API utilisées — Soundly Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'onglet Intégrations omettait des API réellement utilisées (Turnstile,
+ Sentry, PhotoDNA, Apple, Redis).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/externalSecretsRegistry.ts
+ ─────────────────────────────────────────────────
+ • apple_signin, turnstile, photodna, sentry (éditables)
+ • redis en lecture seule (REDIS_URL hors whitelist d'écriture)
+
+FICHIERS MODIFIÉS
+-----
+ registry + admin + accounts + cartes + i18n fr/en
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test (registry/admin/accounts/stripe) → ✅ 51/51
+
+================================================================================
+Fin MODIF 1441 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1442 — Intégrations : catégories (connexion, lives, sécu…) — Soundly Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'onglet Intégrations était une grille plate illisible avec 18+ cartes.
+
+CHANGEMENTS / FIX
+-----
+ • Sections : Connexion, Paiements, Lives, Sécurité, Stockage, Communications, Admin / IA
+
+================================================================================
+Fin MODIF 1442 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1443 — Admin Sponsors : refonte lisible — Soundly Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'onglet Sponsors était une barre d'emplacements cryptique + cartes denses.
+
+CHANGEMENTS / FIX
+-----
+ • Grille « Où ça s'affiche » (carte, fil, stories…) avec une phrase claire
+ • Liste campagnes simplifiée (statut, lieu, 2 actions principales)
+
+================================================================================
+Fin MODIF 1443 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1444 — Admin Comptes : fiche compte réelle — Soundly Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'onglet Admin → Comptes empilait toutes les actions dans un accordéon.
+ Ce n'était pas une gestion de comptes (pas de dossier, pas de sessions,
+ pas de journal, pas de renvoi de vérification).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/routes/access.ts
+ ───────────────────────────────────
+ • GET /admin/users/:userId/audit — journal admin de la cible
+ • POST /admin/users/:userId/revoke-sessions — invalide tous les JWT
+ • POST /admin/users/:userId/resend-verification — renvoi e-mail
+ • Filtres liste : staff (admin/dev) et plan (free / + / Ultra)
+
+ web/app/src/components/AdminAccountDossier.tsx
+ ─────────────────────────────────────────────
+ • Fiche compte (bottom-sheet / panneau) : identité, accès, modération,
+   forfait, activité, social, journal, sauvegarde
+
+ web/app/src/pages/AdminAccountsTab.tsx
+ ─────────────────────────────────────
+ • Liste propre + ouverture de fiche (plus d'accordéon)
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/adminAuditLog.ts → lecture par targetId
+ commun/backend/src/lib/emailVerification.ts → token vérif extrait
+ commun/backend/src/db/migrations/035_admin_audit_log_target_idx.sql
+ web/app/src/lib/adminAccountsUi.ts → helpers UI partagés
+ web/app/src/locales/fr.json + en.json → clés fiche / filtres
+
+================================================================================
+Fin MODIF 1444 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1445 — Admin Contenu : salons ≠ lives — Soundly Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'onglet Admin → Contenu → Salons affichait un badge LIVE (ancien modèle
+ live.id === salon.id). L'app n'autorise pas salon + live en même temps.
+
+CHANGEMENTS / FIX
+-----
+ • Liste admin Salons : uniquement les salons d'écoute (sans live lié)
+ • Badge « Salon » à la place de « LIVE »
+ • POST /lives/start refuse si l'hôte a déjà un salon (409 SALON_ACTIVE)
+ • Plus de conversion salon → live à la création
+
+================================================================================
+Fin MODIF 1445 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1446 — Admin Support : vrai desk tickets — Soundly Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'onglet Support était une liste accordéon + signalements FR en dur +
+ diagnostic. Pas de fiche, une seule réponse admin, pas de réouverture.
+
+CHANGEMENTS / FIX
+-----
+ • File tickets : compteurs, recherche, fiche conversation
+ • Réponses de suivi + résoudre + rouvrir
+ • Signalements : fiche, profils auteur/cible, i18n
+ • Ticket enrichi (e-mail, statut compte)
+
+================================================================================
+Fin MODIF 1446 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1447 — Fil Actualité : lieu événement cliquable (Maps / Waze) — Soundly Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'adresse d'un événement dans une carte du fil (PostCard) n'était pas
+ cliquable. Impossible d'ouvrir Maps / Waze depuis Actualité.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/ActualiteTabPage.tsx
+ ──────────────────────────────────────
+ • Adresse événement = bouton (44px, soulignée)
+ • Ouvre OpenLocationMenu (Google Maps, Waze, Apple Plans)
+ • Coords sync si venue / cache connus, sinon recherche par libellé
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/ActualiteTabPage.tsx → lieu événement cliquable
+
+================================================================================
+Fin MODIF 1447 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1448 — Popup Partager centrée — OnScen Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ ShareLinkMenu était en bottom-sheet (items-end) sur mobile.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/ShareLinkMenu.tsx
+ ─────────────────
+ • Overlay items-center + padding.
+ • Panneau carte centrée, max 80dvh.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/ShareLinkMenu.tsx → popup centrée
+
+================================================================================
+Fin MODIF 1448 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1449 — Zoom carte : boutons centrés — OnScen Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le slider zoom (🌐 / + / −) était collé en bas à droite sur mobile.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/index.css
+ ─────────────────
+ • Contrôle à 50% de la hauteur du viewport carte.
+ • Boutons alignés sur l’axe vertical.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/index.css → zoom centré
+
+================================================================================
+Fin MODIF 1449 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1449 — Fil : bookmark événement = suivi carte/globe — Soundly Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bookmark d'un événement dans Actualité disait « favoris » et n'alimentait
+ pas clairement « Événement suivi » sur la carte et le globe.
+
+CHANGEMENTS / FIX
+-----
+ • Bookmark d'un événement = suivre / ne plus suivre
+ • Sync fil → carte/globe (savedEventSync)
+ • Les événements suivis sont fusionnés aux pins carte/globe
+ • Toast + confirmation adaptés
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/savedEventSync.ts → bus suivi événement
+ web/app/src/pages/HomePage.tsx → pins + sidebar suivi
+ web/app/src/pages/ActualiteTabPage.tsx → bouton + notify
+ web/app/src/components/FeedPostInteractions.tsx → même UX
+ web/app/src/locales/fr.json · en.json → libellés
+
+================================================================================
+Fin MODIF 1449 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1450 — Profil Event : tagués voient l'événement, retrait profil seul — Soundly Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Un compte tagué sur un événement doit le voir dans son onglet Event, et
+ pouvoir le retirer de SON profil. Carte / globe / post : créateur uniquement.
+
+CHANGEMENTS / FIX
+-----
+ • Profil Event : organisateur + personnes taguées (déjà filtré profileUserId)
+ • Tagué : « Retirer de mon profil » (hide, pas delete)
+ • L'événement reste sur la carte, le globe et le profil organisateur
+ • L'organisateur ne peut pas masquer son propre événement via cet endpoint
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/feedPosts.ts → hideEventFromOwnProfile
+ commun/backend/src/routes/feed.ts → DELETE profile-appearance
+ web/app/src/components/UserEventsSection.tsx → bouton + confirm
+ web/app/src/pages/ProfilePage.tsx · UserProfilePage.tsx
+ web/app/src/locales/fr.json · en.json
+
+================================================================================
+Fin MODIF 1450 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1451 — FAB créer carte : un peu plus haut — OnScen Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton « + » (créer live / event / salon) était trop bas.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/index.css
+ ─────────────────
+ • .ms-map-create-menu : +1rem au-dessus du chrome bas.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/index.css → FAB remonté
+
+================================================================================
+Fin MODIF 1451 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1452 — Carte / Partager : correctifs tel only (revert web) — OnScen Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les MODIF 1448–1451 avaient été faites dans web/app. Cet agent est
+ mobile-only (iOS/Android /tel/).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/ShareLinkMenu.tsx · index.css
+ ─────────────────
+ • Revert HEAD (site web inchangé).
+
+ ios/apptel/src/components/ShareLinkMenu.tsx
+ ─────────────────
+ • Popup Partager centrée.
+
+ ios/apptel/src/components/MapChrome.mobile.css
+ ─────────────────
+ • Zoom centré verticalement ; FAB + remonté.
+
+FICHIERS MODIFIÉS
+-----
+ web revert → ShareLinkMenu + index.css
+ ios/apptel/src/components/ShareLinkMenu.tsx → override
+ ios/apptel/src/components/MapChrome.mobile.css → nouveau
+ ios/apptel/src/main.tsx → import CSS
+
+================================================================================
+Fin MODIF 1452 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1453 — FAB créer tel : décalé à droite — OnScen Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton « + » carte était trop à gauche sur le build tel.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/components/MapChrome.mobile.css
+ ─────────────────
+ • left +1rem (web inchangé).
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/components/MapChrome.mobile.css → décalage droite
+
+================================================================================
+Fin MODIF 1453 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1454 — Handoff CTO : routeur création carte tel — OnScen Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les 3 choix du FAB carte (live / event / salon) n’avaient pas de gates
+ communes. Handoff CTO, tel only.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/src/hooks/useMapCreateIntent.ts
+ ─────────────────
+ • startCreate(kind) + modal conflit hôte salon↔live.
+
+ ios/apptel/src/components/MapCreateActionFab.tsx
+ ─────────────────
+ • Les 3 boutons passent par le routeur.
+
+ ios/apptel/src/hooks/useStartLiveFlow.ts
+ ─────────────────
+ • Live sans Stripe Connect par défaut (pas de checkout WebView).
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel uniquement (web inchangé)
+
+================================================================================
+Fin MODIF 1454 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1455 — Fil : l'auteur peut modifier / supprimer post, événement, repost
+================================================================================
+Date : 2026-08-16
+
+OBJECTIF / PROBLÈME
+----
+ Le créateur d'une publication, d'un événement ou d'un repartage n'avait aucun
+ moyen de modifier ou supprimer son contenu depuis le fil (PostCard).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/feedPosts.ts · routes/feed.ts
+ ─────────────────
+ • PATCH /feed/posts/:id et DELETE /feed/posts/:id — auteur uniquement.
+ • Repost : texte seulement. Suppression d'un original → cascade des reshares.
+ • Édition texte sans média : conserve image/vidéo existantes.
+
+ web/app/src/components/FeedPostOwnerActions.tsx
+ ─────────────────
+ • Menu ⋮ → Modifier / Supprimer (bottom sheet). Événement = modal existant.
+
+ web/app/src/pages/ActualiteTabPage.tsx
+ ─────────────────
+ • Menu sur le PostCard et sur l'embed d'origine d'un repartage.
+ • Listes + embeds resharedFrom mis à jour après édition / suppression.
+
+FICHIERS MODIFIÉS
+-----
+ backend feedPosts + feed routes → API auteur
+ FeedPostOwnerActions · ActualiteTabPage · EventsCarousel · UserEventsSection
+ FeedPostDetailModal · MapEventBrowseDetailOverlay · locales fr/en
+
+BUILD (si vérifié)
+-----
+ commun/backend → vitest feedPosts.test.ts → ✅
+ web/app → vitest feedPostOwner.test.ts → ✅
+
+================================================================================
+Fin MODIF 1455 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1456 — Menu lieu : ouvrir sur la carte OnScen
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le menu « Ouvrir le lieu » (feed événement) ne proposait que Google Maps,
+ Waze et Plans. Pas de redirection vers la carte in-app OnScen.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/OpenLocationMenu.tsx
+ ─────────────────
+ • Première option « Carte OnScen » (violet).
+
+ web/app/src/lib/openOnscenMapAtLocation.ts
+ ─────────────────
+ • Résout les coords (props → venue → ville) puis fly 1,2 km + onglet carte.
+
+ web/app/src/lib/mapUiEvents.ts · App.tsx · HomePage.tsx · mapSearchIntent.ts
+ ─────────────────
+ • MAP_OPEN_TAB_EVENT → selectTab('map').
+ • Intent fly accepte radiusKm (lieu, pas rayon ville).
+
+FICHIERS MODIFIÉS
+-----
+ OpenLocationMenu · openOnscenMapAtLocation · mapUiEvents · mapSearchIntent
+ App.tsx · HomePage.tsx · locales fr/en
+
+BUILD (si vérifié)
+-----
+ web/app → vitest openOnscenMapAtLocation + mapSearchIntent → ✅
+
+================================================================================
+Fin MODIF 1456 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1457 — Fil : menu publication centré + Signaler
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le menu ⋮ d'une publication était collé en bas. Pas d'action Signaler.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/FeedPostOwnerActions.tsx
+ ─────────────────
+ • Popup centrée.
+ • Signaler (modal légal existant). ⋮ visible pour tout compte connecté.
+ • Auteur : pas d'auto-blocage. Autre compte : signalement + blocage comme ailleurs.
+
+FICHIERS MODIFIÉS
+-----
+ FeedPostOwnerActions · ReportContentModal · contentReports · locales fr/en
+
+================================================================================
+Fin MODIF 1457 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1458 — Handoff builds mobiles (CI iOS + version unique)
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Audit CTO 2026-08-16 : CI iOS sans xcodebuild, artefact « melosong »,
+ version 2.0.2/202 dupliquée, pas d’ExportOptions App Store.
+ Team ID Apple non inventé (AASA runtime déjà sur APPLE_TEAM_ID).
+
+CHANGEMENTS / FIX
+-----
+ .github/workflows/ios-capacitor.yml
+ ───────────────────────────────────
+ • xcodebuild unsigned (workspace ou .xcodeproj)
+ • artefact onscen-ios-project
+ • build web = capacitor:build:prod (aligné Android)
+
+ ios/apptel/app-version.json
+ ───────────────────────────
+ • source unique name 2.0.2 / code 202
+ • sync pbxproj + patch Android
+
+ ios/apptel/ios/ExportOptions.app-store.plist
+ ───────────────────────────────────────────
+ • method app-store (local development inchangé)
+
+FICHIERS MODIFIÉS
+-----
+ ios-capacitor.yml → compile check unsigned
+ app-version.json · read/sync-app-version.mjs · patch-android-native.mjs
+ ExportOptions.app-store.plist
+ handoff + rapport dev-agent
+
+BUILD (si vérifié)
+-----
+ xcodebuild → CI macos uniquement (non lancé en local Windows)
+
+================================================================================
+Fin MODIF 1458 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1459 — Agents CTO + Dev : chemins, handoff, moins de fluff — Soundly Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les règles CTO/Dev pointaient encore vers app/ et backend/ (obsolètes),
+ imposaient un canevas 14 sections générique, et n'avaient pas de contrat
+ de handoff P0.
+
+CHANGEMENTS / FIX
+-----
+ • CTO : stack réelle, preuve / NON VÉRIFIÉ, GO prod, handoff Dev
+ • Dev : chemins web/app + commun/backend, réutiliser, P0 CTO only
+ • Guides + template rapports + AGENTS.md alignés
+
+FICHIERS MODIFIÉS
+-----
+ .cursor/rules/onscen-cto.mdc · onscen-dev-agent.mdc · onscen-dev.mdc
+ .cursor/rules/00-onscen-agents.mdc
+ commun/docs/ONSCEN-CTO-PROMPT.md · ONSCEN-DEV-AGENT.md
+ commun/docs/dev-agent/rapports/_TEMPLATE.md
+ AGENTS.md · commun/docs/CURSOR-AGENT-CONFIG.md
+
+================================================================================
+Fin MODIF 1459 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1460 — Agent CTO : preuves, GO strict, secrets, revue Dev — Soundly Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Durcir le CTO : classification des preuves, interdiction secrets, verdicts
+ GO/NO-GO (accès manquant ≠ feu vert), handoff seulement si tranché, revue
+ VALIDÉ / À CORRIGER.
+
+CHANGEMENTS / FIX
+-----
+ • Règle courte `.cursor/rules/onscen-cto.mdc`
+ • Prompt long `ONSCEN-CTO-PROMPT.md` (autorité + détail)
+ • `PROMPT-AUDIT-PRE-PROD.md` : préflight, NO-GO si accès critique manquant
+
+================================================================================
+Fin MODIF 1460 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1461 — Agent Dev : checklist implémentation + DONE strict — Soundly Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Aligner @onscen-dev sur le même niveau de rigueur que le CTO : lire avant
+ de coder, diff minimal, authz serveur, secrets, DONE ≠ compile, handoffs.
+
+CHANGEMENTS / FIX
+-----
+ • onscen-dev.mdc + onscen-dev-agent.mdc : garde-fou
+ • ONSCEN-DEV-AGENT.md : prompt long (24 thèmes)
+ • Template rapport : STATUS / NON VÉRIFIÉ / Web-Tel / CTO
+
+================================================================================
+Fin MODIF 1461 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1462 — Règle @audit GO/NO-GO pré-prod — Soundly Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Pouvoir lancer l’audit GO/NO-GO en tapant @audit, sans coller le prompt.
+
+CHANGEMENTS / FIX
+-----
+ • `.cursor/rules/onscen-audit.mdc` — mention @audit, exécute immédiatement
+   `commun/docs/audit/PROMPT-AUDIT-PRE-PROD.md` (prompt fondateur 25 sections)
+ • Index agents, AGENTS.md, CURSOR-AGENT-CONFIG, troubleshooting
+
+FICHIERS MODIFIÉS
+-----
+ .cursor/rules/onscen-audit.mdc → nouvelle règle
+ .cursor/rules/00-onscen-agents.mdc → entrée @audit
+ .cursor/rules/onscen-cto.mdc → routage GO prod → @audit
+ commun/docs/audit/PROMPT-AUDIT-PRE-PROD.md → prompt complet + lancement @audit
+ AGENTS.md, CURSOR-AGENT-CONFIG.md, CURSOR-RULES-TROUBLESHOOTING.md,
+ ONSCEN-CTO-PROMPT.md → découverte @audit
+
+================================================================================
+Fin MODIF 1462 — 2026-08-16
+================================================================================
+
+================================================================================
+MODIF 1463 — Audit GO prod : restore staging + correctifs code P0/P1 — Soundly Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Synthèse audit 2026-08-16 NO-GO. Corriger tout ce qui est code/ops staging
+ sans mutation prod ni décisions fondateur/avocat.
+
+CHANGEMENTS / FIX
+-----
+ • Restore drill staging (drop schema + dump 16/08) — PV restore-drill.md
+ • Lives : relais LiveKit→Cloudflare + sampling ; refus WebRTC non échantillonné
+ • PhotoDNA_REQUIRED + fail-closed ; AASA sans placeholder TEAM_ID
+ • Lint CI ; Node 22 ; DEPLOYED_SHA au deploy ; health stripeMode/release
+ • Disque staging 82% → 77%
+
+FICHIERS MODIFIÉS
+-----
+ commun/deploy/restore-db-staging.sh, backup-db.sh, deploy_zero_downtime.ps1
+ commun/backend/src/lib/csamHashMatch.ts, liveSamplingPolicy.ts, lives.ts, server.ts
+ .github/workflows/ci.yml, uptime-health.yml
+ commun/docs/audit/2026-08-16-go-prod/restore-drill.md
+ commun/docs/dev-agent/rapports/2026-08-16-audit-go-prod-correctifs.md
+
+================================================================================
+Fin MODIF 1463 — 2026-08-16
+================================================================================
 
 

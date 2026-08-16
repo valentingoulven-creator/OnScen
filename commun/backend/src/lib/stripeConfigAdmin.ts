@@ -2,6 +2,7 @@ import fs from 'fs';
 import { getActiveEnvFilePath } from '../paths';
 import { upsertEnvFileKeys } from './envFileWriter';
 import { getStripeKeyMode, type StripeKeyMode } from './stripeConfig';
+import { resolveStripeAccountSync, type IntegrationAccount } from './integrationAccounts';
 
 /**
  * Permet à un founder/admin (rôle Dev staff) de saisir/mettre à jour les clés
@@ -44,6 +45,8 @@ export interface StripeConfigStatus {
   envFileFound: boolean;
   /** stripeClient.ts recrée son instance dès que la clé change — pas de redémarrage requis. */
   hotReload: true;
+  /** Compte Stripe (e-mail / nom) — synchrone ; enrichi en live par la route GET. */
+  account: IntegrationAccount | null;
 }
 
 const SECRET_KEY_RE = /^sk_(live|test)_[A-Za-z0-9]{16,}$/;
@@ -117,6 +120,7 @@ export function getStripeConfigStatus(opts: { envPath?: string } = {}): StripeCo
     subscriptionsEnabled: process.env.SUBSCRIPTIONS_ENABLED === '1',
     envFileFound: fs.existsSync(envPath),
     hotReload: true,
+    account: resolveStripeAccountSync(),
   };
 }
 

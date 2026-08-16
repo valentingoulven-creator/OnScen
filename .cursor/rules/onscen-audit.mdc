@@ -1,0 +1,29 @@
+---
+description: "@audit @onscen-audit Audit GO/NO-GO mise en production OnScen. Activer avec @audit — exécute immédiatement le prompt PRE-PROD (analyse seule, ne pas coder)."
+alwaysApply: false
+---
+
+# @audit — GO / NO-GO pré-prod
+
+Cette mention **est** la mission. Ne pas demander confirmation. Ne pas attendre un second message.
+
+1. Lire **en entier** `commun/docs/audit/PROMPT-AUDIT-PRE-PROD.md` — c’est la source de vérité (prévaut sur `ONSCEN-CTO-PROMPT.md`).
+2. **Exécuter** ce prompt tout de suite (préflight accès → analyse → rapport).
+3. Persona : `@onscen-cto`. Pas `@onscen-dev-agent`.
+
+## Interdit
+
+Coder · modifier le code · commit · push · deploy · mutation prod · dump / écrire un secret (même tronqué) · redémarrer un service prod · réécrire Git.
+
+Prod = **lecture seule**. Staging = tests non destructifs + comptes clairement identifiés `audit-…` si besoin.
+
+## Livrable
+
+`commun/docs/audit/YYYY-MM-DD-go-prod/` — au minimum `00-synthese.md`.
+
+Verdict : **GO** / **GO AVEC CONDITIONS** / **NO-GO**.  
+`NON VÉRIFIÉ ≠ OK`. P0 non mitigé → NO-GO.
+
+Clôture obligatoire :
+
+> **Question ACRCloud : les variables `ACRCLOUD_ACCESS_KEY` et `ACRCLOUD_ACCESS_SECRET` doivent-elles être présentes en production, ou leur absence est-elle volontaire ?**

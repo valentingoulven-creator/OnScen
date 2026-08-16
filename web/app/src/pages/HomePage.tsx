@@ -161,6 +161,12 @@ import {
   FOLLOWING_CHANGED_EVENT,
   type FollowingChangedDetail,
 } from '../lib/followingSync';
+import {
+  applySavedEventChanged,
+  applySavedEventPostsChanged,
+  SAVED_EVENT_CHANGED_EVENT,
+  type SavedEventChangedDetail,
+} from '../lib/savedEventSync';
 import { pauseAllReelsMediaInDom } from '../lib/reelsMedia';
 import { releaseAppMediaFocus, requestAppMediaFocus } from '../lib/appMediaFocus';
 import { clearMapInlineListenSession } from '../lib/mapListenSession';
@@ -405,6 +411,8 @@ export function HomePage({
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
   const [followingIds, setFollowingIds] = useState<Set<string>>(() => new Set());
   const [savedEventPostIds, setSavedEventPostIds] = useState<Set<string>>(() => new Set());
+  const [savedEventPosts, setSavedEventPosts] = useState<FeedPost[]>([]);
+  const [savedEventMarkers, setSavedEventMarkers] = useState<MapEventMarker[]>([]);
   const [mapGeo, setMapGeo] = useState<LivesGeoPrefs>(() => getLivesGeo());
   const salonSheetRef = useRef<HTMLDivElement>(null);
   const mapViewRef = useRef<MapViewHandle>(null);
@@ -580,6 +588,8 @@ export function HomePage({
         setFavoriteIds(new Set());
         setFollowingIds(new Set());
         setSavedEventPostIds(new Set());
+        setSavedEventPosts([]);
+        setSavedEventMarkers([]);
       }
       return;
     }
@@ -593,12 +603,15 @@ export function HomePage({
       .catch(() => setFollowingIds(new Set()));
     api
       .getFavoritedFeedPosts(token)
-      .then((r) =>
-        setSavedEventPostIds(
-          new Set(r.posts.filter((p) => p.isEvent).map((p) => p.id))
-        )
-      )
-      .catch(() => setSavedEventPostIds(new Set()));
+      .then((r) => {
+        const eventPosts = r.posts.filter((p) => p.isEvent);
+        setSavedEventPostIds(new Set(eventPosts.map((p) => p.id)));
+        setSavedEventPosts(eventPosts);
+      })
+      .catch(() => {
+        setSavedEventPostIds(new Set());
+        setSavedEventPosts([]);
+      });
   }, [isActive, token]);
 
   const loadCatalogLives = useCallback(() => {
@@ -649,6 +662,35 @@ export function HomePage({
     window.addEventListener(FOLLOWING_CHANGED_EVENT, onFollowingChanged);
     return () => window.removeEventListener(FOLLOWING_CHANGED_EVENT, onFollowingChanged);
   }, []);
+
+  useEffect(() => {
+    const onSavedEventChanged = (event: Event) => {
+      const detail = (event as CustomEvent<SavedEventChangedDetail>).detail;
+      if (!detail?.postId) return;
+      setSavedEventPostIds((prev) => applySavedEventChanged(prev, detail.postId, detail.saved));
+      setSavedEventPosts((prev) => applySavedEventPostsChanged(prev, detail));
+    };
+    window.addEventListener(SAVED_EVENT_CHANGED_EVENT, onSavedEventChanged);
+    return () => window.removeEventListener(SAVED_EVENT_CHANGED_EVENT, onSavedEventChanged);
+  }, []);
+
+  useEffect(() => {
+    if (savedEventPosts.length === 0) {
+      setSavedEventMarkers([]);
+      return;
+    }
+    let cancelled = false;
+    void buildMapEventMarkersFromPosts(savedEventPosts).then((markers) => {
+      if (cancelled) return;
+      for (const post of savedEventPosts) {
+        mapEventPostsRef.current.set(post.id, { ...post, favoriteByMe: true });
+      }
+      setSavedEventMarkers(markers);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [savedEventPosts]);
 
   useEffect(() => {
     if (!savedEventPostIds.size) return;
@@ -1077,8 +1119,12 @@ export function HomePage({
   );
 
   const mapEventsIncludingSponso = useMemo(
-    () => mergeMapEventsWithSponso(mapEvents, mapSponsoredEventMarkers, mapSponsoredPostIds),
-    [mapEvents, mapSponsoredEventMarkers, mapSponsoredPostIds]
+    () =>
+      mergeMapEventMarkers(
+        mergeMapEventsWithSponso(mapEvents, mapSponsoredEventMarkers, mapSponsoredPostIds),
+        savedEventMarkers
+      ),
+    [mapEvents, mapSponsoredEventMarkers, mapSponsoredPostIds, savedEventMarkers]
   );
 
   const filteredMapEvents = useMemo(
@@ -2036,7 +2082,7 @@ export function HomePage({
       mapSearchFlyCancelRef.current?.();
       mapExploredRef.current = true;
       programmaticMapMoveUntilRef.current = Date.now() + 2500;
-      const radiusKm = getMapSearchFlyRadiusKm(location, kind);
+      const radiusKm = intent.radiusKm ?? getMapSearchFlyRadiusKm(location, kind);
       const placeLabel =
         extractCityFromLocation(location).label || location.split('(')[0]?.trim() || location;
 

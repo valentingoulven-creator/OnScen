@@ -1,24 +1,9 @@
 {
   "applinks": {
     "apps": [],
-    "details": [
-      {
-        "appID": "TEAM_ID.com.soundy.app",
-        "paths": [
-          "/",
-          "/salon/*",
-          "/live/*",
-          "/profile/*",
-          "/reels/*",
-          "/tel/*",
-          "/auth/*"
-        ]
-      }
-    ]
+    "details": []
   },
   "webcredentials": {
-    "apps": [
-      "TEAM_ID.com.soundy.app"
-    ]
+    "apps": []
   }
 }

@@ -28,6 +28,7 @@ Si la fenêtre Cursor est ouverte sur un autre chemin (sous-dossier seul, copie 
 
 | Besoin | Taper / choisir |
 |--------|------------------|
+| Audit GO/NO-GO prod | `@audit` |
 | CTO | `@onscen-cto` |
 | Dev (court) | `@onscen-dev` |
 | Dev (complet) | `@onscen-dev-agent` |

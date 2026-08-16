@@ -1,7 +1,7 @@
 /* Web Push handlers — imported by the Workbox service worker (push-sw.js). */
 self.addEventListener('push', (event) => {
   if (!event.data) return;
-  let payload = { title: 'OnScen', body: '', url: '/', tag: 'soundy' };
+  let payload = { title: 'OnScen', body: '', url: '/', tag: 'onscen' };
   try {
     payload = { ...payload, ...event.data.json() };
   } catch {
@@ -10,7 +10,7 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title || 'OnScen', {
       body: payload.body || '',
-      tag: payload.tag || 'soundy',
+      tag: payload.tag || 'onscen',
       data: { url: payload.url || '/' },
       icon: '/pwa-192x192.png',
       badge: '/pwa-192x192.png',

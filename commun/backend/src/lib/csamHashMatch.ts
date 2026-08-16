@@ -11,6 +11,8 @@ export interface CsamHashCheck {
   blocked: boolean;
   sha256?: string;
   source?: CsamHashSource;
+  /** PhotoDNA requis mais absent ou en erreur — l'appelant doit refuser l'upload. */
+  unavailable?: boolean;
 }
 
 interface BlocklistFile {
@@ -84,8 +86,14 @@ export function resetCsamHashMatchForTests(): void {
   persistDisabled = true;
 }
 
-function isPhotoDnaConfigured(): boolean {
+export function isPhotoDnaConfigured(): boolean {
   return Boolean(process.env.PHOTODNA_SUBSCRIPTION_KEY?.trim());
+}
+
+/** Prod/staging : PHOTODNA_REQUIRED=1 refuse les médias si PhotoDNA n'est pas branché. */
+export function isPhotoDnaRequired(): boolean {
+  const raw = process.env.PHOTODNA_REQUIRED?.trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
 }
 
 function photoDnaMatchStatus(payload: unknown): 'match' | 'nomatch' | 'error' {
@@ -138,8 +146,13 @@ export async function checkCsamHash(source: string): Promise<CsamHashCheck> {
       return { blocked: true, sha256, source: 'photodna' };
     }
     if (photo === 'error' && process.env.APP_ENV === 'production') {
-      return { blocked: true, sha256, source: 'photodna' };
+      return { blocked: true, sha256, source: 'photodna', unavailable: true };
     }
+    return { blocked: false, sha256 };
+  }
+
+  if (isPhotoDnaRequired()) {
+    return { blocked: true, sha256, source: 'photodna', unavailable: true };
   }
 
   return { blocked: false, sha256 };

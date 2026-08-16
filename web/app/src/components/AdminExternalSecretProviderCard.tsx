@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { ApiRequestError } from '../lib/api/core';
 import type { ExternalSecretFieldFormat, ExternalSecretProviderStatus } from '../types';
+import { AdminIntegrationAccount } from './AdminIntegrationAccount';
 
 /**
  * Carte générique de configuration d'un provider d'API tierce (LiveKit,
@@ -32,6 +33,7 @@ export function AdminExternalSecretProviderCard({
 }) {
   const { token } = useAuth();
   const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({});
   const [shown, setShown] = useState<Record<string, boolean>>({});
@@ -93,6 +95,7 @@ export function AdminExternalSecretProviderCard({
       setValues({});
       setShown({});
       setExpanded(false);
+      setOpen(true);
       setSuccessAt(Date.now());
     } catch (e) {
       setSubmitError(
@@ -107,30 +110,54 @@ export function AdminExternalSecretProviderCard({
     }
   }, [token, saving, values, provider, onUpdated, t]);
 
+  const toggleOpen = useCallback(() => {
+    setOpen((prev) => {
+      const next = !prev;
+      if (!next) {
+        setExpanded(false);
+        setValues({});
+        setShown({});
+        setSubmitError(null);
+      }
+      return next;
+    });
+  }, []);
+
+  const accountPreview = provider.account?.email || provider.account?.name || provider.account?.project;
+
   return (
     <div className="rounded-2xl border border-[#2a2a3a] bg-[#12121a] p-4 space-y-3">
-      <div className="flex items-start justify-between gap-3 min-w-0">
+      <button
+        type="button"
+        onClick={toggleOpen}
+        aria-expanded={open}
+        className="w-full flex items-start justify-between gap-3 min-w-0 min-h-[44px] text-left rounded-xl -mx-1 px-1 py-0.5 hover:bg-white/[0.03] transition"
+      >
         <div className="min-w-0">
           <p className="text-sm font-bold text-white">{providerLabel}</p>
-          {providerHint && <p className="text-[11px] text-gray-500 mt-0.5">{providerHint}</p>}
+          {open
+            ? providerHint && <p className="text-[11px] text-gray-500 mt-0.5">{providerHint}</p>
+            : accountPreview && (
+                <p className="text-[11px] text-cyan-300/90 mt-0.5 truncate">{accountPreview}</p>
+              )}
         </div>
-        <div className="flex flex-col items-end gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 pt-0.5">
           <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${badgeClassName}`}>
             {t(badgeKey)}
           </span>
-          {!expanded && (
-            <button
-              type="button"
-              onClick={() => setExpanded(true)}
-              className="min-h-[44px] px-4 py-2.5 rounded-xl bg-[#1a1a26] hover:bg-[#20202e] text-purple-300 text-xs font-bold transition border border-purple-500/20 whitespace-nowrap"
-            >
-              {t('admin.integrations.card.configure')}
-            </button>
-          )}
+          <span
+            className={`text-gray-500 text-xs transition-transform ${open ? 'rotate-180' : ''}`}
+            aria-hidden
+          >
+            ▼
+          </span>
+          <span className="sr-only">
+            {open ? t('admin.integrations.card.collapse') : t('admin.integrations.card.expand')}
+          </span>
         </div>
-      </div>
+      </button>
 
-      {hasIssues && (
+      {open && hasIssues && (
         <ul className="space-y-1.5">
           {provider.issues.map((issue, i) => (
             <li
@@ -151,6 +178,10 @@ export function AdminExternalSecretProviderCard({
           ))}
         </ul>
       )}
+
+      {open && (
+        <>
+      <AdminIntegrationAccount account={provider.account} />
 
       <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-[11px] rounded-xl border border-[#2a2a3a] bg-[#0f0f17] px-3 py-3">
         {provider.fields.map((field) => (
@@ -180,7 +211,20 @@ export function AdminExternalSecretProviderCard({
         </a>
       )}
 
-      {expanded && (
+      {!provider.readOnly && !expanded && (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="min-h-[44px] px-4 py-2.5 rounded-xl bg-[#1a1a26] hover:bg-[#20202e] text-purple-300 text-xs font-bold transition border border-purple-500/20"
+        >
+          {t('admin.integrations.card.configure')}
+        </button>
+      )}
+      {provider.readOnly && (
+        <p className="text-[11px] text-gray-500">{t('admin.integrations.card.readOnly')}</p>
+      )}
+
+      {!provider.readOnly && expanded && (
         <form
           className="space-y-3 pt-1 border-t border-[#2a2a3a]"
           onSubmit={(e) => {
@@ -250,6 +294,8 @@ export function AdminExternalSecretProviderCard({
             </button>
           </div>
         </form>
+      )}
+        </>
       )}
 
       {successAt != null && (

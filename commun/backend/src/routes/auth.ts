@@ -82,17 +82,7 @@ import {
 } from '../lib/mailer';
 import { verifyTurnstileToken } from '../lib/turnstile';
 import { assertRegistrationVolumeAllowed } from '../lib/registrationVolumeLimit';
-
-function issueVerificationToken(user: User): { token: string; url: string } {
-  const token = crypto.randomBytes(32).toString('hex');
-  user.verificationToken = token;
-  user.verificationTokenExpiry = Date.now() + 24 * 60 * 60 * 1000;
-  db.users.set(user.id, user);
-  schedulePersistUserToPg(user);
-  schedulePersist();
-  const appUrl = process.env.WEB_APP_URL ?? 'https://onscen.com';
-  return { token, url: `${appUrl}/verify-email?token=${token}` };
-}
+import { issueVerificationToken } from '../lib/emailVerification';
 
 export const authRouter = Router();
 
@@ -758,7 +748,7 @@ authRouter.get('/check-username', async (req: Request, res: Response) => {
   const started = Date.now();
   const username = String(req.query.username || '').trim();
   let available = false;
-  let reason: string | null = null;
+  let reason: string | null;
   if (username.length < 2) {
     reason = 'Pseudo trop court (min. 2 caractères)';
   } else if (username.length > 30) {

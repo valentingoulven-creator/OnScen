@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { EventCard } from './EventCard';
+import { FeedPostOwnerActions } from './FeedPostOwnerActions';
 import { FeedPostInteractions } from './FeedPostInteractions';
 import { useAuth } from '../context/AuthContext';
 import { resolveEventCoordsSync } from '../lib/mapEventCoords';
@@ -24,6 +25,7 @@ export function MapEventBrowseDetailOverlay({
   onOpenInFeed,
   onOpenProfile,
   onPostChange,
+  onDeleted,
 }: {
   post: FeedPost;
   /** overlay = modal plein écran ; sidebar = panneau bas de la sidebar (liste browse visible). */
@@ -33,6 +35,7 @@ export function MapEventBrowseDetailOverlay({
   onOpenInFeed?: (postId: string) => void;
   onOpenProfile?: (userId: string) => void;
   onPostChange?: (postId: string, patch: Partial<FeedPost>) => void;
+  onDeleted?: (postId: string, deletedIds: string[]) => void;
 }) {
   const { t } = useTranslation();
   const { token } = useAuth();
@@ -123,7 +126,20 @@ export function MapEventBrowseDetailOverlay({
                   embedded
                   locationNavigable
                   locationCoords={locationCoords}
-                  profileActions={hasMapFooterActions ? toolbar : undefined}
+                  profileActions={
+                    <>
+                      {hasMapFooterActions ? toolbar : null}
+                      <FeedPostOwnerActions
+                        post={activePost}
+                        compact={isSidebar}
+                        onUpdated={(updated) => handlePostChange(updated)}
+                        onDeleted={(postId, deletedIds) => {
+                          onDeleted?.(postId, deletedIds);
+                          onClose();
+                        }}
+                      />
+                    </>
+                  }
                   onOpen={() => {}}
                   onOpenProfile={
                     onOpenProfile

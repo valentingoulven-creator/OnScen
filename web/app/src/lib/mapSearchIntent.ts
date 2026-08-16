@@ -9,6 +9,8 @@ export interface MapSearchSearchIntent {
   kind?: MapSearchPlaceKind;
   /** Incrémenté à chaque sélection pour rejouer le fly même vers la même ville. */
   nonce: number;
+  /** Rayon de zoom explicite (lieu / venue). Sinon rayon ville ou pays. */
+  radiusKm?: number;
 }
 
 /** Émis quand l'utilisateur choisit une ville/pays dans la recherche globale. */

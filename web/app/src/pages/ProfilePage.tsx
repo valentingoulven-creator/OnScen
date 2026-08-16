@@ -858,7 +858,7 @@ export function ProfilePage({
         )}
 
         {profileTab === 'programmation' && user && (
-          <UserEventsSection userId={user.id} onOpenPost={onOpenFeedPost} />
+          <UserEventsSection userId={user.id} onOpenPost={onOpenFeedPost} canManageGuestEvents />
         )}
 
         {profileTab === 'profil' && user && (

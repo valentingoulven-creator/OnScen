@@ -134,7 +134,10 @@ export const adminApi = {
     request<{ ok: boolean }>(`/access/admin/content/reels/${reelId}`, { method: 'DELETE' }, token),
 
   adminGetReports: (token: string) =>
-    request<{ reports: import('../../types').ContentReport[] }>('/admin/reports', {}, token),
+    request<{
+      reports: import('../../types').ContentReport[];
+      counts?: import('../../types').AdminReportCounts;
+    }>('/admin/reports', {}, token),
 
   adminPatchReport: (token: string, id: string, status: 'reviewed' | 'dismissed') =>
     request<{ ok: boolean }>(`/admin/reports/${id}`, {

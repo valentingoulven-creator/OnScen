@@ -247,6 +247,12 @@ export function AdminContentTab({ onOpenSalon }: AdminContentTabProps) {
       <div>
         <h2 className="text-base font-bold">{t('admin.content.title')}</h2>
         <p className="text-xs text-gray-500 mt-1">{t('admin.content.subtitle')}</p>
+        {section === 'salons' ? (
+          <p className="text-xs text-purple-300/80 mt-1.5">{t('admin.content.salonsHint')}</p>
+        ) : null}
+        {section === 'lives' ? (
+          <p className="text-xs text-purple-300/80 mt-1.5">{t('admin.content.livesHint')}</p>
+        ) : null}
       </div>
 
       <nav
@@ -356,9 +362,9 @@ export function AdminContentTab({ onOpenSalon }: AdminContentTabProps) {
                                 {t('admin.content.statusBlocked')}
                               </span>
                             )}
-                            {s.isLive && !s.adminBlocked && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/30 text-red-300">
-                                LIVE
+                            {!s.adminBlocked && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300">
+                                {t('admin.content.statusSalon')}
                               </span>
                             )}
                             <span

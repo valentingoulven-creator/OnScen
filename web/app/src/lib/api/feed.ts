@@ -130,5 +130,43 @@ export const feedApi = {
     ),
 
   getFavoritedFeedPosts: (token: string) =>
-    request<{ posts: import('../../types').FeedPost[] }>('/feed/favorites', {}, token)
+    request<{ posts: import('../../types').FeedPost[] }>('/feed/favorites', {}, token),
+
+  hideEventFromOwnProfile: (token: string, postId: string) =>
+    request<{ hidden: boolean }>(
+      `/feed/posts/${postId}/profile-appearance`,
+      { method: 'DELETE' },
+      token
+    ),
+
+  updateFeedPost: (
+    token: string,
+    postId: string,
+    body: {
+      content: string;
+      imageUrl?: string;
+      imageUrls?: string[];
+      videoUrl?: string;
+      isEvent?: boolean;
+      eventDate?: string;
+      eventDates?: string[];
+      eventEndTimes?: (string | null)[];
+      eventLocation?: string;
+      eventType?: 'dance' | 'chant' | 'autre';
+      eventLinkUrl?: string;
+      eventTaggedUserIds?: string[];
+    }
+  ) =>
+    request<{ post: import('../../types').FeedPost }>(
+      `/feed/posts/${postId}`,
+      { method: 'PATCH', body: JSON.stringify(body) },
+      token
+    ),
+
+  deleteFeedPost: (token: string, postId: string) =>
+    request<{ deleted: boolean; deletedIds: string[] }>(
+      `/feed/posts/${postId}`,
+      { method: 'DELETE' },
+      token
+    ),
 } as const;

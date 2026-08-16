@@ -14,6 +14,9 @@ import {
   notifySupportUserReply,
 } from '../lib/notifications';
 import { broadcastSupportTicketUpdated } from '../lib/supportBroadcast';
+import { getAccountStatus } from '../lib/accessControl';
+import { logAdminAction } from '../lib/adminAuditLog';
+import { canAdminReplyToTicket, canReopenTicket, canResolveTicket } from '../lib/supportDesk';
 
 export const supportRouter = Router();
 export const supportAdminRouter = Router();
@@ -86,6 +89,10 @@ function mapSupportMessage(msg: SupportContactMessage) {
     id: msg.id,
     fromUserId: msg.fromUserId,
     fromUsername: fromUser?.username ?? '—',
+    fromEmail: fromUser?.email,
+    fromAvatarUrl: fromUser?.avatarUrl,
+    accountStatus: fromUser ? getAccountStatus(fromUser) : undefined,
+    fromCity: fromUser?.city,
     body: msg.body,
     createdAt: msg.createdAt,
     status: msg.status,
@@ -96,10 +103,6 @@ function mapSupportMessage(msg: SupportContactMessage) {
     threadId: msg.threadId ?? msg.id,
     thread,
   };
-}
-
-function canAdminReply(msg: SupportContactMessage): boolean {
-  return msg.status !== 'resolved' && msg.status !== 'replied';
 }
 
 supportRouter.post('/contact', authenticateJWT, (req: Request, res: Response) => {
@@ -245,12 +248,32 @@ supportRouter.patch('/contact/:id/status', authenticateJWT, (req: Request, res: 
 supportAdminRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
   if (requireAdmin(req, res) == null) return;
   const status = req.query.status;
-  let messages = [...db.supportContactMessages];
+  const q = String(req.query.q || '')
+    .trim()
+    .toLowerCase();
+  const all = [...db.supportContactMessages];
+  const counts = {
+    total: all.length,
+    open: all.filter((m) => m.status === 'open').length,
+    replied: all.filter((m) => m.status === 'replied').length,
+    resolved: all.filter((m) => m.status === 'resolved').length,
+  };
+  let messages = all;
   if (status === 'open' || status === 'replied' || status === 'resolved') {
     messages = messages.filter((m) => m.status === status);
   }
+  if (q) {
+    messages = messages.filter((m) => {
+      const user = db.users.get(m.fromUserId);
+      return (
+        m.body.toLowerCase().includes(q) ||
+        (user?.username.toLowerCase().includes(q) ?? false) ||
+        (user?.email.toLowerCase().includes(q) ?? false)
+      );
+    });
+  }
   messages.sort((a, b) => b.createdAt - a.createdAt);
-  res.json({ messages: messages.map(mapSupportMessage) });
+  res.json({ messages: messages.map(mapSupportMessage), counts });
 });
 
 supportAdminRouter.post('/:id/reply', authenticateJWT, (req: Request, res: Response) => {
@@ -262,7 +285,7 @@ supportAdminRouter.post('/:id/reply', authenticateJWT, (req: Request, res: Respo
     res.status(404).json({ error: 'Message introuvable' });
     return;
   }
-  if (!canAdminReply(msg)) {
+  if (!canAdminReplyToTicket(msg.status)) {
     res.status(400).json({ error: 'Ce ticket ne peut plus recevoir de réponse' });
     return;
   }
@@ -300,8 +323,42 @@ supportAdminRouter.post('/:id/reply', authenticateJWT, (req: Request, res: Respo
       replyPreview: reply,
     });
   }
+  logAdminAction({
+    adminId,
+    action: 'support_reply',
+    targetType: 'support_ticket',
+    targetId: msg.id,
+    details: { fromUserId: msg.fromUserId },
+    ip: req.ip,
+  });
   broadcastSupportTicketUpdated(msg);
 
+  res.json({ message: mapSupportMessage(msg) });
+});
+
+supportAdminRouter.post('/:id/reopen', authenticateJWT, (req: Request, res: Response) => {
+  if (requireAdmin(req, res) == null) return;
+  const adminId = (req as Request & { user: { id: string } }).user.id;
+  const msg = db.supportContactMessages.find((m) => m.id === req.params.id);
+  if (!msg) {
+    res.status(404).json({ error: 'Message introuvable' });
+    return;
+  }
+  if (!canReopenTicket(msg.status)) {
+    res.status(400).json({ error: 'Seuls les tickets résolus peuvent être rouverts' });
+    return;
+  }
+  msg.status = 'open';
+  schedulePersist();
+  logAdminAction({
+    adminId,
+    action: 'support_reopen',
+    targetType: 'support_ticket',
+    targetId: msg.id,
+    details: { fromUserId: msg.fromUserId },
+    ip: req.ip,
+  });
+  broadcastSupportTicketUpdated(msg);
   res.json({ message: mapSupportMessage(msg) });
 });
 
@@ -320,17 +377,21 @@ supportAdminRouter.patch('/:id/status', authenticateJWT, (req: Request, res: Res
     res.status(400).json({ error: 'Statut invalide' });
     return;
   }
-  if (msg.status === 'resolved') {
+  if (!canResolveTicket(msg.status)) {
     res.status(400).json({ error: 'Ticket déjà résolu' });
-    return;
-  }
-  if (msg.status !== 'replied') {
-    res.status(400).json({ error: 'Marquage résolu possible uniquement après une réponse admin' });
     return;
   }
 
   msg.status = 'resolved';
   schedulePersist();
+  logAdminAction({
+    adminId,
+    action: 'support_resolve',
+    targetType: 'support_ticket',
+    targetId: msg.id,
+    details: { fromUserId: msg.fromUserId },
+    ip: req.ip,
+  });
   if (admin) {
     notifySupportResolved({
       message: msg,

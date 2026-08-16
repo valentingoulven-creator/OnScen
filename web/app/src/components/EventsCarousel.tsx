@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { EventCard } from './EventCard';
+import { FeedPostOwnerActions } from './FeedPostOwnerActions';
 import { HorizontalScrollCarousel } from './HorizontalScrollCarousel';
 import type { FeedPost } from '../types';
 
@@ -10,6 +11,7 @@ export interface EventsCarouselProps {
   onShare?: (post: FeedPost) => void;
   getExtraBadges?: (post: FeedPost) => ReactNode;
   onPostChange?: (postId: string, patch: Partial<FeedPost>) => void;
+  onDeleted?: (postId: string, deletedIds: string[]) => void;
   /** default = fil Actualité ; compact = sheet carte ; sidebar = panneau latéral carte */
   size?: 'default' | 'compact' | 'sidebar';
   /** Carrousel Sponso : icône ✨ à la place du type d'événement. */
@@ -23,6 +25,7 @@ export function EventsCarousel({
   onShare,
   getExtraBadges,
   onPostChange,
+  onDeleted,
   size = 'default',
   sponsoredVisual = false,
 }: EventsCarouselProps) {
@@ -56,6 +59,14 @@ export function EventsCarousel({
           extraBadges={sponsoredVisual ? undefined : getExtraBadges?.(post)}
           sponsoredVisual={sponsoredVisual}
           onPostChange={(patch) => onPostChange?.(post.id, patch)}
+          profileActions={
+            <FeedPostOwnerActions
+              post={post}
+              compact
+              onUpdated={(updated) => onPostChange?.(updated.id, updated)}
+              onDeleted={onDeleted}
+            />
+          }
         />
       ))}
     </HorizontalScrollCarousel>

@@ -4,7 +4,9 @@ import path from 'path';
 import { authenticateJWT } from '../middleware/auth';
 import { requireAdmin } from '../middleware/requireAdmin';
 import { getMsdevEnvPath } from '../paths';
+import { db } from '../models/schema';
 import type { ContentReport } from '../lib/contentReports';
+import { getAccountStatus } from '../lib/accessControl';
 
 export const adminReportsRouter = Router();
 
@@ -39,11 +41,35 @@ function writeAllReports(reports: ContentReport[]): void {
   );
 }
 
+function mapAdminReport(report: ContentReport) {
+  const reporter = db.users.get(report.reporterId);
+  const target = report.targetUserId ? db.users.get(report.targetUserId) : undefined;
+  return {
+    ...report,
+    reporterEmail: reporter?.email,
+    reporterAccountStatus: reporter ? getAccountStatus(reporter) : undefined,
+    targetUsername: target?.username,
+    targetEmail: target?.email,
+    targetAccountStatus: target ? getAccountStatus(target) : undefined,
+  };
+}
+
 /** GET /api/admin/reports — liste tous les signalements */
 adminReportsRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
   if (requireAdmin(req, res) == null) return;
   const reports = readAllReports();
-  res.json({ reports });
+  const pending = reports.filter((r) => (r.status ?? 'pending') === 'pending').length;
+  res.json({
+    reports: reports.map(mapAdminReport),
+    counts: {
+      total: reports.length,
+      pending,
+      reviewed: reports.filter((r) => r.status === 'reviewed').length,
+      dismissed: reports.filter((r) => r.status === 'dismissed').length,
+      urgent: reports.filter((r) => r.priority === 'urgent' && (r.status ?? 'pending') === 'pending')
+        .length,
+    },
+  });
 });
 
 /** PATCH /api/admin/reports/:id — marquer comme examiné */

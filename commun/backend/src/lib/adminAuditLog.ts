@@ -52,3 +52,75 @@ export function logAdminAction(entry: AdminAuditEntry): void {
       console.log(line, JSON.stringify(payload));
     });
 }
+
+export interface AdminAuditLogRow {
+  id: string;
+  adminId: string;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  details: Record<string, unknown> | null;
+  ip: string | null;
+  createdAt: string;
+}
+
+export interface AdminAuditListResult {
+  entries: AdminAuditLogRow[];
+  available: boolean;
+}
+
+function asDetails(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+/** Dernières actions admin visant cette cible (fiche compte). */
+export async function listAdminAuditForTarget(
+  targetId: string,
+  limit = 40
+): Promise<AdminAuditListResult> {
+  const id = targetId.trim();
+  if (!id) return { entries: [], available: false };
+  if (!isPostgresEnabled()) return { entries: [], available: false };
+
+  const cap = Math.min(Math.max(Math.floor(limit) || 40, 1), 100);
+  try {
+    const { rows } = await getPool().query<{
+      id: string | number;
+      admin_id: string;
+      action: string;
+      target_type: string | null;
+      target_id: string | null;
+      details: unknown;
+      ip: string | null;
+      created_at: Date | string;
+    }>(
+      `SELECT id, admin_id, action, target_type, target_id, details, ip, created_at
+       FROM admin_audit_log
+       WHERE target_id = $1
+       ORDER BY created_at DESC
+       LIMIT $2`,
+      [id, cap]
+    );
+    return {
+      available: true,
+      entries: rows.map((row) => ({
+        id: String(row.id),
+        adminId: row.admin_id,
+        action: row.action,
+        targetType: row.target_type,
+        targetId: row.target_id,
+        details: asDetails(row.details),
+        ip: row.ip,
+        createdAt:
+          row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
+      })),
+    };
+  } catch (err) {
+    console.error(
+      '[admin-audit] lecture cible échouée :',
+      err instanceof Error ? err.message : err
+    );
+    return { entries: [], available: false };
+  }
+}

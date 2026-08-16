@@ -6,6 +6,7 @@ import { buildFeedPostSharePayload, getFeedPostShareUrl } from '../lib/feedPostS
 import { ShareLinkMenu } from './ShareLinkMenu';
 import { ShareToUserSheet } from './ShareToUserSheet';
 import { ConfirmModal } from './ConfirmModal';
+import { notifySavedEventChanged } from '../lib/savedEventSync';
 import type { CommentAlign, FeedPost, FeedPostComment } from '../types';
 
 function HeartIcon({ filled, className }: { filled?: boolean; className?: string }) {
@@ -161,21 +162,36 @@ export function FeedPostInteractions({
   const performToggleFavorite = useCallback(
     async (wasFav: boolean) => {
       if (!token) return;
-      onPostChange({ favoriteByMe: !wasFav });
+      const nextFav = !wasFav;
+      onPostChange({ favoriteByMe: nextFav });
+      if (post.isEvent) {
+        notifySavedEventChanged(post.id, nextFav, { ...post, favoriteByMe: nextFav });
+      }
       try {
         if (wasFav) {
           await api.removeFeedPostFavorite(token, post.id);
-          toast(t('feed.removedFromFavorites', { defaultValue: 'Retiré des favoris' }));
+          toast(
+            post.isEvent
+              ? t('feed.eventUnfollowed', { defaultValue: 'Retiré des événements suivis' })
+              : t('feed.removedFromFavorites', { defaultValue: 'Retiré des favoris' })
+          );
         } else {
           await api.addFeedPostFavorite(token, post.id);
-          toast(t('feed.addedToFavorites', { defaultValue: 'Ajouté aux favoris' }));
+          toast(
+            post.isEvent
+              ? t('feed.eventFollowed', { defaultValue: 'Événement suivi' })
+              : t('feed.addedToFavorites', { defaultValue: 'Ajouté aux favoris' })
+          );
         }
       } catch {
         onPostChange({ favoriteByMe: wasFav });
+        if (post.isEvent) {
+          notifySavedEventChanged(post.id, wasFav, { ...post, favoriteByMe: wasFav });
+        }
         toast(t('feed.favoriteError', { defaultValue: 'Erreur — réessayez' }));
       }
     },
-    [token, post.id, onPostChange, toast, t]
+    [token, post, onPostChange, toast, t]
   );
 
   const handleToggleFavorite = useCallback(() => {
@@ -285,8 +301,24 @@ export function FeedPostInteractions({
             ? 'text-amber-400 bg-amber-900/15 hover:bg-amber-900/25'
             : 'text-gray-500 hover:text-amber-300 hover:bg-amber-900/10'
         } disabled:opacity-40`}
-        title={post.favoriteByMe ? t('feed.removeFavorite') : t('feed.addFavorite')}
-        aria-label={post.favoriteByMe ? t('feed.removeFavorite') : t('feed.addFavorite')}
+        title={
+          post.isEvent
+            ? post.favoriteByMe
+              ? t('feed.unfollowEvent', { defaultValue: 'Ne plus suivre' })
+              : t('feed.followEvent', { defaultValue: "Suivre l'événement" })
+            : post.favoriteByMe
+              ? t('feed.removeFavorite')
+              : t('feed.addFavorite')
+        }
+        aria-label={
+          post.isEvent
+            ? post.favoriteByMe
+              ? t('feed.unfollowEvent', { defaultValue: 'Ne plus suivre' })
+              : t('feed.followEvent', { defaultValue: "Suivre l'événement" })
+            : post.favoriteByMe
+              ? t('feed.removeFavorite')
+              : t('feed.addFavorite')
+        }
       >
         <BookmarkIcon filled={post.favoriteByMe} className={iconClass} />
       </button>
@@ -383,10 +415,20 @@ export function FeedPostInteractions({
 
       <ConfirmModal
         open={confirmRemoveFavorite}
-        title={t('feed.removeFavoriteConfirmTitle', { defaultValue: 'Retirer cette publication de vos favoris ?' })}
-        description={t('feed.removeFavoriteConfirmBody', {
-          defaultValue: 'Elle ne figurera plus dans votre liste de favoris.',
-        })}
+        title={
+          post.isEvent
+            ? t('feed.unfollowEventConfirmTitle', { defaultValue: 'Ne plus suivre cet événement ?' })
+            : t('feed.removeFavoriteConfirmTitle', { defaultValue: 'Retirer cette publication de vos favoris ?' })
+        }
+        description={
+          post.isEvent
+            ? t('feed.unfollowEventConfirmBody', {
+                defaultValue: 'Il disparaîtra de « Événement suivi » sur la carte et le globe.',
+              })
+            : t('feed.removeFavoriteConfirmBody', {
+                defaultValue: 'Elle ne figurera plus dans votre liste de favoris.',
+              })
+        }
         confirmLabel={t('feed.removeFavoriteConfirmAction', { defaultValue: 'Retirer' })}
         onCancel={() => setConfirmRemoveFavorite(false)}
         onConfirm={() => {

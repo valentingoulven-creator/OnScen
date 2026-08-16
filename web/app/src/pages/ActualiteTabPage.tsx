@@ -30,8 +30,10 @@ import {
 import { FeedTrendingUsersSection } from '../components/FeedTrendingUsersSection';
 import { FeedPostMediaPreview } from '../components/FeedPostMediaPreview';
 import { FeedPostContentText } from '../components/FeedPostContentText';
-import { resolveEventCoords } from '../lib/mapEventCoords';
+import { resolveEventCoords, resolveEventCoordsSync } from '../lib/mapEventCoords';
+import { OpenLocationMenu } from '../components/OpenLocationMenu';
 import { dispatchMapEventsRefresh, dispatchMapOpenCreateSalon } from '../lib/mapUiEvents';
+import { notifySavedEventChanged } from '../lib/savedEventSync';
 import type { CommentAlign, FeedPost, FeedPostComment, MapStory, MusicNewsItem, StoryTaggedUser, TrendingUser } from '../types';
 import { StoryAvatarRing } from '../components/MapStoryRings';
 import { StoriesInlineBar, type StorySheetState } from '../components/StoriesInlineBar';
@@ -62,6 +64,7 @@ import { CreateFeedEventModal, buildFeedEventContent } from '../components/Creat
 import { readSavedEventLocation, writeSavedEventLocation } from '../lib/savedEventLocation';
 import { storyLinkDisplayLabel, validateStoryLinkUrl } from '../lib/storyLink';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { FeedPostOwnerActions } from '../components/FeedPostOwnerActions';
 import { mapFeaturedSoundFromApi, type FeaturedUserSoundItem } from '../lib/featuredUserSounds';
 import { syncProfileUrlInBar } from '../lib/profileDeepLink';
 
@@ -390,6 +393,7 @@ function ActualitesContent({
   onOpenEventDetail,
   onShareEvent,
   onPatchEventPost,
+  onDeleteEventPost,
   countryCode = null,
   countryName = null,
   countryEventPosts = [],
@@ -414,6 +418,7 @@ function ActualitesContent({
   onOpenEventDetail?: (post: FeedPost) => void;
   onShareEvent?: (post: FeedPost) => void;
   onPatchEventPost?: (postId: string, patch: Partial<FeedPost>) => void;
+  onDeleteEventPost?: (postId: string, deletedIds: string[]) => void;
   countryCode?: string | null;
   countryName?: string | null;
   countryEventPosts?: FeedPost[];
@@ -636,6 +641,7 @@ function ActualitesContent({
             onOpen={onOpenEventDetail ?? onOpenAuthor}
             onShare={onShareEvent}
             onPostChange={onPatchEventPost}
+            onDeleted={onDeleteEventPost}
           />
         )}
       </div>
@@ -656,6 +662,7 @@ function ActualitesContent({
             onOpen={onOpenEventDetail ?? onOpenAuthor}
             onShare={onShareEvent}
             onPostChange={onPatchEventPost}
+            onDeleted={onDeleteEventPost}
             getExtraBadges={() => (
               <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
                 {countryCodeToFlag(displayCountryCode)} · {displayCountryName}
@@ -695,6 +702,8 @@ interface PostCardProps {
   onShare: () => void;
   onToggleFavorite: () => void;
   onPostPatch?: (patch: Partial<FeedPost>) => void;
+  onPostUpdated?: (post: FeedPost) => void;
+  onPostDeleted?: (postId: string, deletedIds: string[]) => void;
 }
 
 const PostCard = memo(function PostCard({
@@ -715,6 +724,8 @@ const PostCard = memo(function PostCard({
   onShare,
   onToggleFavorite,
   onPostPatch,
+  onPostUpdated,
+  onPostDeleted,
 }: PostCardProps) {
   const { t } = useTranslation();
   const { token } = useAuth();
@@ -726,6 +737,11 @@ const PostCard = memo(function PostCard({
   const upcoming = hasUpcomingEventDate(post);
   const eventDates = getEventDates(post);
   const eventDateEntries = getEventDateEntries(post);
+  const [locationMenuOpen, setLocationMenuOpen] = useState(false);
+  const resolvedLocationCoords = useMemo(() => {
+    if (!post.eventLocation?.trim()) return null;
+    return resolveEventCoordsSync(post.eventLocation);
+  }, [post.eventLocation]);
 
   return (
     <article
@@ -748,34 +764,41 @@ const PostCard = memo(function PostCard({
       )}
 
       {/* Author row */}
-      <button
-        type="button"
-        onClick={() => onOpenAuthor(post)}
-        className="flex items-center gap-2 text-left w-full"
-        aria-label={`Profil de ${post.author.username}`}
-      >
-        <StoryAvatarRing
-          hasActiveStory={authorHasStory}
-          storyImageUrl={authorStory?.imageUrl}
-          avatarUrl={post.author.avatarUrl}
-          size="md"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <UsernameDisplay
-              username={post.author.username}
-              usernameColor={post.author.usernameColor}
-              usernameWaveFrom={post.author.usernameWaveFrom}
-              usernameWaveTo={post.author.usernameWaveTo}
-              className="text-sm font-semibold truncate block"
-            />
+      <div className="flex items-start gap-1">
+        <button
+          type="button"
+          onClick={() => onOpenAuthor(post)}
+          className="flex items-center gap-2 text-left min-w-0 flex-1"
+          aria-label={`Profil de ${post.author.username}`}
+        >
+          <StoryAvatarRing
+            hasActiveStory={authorHasStory}
+            storyImageUrl={authorStory?.imageUrl}
+            avatarUrl={post.author.avatarUrl}
+            size="md"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <UsernameDisplay
+                username={post.author.username}
+                usernameColor={post.author.usernameColor}
+                usernameWaveFrom={post.author.usernameWaveFrom}
+                usernameWaveTo={post.author.usernameWaveTo}
+                className="text-sm font-semibold truncate block"
+              />
+            </div>
+            <p className="text-[11px] text-gray-500">
+              {post.resharedFromId && <span className="text-green-500/80 mr-1">🔁 {t('feed.reshared')}</span>}
+              {formatWhen(post.createdAt)}
+            </p>
           </div>
-          <p className="text-[11px] text-gray-500">
-            {post.resharedFromId && <span className="text-green-500/80 mr-1">🔁 {t('feed.reshared')}</span>}
-            {formatWhen(post.createdAt)}
-          </p>
-        </div>
-      </button>
+        </button>
+        <FeedPostOwnerActions
+          post={post}
+          onUpdated={onPostUpdated}
+          onDeleted={onPostDeleted}
+        />
+      </div>
 
       {/* Event date & location block */}
       {post.isEvent && (eventDates.length > 0 || post.eventLocation) && (
@@ -789,10 +812,27 @@ const PostCard = memo(function PostCard({
             </div>
           ))}
           {post.eventLocation && (
-            <div className="flex items-start gap-2">
-              <MapPinIcon className="w-3.5 h-3.5 text-pink-400 shrink-0 mt-0.5" />
-              <span className="text-xs text-gray-200">{post.eventLocation}</span>
-            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setLocationMenuOpen(true);
+              }}
+              className="flex items-start gap-2 w-full text-left rounded-lg -mx-1 px-1 py-0.5 min-h-[44px] hover:bg-pink-500/10 active:bg-pink-500/15 transition group/location"
+              title={t('openLocation.openLabel', {
+                location: post.eventLocation,
+                defaultValue: `Itinéraire vers ${post.eventLocation}`,
+              })}
+              aria-label={t('openLocation.openLabel', {
+                location: post.eventLocation,
+                defaultValue: `Itinéraire vers ${post.eventLocation}`,
+              })}
+            >
+              <MapPinIcon className="w-3.5 h-3.5 text-pink-400 shrink-0 mt-0.5 group-hover/location:text-pink-300" />
+              <span className="text-xs text-gray-200 underline decoration-pink-400/35 underline-offset-2 group-hover/location:text-pink-100">
+                {post.eventLocation}
+              </span>
+            </button>
           )}
           {post.eventLinkUrl ? (
             <a
@@ -822,10 +862,11 @@ const PostCard = memo(function PostCard({
       {/* Reshared original post embed */}
       {post.resharedFrom && (
         <div className="rounded-lg border border-[#2a2a3d] bg-[#0e0e18] p-2.5 space-y-1.5">
+          <div className="flex items-start gap-1">
           <button
             type="button"
             onClick={() => onOpenAuthor(post.resharedFrom!)}
-            className="flex items-center gap-2 text-left w-full"
+            className="flex items-center gap-2 text-left min-w-0 flex-1"
           >
             <StoryAvatarRing
               hasActiveStory={!!post.resharedFrom.authorHasActiveStory}
@@ -842,6 +883,13 @@ const PostCard = memo(function PostCard({
             />
             <span className="text-[10px] text-gray-600 shrink-0">{formatWhen(post.resharedFrom.createdAt)}</span>
           </button>
+          <FeedPostOwnerActions
+            post={post.resharedFrom}
+            compact
+            onUpdated={onPostUpdated}
+            onDeleted={onPostDeleted}
+          />
+          </div>
           <FeedPostContentText content={post.resharedFrom.content} className="text-xs text-gray-300" />
           <FeedPostMediaPreview post={post.resharedFrom} label="Republication" variant="feed" />
         </div>
@@ -918,7 +966,24 @@ const PostCard = memo(function PostCard({
               ? 'text-amber-400'
               : 'text-gray-500 hover:text-amber-300 hover:bg-amber-900/10'
           }`}
-          title={post.favoriteByMe ? t('feed.removeFavorite') : t('feed.addFavorite')}
+          title={
+            post.isEvent
+              ? post.favoriteByMe
+                ? t('feed.unfollowEvent', { defaultValue: 'Ne plus suivre' })
+                : t('feed.followEvent', { defaultValue: "Suivre l'événement" })
+              : post.favoriteByMe
+                ? t('feed.removeFavorite')
+                : t('feed.addFavorite')
+          }
+          aria-label={
+            post.isEvent
+              ? post.favoriteByMe
+                ? t('feed.unfollowEvent', { defaultValue: 'Ne plus suivre' })
+                : t('feed.followEvent', { defaultValue: "Suivre l'événement" })
+              : post.favoriteByMe
+                ? t('feed.removeFavorite')
+                : t('feed.addFavorite')
+          }
         >
           <BookmarkIcon filled={post.favoriteByMe} className="w-3.5 h-3.5 shrink-0" />
         </button>
@@ -976,6 +1041,17 @@ const PostCard = memo(function PostCard({
           </div>
         </div>
       )}
+
+      {post.eventLocation ? (
+        <OpenLocationMenu
+          open={locationMenuOpen}
+          onClose={() => setLocationMenuOpen(false)}
+          label={post.eventLocation}
+          latitude={resolvedLocationCoords?.latitude}
+          longitude={resolvedLocationCoords?.longitude}
+          overlayZClass="z-[120]"
+        />
+      ) : null}
     </article>
   );
 });
@@ -1819,6 +1895,32 @@ export function ActualiteTabPage({
     setFeedEventDetailPost((prev) => (prev?.id === postId ? { ...prev, ...patch } : prev));
   }, [setPosts]);
 
+  const replaceOwnedPost = useCallback((updated: FeedPost) => {
+    const embed = { ...updated, resharedFrom: undefined, resharedFromId: undefined };
+    const apply = (prev: FeedPost[]) =>
+      prev.map((p) => {
+        if (p.id === updated.id) return updated;
+        if (p.resharedFromId === updated.id) return { ...p, resharedFrom: embed };
+        return p;
+      });
+    setPosts(apply);
+    setCommunityEventPosts(apply);
+    setCountryEventPosts(apply);
+    setFeedEventDetailPost((prev) => (prev?.id === updated.id ? updated : prev));
+    if (updated.isEvent) dispatchMapEventsRefresh();
+  }, [setPosts]);
+
+  const removeOwnedPosts = useCallback((postId: string, deletedIds: string[]) => {
+    const gone = new Set(deletedIds.length ? deletedIds : [postId]);
+    const apply = (prev: FeedPost[]) =>
+      prev.filter((p) => !gone.has(p.id) && !(p.resharedFromId && gone.has(p.resharedFromId)));
+    setPosts(apply);
+    setCommunityEventPosts(apply);
+    setCountryEventPosts(apply);
+    setFeedEventDetailPost((prev) => (prev && gone.has(prev.id) ? null : prev));
+    dispatchMapEventsRefresh();
+  }, [setPosts]);
+
   const handleLike = useCallback(async (post: FeedPost) => {
     if (!token) return;
     const wasLiked = post.likedByMe;
@@ -1839,20 +1941,35 @@ export function ActualiteTabPage({
 
   const performToggleFavorite = useCallback(async (post: FeedPost, wasFav: boolean) => {
     if (!token) return;
-    updatePostInList(post.id, { favoriteByMe: !wasFav });
+    const nextFav = !wasFav;
+    updatePostInList(post.id, { favoriteByMe: nextFav });
+    if (post.isEvent) {
+      notifySavedEventChanged(post.id, nextFav, { ...post, favoriteByMe: nextFav });
+    }
     try {
       if (wasFav) {
         await api.removeFeedPostFavorite(token, post.id);
-        showToast('Retiré des favoris');
+        showToast(
+          post.isEvent
+            ? t('feed.eventUnfollowed', { defaultValue: 'Retiré des événements suivis' })
+            : 'Retiré des favoris'
+        );
       } else {
         await api.addFeedPostFavorite(token, post.id);
-        showToast('Ajouté aux favoris ⭐');
+        showToast(
+          post.isEvent
+            ? t('feed.eventFollowed', { defaultValue: 'Événement suivi' })
+            : 'Ajouté aux favoris ⭐'
+        );
       }
     } catch {
       updatePostInList(post.id, { favoriteByMe: wasFav });
+      if (post.isEvent) {
+        notifySavedEventChanged(post.id, wasFav, { ...post, favoriteByMe: wasFav });
+      }
       showToast('Erreur — réessayez');
     }
-  }, [token, updatePostInList, showToast]);
+  }, [token, updatePostInList, showToast, t]);
 
   const handleToggleFavorite = useCallback((post: FeedPost) => {
     if (!token) return;
@@ -1946,6 +2063,8 @@ export function ActualiteTabPage({
           onShare={() => setSharePost(post)}
           onToggleFavorite={() => void handleToggleFavorite(post)}
           onPostPatch={(patch) => patchEventPost(post.id, patch)}
+          onPostUpdated={replaceOwnedPost}
+          onPostDeleted={removeOwnedPosts}
         />
         {postIndex === 0 ? (
           <FeedInlineAdBanner
@@ -1971,6 +2090,8 @@ export function ActualiteTabPage({
       handleReshare,
       handleToggleFavorite,
       patchEventPost,
+      replaceOwnedPost,
+      removeOwnedPosts,
       onOpenLive,
     ]
   );
@@ -1992,6 +2113,7 @@ export function ActualiteTabPage({
             onOpen={handleOpenFeedEventDetail}
             onShare={(post) => setSharePost(post)}
             onPostChange={patchEventPost}
+            onDeleted={removeOwnedPosts}
           />
         </div>
       ) : null}
@@ -2348,6 +2470,7 @@ export function ActualiteTabPage({
             onOpenEventDetail={handleOpenFeedEventDetail}
             onShareEvent={setSharePost}
             onPatchEventPost={patchEventPost}
+            onDeleteEventPost={removeOwnedPosts}
             communityEvents={communityEvents}
             communityEventsLoading={communityEventsLoading}
             trendingUsers={trendingUsers}
@@ -2443,6 +2566,7 @@ export function ActualiteTabPage({
           onClose={() => setFeedEventDetailPost(null)}
           onOpenProfile={onOpenProfile}
           onPostChange={patchEventPost}
+          onDeleted={removeOwnedPosts}
         />
       ) : null}
 
@@ -2486,8 +2610,18 @@ export function ActualiteTabPage({
 
       <ConfirmModal
         open={confirmRemoveFavoritePost !== null}
-        title="Retirer cette publication de vos favoris ?"
-        description="Elle ne figurera plus dans votre liste de favoris."
+        title={
+          confirmRemoveFavoritePost?.isEvent
+            ? t('feed.unfollowEventConfirmTitle', { defaultValue: 'Ne plus suivre cet événement ?' })
+            : 'Retirer cette publication de vos favoris ?'
+        }
+        description={
+          confirmRemoveFavoritePost?.isEvent
+            ? t('feed.unfollowEventConfirmBody', {
+                defaultValue: 'Il disparaîtra de « Événement suivi » sur la carte et le globe.',
+              })
+            : 'Elle ne figurera plus dans votre liste de favoris.'
+        }
         confirmLabel="Retirer"
         onCancel={() => setConfirmRemoveFavoritePost(null)}
         onConfirm={() => {

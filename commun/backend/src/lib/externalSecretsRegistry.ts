@@ -44,6 +44,56 @@ export interface ExternalSecretProviderDef {
   fields: ExternalSecretFieldDef[];
   /** Lien doc/console externe optionnel affiché côté admin. */
   helpUrl?: string;
+  /**
+   * Affiché dans l'onglet mais jamais writable (cœur système, ex. REDIS_URL).
+   * Exclu de EXTERNAL_SECRET_WHITELIST.
+   */
+  readOnly?: boolean;
+  /** Section de l'onglet Intégrations (connexion, lives, sécurité…). */
+  category?: ExternalSecretCategory;
+}
+
+export type ExternalSecretCategory =
+  | 'connexion'
+  | 'payments'
+  | 'lives'
+  | 'security'
+  | 'storage'
+  | 'comms'
+  | 'admin';
+
+export const PROVIDER_CATEGORY: Record<string, ExternalSecretCategory> = {
+  google_oauth: 'connexion',
+  apple_signin: 'connexion',
+  youtube_data_api: 'connexion',
+  facebook_instagram: 'connexion',
+  cloudflare_stream: 'lives',
+  livekit: 'lives',
+  turn: 'lives',
+  turnstile: 'security',
+  sightengine: 'security',
+  photodna: 'security',
+  acrcloud: 'security',
+  sentry: 'security',
+  s3_scaleway: 'storage',
+  redis: 'storage',
+  resend_email: 'comms',
+  web_push: 'comms',
+  ai_agents: 'admin',
+};
+
+export const INTEGRATION_CATEGORY_ORDER: ExternalSecretCategory[] = [
+  'connexion',
+  'payments',
+  'lives',
+  'security',
+  'storage',
+  'comms',
+  'admin',
+];
+
+export function getProviderCategory(providerId: string): ExternalSecretCategory {
+  return PROVIDER_CATEGORY[providerId] ?? 'admin';
 }
 
 export const EXTERNAL_SECRET_PROVIDERS: ExternalSecretProviderDef[] = [
@@ -55,6 +105,17 @@ export const EXTERNAL_SECRET_PROVIDERS: ExternalSecretProviderDef[] = [
       { key: 'GOOGLE_CLIENT_SECRET', kind: 'secret', format: 'token', required: true, placeholder: 'GOCSPX-…' },
       { key: 'GOOGLE_CALLBACK_URL', kind: 'public', format: 'httpUrl', required: true, placeholder: 'https://onscen.com/api/auth/google/callback' },
       { key: 'YOUTUBE_CALLBACK_URL', kind: 'public', format: 'httpUrl', required: false, placeholder: 'https://onscen.com/api/auth/youtube/callback' },
+    ],
+  },
+  {
+    id: 'apple_signin',
+    helpUrl: 'https://developer.apple.com/account/resources/identifiers/list/serviceId',
+    fields: [
+      { key: 'APPLE_CLIENT_ID', kind: 'public', format: 'id', required: true, placeholder: 'com.onscen.app.web' },
+      { key: 'APPLE_TEAM_ID', kind: 'public', format: 'id', required: true, placeholder: 'AB12CD3EFG' },
+      { key: 'APPLE_KEY_ID', kind: 'public', format: 'id', required: true, placeholder: 'XXXXXXXXXX' },
+      { key: 'APPLE_CALLBACK_URL', kind: 'public', format: 'httpUrl', required: true, placeholder: 'https://onscen.com/api/auth/apple/callback' },
+      { key: 'APPLE_PRIVATE_KEY', kind: 'secret', format: 'freeText', required: true, placeholder: '-----BEGIN PRIVATE KEY-----' },
     ],
   },
   {
@@ -84,6 +145,14 @@ export const EXTERNAL_SECRET_PROVIDERS: ExternalSecretProviderDef[] = [
     ],
   },
   {
+    id: 'turnstile',
+    helpUrl: 'https://dash.cloudflare.com/?to=/:account/turnstile',
+    fields: [
+      { key: 'TURNSTILE_SECRET_KEY', kind: 'secret', format: 'token', required: true, placeholder: '0x4AAAAA…' },
+      { key: 'TURNSTILE_REQUIRED', kind: 'public', format: 'freeText', required: false, placeholder: '1' },
+    ],
+  },
+  {
     id: 'livekit',
     helpUrl: 'https://cloud.livekit.io',
     fields: [
@@ -98,6 +167,14 @@ export const EXTERNAL_SECRET_PROVIDERS: ExternalSecretProviderDef[] = [
     fields: [
       { key: 'SIGHTENGINE_API_USER', kind: 'public', format: 'id', required: true, placeholder: 'Identifiant API' },
       { key: 'SIGHTENGINE_API_SECRET', kind: 'secret', format: 'token', required: true, placeholder: 'Clé secrète API' },
+    ],
+  },
+  {
+    id: 'photodna',
+    helpUrl: 'https://www.microsoft.com/en-us/photodna',
+    fields: [
+      { key: 'PHOTODNA_SUBSCRIPTION_KEY', kind: 'secret', format: 'token', required: true, placeholder: 'Clé Microsoft PhotoDNA' },
+      { key: 'PHOTODNA_MATCH_URL', kind: 'public', format: 'httpUrl', required: false, placeholder: 'https://api.microsoftmoderator.com/photodna/v1.0/Match' },
     ],
   },
   {
@@ -155,6 +232,22 @@ export const EXTERNAL_SECRET_PROVIDERS: ExternalSecretProviderDef[] = [
       { key: 'TURN_CREDENTIAL', kind: 'secret', format: 'token', required: true, placeholder: '…' },
     ],
   },
+  {
+    id: 'sentry',
+    helpUrl: 'https://sentry.io',
+    fields: [
+      { key: 'SENTRY_DSN', kind: 'secret', format: 'token', required: true, placeholder: 'https://…@….ingest.sentry.io/…' },
+      { key: 'SENTRY_TRACES_SAMPLE_RATE', kind: 'public', format: 'freeText', required: false, placeholder: '0.05' },
+    ],
+  },
+  {
+    id: 'redis',
+    helpUrl: 'https://console.scaleway.com/managed-databases/redis',
+    readOnly: true,
+    fields: [
+      { key: 'REDIS_URL', kind: 'secret', format: 'token', required: true, placeholder: 'redis://…' },
+    ],
+  },
 ];
 
 /**
@@ -192,5 +285,5 @@ export function getFieldDef(providerDef: ExternalSecretProviderDef, key: string)
  * clés d'API tierces y figurent, une par une, explicitement déclarées.
  */
 export const EXTERNAL_SECRET_WHITELIST: ReadonlySet<string> = new Set(
-  EXTERNAL_SECRET_PROVIDERS.flatMap((p) => p.fields.map((f) => f.key))
+  EXTERNAL_SECRET_PROVIDERS.filter((p) => !p.readOnly).flatMap((p) => p.fields.map((f) => f.key))
 );

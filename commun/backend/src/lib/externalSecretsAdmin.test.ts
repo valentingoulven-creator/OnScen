@@ -107,6 +107,7 @@ describe('getProviderStatus / getExternalSecretsStatus', () => {
     process.env.LIVEKIT_API_SECRET = 'abcdefgh12345678';
     const status = getProviderStatus(getProviderDef('livekit')!);
     expect(status.configured).toBe(true);
+    expect(status.account?.project).toBe('example');
     const urlField = status.fields.find((f) => f.key === 'LIVEKIT_URL')!;
     expect(urlField.value).toBe('wss://example.livekit.cloud');
     const secretField = status.fields.find((f) => f.key === 'LIVEKIT_API_SECRET')!;
@@ -125,6 +126,14 @@ describe('getProviderStatus / getExternalSecretsStatus', () => {
     expect(res.providers.some((p) => p.id === 'livekit')).toBe(true);
     expect(res.providers.some((p) => p.id === 'sightengine')).toBe(true);
     expect(res.providers.some((p) => p.id === 's3_scaleway')).toBe(true);
+    expect(res.providers.some((p) => p.id === 'turnstile')).toBe(true);
+    expect(res.providers.some((p) => p.id === 'sentry')).toBe(true);
+    expect(res.providers.some((p) => p.id === 'photodna')).toBe(true);
+    expect(res.providers.some((p) => p.id === 'apple_signin')).toBe(true);
+    expect(res.providers.find((p) => p.id === 'redis')?.readOnly).toBe(true);
+    expect(res.providers.find((p) => p.id === 'google_oauth')?.category).toBe('connexion');
+    expect(res.providers.find((p) => p.id === 'livekit')?.category).toBe('lives');
+    expect(res.providers.find((p) => p.id === 'sightengine')?.category).toBe('security');
   });
 });
 
@@ -154,6 +163,10 @@ describe('applyProviderConfig', () => {
 
   it('throws for an unknown provider', () => {
     expect(() => applyProviderConfig('not-a-provider', {})).toThrow(/inconnu/);
+  });
+
+  it('rejects writes to a read-only provider (redis)', () => {
+    expect(() => applyProviderConfig('redis', { REDIS_URL: 'redis://evil' })).toThrow(/lecture seule/);
   });
 
   it('rejects a key not belonging to the provider (whitelist enforcement)', () => {

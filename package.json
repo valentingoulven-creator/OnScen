@@ -3,6 +3,9 @@
   "version": "2.0.0",
   "private": true,
   "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20 <25"
+  },
   "description": "OnScen — salons musicaux géolocalisés (YouTube, Lives)",
   "repository": {
     "type": "git",

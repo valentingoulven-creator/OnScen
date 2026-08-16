@@ -1,0 +1,25 @@
+/*
+ * Fichier override mobile — ios/apptel/src/components/MapChrome.mobile.css
+ * Ne pas modifier web/app/src/index.css pour ce comportement mobile-only.
+ */
+
+/* Zoom : milieu vertical de la carte, boutons alignés. */
+.ms-map-zoom-control {
+  top: 50% !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
+}
+
+.ms-map-zoom-slider {
+  align-items: center;
+}
+
+.ms-map-zoom-slider > button {
+  margin-inline: auto;
+}
+
+/* FAB « + » : un peu plus haut et décalé à droite. */
+.ms-map-salon-fab.ms-map-create-menu {
+  bottom: calc(var(--ms-map-chrome-bottom) + 1rem) !important;
+  left: calc(var(--ms-map-chrome-left, 0.75rem) + 1rem) !important;
+}

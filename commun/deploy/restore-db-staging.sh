@@ -39,5 +39,20 @@ if ! gzip -t "$FILE" 2>/dev/null; then
 fi
 
 echo "Restore staging depuis $FILE"
-gunzip -c "$FILE" | psql "$URL"
-echo "OK — restore staging terminé"
+echo "Drop schema public (staging uniquement)…"
+psql "$URL" -v ON_ERROR_STOP=1 -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO CURRENT_USER; GRANT ALL ON SCHEMA public TO public;"
+
+# spatial_ref_sys (PostGIS) est souvent non insérable par le rôle applicatif —
+# on n'arrête pas le restore pour cette table système.
+set +e
+gunzip -c "$FILE" | psql "$URL" -v ON_ERROR_STOP=0
+psql_rc=${PIPESTATUS[1]}
+set -e
+
+users=$(psql "$URL" -tAc "SELECT COUNT(*) FROM users" | tr -d '[:space:]')
+if ! [[ "$users" =~ ^[0-9]+$ ]] || [[ "$users" -lt 1 ]]; then
+  echo "ERREUR — table users absente ou vide après restore (count=${users:-?})" >&2
+  exit 1
+fi
+
+echo "OK — restore staging terminé (users=$users, psql_rc=${psql_rc:-0})"

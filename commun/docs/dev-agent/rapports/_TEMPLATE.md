@@ -3,13 +3,15 @@
 **Agent :** @onscen-dev-agent  
 **Date :** YYYY-MM-DD  
 **Durée estimée :** X h  
-**Statut global :** ✅ Terminé | ⚠️ Partiel | ❌ Bloqué
+**Statut global :** DONE | PARTIEL | BLOQUÉ
 
 ---
 
 ## Mission
 
 [Une phrase : objectif demandé par le fondateur]
+
+**Source :** fondateur | handoff `@onscen-cto` (P0 seulement) | autre
 
 ---
 
@@ -37,8 +39,9 @@
 ## Commandes exécutées
 
 ```text
-cd backend && npm test        → ✅ / ❌ (N/N)
-cd app && npm run build       → ✅ / ❌
+npm test --prefix commun/backend   → ✅ / ❌ (N/N)
+npm run app:build                  → ✅ / ❌
+npm run mobile:check               → ✅ / ❌ / N/A
 ```
 
 ---
@@ -47,9 +50,14 @@ cd app && npm run build       → ✅ / ❌
 
 | Vérification | Résultat |
 |--------------|----------|
-| Tests unitaires backend | … |
-| Build frontend | … |
-| Test manuel (si fait) | … |
+| Tests exécutés | … |
+| Tests **non** exécutés | … |
+| Build frontend (`web/app`) | … |
+| Web | OK / KO / NON TESTÉ |
+| Tel | OK / KO / NON TESTÉ |
+| Migration DB | Oui / Non |
+| NON VÉRIFIÉ | … |
+| CTO | Aucun handoff / Handoff requis |
 
 ---
 

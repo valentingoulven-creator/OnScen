@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { useSupportTicketRoom, useSupportTicketUpdates } from '../hooks/useSupportTicketRealtime';
-import type { SupportContactMessage, SupportContactStatus, SupportThreadMessage } from '../types';
+import { AdminSupportTicketDossier } from '../components/AdminSupportTicketDossier';
+import type { AdminSupportCounts, SupportContactMessage, SupportContactStatus } from '../types';
 import { AdminReportsTab } from './AdminReportsTab';
 import { AdminDiagnosticsPanel } from './AdminDiagnosticsPanel';
 
@@ -19,45 +20,6 @@ function formatDateTime(ts: number, locale: string): string {
     hour: '2-digit',
     minute: '2-digit',
   });
-}
-
-function formatTime(ts: number, locale: string): string {
-  return new Date(ts).toLocaleString(locale, {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function getThread(msg: SupportContactMessage): SupportThreadMessage[] {
-  if (msg.thread && msg.thread.length > 0) return msg.thread;
-  const thread: SupportThreadMessage[] = [
-    {
-      id: `${msg.id}_u0`,
-      role: 'user',
-      body: msg.body,
-      createdAt: msg.createdAt,
-      authorUserId: msg.fromUserId,
-    },
-  ];
-  if (msg.adminReply && msg.repliedAt) {
-    thread.push({
-      id: `${msg.id}_a0`,
-      role: 'admin',
-      body: msg.adminReply,
-      createdAt: msg.repliedAt,
-      authorUserId: 'admin',
-    });
-  }
-  if (msg.userReply && msg.userRepliedAt) {
-    thread.push({
-      id: `${msg.id}_u1`,
-      role: 'user',
-      body: msg.userReply,
-      createdAt: msg.userRepliedAt,
-      authorUserId: msg.fromUserId,
-    });
-  }
-  return thread;
 }
 
 function statusLabelKey(status: SupportContactStatus): string {
@@ -81,6 +43,15 @@ function upsertMessage(
   const next = [...messages];
   next[idx] = updated;
   return next;
+}
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function SupportSubTabBar({
@@ -108,7 +79,7 @@ function SupportSubTabBar({
           key={item.id}
           type="button"
           onClick={() => onChange(item.id)}
-          className={`px-3 py-2 text-xs font-semibold whitespace-nowrap transition border-b-2 -mb-px ${
+          className={`min-h-11 px-3 py-2 text-xs font-semibold whitespace-nowrap transition border-b-2 -mb-px ${
             subTab === item.id
               ? 'border-purple-500 text-white'
               : 'border-transparent text-gray-500 hover:text-gray-300'
@@ -129,32 +100,44 @@ interface AdminSupportTabProps {
 function AdminSupportMessagesPanel({ highlightMessageId }: { highlightMessageId?: string }) {
   const { token } = useAuth();
   const { t, i18n } = useTranslation();
+  const locale = i18n.language?.startsWith('en') ? 'en-GB' : 'fr-FR';
   const [filter, setFilter] = useState<StatusFilter>(highlightMessageId ? 'all' : 'open');
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [messages, setMessages] = useState<SupportContactMessage[]>([]);
+  const [counts, setCounts] = useState<AdminSupportCounts | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [replyDraft, setReplyDraft] = useState('');
   const [replying, setReplying] = useState(false);
   const [resolving, setResolving] = useState(false);
-  const threadEndRef = useRef<HTMLDivElement | null>(null);
+  const [reopening, setReopening] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   const reload = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await api.getAdminSupportMessages(token, { status: filter });
+      const res = await api.getAdminSupportMessages(token, {
+        status: filter,
+        q: debouncedSearch || undefined,
+      });
       setMessages(res.messages);
-      if (highlightMessageId) {
-        setSelectedId(highlightMessageId);
-      }
+      if (res.counts) setCounts(res.counts);
+      if (highlightMessageId) setSelectedId(highlightMessageId);
     } catch (e) {
       setError(e instanceof Error ? e.message : t('admin.support.loadError'));
     } finally {
       setLoading(false);
     }
-  }, [token, filter, highlightMessageId, t]);
+  }, [token, filter, debouncedSearch, highlightMessageId, t]);
 
   useEffect(() => {
     void reload();
@@ -176,22 +159,13 @@ function AdminSupportMessagesPanel({ highlightMessageId }: { highlightMessageId?
   useSupportTicketRoom(selectedId, Boolean(token && selectedId));
 
   useEffect(() => {
-    if (highlightMessageId) {
-      setSelectedId(highlightMessageId);
-    }
+    if (highlightMessageId) setSelectedId(highlightMessageId);
   }, [highlightMessageId]);
 
   const selected = messages.find((m) => m.id === selectedId) ?? null;
-  const canReply = selected && selected.status === 'open';
-  const canResolve = selected && selected.status === 'replied';
-  const isResolved = selected?.status === 'resolved';
-
-  useEffect(() => {
-    threadEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [selectedId, selected?.thread?.length, selected?.adminReply, selected?.userReply]);
 
   const sendReply = async () => {
-    if (!token || !selected || !canReply) return;
+    if (!token || !selected || selected.status === 'resolved') return;
     const reply = replyDraft.trim();
     if (!reply) return;
     setReplying(true);
@@ -208,7 +182,7 @@ function AdminSupportMessagesPanel({ highlightMessageId }: { highlightMessageId?
   };
 
   const markResolved = async () => {
-    if (!token || !selected || !canResolve) return;
+    if (!token || !selected || selected.status === 'resolved') return;
     setResolving(true);
     setError(null);
     try {
@@ -221,28 +195,76 @@ function AdminSupportMessagesPanel({ highlightMessageId }: { highlightMessageId?
     }
   };
 
-  const filters: StatusFilter[] = ['open', 'replied', 'resolved', 'all'];
-
-  const toggleTicket = (msgId: string) => {
-    setSelectedId((prev) => (prev === msgId ? null : msgId));
-    setReplyDraft('');
+  const reopen = async () => {
+    if (!token || !selected || selected.status !== 'resolved') return;
+    setReopening(true);
+    setError(null);
+    try {
+      const res = await api.reopenAdminSupportMessage(token, selected.id);
+      setMessages((prev) => upsertMessage(prev, res.message));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('admin.support.reopenError'));
+    } finally {
+      setReopening(false);
+    }
   };
+
+  const handleCopy = async (text: string, label: string) => {
+    const ok = await copyText(text);
+    setFeedback(ok ? label : t('admin.accounts.copyFailed'));
+    window.setTimeout(() => setFeedback(null), 2000);
+  };
+
+  const filters: StatusFilter[] = ['open', 'replied', 'resolved', 'all'];
 
   return (
     <div className="space-y-4">
+      {counts ? (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {(
+            [
+              { key: 'total', value: counts.total, color: 'text-white' },
+              { key: 'open', value: counts.open, color: 'text-amber-300' },
+              { key: 'replied', value: counts.replied, color: 'text-green-400' },
+              { key: 'resolved', value: counts.resolved, color: 'text-gray-400' },
+            ] as const
+          ).map((stat) => (
+            <div key={stat.key} className="bg-[#12121a] border border-[#1e1e2f] rounded-xl p-3 text-center">
+              <div className={`text-xl font-bold ${stat.color}`}>{stat.value}</div>
+              <div className="text-[10px] text-gray-500 uppercase tracking-wide">
+                {t(`admin.support.stats.${stat.key}`)}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="relative">
+        <input
+          type="search"
+          autoComplete="off"
+          className="w-full bg-[#1a1a26] border border-purple-500/40 rounded-2xl pl-4 pr-10 py-3 text-sm placeholder:text-gray-500 focus:outline-none focus:border-purple-400"
+          placeholder={t('admin.support.searchPlaceholder')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          aria-label={t('admin.support.searchPlaceholder')}
+        />
+      </div>
+
       <div className="flex flex-wrap gap-2">
         {filters.map((f) => (
           <button
             key={f}
             type="button"
             onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+            className={`min-h-11 px-3 py-1.5 rounded-full text-xs font-semibold transition ${
               filter === f ? 'bg-purple-600 text-white' : 'bg-[#1a1a26] text-gray-400 hover:text-white'
             }`}
           >
             {t(`admin.support.filter.${f}`)}
           </button>
         ))}
+        {feedback ? <span className="self-center text-xs text-purple-400">{feedback}</span> : null}
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
@@ -252,135 +274,59 @@ function AdminSupportMessagesPanel({ highlightMessageId }: { highlightMessageId?
       ) : messages.length === 0 ? (
         <p className="text-sm text-gray-500">{t('admin.support.empty')}</p>
       ) : (
-        <div className="space-y-2">
-          {messages.map((msg) => {
-            const isExpanded = selectedId === msg.id;
-            return (
-              <div key={msg.id} className="overflow-hidden">
-                <button
-                  type="button"
-                  aria-expanded={isExpanded}
-                  onClick={() => toggleTicket(msg.id)}
-                  className={`w-full text-left border p-3 transition ${
-                    isExpanded
-                      ? 'rounded-t-xl border-purple-500/60 bg-purple-950/20 border-b-0'
-                      : msg.id === highlightMessageId
-                        ? 'rounded-xl border-amber-500/50 bg-amber-950/10'
-                        : 'rounded-xl border-[#2d2d3d] bg-[#12121a] hover:border-[#3d3d4d]'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-white truncate">{msg.fromUsername}</p>
-                      <p className="text-[10px] text-gray-500">
-                        {formatDateTime(msg.createdAt, i18n.language)}
-                      </p>
-                    </div>
-                    <span
-                      className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${statusBadgeClass(msg.status)}`}
-                    >
-                      {t(statusLabelKey(msg.status))}
-                    </span>
+        <ul className="space-y-2">
+          {messages.map((msg) => (
+            <li key={msg.id}>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedId(msg.id);
+                  setReplyDraft('');
+                }}
+                className={`w-full text-left rounded-2xl border p-3 transition ${
+                  msg.id === highlightMessageId
+                    ? 'border-amber-500/50 bg-amber-950/10'
+                    : 'border-[#2d2d3d] bg-[#12121a] hover:border-purple-500/40'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">@{msg.fromUsername}</p>
+                    <p className="text-[10px] text-gray-500 truncate">
+                      {msg.fromEmail ?? msg.fromUserId} · {formatDateTime(msg.createdAt, locale)}
+                    </p>
                   </div>
-                  <p className="text-xs text-gray-300 mt-2 line-clamp-2 whitespace-pre-wrap">{msg.body}</p>
-                  {msg.userReply && msg.status === 'open' && (
-                    <p className="text-[10px] text-amber-300/80 mt-1">{t('admin.support.userFollowUp')}</p>
-                  )}
-                </button>
-
-                {isExpanded && selected && (
-                  <div className="rounded-b-xl border border-t-0 border-purple-500/60 bg-[#12121a] flex flex-col max-h-[min(70vh,32rem)] overflow-hidden">
-                    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-3">
-                      <div className="space-y-3">
-                        {getThread(selected).map((entry) => {
-                          const isAdmin = entry.role === 'admin';
-                          return (
-                            <div
-                              key={entry.id}
-                              className={`flex items-end gap-1.5 ${isAdmin ? 'justify-end' : 'justify-start'}`}
-                            >
-                              <div
-                                className={`max-w-[85%] ${isAdmin ? 'items-end' : 'items-start'} flex flex-col`}
-                              >
-                                <div
-                                  className={`rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${
-                                    isAdmin
-                                      ? 'bg-gradient-to-br from-purple-600 to-purple-700 text-white rounded-br-sm shadow-sm shadow-purple-900/30'
-                                      : 'bg-[#1a1a26] border border-[#2d2d3d] text-gray-100 rounded-bl-sm'
-                                  }`}
-                                >
-                                  {entry.body}
-                                </div>
-                                <p
-                                  className={`text-[9px] text-gray-500 mt-1 px-1 ${isAdmin ? 'text-right' : 'text-left'}`}
-                                >
-                                  {formatTime(entry.createdAt, i18n.language)}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        })}
-                        <div ref={threadEndRef} />
-                      </div>
-                    </div>
-
-                    <div className="shrink-0 border-t border-[#2d2d3d] px-3 py-3 space-y-2 bg-[#0f0f16]/80">
-                      {isResolved ? (
-                        <p className="text-xs text-center text-gray-400 py-1">
-                          {t('admin.support.ticketResolved')}
-                        </p>
-                      ) : canResolve ? (
-                        <>
-                          <p className="text-[10px] text-center text-gray-500">
-                            {t('admin.support.awaitingUser')}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => void markResolved()}
-                            disabled={resolving}
-                            className="w-full py-2.5 rounded-xl bg-green-700 hover:bg-green-600 text-white font-bold text-sm disabled:opacity-50"
-                          >
-                            {resolving ? t('admin.support.markingResolved') : t('admin.support.markResolved')}
-                          </button>
-                        </>
-                      ) : canReply ? (
-                        <div className="flex items-end gap-2">
-                          <textarea
-                            value={replyDraft}
-                            onChange={(e) => setReplyDraft(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                void sendReply();
-                              }
-                            }}
-                            rows={2}
-                            maxLength={4000}
-                            placeholder={t('admin.support.replyInputPlaceholder')}
-                            className="flex-1 bg-[#1a1a26] border border-[#2d2d3d] rounded-2xl px-3 py-2 text-white text-sm resize-none focus:border-purple-500/60 outline-none"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => void sendReply()}
-                            disabled={replying || replyDraft.trim().length < 1}
-                            className="shrink-0 px-4 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm disabled:opacity-50"
-                          >
-                            {replying ? t('admin.support.replying') : t('admin.support.sendReply')}
-                          </button>
-                        </div>
-                      ) : (
-                        <p className="text-xs text-center text-gray-400 py-1">
-                          {t('admin.support.awaitingUser')}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                  <span
+                    className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${statusBadgeClass(msg.status)}`}
+                  >
+                    {t(statusLabelKey(msg.status))}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-300 mt-2 line-clamp-2 whitespace-pre-wrap">{msg.body}</p>
+                {msg.userReply && msg.status === 'open' ? (
+                  <p className="text-[10px] text-amber-300/80 mt-1">{t('admin.support.userFollowUp')}</p>
+                ) : null}
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
+
+      {selected ? (
+        <AdminSupportTicketDossier
+          ticket={selected}
+          replyDraft={replyDraft}
+          onReplyDraftChange={setReplyDraft}
+          replying={replying}
+          resolving={resolving}
+          reopening={reopening}
+          onClose={() => setSelectedId(null)}
+          onReply={() => void sendReply()}
+          onResolve={() => void markResolved()}
+          onReopen={() => void reopen()}
+          onCopy={(text, label) => void handleCopy(text, label)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -395,6 +341,7 @@ export function AdminSupportTab({ highlightMessageId, initialSubTab = 'messages'
 
   return (
     <div className="space-y-4">
+      <p className="text-xs text-gray-500 leading-relaxed">{t('admin.support.pageLead')}</p>
       <SupportSubTabBar subTab={subTab} onChange={setSubTab} t={t} />
       {subTab === 'messages' && <AdminSupportMessagesPanel highlightMessageId={highlightMessageId} />}
       {subTab === 'reports' && <AdminReportsTab />}

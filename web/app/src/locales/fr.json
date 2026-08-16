@@ -415,6 +415,7 @@
   "openLocation": {
     "title": "Ouvrir le lieu",
     "openLabel": "Itinéraire vers {{location}}",
+    "onscenMap": "Carte OnScen",
     "googleMaps": "Google Maps",
     "waze": "Waze",
     "appleMaps": "Plans (Apple)"
@@ -1332,6 +1333,9 @@
     "taggedEventsSection": "Événements",
     "eventGuestBadge": "Invité",
     "eventByOrganizer": "Par @{{username}}",
+    "removeEventFromProfile": "Retirer de mon profil",
+    "removeEventFromProfileTitle": "Retirer cet événement de votre profil ?",
+    "removeEventFromProfileBody": "Il disparaîtra de votre onglet Event. L'événement reste sur la carte, le globe et le profil de l'organisateur.",
     "tabCompositions": "Album",
     "compositions": {
       "createAlbum": "Créer un album",
@@ -1668,13 +1672,13 @@
       "stats": "Statistiques"
     },
     "tabHints": {
-      "accounts": "Utilisateurs, validation et rôles",
+      "accounts": "Fiches comptes, sessions et rôles",
       "access": "Invitations et contrôle d'accès",
       "content": "Modération salons, lives et publications",
       "stats": "Statistiques",
       "analytics": "Audience, activité et coûts infra (Dev)",
-      "support": "Messages et signalements",
-      "sponsors": "Campagnes et bannières",
+      "support": "Tickets, signalements et réponses",
+      "sponsors": "Pubs dans l'app",
       "agents": "Agents IA internes (CEO, dev, ops)",
       "integrations": "Clés d'API tierces (sans SSH)",
       "environmentDev": "Statut du backend local (msdev)",
@@ -1793,7 +1797,26 @@
     },
     "integrations": {
       "title": "Intégrations & clés API",
-      "hint": "Centralise la saisie des clés d'accès aux services tiers (OAuth, modération, stockage, lives…) — sans SSH, masqué après saisie.",
+      "hint": "Centralise la saisie des clés d'accès aux services tiers (OAuth, modération, stockage, lives…) — sans SSH, masqué après saisie. Chaque carte affiche le compte / projet lié à la clé.",
+      "categoryCount": "{{count}} service(s)",
+      "categories": {
+        "connexion": "Connexion",
+        "payments": "Paiements",
+        "lives": "Lives",
+        "security": "Sécurité",
+        "storage": "Stockage & infra",
+        "comms": "Communications",
+        "admin": "Admin / IA"
+      },
+      "account": {
+        "title": "Compte utilisé",
+        "none": "Aucun compte lié — clé absente",
+        "source": {
+          "live": "Lu depuis l’API du provider",
+          "derived": "Déduit de la configuration active",
+          "declared": "Compte opérateur OnScen"
+        }
+      },
       "loading": "Chargement des intégrations…",
       "loadError": "Impossible de charger les intégrations",
       "envFileMissing": "Fichier .env introuvable sur ce serveur — vérifie le déploiement (SSH) avant d'appliquer une clé.",
@@ -1814,6 +1837,8 @@
         "badgeUnconfigured": "○ Non configuré",
         "notSet": "Non définie",
         "configure": "Configurer",
+        "expand": "Déplier",
+        "collapse": "Replier",
         "cancel": "Annuler",
         "optional": "optionnel",
         "show": "Afficher",
@@ -1824,12 +1849,17 @@
         "genericError": "Erreur lors de la mise à jour de la configuration",
         "requiredMissing": "Merci de renseigner tous les champs obligatoires.",
         "invalidField": "Format invalide pour {{field}}",
-        "openConsole": "Ouvrir la console du provider →"
+        "openConsole": "Ouvrir la console du provider →",
+        "readOnly": "Lecture seule — cette clé n’est pas modifiable depuis l’admin (cœur système)."
       },
       "providers": {
         "google_oauth": {
           "title": "Google OAuth (connexion + YouTube)",
           "hint": "Connexion sociale Google et liaison de compte YouTube. console.cloud.google.com → APIs & Services → Credentials."
+        },
+        "apple_signin": {
+          "title": "Sign in with Apple",
+          "hint": "Connexion Apple (App Store / web). developer.apple.com → Identifiers + clé .p8."
         },
         "youtube_data_api": {
           "title": "YouTube Data API v3",
@@ -1843,6 +1873,10 @@
           "title": "Cloudflare Stream",
           "hint": "Lives en RTMP ingest → HLS/CDN (remplace le mesh WebRTC pour les spectateurs)."
         },
+        "turnstile": {
+          "title": "Cloudflare Turnstile",
+          "hint": "Captcha anti-bots (inscription, mot de passe oublié). dash.cloudflare.com → Turnstile."
+        },
         "livekit": {
           "title": "LiveKit Cloud",
           "hint": "Lives caméra navigateur (style Instagram) — prioritaire sur Cloudflare si les deux sont configurés."
@@ -1850,6 +1884,10 @@
         "sightengine": {
           "title": "Sightengine",
           "hint": "Modération NSFW automatique des images/vidéos publiées par les utilisateurs."
+        },
+        "photodna": {
+          "title": "Microsoft PhotoDNA",
+          "hint": "Matching hash CSAM (contrat Microsoft). Complète Sightengine, ne le remplace pas."
         },
         "acrcloud": {
           "title": "ACRCloud",
@@ -1874,6 +1912,14 @@
         "turn": {
           "title": "Serveur TURN",
           "hint": "Relai WebRTC pour le mesh lives (utilisé si LiveKit et Cloudflare Stream sont absents)."
+        },
+        "sentry": {
+          "title": "Sentry",
+          "hint": "Monitoring des erreurs backend (obligatoire en production)."
+        },
+        "redis": {
+          "title": "Redis",
+          "hint": "Cache, rate limits et Socket.io cluster. Lecture seule — se change en SSH / .env."
         }
       },
       "fields": {
@@ -1912,7 +1958,19 @@
         "VAPID_SUBJECT": "Contact (mailto: ou URL)",
         "TURN_URL": "URL(s) du serveur TURN",
         "TURN_USERNAME": "Identifiant",
-        "TURN_CREDENTIAL": "Mot de passe / credential"
+        "TURN_CREDENTIAL": "Mot de passe / credential",
+        "APPLE_CLIENT_ID": "Services ID (Client ID)",
+        "APPLE_TEAM_ID": "Team ID",
+        "APPLE_KEY_ID": "Key ID",
+        "APPLE_CALLBACK_URL": "URL de callback (Apple)",
+        "APPLE_PRIVATE_KEY": "Clé privée (.p8)",
+        "TURNSTILE_SECRET_KEY": "Clé secrète Turnstile",
+        "TURNSTILE_REQUIRED": "Captcha obligatoire (1 / 0)",
+        "PHOTODNA_SUBSCRIPTION_KEY": "Clé PhotoDNA",
+        "PHOTODNA_MATCH_URL": "URL Match PhotoDNA",
+        "SENTRY_DSN": "DSN Sentry",
+        "SENTRY_TRACES_SAMPLE_RATE": "Taux de traces",
+        "REDIS_URL": "URL Redis"
       }
     },
     "agents": {
@@ -1954,6 +2012,41 @@
       "suggestCeoAiTeam": "Dossier complet recrutement équipe IA : pour chaque agent recommandé, explique pourquoi maintenant [FACT], pourquoi toi seul ne suffis pas, ce que je gagne, le coût d'attendre, les livrables 30j, le coût API, et demande ma validation."
     },
     "accounts": {
+      "pageLead": "Liste opérationnelle : ouvrez une fiche pour identités, accès, modération, forfait et journal.",
+      "dossierKicker": "Fiche compte",
+      "openDossier": "Ouvrir la fiche",
+      "closeDossier": "Fermer la fiche",
+      "sectionIdentity": "Identité",
+      "sectionAccess": "Accès",
+      "sectionJournal": "Journal admin",
+      "fieldId": "ID :",
+      "fieldCity": "Ville :",
+      "fieldType": "Type :",
+      "fieldRelation": "Relation :",
+      "fieldBirth": "Naissance :",
+      "revokeSessions": "Déconnecter toutes les sessions",
+      "revokeSessionsConfirm": "Invalider tous les JWT de ce compte ? L’utilisateur devra se reconnecter.",
+      "revokeSessionsSuccess": "Sessions révoquées",
+      "resendVerification": "Renvoyer l’e-mail de vérification",
+      "resendVerificationSuccess": "E-mail de vérification renvoyé",
+      "auditEmpty": "Aucune action admin enregistrée pour ce compte.",
+      "auditUnavailable": "Journal indisponible (Postgres requis).",
+      "auditApprove": "Compte approuvé",
+      "auditBlock": "Compte suspendu",
+      "auditUnblock": "Suspension levée",
+      "auditPromoteAdmin": "Accès Admin accordé",
+      "auditPromoteDev": "Accès Dev accordé",
+      "auditDemote": "Droits staff retirés",
+      "auditRevokeSessions": "Sessions révoquées",
+      "auditResendVerification": "Vérification e-mail renvoyée",
+      "filterStatus": "Filtrer par statut",
+      "filterStaff": "Filtrer par rôle",
+      "filterStaffAll": "Tous les rôles",
+      "filterStaffAny": "Staff",
+      "filterStaffAdmin": "Admin",
+      "filterStaffDev": "Dev",
+      "filterPlan": "Filtrer par forfait",
+      "filterPlanAll": "Tous les forfaits",
       "searchPlaceholder": "Rechercher pseudo, e-mail ou ville…",
       "clearSearch": "Effacer la recherche",
       "filterAll": "Tous",
@@ -2104,7 +2197,77 @@
       "modeClosed": "Fermées"
     },
     "support": {
-      "subTabMessages": "Messages",
+      "pageLead": "File support : tickets utilisateurs, signalements et diagnostic infra.",
+      "searchPlaceholder": "Rechercher pseudo, e-mail ou message…",
+      "ticketKicker": "Ticket support",
+      "closeTicket": "Fermer le ticket",
+      "sectionUser": "Utilisateur",
+      "sectionThread": "Conversation",
+      "fieldCity": "Ville :",
+      "openProfile": "Voir le profil",
+      "openedAt": "Ouvert le {{date}}",
+      "reopen": "Rouvrir le ticket",
+      "reopenError": "Impossible de rouvrir le ticket.",
+      "stats": {
+        "total": "Total",
+        "open": "Ouverts",
+        "replied": "Répondus",
+        "resolved": "Résolus"
+      },
+      "reports": {
+        "hint": "Signalements utilisateurs — examiner, lier aux comptes, puis classer.",
+        "searchPlaceholder": "Rechercher auteur, cible ou motif…",
+        "empty": "Aucun signalement.",
+        "loadError": "Impossible de charger les signalements.",
+        "actionError": "Action impossible.",
+        "flags": "signale",
+        "urgent": "Urgent",
+        "dossierKicker": "Signalement",
+        "reporter": "Auteur",
+        "target": "Cible",
+        "openReporter": "Profil auteur",
+        "openTarget": "Profil cible",
+        "markReviewed": "Marquer examiné",
+        "dismiss": "Rejeter",
+        "delete": "Supprimer",
+        "deleteTitle": "Supprimer ce signalement ?",
+        "deleteDesc": "Cette action est définitive.",
+        "filter": {
+          "all": "Tous",
+          "pending": "En attente",
+          "reviewed": "Examinés",
+          "dismissed": "Rejetés"
+        },
+        "stats": {
+          "pending": "En attente",
+          "urgent": "Urgents",
+          "reviewed": "Examinés",
+          "dismissed": "Rejetés"
+        },
+        "status": {
+          "pending": "En attente",
+          "reviewed": "Examiné",
+          "dismissed": "Rejeté"
+        },
+        "room": {
+          "salon": "Salon",
+          "live": "Live",
+          "dm": "Message privé",
+          "reel": "Reel",
+          "profile": "Profil",
+          "track": "Morceau"
+        },
+        "category": {
+          "harassment": "Harcèlement / menaces",
+          "illegal": "Contenu illicite",
+          "csam_risk": "Contenu impliquant potentiellement un mineur",
+          "spam": "Spam / arnaque",
+          "copyright": "Droits d’auteur",
+          "privacy": "Atteinte à la vie privée",
+          "other": "Autre"
+        }
+      },
+      "subTabMessages": "Tickets",
       "subTabReports": "Signalements",
       "subTabDiagnostic": "Diagnostic",
       "subTabLogs": "Logs app",
@@ -2207,6 +2370,9 @@
     "content": {
       "title": "Modération contenu",
       "subtitle": "Salons, lives, événements et reels — blocage, suppression et créateur.",
+      "salonsHint": "Salons d’écoute YouTube uniquement. Un salon n’est pas un live — l’app interdit d’animer les deux en même temps.",
+      "livesHint": "Diffusions vidéo. Distinctes des salons d’écoute — jamais listées ici comme salon.",
+      "statusSalon": "Salon",
       "sectionSalons": "Salons",
       "sectionLives": "Lives",
       "sectionEvents": "Événements",
@@ -2304,6 +2470,22 @@
     "sponsors": {
       "title": "Sponsors",
       "subtitle": "Bandeaux carte, fil, stories et reels — création, ordre et activation.",
+      "pageLead": "Choisis d’abord où la pub apparaît dans l’app, puis crée ou active une campagne.",
+      "whereTitle": "Où ça s’affiche",
+      "placeAll": "Tout",
+      "placeAllHint": "Toutes les campagnes, tous emplacements",
+      "placeMapHint": "Bandeau en haut de la carte",
+      "placeMapSponsoHint": "Événements sponsorisés à côté de la carte",
+      "placeFeedHint": "Carte pub dans le fil d’actualité",
+      "placeStoriesHint": "Bandeau au-dessus des pastilles stories",
+      "placeStoriesViewerHint": "Story plein écran entre deux stories",
+      "placeReelsHint": "Vidéo pub entre les reels",
+      "placeSalonHint": "Bandeau pendant un salon",
+      "placePricingHint": "Estimer le prix d’une campagne",
+      "contextCount": "{{active}} en ligne · {{total}} au total",
+      "emptyTitle": "Aucune pub ici",
+      "emptyHint": "Crée une campagne pour cet emplacement.",
+      "addShort": "+ Nouvelle pub",
       "placementSectionLabel": "Emplacement",
       "statusSectionLabel": "Statut",
       "filterAll": "Tous",
@@ -2438,7 +2620,7 @@
       "actionLive": "Voir les lives",
       "subTabsAria": "Filtrer par emplacement",
       "subTabMap": "Carte",
-      "subTabMapSidebarEvents": "Carte · Sponso",
+      "subTabMapSidebarEvents": "Événements",
       "fieldLinkedEventPostId": "Publication événement (id)",
       "fieldLinkedEventPostIdPlaceholder": "ex. prod-sponso-evt-solar-festival-2026",
       "helpLinkedEventPostId": "Id d'une publication événement existante (onglet Contenu → Événements). Affichée dans le carrousel Sponso de la sidebar carte.",
@@ -2446,7 +2628,7 @@
       "listLinkedEvent": "Événement {{id}}",
       "subTabFeed": "Fil",
       "subTabStories": "Stories",
-      "subTabStoriesViewer": "Story pub",
+      "subTabStoriesViewer": "Story plein écran",
       "subTabReels": "Reels",
       "subTabSalonTheater": "Salon",
       "subTabPricing": "Prix",
@@ -3330,9 +3512,34 @@
     "alreadyReshared": "Déjà repartagé",
     "addFavorite": "Ajouter aux favoris",
     "removeFavorite": "Retirer des favoris",
+    "followEvent": "Suivre l'événement",
+    "unfollowEvent": "Ne plus suivre",
+    "eventFollowed": "Événement suivi",
+    "eventUnfollowed": "Retiré des événements suivis",
+    "unfollowEventConfirmTitle": "Ne plus suivre cet événement ?",
+    "unfollowEventConfirmBody": "Il disparaîtra de « Événement suivi » sur la carte et le globe.",
     "commentsLoading": "Chargement des commentaires…",
     "commentsEmpty": "Aucun commentaire. Soyez le premier !",
-    "commentPlaceholder": "Ajouter un commentaire…"
+    "commentPlaceholder": "Ajouter un commentaire…",
+    "ownerMenu": "Actions de la publication",
+    "reportPost": "Signaler",
+    "editPost": "Modifier",
+    "editEvent": "Modifier l'événement",
+    "deletePost": "Supprimer",
+    "editPostTitle": "Modifier la publication",
+    "editReshareTitle": "Modifier le repartage",
+    "editResharePlaceholder": "Ajouter un commentaire (optionnel)",
+    "savePost": "Enregistrer",
+    "savingPost": "Enregistrement…",
+    "savePostError": "Enregistrement impossible.",
+    "deletePostError": "Suppression impossible.",
+    "deletePostTitle": "Supprimer cette publication ?",
+    "deletePostBody": "Elle disparaîtra du fil et des profils. Cette action est définitive.",
+    "deleteEventTitle": "Supprimer cet événement ?",
+    "deleteEventBody": "L'événement disparaîtra du fil, des profils et de la carte. Les republications seront aussi retirées.",
+    "deleteReshareTitle": "Supprimer ce repartage ?",
+    "deleteReshareBody": "Votre republication sera retirée. La publication d'origine reste visible.",
+    "eventModalSave": "Enregistrer"
   },
   "donation": {
     "legal": {

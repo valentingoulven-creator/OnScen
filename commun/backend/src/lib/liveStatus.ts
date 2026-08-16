@@ -14,6 +14,11 @@ export function isSalonLiveActive(salonId: string): boolean {
   return getActiveLiveForSalon(salonId) != null;
 }
 
+/** Salon d'écoute YouTube uniquement — pas un live vidéo (même id / salonId). */
+export function isListeningSalonOnly(salonId: string): boolean {
+  return getActiveLiveForSalon(salonId) == null;
+}
+
 /** Utilisateur qui anime un live actif (salon ou live autonome). */
 export function isUserHostingLive(userId: string): boolean {
   for (const live of db.lives.values()) {

@@ -16,7 +16,7 @@ const CATEGORIES = [
 export interface ReportContentContext {
   targetUserId?: string;
   targetUsername?: string;
-  roomType?: 'salon' | 'live' | 'dm' | 'reel' | 'profile' | 'track';
+  roomType?: 'salon' | 'live' | 'dm' | 'reel' | 'profile' | 'track' | 'feed';
   roomId?: string;
   messageId?: string;
 }
@@ -26,9 +26,15 @@ interface ReportContentModalProps {
   onClose: () => void;
   /** Appelé après signalement réussi quand un utilisateur a été bloqué. */
   onUserBlocked?: (userId: string) => void;
+  overlayZClass?: string;
 }
 
-export function ReportContentModal({ context, onClose, onUserBlocked }: ReportContentModalProps) {
+export function ReportContentModal({
+  context,
+  onClose,
+  onUserBlocked,
+  overlayZClass = 'z-[70]',
+}: ReportContentModalProps) {
   const { token } = useAuth();
   const [category, setCategory] = useState<string>('illegal');
   const [details, setDetails] = useState('');
@@ -70,7 +76,7 @@ export function ReportContentModal({ context, onClose, onUserBlocked }: ReportCo
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      className={`fixed inset-0 ${overlayZClass} flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm`}
       role="dialog"
       aria-modal="true"
       aria-labelledby="report-title"

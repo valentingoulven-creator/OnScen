@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { hasUpcomingEventDate, getPrimaryEventDate } from '../lib/feedEvents';
 import { EventCard } from './EventCard';
+import { FeedPostOwnerActions } from './FeedPostOwnerActions';
+import { ConfirmModal } from './ConfirmModal';
 import { StoryAvatarRing } from './MapStoryRings';
 import { UsernameDisplay } from './UsernameDisplay';
 import type { FeedPost, MapStory } from '../types';
@@ -12,6 +14,8 @@ interface UserEventsSectionProps {
   userId: string;
   onOpenPost?: (post: FeedPost) => void;
   onOpenProfile?: (userId: string) => void;
+  /** Propriétaire du profil : peut retirer un événement où il est tagué. */
+  canManageGuestEvents?: boolean;
 }
 
 function CalendarEmptyIcon({ className }: { className?: string }) {
@@ -24,7 +28,12 @@ function CalendarEmptyIcon({ className }: { className?: string }) {
   );
 }
 
-export function UserEventsSection({ userId, onOpenPost, onOpenProfile }: UserEventsSectionProps) {
+export function UserEventsSection({
+  userId,
+  onOpenPost,
+  onOpenProfile,
+  canManageGuestEvents = false,
+}: UserEventsSectionProps) {
   const { token } = useAuth();
   const { t } = useTranslation();
 
@@ -32,6 +41,9 @@ export function UserEventsSection({ userId, onOpenPost, onOpenProfile }: UserEve
   const [taggedStories, setTaggedStories] = useState<MapStory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hidePost, setHidePost] = useState<FeedPost | null>(null);
+  const [hiding, setHiding] = useState(false);
+  const [hideError, setHideError] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -130,6 +142,21 @@ export function UserEventsSection({ userId, onOpenPost, onOpenProfile }: UserEve
     onOpenPost?.(post);
   };
 
+  const handleHideFromProfile = async () => {
+    if (!token || !hidePost) return;
+    setHiding(true);
+    setHideError(null);
+    try {
+      await api.hideEventFromOwnProfile(token, hidePost.id);
+      setPosts((prev) => prev.filter((p) => p.id !== hidePost.id));
+      setHidePost(null);
+    } catch (err: unknown) {
+      setHideError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setHiding(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4 p-4 max-w-lg mx-auto w-full">
       {hasStories ? (
@@ -179,34 +206,82 @@ export function UserEventsSection({ userId, onOpenPost, onOpenProfile }: UserEve
           {posts.map((post) => {
             const isGuest = post.userId !== userId;
             return (
-              <EventCard
-                key={post.id}
-                post={post}
-                layout="vertical"
-                compact
-                onOpen={handleOpen}
-                onOpenProfile={onOpenProfile}
-                onOpenTaggedUser={onOpenProfile}
-                onPostChange={(patch) =>
-                  setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, ...patch } : p)))
-                }
-                extraBadges={
-                  isGuest ? (
-                    <>
-                      <span className="inline-flex items-center text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-sky-500/15 text-sky-200 border border-sky-500/30">
-                        {t('profile.eventGuestBadge')}
-                      </span>
-                      <span className="text-[9px] text-gray-400 truncate max-w-[10rem]">
-                        {t('profile.eventByOrganizer', { username: post.author.username })}
-                      </span>
-                    </>
-                  ) : null
-                }
-              />
+              <div key={post.id} className="space-y-1.5">
+                <EventCard
+                  post={post}
+                  layout="vertical"
+                  compact
+                  onOpen={handleOpen}
+                  onOpenProfile={onOpenProfile}
+                  onOpenTaggedUser={onOpenProfile}
+                  onPostChange={(patch) =>
+                    setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, ...patch } : p)))
+                  }
+                  profileActions={
+                    <FeedPostOwnerActions
+                      post={post}
+                      compact
+                      onUpdated={(updated) =>
+                        setPosts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
+                      }
+                      onDeleted={(postId, deletedIds) => {
+                        const gone = new Set(deletedIds.length ? deletedIds : [postId]);
+                        setPosts((prev) => prev.filter((p) => !gone.has(p.id)));
+                      }}
+                    />
+                  }
+                  extraBadges={
+                    isGuest ? (
+                      <>
+                        <span className="inline-flex items-center text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-sky-500/15 text-sky-200 border border-sky-500/30">
+                          {t('profile.eventGuestBadge')}
+                        </span>
+                        <span className="text-[9px] text-gray-400 truncate max-w-[10rem]">
+                          {t('profile.eventByOrganizer', { username: post.author.username })}
+                        </span>
+                      </>
+                    ) : null
+                  }
+                />
+                {isGuest && canManageGuestEvents ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHideError(null);
+                      setHidePost(post);
+                    }}
+                    className="w-full min-h-[44px] rounded-xl border border-[#2a2a3d] px-3 text-xs font-semibold text-gray-300 hover:bg-[#1a1a28] hover:text-white transition"
+                  >
+                    {t('profile.removeEventFromProfile', { defaultValue: 'Retirer de mon profil' })}
+                  </button>
+                ) : null}
+              </div>
             );
           })}
         </section>
       ) : null}
+
+      <ConfirmModal
+        open={hidePost !== null}
+        title={t('profile.removeEventFromProfileTitle', {
+          defaultValue: 'Retirer cet événement de votre profil ?',
+        })}
+        description={t('profile.removeEventFromProfileBody', {
+          defaultValue:
+            "Il disparaîtra de votre onglet Event. L'événement reste sur la carte, le globe et le profil de l'organisateur.",
+        })}
+        confirmLabel={t('profile.removeEventFromProfile', { defaultValue: 'Retirer de mon profil' })}
+        loading={hiding}
+        error={hideError}
+        onCancel={() => {
+          if (hiding) return;
+          setHidePost(null);
+          setHideError(null);
+        }}
+        onConfirm={() => {
+          void handleHideFromProfile();
+        }}
+      />
     </div>
   );
 }

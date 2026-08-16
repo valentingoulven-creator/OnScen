@@ -95,6 +95,25 @@ export interface AdminUserSocialResponse {
 
 export type AdminUserSort = 'lastSeen' | 'memberSince' | 'username' | 'status';
 
+export type AdminUserStaffFilter = 'all' | 'staff' | 'admin' | 'dev';
+export type AdminUserPlanFilter = 'all' | 'free' | 'onscen_plus' | 'onscen_ultra';
+
+export interface AdminUserAuditEntry {
+  id: string;
+  adminId: string;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  details: Record<string, unknown> | null;
+  ip: string | null;
+  createdAt: string;
+}
+
+export interface AdminUserAuditResponse {
+  entries: AdminUserAuditEntry[];
+  available: boolean;
+}
+
 /** Restauration de compte — spec commun/docs/RESTORE-COMPTE-ADMIN.md. */
 export interface UserSnapshotMeta {
   id: string;
@@ -450,6 +469,15 @@ export interface StripePlatformStatusReport {
   error: string | null;
 }
 
+export type IntegrationAccountSource = 'live' | 'derived' | 'declared';
+
+export interface IntegrationAccount {
+  email: string | null;
+  name: string | null;
+  project: string | null;
+  source: IntegrationAccountSource;
+}
+
 export interface StripeConfigStatus {
   configured: boolean;
   mode: 'live' | 'test' | 'unknown';
@@ -461,6 +489,7 @@ export interface StripeConfigStatus {
   subscriptionsEnabled: boolean;
   envFileFound: boolean;
   hotReload: true;
+  account?: IntegrationAccount | null;
 }
 
 export type StripeConfigFieldErrorField = 'secretKey' | 'publishableKey' | 'webhookSecret' | 'mode';
@@ -505,12 +534,24 @@ export interface ExternalSecretIssue {
   messageKey: string;
 }
 
+export type ExternalSecretCategory =
+  | 'connexion'
+  | 'payments'
+  | 'lives'
+  | 'security'
+  | 'storage'
+  | 'comms'
+  | 'admin';
+
 export interface ExternalSecretProviderStatus {
   id: string;
   configured: boolean;
   helpUrl?: string;
   fields: ExternalSecretFieldStatus[];
   issues: ExternalSecretIssue[];
+  account?: IntegrationAccount | null;
+  readOnly?: boolean;
+  category?: ExternalSecretCategory;
 }
 
 export interface ExternalSecretsStatusResponse {
@@ -1268,6 +1309,10 @@ export interface SupportContactMessage {
   id: string;
   fromUserId: string;
   fromUsername: string;
+  fromEmail?: string;
+  fromAvatarUrl?: string;
+  accountStatus?: AccountStatus;
+  fromCity?: string;
   body: string;
   createdAt: number;
   status: SupportContactStatus;
@@ -1277,6 +1322,13 @@ export interface SupportContactMessage {
   userRepliedAt?: number;
   threadId: string;
   thread?: SupportThreadMessage[];
+}
+
+export interface AdminSupportCounts {
+  total: number;
+  open: number;
+  replied: number;
+  resolved: number;
 }
 
 export interface MusicMatch {
@@ -1923,9 +1975,14 @@ export interface ContentReport {
   id: string;
   reporterId: string;
   reporterUsername: string;
+  reporterEmail?: string;
+  reporterAccountStatus?: AccountStatus;
   category: string;
   details: string;
   targetUserId?: string;
+  targetUsername?: string;
+  targetEmail?: string;
+  targetAccountStatus?: AccountStatus;
   roomType?: 'salon' | 'live' | 'dm' | 'reel' | 'profile';
   roomId?: string;
   messageId?: string;
@@ -1933,6 +1990,14 @@ export interface ContentReport {
   status?: 'pending' | 'reviewed' | 'dismissed';
   reviewedAt?: number;
   priority?: 'urgent' | 'normal';
+}
+
+export interface AdminReportCounts {
+  total: number;
+  pending: number;
+  reviewed: number;
+  dismissed: number;
+  urgent: number;
 }
 
 export type AiAgentId = 'ceo' | 'dev';

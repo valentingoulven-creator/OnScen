@@ -24,18 +24,21 @@
 
 ## Agent Dev (implémentation)
 
-- Règle : `@onscen-dev-agent` (`.cursor/rules/onscen-dev-agent.mdc`)
+- Règle : `@onscen-dev-agent` (`.cursor/rules/onscen-dev-agent.mdc`) — alias `@onscen-dev`
 - Guide : [`commun/docs/ONSCEN-DEV-AGENT.md`](./commun/docs/ONSCEN-DEV-AGENT.md)
-- Rapports : [`commun/docs/dev-agent/INDEX.md`](./commun/docs/dev-agent/INDEX.md) — un rapport par session significative
+- Rapports : [`commun/docs/dev-agent/INDEX.md`](./commun/docs/dev-agent/INDEX.md)
+- Chemins : `web/app/src/` · `commun/backend/src/` · overrides `ios/apptel/src/`
+- Handoff CTO : **P0 seulement** sauf consigne contraire
 
-Usage : bugs, features, refactors, tests. **Rapport obligatoire** en fin de session (fichier + résumé chat).
+Usage : bugs, features, tests. Diff minimal, authz serveur, Web + tel. DONE ≠ compile. Rapport si session significative.
 
 ## Agent CTO (architecture & audits)
 
 - Règle : `@onscen-cto` (`.cursor/rules/onscen-cto.mdc`)
-- Prompt complet : [`commun/docs/ONSCEN-CTO-PROMPT.md`](./commun/docs/ONSCEN-CTO-PROMPT.md)
+- Prompt : [`commun/docs/ONSCEN-CTO-PROMPT.md`](./commun/docs/ONSCEN-CTO-PROMPT.md)
+- **GO prod :** taper **`@audit`** (`.cursor/rules/onscen-audit.mdc`) — lance [`PROMPT-AUDIT-PRE-PROD.md`](./commun/docs/audit/PROMPT-AUDIT-PRE-PROD.md) sans coller le prompt
 
-Usage : audits, choix d'architecture, revue sécurité/légal/UX/infra, arbitrage technique **avant** implémentation. Analyse et recommande — n'implémente pas (→ `@onscen-dev-agent`).
+Usage : audits, archi, sécu/légal technique **avant** le code. Preuve classée, pas d’invention, prod lecture seule. Finit par handoff P0 ou arbitrage fondateur. Jamais « l’app est légale ».
 
 ## Projet OnScen CEO IA
 

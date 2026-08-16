@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { ApiRequestError } from '../lib/api/core';
 import type { StripeConfigFieldError, StripeConfigFieldErrorField, StripeConfigStatus } from '../types';
+import { AdminIntegrationAccount } from './AdminIntegrationAccount';
 
 const SECRET_KEY_RE = /^sk_(live|test)_[A-Za-z0-9]{16,}$/;
 const PUBLISHABLE_KEY_RE = /^pk_(live|test)_[A-Za-z0-9]{16,}$/;
@@ -54,6 +55,8 @@ export function AdminStripeConfigCard() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successAt, setSuccessAt] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const refresh = useCallback(() => {
     if (!token) return;
@@ -100,6 +103,8 @@ export function AdminStripeConfigCard() {
       setWebhookSecret('');
       setShowSecret(false);
       setShowWebhook(false);
+      setEditing(false);
+      setOpen(true);
       setSuccessAt(Date.now());
     } catch (e) {
       setSubmitError(
@@ -122,28 +127,68 @@ export function AdminStripeConfigCard() {
         : t('admin.stripeConfig.modeUnknown');
 
   const showTestOnProdWarning = status?.mode === 'test' && status.configured;
+  const accountPreview = status?.account?.email || status?.account?.name || status?.account?.project;
+
+  const toggleOpen = useCallback(() => {
+    setOpen((prev) => {
+      const next = !prev;
+      if (!next) {
+        setEditing(false);
+        setSecretKey('');
+        setPublishableKey('');
+        setWebhookSecret('');
+        setShowSecret(false);
+        setShowWebhook(false);
+        setFieldErrors([]);
+        setSubmitError(null);
+      }
+      return next;
+    });
+  }, []);
 
   return (
     <div className="rounded-2xl border border-purple-500/25 bg-gradient-to-br from-purple-600/10 to-[#12121a] p-4 space-y-4">
-      <div className="flex items-start justify-between gap-3 min-w-0">
+      <button
+        type="button"
+        onClick={toggleOpen}
+        aria-expanded={open}
+        className="w-full flex items-start justify-between gap-3 min-w-0 min-h-[44px] text-left rounded-xl -mx-1 px-1 py-0.5 hover:bg-white/[0.03] transition"
+      >
         <div className="min-w-0">
           <p className="text-sm font-bold text-white">{t('admin.stripeConfig.title')}</p>
-          <p className="text-[11px] text-gray-400 mt-0.5">{t('admin.stripeConfig.hint')}</p>
+          {open ? (
+            <p className="text-[11px] text-gray-400 mt-0.5">{t('admin.stripeConfig.hint')}</p>
+          ) : (
+            accountPreview && (
+              <p className="text-[11px] text-cyan-300/90 mt-0.5 truncate">{accountPreview}</p>
+            )
+          )}
         </div>
-        {status && (
+        <div className="flex items-center gap-2 shrink-0 pt-0.5">
+          {status && (
+            <span
+              className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                status.mode === 'live'
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  : status.mode === 'test'
+                    ? 'bg-amber-500/15 text-amber-300 border border-amber-500/25'
+                    : 'bg-red-500/15 text-red-300 border border-red-500/25'
+              }`}
+            >
+              {modeLabel}
+            </span>
+          )}
           <span
-            className={`shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full ${
-              status.mode === 'live'
-                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                : status.mode === 'test'
-                  ? 'bg-amber-500/15 text-amber-300 border border-amber-500/25'
-                  : 'bg-red-500/15 text-red-300 border border-red-500/25'
-            }`}
+            className={`text-gray-500 text-xs transition-transform ${open ? 'rotate-180' : ''}`}
+            aria-hidden
           >
-            {modeLabel}
+            ▼
           </span>
-        )}
-      </div>
+          <span className="sr-only">
+            {open ? t('admin.integrations.card.collapse') : t('admin.integrations.card.expand')}
+          </span>
+        </div>
+      </button>
 
       {loading && !status && (
         <p className="text-xs text-gray-500">{t('admin.stripeConfig.loading')}</p>
@@ -155,6 +200,8 @@ export function AdminStripeConfigCard() {
         </p>
       )}
 
+      {open && (
+        <>
       {showTestOnProdWarning && (
         <p className="text-[11px] text-amber-300 bg-amber-950/25 border border-amber-900/40 rounded-lg px-3 py-2">
           {t('admin.stripeConfig.testOnProdWarning')}
@@ -166,6 +213,8 @@ export function AdminStripeConfigCard() {
           {t('admin.stripeConfig.envFileMissing')}
         </p>
       )}
+
+      {status && <AdminIntegrationAccount account={status.account} />}
 
       {status && (
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-[11px] rounded-xl border border-[#2a2a3a] bg-[#0f0f17] px-3 py-3">
@@ -195,8 +244,19 @@ export function AdminStripeConfigCard() {
         </dl>
       )}
 
+      {!editing && (
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="min-h-[44px] px-4 py-2.5 rounded-xl bg-[#1a1a26] hover:bg-[#20202e] text-purple-300 text-xs font-bold transition border border-purple-500/20"
+        >
+          {t('admin.integrations.card.configure')}
+        </button>
+      )}
+
+      {editing && (
       <form
-        className="space-y-3"
+        className="space-y-3 pt-1 border-t border-[#2a2a3a]"
         onSubmit={(e) => {
           e.preventDefault();
           void submit();
@@ -290,25 +350,46 @@ export function AdminStripeConfigCard() {
           </p>
         )}
 
-        {successAt != null && (
-          <p className="text-[11px] text-green-300 bg-green-950/25 border border-green-900/40 rounded-lg px-3 py-2">
-            {t('admin.stripeConfig.successMessage')}
-          </p>
-        )}
-
-        <button
-          type="submit"
-          disabled={saving || !secretKey.trim() || !publishableKey.trim()}
-          className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition disabled:opacity-40"
-        >
-          {saving ? t('admin.stripeConfig.applying') : t('admin.stripeConfig.apply')}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="submit"
+            disabled={saving || !secretKey.trim() || !publishableKey.trim()}
+            className="min-h-[44px] px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition disabled:opacity-40"
+          >
+            {saving ? t('admin.stripeConfig.applying') : t('admin.stripeConfig.apply')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setEditing(false);
+              setSecretKey('');
+              setPublishableKey('');
+              setWebhookSecret('');
+              setShowSecret(false);
+              setShowWebhook(false);
+              setFieldErrors([]);
+              setSubmitError(null);
+            }}
+            className="min-h-[44px] px-4 py-2.5 rounded-xl text-gray-400 hover:text-white text-xs font-semibold"
+          >
+            {t('admin.integrations.card.cancel')}
+          </button>
+        </div>
       </form>
+      )}
+
+      {successAt != null && (
+        <p className="text-[11px] text-green-300 bg-green-950/25 border border-green-900/40 rounded-lg px-3 py-2">
+          {t('admin.stripeConfig.successMessage')}
+        </p>
+      )}
 
       <div className="space-y-1 pt-1 border-t border-[#2a2a3a]">
         <p className="text-[10px] text-gray-500">{t('admin.stripeConfig.hotReloadNote')}</p>
         <p className="text-[10px] text-gray-600">{t('admin.stripeConfig.writeOnlyNote')}</p>
       </div>
+        </>
+      )}
     </div>
   );
 }

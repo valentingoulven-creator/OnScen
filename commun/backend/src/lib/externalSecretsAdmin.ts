@@ -5,12 +5,15 @@ import {
   EXTERNAL_SECRET_PROVIDERS,
   FORMAT_VALIDATORS,
   getFieldDef,
+  getProviderCategory,
   getProviderDef,
+  type ExternalSecretCategory,
   type ExternalSecretFieldDef,
   type ExternalSecretProviderDef,
 } from './externalSecretsRegistry';
 import { getProviderIssues } from './externalSecretsAlerts';
 import type { ExternalSecretIssue } from './externalSecretsAlerts';
+import { resolveProviderAccount, type IntegrationAccount } from './integrationAccounts';
 
 /**
  * Moteur générique d'administration des clés/secrets d'API tierces
@@ -47,6 +50,11 @@ export interface ExternalSecretProviderStatus {
   fields: ExternalSecretFieldStatus[];
   /** Problèmes détectés à la lecture — jamais une valeur en clair, voir externalSecretsAlerts.ts. */
   issues: ExternalSecretIssue[];
+  /** Compte / projet lié à la clé (e-mail dashboard, jamais un secret). */
+  account: IntegrationAccount | null;
+  /** Affiché mais non éditable (ex. REDIS_URL). */
+  readOnly: boolean;
+  category: ExternalSecretCategory;
 }
 
 export interface ExternalSecretsStatusResponse {
@@ -93,6 +101,9 @@ export function getProviderStatus(providerDef: ExternalSecretProviderDef): Exter
     helpUrl: providerDef.helpUrl,
     fields,
     issues: getProviderIssues(providerDef),
+    account: resolveProviderAccount(providerDef.id),
+    readOnly: Boolean(providerDef.readOnly),
+    category: providerDef.category ?? getProviderCategory(providerDef.id),
   };
 }
 
@@ -117,6 +128,9 @@ export function validateProviderInput(
   const providerDef = getProviderDef(providerId);
   if (!providerDef) {
     return [{ field: providerId, message: `Provider inconnu : ${providerId}` }];
+  }
+  if (providerDef.readOnly) {
+    return [{ field: providerId, message: `Provider en lecture seule : ${providerId}` }];
   }
 
   const errors: ExternalSecretFieldError[] = [];
@@ -172,6 +186,9 @@ export function applyProviderConfig(
   const providerDef = getProviderDef(providerId);
   if (!providerDef) {
     throw new Error(`Provider inconnu : ${providerId}`);
+  }
+  if (providerDef.readOnly) {
+    throw new Error(`Provider en lecture seule : ${providerId}`);
   }
 
   const allowedKeys = new Set(providerDef.fields.map((f) => f.key));

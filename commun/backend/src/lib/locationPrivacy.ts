@@ -1,7 +1,7 @@
 import { User } from '../models/schema';
 import { blurCoordinate } from './geo';
 import { isValidLatLng, sanitizeLatLng } from './mapCoords';
-import { resolveUserAge, userIsKnownMinorForPreciseGeo } from './ageGates';
+import { userIsKnownMinorForPreciseGeo } from './ageGates';
 
 export type LocationPrecision = 'precise' | 'city';
 

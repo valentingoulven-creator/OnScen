@@ -415,6 +415,7 @@
   "openLocation": {
     "title": "Open location",
     "openLabel": "Directions to {{location}}",
+    "onscenMap": "OnScen map",
     "googleMaps": "Google Maps",
     "waze": "Waze",
     "appleMaps": "Apple Maps"
@@ -1331,6 +1332,9 @@
     "taggedEventsSection": "Events",
     "eventGuestBadge": "Guest",
     "eventByOrganizer": "By @{{username}}",
+    "removeEventFromProfile": "Remove from my profile",
+    "removeEventFromProfileTitle": "Remove this event from your profile?",
+    "removeEventFromProfileBody": "It will leave your Event tab. The event stays on the map, globe, and the organizer's profile.",
     "tabCompositions": "Album",
     "compositions": {
       "createAlbum": "Create album",
@@ -1667,13 +1671,13 @@
       "stats": "Statistics"
     },
     "tabHints": {
-      "accounts": "Users, validation and roles",
+      "accounts": "Account files, sessions and roles",
       "access": "Invites and access control",
       "stats": "Real-time audience, content and rankings",
       "content": "Salons, lives and posts moderation",
       "analytics": "Audience, activity and infra costs (Dev)",
-      "support": "Messages and reports",
-      "sponsors": "Campaigns and banners",
+      "support": "Tickets, reports and replies",
+      "sponsors": "In-app ads",
       "agents": "Internal AI agents (CEO, dev, ops)",
       "integrations": "Third-party API keys (no SSH)",
       "environmentDev": "Local backend status (msdev)",
@@ -1792,7 +1796,26 @@
     },
     "integrations": {
       "title": "Integrations & API keys",
-      "hint": "Centralizes access keys for third-party services (OAuth, moderation, storage, live streaming…) — no SSH, masked after entry.",
+      "hint": "Centralizes access keys for third-party services (OAuth, moderation, storage, live streaming…) — no SSH, masked after entry. Each card shows the account / project tied to the key.",
+      "categoryCount": "{{count}} service(s)",
+      "categories": {
+        "connexion": "Sign-in",
+        "payments": "Payments",
+        "lives": "Live",
+        "security": "Security",
+        "storage": "Storage & infra",
+        "comms": "Communications",
+        "admin": "Admin / AI"
+      },
+      "account": {
+        "title": "Account in use",
+        "none": "No linked account — key missing",
+        "source": {
+          "live": "Read from the provider API",
+          "derived": "Derived from the active configuration",
+          "declared": "OnScen operator account"
+        }
+      },
       "loading": "Loading integrations…",
       "loadError": "Could not load integrations",
       "envFileMissing": "No .env file found on this server — check the deployment (SSH) before applying a key.",
@@ -1813,6 +1836,8 @@
         "badgeUnconfigured": "○ Not configured",
         "notSet": "Not set",
         "configure": "Configure",
+        "expand": "Expand",
+        "collapse": "Collapse",
         "cancel": "Cancel",
         "optional": "optional",
         "show": "Show",
@@ -1823,12 +1848,17 @@
         "genericError": "Error while updating the configuration",
         "requiredMissing": "Please fill in all required fields.",
         "invalidField": "Invalid format for {{field}}",
-        "openConsole": "Open provider console →"
+        "openConsole": "Open provider console →",
+        "readOnly": "Read-only — this key cannot be changed from admin (system core)."
       },
       "providers": {
         "google_oauth": {
           "title": "Google OAuth (login + YouTube)",
           "hint": "Google social login and YouTube account linking. console.cloud.google.com → APIs & Services → Credentials."
+        },
+        "apple_signin": {
+          "title": "Sign in with Apple",
+          "hint": "Apple login (App Store / web). developer.apple.com → Identifiers + .p8 key."
         },
         "youtube_data_api": {
           "title": "YouTube Data API v3",
@@ -1842,6 +1872,10 @@
           "title": "Cloudflare Stream",
           "hint": "Live streaming via RTMP ingest → HLS/CDN (replaces the WebRTC mesh for viewers)."
         },
+        "turnstile": {
+          "title": "Cloudflare Turnstile",
+          "hint": "Anti-bot captcha (sign-up, forgot password). dash.cloudflare.com → Turnstile."
+        },
         "livekit": {
           "title": "LiveKit Cloud",
           "hint": "Browser camera live streaming (Instagram-style) — takes priority over Cloudflare when both are configured."
@@ -1849,6 +1883,10 @@
         "sightengine": {
           "title": "Sightengine",
           "hint": "Automatic NSFW moderation of images/videos posted by users."
+        },
+        "photodna": {
+          "title": "Microsoft PhotoDNA",
+          "hint": "CSAM hash matching (Microsoft contract). Complements Sightengine, does not replace it."
         },
         "acrcloud": {
           "title": "ACRCloud",
@@ -1873,6 +1911,14 @@
         "turn": {
           "title": "TURN server",
           "hint": "WebRTC relay for the live mesh (used when LiveKit and Cloudflare Stream are absent)."
+        },
+        "sentry": {
+          "title": "Sentry",
+          "hint": "Backend error monitoring (required in production)."
+        },
+        "redis": {
+          "title": "Redis",
+          "hint": "Cache, rate limits and Socket.io cluster. Read-only — change via SSH / .env."
         }
       },
       "fields": {
@@ -1911,7 +1957,19 @@
         "VAPID_SUBJECT": "Contact (mailto: or URL)",
         "TURN_URL": "TURN server URL(s)",
         "TURN_USERNAME": "Username",
-        "TURN_CREDENTIAL": "Password / credential"
+        "TURN_CREDENTIAL": "Password / credential",
+        "APPLE_CLIENT_ID": "Services ID (Client ID)",
+        "APPLE_TEAM_ID": "Team ID",
+        "APPLE_KEY_ID": "Key ID",
+        "APPLE_CALLBACK_URL": "Callback URL (Apple)",
+        "APPLE_PRIVATE_KEY": "Private key (.p8)",
+        "TURNSTILE_SECRET_KEY": "Turnstile secret key",
+        "TURNSTILE_REQUIRED": "Captcha required (1 / 0)",
+        "PHOTODNA_SUBSCRIPTION_KEY": "PhotoDNA key",
+        "PHOTODNA_MATCH_URL": "PhotoDNA Match URL",
+        "SENTRY_DSN": "Sentry DSN",
+        "SENTRY_TRACES_SAMPLE_RATE": "Traces sample rate",
+        "REDIS_URL": "Redis URL"
       }
     },
     "agents": {
@@ -1953,6 +2011,41 @@
       "suggestCeoAiTeam": "Full AI team recruitment dossier: for each recommended agent, explain why now [FACT], why CEO alone isn't enough, what I gain, cost of waiting, 30-day deliverables, API cost, and ask for my approval."
     },
     "accounts": {
+      "pageLead": "Operational list: open a file for identity, access, moderation, plan and audit trail.",
+      "dossierKicker": "Account file",
+      "openDossier": "Open file",
+      "closeDossier": "Close file",
+      "sectionIdentity": "Identity",
+      "sectionAccess": "Access",
+      "sectionJournal": "Admin log",
+      "fieldId": "ID:",
+      "fieldCity": "City:",
+      "fieldType": "Type:",
+      "fieldRelation": "Relationship:",
+      "fieldBirth": "Birth:",
+      "revokeSessions": "Sign out all sessions",
+      "revokeSessionsConfirm": "Invalidate every JWT for this account? The user will have to sign in again.",
+      "revokeSessionsSuccess": "Sessions revoked",
+      "resendVerification": "Resend verification email",
+      "resendVerificationSuccess": "Verification email sent",
+      "auditEmpty": "No admin actions recorded for this account.",
+      "auditUnavailable": "Audit log unavailable (Postgres required).",
+      "auditApprove": "Account approved",
+      "auditBlock": "Account suspended",
+      "auditUnblock": "Suspension lifted",
+      "auditPromoteAdmin": "Admin access granted",
+      "auditPromoteDev": "Dev access granted",
+      "auditDemote": "Staff rights removed",
+      "auditRevokeSessions": "Sessions revoked",
+      "auditResendVerification": "Verification email resent",
+      "filterStatus": "Filter by status",
+      "filterStaff": "Filter by role",
+      "filterStaffAll": "All roles",
+      "filterStaffAny": "Staff",
+      "filterStaffAdmin": "Admin",
+      "filterStaffDev": "Dev",
+      "filterPlan": "Filter by plan",
+      "filterPlanAll": "All plans",
       "searchPlaceholder": "Search username, email or city…",
       "clearSearch": "Clear search",
       "filterAll": "All",
@@ -2098,7 +2191,77 @@
       "modeClosed": "Closed"
     },
     "support": {
-      "subTabMessages": "Messages",
+      "pageLead": "Support queue: user tickets, reports and infra diagnostics.",
+      "searchPlaceholder": "Search username, email or message…",
+      "ticketKicker": "Support ticket",
+      "closeTicket": "Close ticket",
+      "sectionUser": "User",
+      "sectionThread": "Conversation",
+      "fieldCity": "City:",
+      "openProfile": "View profile",
+      "openedAt": "Opened {{date}}",
+      "reopen": "Reopen ticket",
+      "reopenError": "Could not reopen the ticket.",
+      "stats": {
+        "total": "Total",
+        "open": "Open",
+        "replied": "Replied",
+        "resolved": "Resolved"
+      },
+      "reports": {
+        "hint": "User reports — review, open accounts, then close the case.",
+        "searchPlaceholder": "Search reporter, target or reason…",
+        "empty": "No reports.",
+        "loadError": "Could not load reports.",
+        "actionError": "Action failed.",
+        "flags": "reports",
+        "urgent": "Urgent",
+        "dossierKicker": "Report",
+        "reporter": "Reporter",
+        "target": "Target",
+        "openReporter": "Reporter profile",
+        "openTarget": "Target profile",
+        "markReviewed": "Mark reviewed",
+        "dismiss": "Dismiss",
+        "delete": "Delete",
+        "deleteTitle": "Delete this report?",
+        "deleteDesc": "This cannot be undone.",
+        "filter": {
+          "all": "All",
+          "pending": "Pending",
+          "reviewed": "Reviewed",
+          "dismissed": "Dismissed"
+        },
+        "stats": {
+          "pending": "Pending",
+          "urgent": "Urgent",
+          "reviewed": "Reviewed",
+          "dismissed": "Dismissed"
+        },
+        "status": {
+          "pending": "Pending",
+          "reviewed": "Reviewed",
+          "dismissed": "Dismissed"
+        },
+        "room": {
+          "salon": "Salon",
+          "live": "Live",
+          "dm": "Direct message",
+          "reel": "Reel",
+          "profile": "Profile",
+          "track": "Track"
+        },
+        "category": {
+          "harassment": "Harassment / threats",
+          "illegal": "Illegal content",
+          "csam_risk": "Possible child-safety content",
+          "spam": "Spam / scam",
+          "copyright": "Copyright",
+          "privacy": "Privacy violation",
+          "other": "Other"
+        }
+      },
+      "subTabMessages": "Tickets",
       "subTabReports": "Reports",
       "subTabDiagnostic": "Diagnostics",
       "subTabLogs": "App logs",
@@ -2201,6 +2364,9 @@
     "content": {
       "title": "Content moderation",
       "subtitle": "Salons, lives, events and reels — block, delete and view creator.",
+      "salonsHint": "YouTube listening rooms only. A salon is not a live — the app does not allow hosting both at once.",
+      "livesHint": "Video streams. Distinct from listening salons — never listed here as a salon.",
+      "statusSalon": "Salon",
       "sectionSalons": "Salons",
       "sectionLives": "Lives",
       "sectionEvents": "Events",
@@ -2298,6 +2464,22 @@
     "sponsors": {
       "title": "Sponsors",
       "subtitle": "Map, feed and stories banners — create, reorder and toggle.",
+      "pageLead": "First pick where the ad appears in the app, then create or turn on a campaign.",
+      "whereTitle": "Where it shows",
+      "placeAll": "All",
+      "placeAllHint": "Every campaign, every placement",
+      "placeMapHint": "Banner at the top of the map",
+      "placeMapSponsoHint": "Sponsored events beside the map",
+      "placeFeedHint": "Ad card in the news feed",
+      "placeStoriesHint": "Banner above the story rings",
+      "placeStoriesViewerHint": "Full-screen story between two stories",
+      "placeReelsHint": "Ad video between reels",
+      "placeSalonHint": "Banner during a salon",
+      "placePricingHint": "Estimate a campaign price",
+      "contextCount": "{{active}} live · {{total}} total",
+      "emptyTitle": "No ads here",
+      "emptyHint": "Create a campaign for this placement.",
+      "addShort": "+ New ad",
       "placementSectionLabel": "Placement",
       "statusSectionLabel": "Status",
       "filterAll": "All",
@@ -2432,7 +2614,7 @@
       "actionLive": "View lives",
       "subTabsAria": "Filter by placement",
       "subTabMap": "Map",
-      "subTabMapSidebarEvents": "Map · Sponso",
+      "subTabMapSidebarEvents": "Events",
       "fieldLinkedEventPostId": "Event post (id)",
       "fieldLinkedEventPostIdPlaceholder": "e.g. prod-sponso-evt-solar-festival-2026",
       "helpLinkedEventPostId": "Id of an existing event post (Content tab → Events). Shown in the map sidebar Sponso carousel.",
@@ -2440,7 +2622,7 @@
       "listLinkedEvent": "Event {{id}}",
       "subTabFeed": "Feed",
       "subTabStories": "Stories",
-      "subTabStoriesViewer": "Story ads",
+      "subTabStoriesViewer": "Full-screen story",
       "subTabReels": "Reels",
       "subTabSalonTheater": "Room",
       "subTabPricing": "Pricing",
@@ -3302,9 +3484,34 @@
     "alreadyReshared": "Already reshared",
     "addFavorite": "Add to favorites",
     "removeFavorite": "Remove from favorites",
+    "followEvent": "Follow event",
+    "unfollowEvent": "Unfollow",
+    "eventFollowed": "Event followed",
+    "eventUnfollowed": "Removed from followed events",
+    "unfollowEventConfirmTitle": "Unfollow this event?",
+    "unfollowEventConfirmBody": "It will disappear from Followed events on the map and globe.",
     "commentsLoading": "Loading comments…",
     "commentsEmpty": "No comments yet. Be the first!",
-    "commentPlaceholder": "Add a comment…"
+    "commentPlaceholder": "Add a comment…",
+    "ownerMenu": "Post actions",
+    "reportPost": "Report",
+    "editPost": "Edit",
+    "editEvent": "Edit event",
+    "deletePost": "Delete",
+    "editPostTitle": "Edit post",
+    "editReshareTitle": "Edit reshare",
+    "editResharePlaceholder": "Add a comment (optional)",
+    "savePost": "Save",
+    "savingPost": "Saving…",
+    "savePostError": "Could not save.",
+    "deletePostError": "Could not delete.",
+    "deletePostTitle": "Delete this post?",
+    "deletePostBody": "It will disappear from the feed and profiles. This cannot be undone.",
+    "deleteEventTitle": "Delete this event?",
+    "deleteEventBody": "The event will disappear from the feed, profiles and map. Reshares will also be removed.",
+    "deleteReshareTitle": "Delete this reshare?",
+    "deleteReshareBody": "Your reshare will be removed. The original post stays visible.",
+    "eventModalSave": "Save"
   },
   "donation": {
     "legal": {

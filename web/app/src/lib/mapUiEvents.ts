@@ -1,3 +1,6 @@
+/** Bascule vers l’onglet Carte (ex. « Voir sur la carte OnScen » depuis un lieu). */
+export const MAP_OPEN_TAB_EVENT = 'onscen_map_open_tab';
+
 /** Ouvre la modale « Créer un salon » depuis l’onglet Carte (ex. CTA bandeau header). */
 export const MAP_OPEN_CREATE_SALON_EVENT = 'onscen_map_open_create_salon';
 
@@ -9,6 +12,11 @@ export const MAP_SIDEBAR_SPONSO_REFRESH_EVENT = 'onscen_map_sidebar_sponso_refre
 
 /** Marqueur carte/globe déplacé par un compte Dev. */
 export const MAP_MARKER_DRAG_REFRESH_EVENT = 'onscen_map_marker_drag_refresh';
+
+export function dispatchMapOpenTab(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(MAP_OPEN_TAB_EVENT));
+}
 
 export function dispatchMapOpenCreateSalon(): void {
   window.dispatchEvent(new CustomEvent(MAP_OPEN_CREATE_SALON_EVENT));

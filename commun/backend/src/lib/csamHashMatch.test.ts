@@ -17,12 +17,23 @@ function pngDataUrl(): string {
 describe('csamHashMatch', () => {
   beforeEach(() => {
     resetCsamHashMatchForTests();
+    delete process.env.PHOTODNA_REQUIRED;
+    delete process.env.PHOTODNA_SUBSCRIPTION_KEY;
   });
 
   it('autorise un média inconnu', async () => {
     const result = await checkCsamHash(pngDataUrl());
     expect(result.blocked).toBe(false);
     expect(result.sha256).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('refuse un média si PHOTODNA_REQUIRED sans clé', async () => {
+    process.env.PHOTODNA_REQUIRED = '1';
+    delete process.env.PHOTODNA_SUBSCRIPTION_KEY;
+    const result = await checkCsamHash(pngDataUrl());
+    expect(result.blocked).toBe(true);
+    expect(result.unavailable).toBe(true);
+    delete process.env.PHOTODNA_REQUIRED;
   });
 
   it('bloque un hash déjà mémorisé', async () => {

@@ -11,6 +11,7 @@ import {
   schedulePersistFeedPostLike,
   schedulePersistFeedPostUpvote,
   schedulePersistFeedPostToPg,
+  scheduleDeleteFeedPostFromPg,
 } from './pgFeedPosts';
 import { normalizeEventTaggedUserIds, resolveTaggedUsers, type PublicTaggedUser } from './taggedUsers';
 import { sanitizePlainText } from './sanitizeUserText';
@@ -452,6 +453,218 @@ export function createFeedPost(
   return { ok: true, post: toPublicPost(post, user, userId) };
 }
 
+export type FeedPostWriteInput = {
+  content: string;
+  imageUrl?: string;
+  imageUrls?: unknown;
+  videoUrl?: string;
+  isEvent?: boolean;
+  eventDate?: string;
+  eventDates?: unknown;
+  eventEndTimes?: unknown;
+  eventLocation?: string;
+  eventType?: string;
+  eventLinkUrl?: string;
+  eventTaggedUserIds?: unknown;
+};
+
+function resolveFeedPostMedia(input: FeedPostWriteInput):
+  | { ok: true; imageUrl?: string; imageUrls: string[]; videoUrl?: string }
+  | { ok: false; error: string } {
+  const imageUrlSingle = normalizeImageUrl(input.imageUrl);
+  const imageUrlsList = normalizeImageUrls(input.imageUrls);
+  const imageUrls =
+    imageUrlsList.length > 0 ? imageUrlsList : imageUrlSingle ? [imageUrlSingle] : [];
+  const imageUrl = imageUrls[0];
+  const videoUrl = normalizeVideoUrl(input.videoUrl);
+  if (imageUrls.length > 0 && videoUrl) {
+    return { ok: false, error: 'Une publication ne peut pas contenir des images et une vidéo.' };
+  }
+  const hasImageInput =
+    imageUrls.length > 0 ||
+    (input.imageUrl != null && String(input.imageUrl).trim().length > 0) ||
+    (Array.isArray(input.imageUrls) && input.imageUrls.length > 0);
+  const hasVideoInput = input.videoUrl != null && String(input.videoUrl).trim().length > 0;
+  if (hasImageInput && imageUrls.length === 0) {
+    return {
+      ok: false,
+      error: 'Image invalide (URL https ou image collée, max ~400 Ko encodée).',
+    };
+  }
+  if (hasVideoInput && !videoUrl) {
+    return {
+      ok: false,
+      error: 'Vidéo invalide (MP4, WebM ou MOV, max ~12 Mo encodée).',
+    };
+  }
+  return { ok: true, imageUrl, imageUrls, videoUrl };
+}
+
+/** L'auteur met à jour sa publication, son événement ou le texte de son repartage. */
+export function updateFeedPost(
+  userId: string,
+  postId: string,
+  input: FeedPostWriteInput
+): { ok: true; post: PublicFeedPost } | { ok: false; error: string; status: number } {
+  const user = db.users.get(userId);
+  if (!user) return { ok: false, error: 'Utilisateur introuvable', status: 404 };
+
+  const post = db.feedPosts.find((p) => p.id === postId);
+  if (!post) return { ok: false, error: 'Publication introuvable', status: 404 };
+  if (post.userId !== userId) {
+    return { ok: false, error: 'Seul le créateur peut modifier cette publication.', status: 403 };
+  }
+
+  if (post.resharedFromId) {
+    const content = normalizeContent(input.content ?? '', { allowEmpty: true });
+    if (content == null) {
+      return { ok: false, error: 'Le texte doit contenir entre 1 et 2000 caractères.', status: 400 };
+    }
+    post.content = content;
+    invalidateFeedSortCache();
+    schedulePersistFeedPostToPg(post);
+    return { ok: true, post: toPublicPost(post, user, userId) };
+  }
+
+  const mediaProvided =
+    input.imageUrl != null || input.imageUrls != null || input.videoUrl != null;
+  const media = mediaProvided
+    ? resolveFeedPostMedia(input)
+    : {
+        ok: true as const,
+        imageUrl: post.imageUrl,
+        imageUrls: post.imageUrls?.length
+          ? post.imageUrls
+          : post.imageUrl
+            ? [post.imageUrl]
+            : [],
+        videoUrl: post.videoUrl,
+      };
+  if (!media.ok) return { ok: false, error: media.error, status: 400 };
+
+  const hasMedia = Boolean(media.imageUrls.length > 0 || media.videoUrl);
+  const content = normalizeContent(input.content ?? '', { allowEmpty: hasMedia || post.isEvent === true });
+  if (content == null) {
+    return { ok: false, error: 'Le texte doit contenir entre 1 et 2000 caractères.', status: 400 };
+  }
+  if (!content && !hasMedia && !post.isEvent) {
+    return { ok: false, error: 'Ajoutez du texte, une image ou une vidéo.', status: 400 };
+  }
+
+  if (post.isEvent) {
+    const normalizedDates = normalizeEventDates(input.eventDates, input.eventDate, input.eventEndTimes);
+    if (!normalizedDates) {
+      return { ok: false, error: "Date de l'événement invalide ou manquante.", status: 400 };
+    }
+    const loc = normalizeEventLocation(input.eventLocation);
+    if (!loc) {
+      return { ok: false, error: "Lieu de l'événement requis (max 300 caractères).", status: 400 };
+    }
+    let eventLinkUrl: string | undefined;
+    if (input.eventLinkUrl != null && String(input.eventLinkUrl).trim()) {
+      const link = normalizeEventLinkUrl(input.eventLinkUrl);
+      if (!link) {
+        return { ok: false, error: 'Lien invalide (http:// ou https:// requis).', status: 400 };
+      }
+      eventLinkUrl = link;
+    }
+    const eventTaggedUserIds = normalizeEventTaggedUserIds(input.eventTaggedUserIds, userId);
+    const hidden = (post.eventProfileHiddenUserIds ?? []).filter((id) =>
+      eventTaggedUserIds?.includes(id)
+    );
+
+    post.content = content;
+    post.imageUrl = media.imageUrl;
+    post.imageUrls = media.imageUrls.length > 1 ? media.imageUrls : undefined;
+    post.videoUrl = media.videoUrl;
+    post.eventDate = normalizedDates.eventDate;
+    post.eventDates = normalizedDates.eventDates;
+    post.eventEndTimes = normalizedDates.eventEndTimes.some((e) => e !== null)
+      ? normalizedDates.eventEndTimes
+      : undefined;
+    post.eventLocation = loc;
+    post.eventType = normalizeEventType(input.eventType);
+    post.eventLinkUrl = eventLinkUrl;
+    post.eventTaggedUserIds = eventTaggedUserIds;
+    post.eventProfileHiddenUserIds = hidden.length ? hidden : undefined;
+  } else {
+    post.content = content;
+    post.imageUrl = media.imageUrl;
+    post.imageUrls = media.imageUrls.length > 1 ? media.imageUrls : undefined;
+    post.videoUrl = media.videoUrl;
+  }
+
+  invalidateFeedSortCache();
+  schedulePersistFeedPostToPg(post);
+  return { ok: true, post: toPublicPost(post, user, userId) };
+}
+
+function purgeFeedPostAndReshares(postId: string): string[] {
+  const ids = [postId, ...db.feedPosts.filter((p) => p.resharedFromId === postId).map((p) => p.id)];
+  const idSet = new Set(ids);
+  db.feedPosts = db.feedPosts.filter((p) => !idSet.has(p.id));
+  for (const id of ids) {
+    db.feedPostLikes.delete(id);
+    db.feedPostUpvotes.delete(id);
+    db.feedPostComments.delete(id);
+    scheduleDeleteFeedPostFromPg(id);
+  }
+  for (const favs of db.feedPostFavorites.values()) {
+    for (const id of ids) favs.delete(id);
+  }
+  db.notifications = db.notifications.filter((n) => !n.postId || !idSet.has(n.postId));
+  invalidateFeedSortCache();
+  return ids;
+}
+
+/** L'auteur supprime sa publication, son événement ou son repartage. */
+export function deleteFeedPost(
+  userId: string,
+  postId: string
+): { ok: true; deletedIds: string[] } | { ok: false; error: string; status: number } {
+  if (!db.users.get(userId)) {
+    return { ok: false, error: 'Utilisateur introuvable', status: 404 };
+  }
+  const post = db.feedPosts.find((p) => p.id === postId);
+  if (!post) return { ok: false, error: 'Publication introuvable', status: 404 };
+  if (post.userId !== userId) {
+    return { ok: false, error: 'Seul le créateur peut supprimer cette publication.', status: 403 };
+  }
+  const deletedIds = purgeFeedPostAndReshares(postId);
+  return { ok: true, deletedIds };
+}
+
+/** Un compte tagué retire l'événement de son onglet profil — sans modifier la carte ni le post. */
+export function hideEventFromOwnProfile(
+  userId: string,
+  postId: string
+): { ok: true } | { ok: false; error: string; status: number } {
+  if (!db.users.get(userId)) {
+    return { ok: false, error: 'Utilisateur introuvable', status: 404 };
+  }
+  const post = db.feedPosts.find((p) => p.id === postId);
+  if (!post) return { ok: false, error: 'Publication introuvable', status: 404 };
+  if (!post.isEvent) {
+    return { ok: false, error: "Ce n'est pas un événement", status: 400 };
+  }
+  if (post.userId === userId) {
+    return {
+      ok: false,
+      error: "L'organisateur ne peut pas retirer son événement du profil. Seul le créateur peut le modifier ou le supprimer.",
+      status: 403,
+    };
+  }
+  if (!post.eventTaggedUserIds?.includes(userId)) {
+    return { ok: false, error: "Vous n'êtes pas tagué sur cet événement", status: 403 };
+  }
+  const hidden = new Set(post.eventProfileHiddenUserIds ?? []);
+  hidden.add(userId);
+  post.eventProfileHiddenUserIds = [...hidden];
+  invalidateFeedSortCache();
+  schedulePersistFeedPostToPg(post);
+  return { ok: true };
+}
+
 export function resharePost(
   userId: string,
   originalPostId: string
@@ -751,6 +964,12 @@ function matchesEventFilters(post: FeedPost, f: EventFilterOpts): boolean {
     const isOrganizer = post.userId === f.profileUserId;
     const isTagged = post.eventTaggedUserIds?.includes(f.profileUserId) ?? false;
     if (!isOrganizer && !isTagged) return false;
+    if (
+      !isOrganizer &&
+      (post.eventProfileHiddenUserIds?.includes(f.profileUserId) ?? false)
+    ) {
+      return false;
+    }
   } else if (f.authorId && post.userId !== f.authorId) {
     return false;
   }

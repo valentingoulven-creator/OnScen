@@ -125,9 +125,7 @@ function liveDurationMs(l: Live, now = Date.now()): number {
 
 export function mapAdminSalonRow(s: Salon) {
   const creator = mapAdminCreator(s.hostId);
-  const live = db.lives.get(s.id);
   const host = db.users.get(s.hostId);
-  const linkedDonations = live ? getLiveDonationStats(live.id) : { count: 0, totalEur: 0 };
   return {
     id: s.id,
     title: s.title,
@@ -142,7 +140,7 @@ export function mapAdminSalonRow(s: Salon) {
     createdAt: s.createdAt,
     adminBlocked: isAdminBlockedSalon(s),
     adminBlockedAt: s.adminBlockedAt,
-    isLive: !!live?.isActive && !isAdminBlockedLive(live),
+    isLive: false,
     hostId: s.hostId,
     hostName: s.hostName,
     creator,
@@ -155,11 +153,11 @@ export function mapAdminSalonRow(s: Salon) {
     queueLength: db.salonQueues.get(s.id)?.length ?? 0,
     banCount: getBanCount(s.id, 'salon'),
     vipModeratorCount: s.vipModeratorIds?.length ?? 0,
-    linkedLiveViewers: live?.viewersCount,
-    linkedLivePeakViewers: live?.peakViewersCount,
-    linkedLiveDonationsCount: linkedDonations.count,
-    linkedLiveDonationsTotalEur: linkedDonations.totalEur,
-    linkedLiveDurationMs: live ? liveDurationMs(live) : undefined,
+    linkedLiveViewers: undefined,
+    linkedLivePeakViewers: undefined,
+    linkedLiveDonationsCount: 0,
+    linkedLiveDonationsTotalEur: 0,
+    linkedLiveDurationMs: undefined,
   };
 }
 

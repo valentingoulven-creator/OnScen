@@ -38,7 +38,7 @@ if ! command -v pg_dump >/dev/null 2>&1; then
   exit 1
 fi
 
-pg_dump "$DATABASE_URL" --no-owner --no-acl | gzip -9 > "$OUT"
+pg_dump "$DATABASE_URL" --no-owner --no-acl --exclude-table-data=spatial_ref_sys | gzip -9 > "$OUT"
 
 SIZE="$(du -h "$OUT" | cut -f1)"
 log "OK — sauvegarde créée ($SIZE)"

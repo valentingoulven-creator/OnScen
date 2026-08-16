@@ -1,18 +1,21 @@
 ---
-description: "@onscen Liste agents — @onscen-cto @onscen-dev @onscen-dev-agent @onscen-ceo-ia (choisir une règle dédiée)"
+description: "@onscen Liste agents — @audit @onscen-cto @onscen-dev @onscen-dev-agent @onscen-ceo-ia (choisir une règle dédiée)"
 alwaysApply: false
 ---
 
-# Agents OnScen (règles projet)
+# Agents OnScen
 
 | Mention | Fichier | Usage |
 |---------|---------|--------|
-| `@onscen-cto` | `onscen-cto.mdc` | Audit, architecture, reco technique |
-| `@onscen-dev` | `onscen-dev.mdc` | Dev (alias court) |
-| `@onscen-dev-agent` | `onscen-dev-agent.mdc` | Dev (règle complète) |
-| `@onscen-ceo-ia` | `onscen-ceo-ia.mdc` | Stratégie, business |
-| `@mobile-only` | `onscen-mobile-only.mdc` | App mobile uniquement (`ios/apptel/`) |
+| `@audit` | `onscen-audit.mdc` | **GO/NO-GO pré-prod** — lance `PROMPT-AUDIT-PRE-PROD.md` tout de suite |
+| `@onscen-cto` | `onscen-cto.mdc` | Audit, archi, sécu — **pas de code** |
+| `@onscen-dev` | `onscen-dev.mdc` | Implémenter + valider (alias) |
+| `@onscen-dev-agent` | `onscen-dev-agent.mdc` | Même rôle — guide long dans `ONSCEN-DEV-AGENT.md` |
+| `@onscen-ceo-ia` | `onscen-ceo-ia.mdc` | Business, priorités |
+| `@mobile-only` | `onscen-mobile-only.mdc` | Tel uniquement (`ios/apptel`) |
 
-**Défaut agent Dev** : Web + app tel (`onscen-web-et-tel.mdc`, alwaysApply). `@mobile-only` reste l’exception « tel seulement ».
+**Enchaînement :** `@audit` (GO prod) ou CTO audite → handoff P0 → Dev implémente. DONE ≠ compile. Ne pas attacher `@audit` à `@onscen-dev`.
 
-Si le menu `@` est vide : ouvrir le dossier **`c:\Dev\Soundy`** (racine avec `.cursor/rules/`). Voir `commun/docs/CURSOR-RULES-TROUBLESHOOTING.md`.
+**Défaut UI Dev :** Web + tel (`onscen-web-et-tel.mdc`). Chemins : `web/app/src/`, `commun/backend/src/`.
+
+Menu `@` vide : ouvrir `c:\Dev\Soundy`. Voir `commun/docs/CURSOR-RULES-TROUBLESHOOTING.md`.

@@ -66,6 +66,8 @@ import { parseRequestLocale } from './lib/requestLocale';
 import { checkPoolHealth, isPostgresEnabled } from './db/pool';
 import { getDbContentHealthReport } from './lib/dbContentHealth';
 import { checkExternalServicesHealth } from './lib/healthChecks';
+import { getStripeKeyMode } from './lib/stripeMode';
+import { readDeployedRelease } from './lib/deployedRelease';
 import { buildCspConnectSrc, buildCspImgSrc } from './lib/cspConfig';
 import { requireOpsHealthToken } from './middleware/opsHealthAuth';
 import { latencyMonitorMiddleware } from './middleware/latencyMonitor';
@@ -424,10 +426,10 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/.well-known/apple-app-site-association', (_req, res, next) => {
+app.get('/.well-known/apple-app-site-association', (_req, res) => {
   const teamId = process.env.APPLE_TEAM_ID?.trim();
   if (!teamId || teamId === 'TEAM_ID') {
-    next();
+    res.status(404).json({ error: 'Universal Links non configurés (APPLE_TEAM_ID manquant)' });
     return;
   }
   res.setHeader('Content-Type', 'application/json');
@@ -659,6 +661,8 @@ app.get('/health', (_req, res) => {
       env: process.env.APP_ENV || 'development',
       db: dbStatus,
       services,
+      stripeMode: getStripeKeyMode(),
+      release: readDeployedRelease() ?? null,
       timestamp: new Date(),
     });
   };

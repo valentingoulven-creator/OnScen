@@ -147,6 +147,13 @@ export async function moderateImageSource(
   }
 
   const hashCheck = await checkCsamHash(trimmed);
+  if (hashCheck.unavailable) {
+    return {
+      allowed: false,
+      error:
+        'Vérification PhotoDNA indisponible. Réessayez plus tard ou contactez le support.',
+    };
+  }
   if (hashCheck.blocked) {
     await escalateMinorRiskDetection(context, uploaderId, { hash_match: 1 });
     return { allowed: false, reason: 'minor_risk' };
@@ -186,6 +193,13 @@ export async function moderateVideoSource(
   }
 
   const hashCheck = await checkCsamHash(trimmed);
+  if (hashCheck.unavailable) {
+    return {
+      allowed: false,
+      error:
+        'Vérification PhotoDNA indisponible. Réessayez plus tard ou contactez le support.',
+    };
+  }
   if (hashCheck.blocked) {
     await escalateMinorRiskDetection(context, uploaderId, { hash_match: 1 });
     return { allowed: false, reason: 'minor_risk' };

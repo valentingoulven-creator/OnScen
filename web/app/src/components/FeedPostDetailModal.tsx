@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { FeedPostInteractions } from './FeedPostInteractions';
+import { FeedPostOwnerActions } from './FeedPostOwnerActions';
 import { LinkifiedText } from './LinkifiedText';
 import { UsernameDisplay } from './UsernameDisplay';
 import { FeedPostMediaPreview } from './FeedPostMediaPreview';
@@ -14,6 +15,8 @@ interface FeedPostDetailModalProps {
   initialImageIndex?: number;
   onClose: () => void;
   onOpenProfile?: (userId: string) => void;
+  onUpdated?: (post: FeedPost) => void;
+  onDeleted?: (postId: string, deletedIds: string[]) => void;
 }
 
 function formatWhen(ts: number, locale: string): string {
@@ -32,6 +35,8 @@ export function FeedPostDetailModal({
   initialImageIndex = 0,
   onClose,
   onOpenProfile,
+  onUpdated,
+  onDeleted,
 }: FeedPostDetailModalProps) {
   const { t, i18n } = useTranslation();
   const { token } = useAuth();
@@ -111,10 +116,11 @@ export function FeedPostDetailModal({
               {({ toolbar, comments }) => (
                 <div className="space-y-3 pb-3">
                   <div className="px-4 pt-4 pr-14 space-y-2">
+                    <div className="flex items-start gap-1">
                     <button
                       type="button"
                       onClick={() => onOpenProfile?.(activePost.author.id)}
-                      className="flex items-center gap-2 text-left min-h-[44px] -ml-1 px-1 rounded-lg hover:bg-white/5 transition"
+                      className="flex items-center gap-2 text-left min-h-[44px] min-w-0 flex-1 -ml-1 px-1 rounded-lg hover:bg-white/5 transition"
                     >
                       {activePost.author.avatarUrl ? (
                         <img
@@ -138,6 +144,18 @@ export function FeedPostDetailModal({
                         <p className="text-[11px] text-gray-500">{formatWhen(activePost.createdAt, locale)}</p>
                       </div>
                     </button>
+                    <FeedPostOwnerActions
+                      post={activePost}
+                      onUpdated={(updated) => {
+                        setActivePost(updated);
+                        onUpdated?.(updated);
+                      }}
+                      onDeleted={(postId, deletedIds) => {
+                        onDeleted?.(postId, deletedIds);
+                        onClose();
+                      }}
+                    />
+                    </div>
                     {toolbar ? <div className="pt-1">{toolbar}</div> : null}
                   </div>
 

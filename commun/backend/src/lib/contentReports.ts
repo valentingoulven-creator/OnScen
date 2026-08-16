@@ -9,12 +9,14 @@ export interface ContentReport {
   category: string;
   details: string;
   targetUserId?: string;
-  roomType?: 'salon' | 'live' | 'dm' | 'reel' | 'profile' | 'track';
+  roomType?: 'salon' | 'live' | 'dm' | 'reel' | 'profile' | 'track' | 'feed';
   roomId?: string;
   messageId?: string;
   createdAt: number;
   /** Priorité calculée à la création (audit MOD-6) — sert au tri/affichage admin. */
   priority?: 'urgent' | 'normal';
+  status?: 'pending' | 'reviewed' | 'dismissed';
+  reviewedAt?: number;
 }
 
 /** Catégories déclenchant une notification admin immédiate + priorité "urgent" (MOD-5/MOD-6). */

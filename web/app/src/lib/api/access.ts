@@ -32,6 +32,8 @@ export const accessApi = {
       status?: 'all' | 'active' | 'pending' | 'blocked';
       q?: string;
       sort?: import('../../types').AdminUserSort;
+      staff?: import('../../types').AdminUserStaffFilter;
+      plan?: import('../../types').AdminUserPlanFilter;
       limit?: number;
       offset?: number;
     } = {}
@@ -40,6 +42,8 @@ export const accessApi = {
     params.set('status', opts.status ?? 'all');
     if (opts.q) params.set('q', opts.q);
     if (opts.sort) params.set('sort', opts.sort);
+    if (opts.staff && opts.staff !== 'all') params.set('staff', opts.staff);
+    if (opts.plan && opts.plan !== 'all') params.set('plan', opts.plan);
     if (opts.limit != null) params.set('limit', String(opts.limit));
     if (opts.offset != null) params.set('offset', String(opts.offset));
     return request<import('../../types').AccessAdminUsersResponse>(
@@ -109,6 +113,27 @@ export const accessApi = {
       token
     ),
 
+  getAccessAdminUserAudit: (token: string, userId: string, limit = 40) =>
+    request<import('../../types').AdminUserAuditResponse>(
+      `/access/admin/users/${userId}/audit?limit=${limit}`,
+      {},
+      token
+    ),
+
+  revokeAccessUserSessions: (token: string, userId: string) =>
+    request<{ ok: boolean; tokenVersion: number; user: import('../../types').AccessManagedUser }>(
+      `/access/admin/users/${userId}/revoke-sessions`,
+      { method: 'POST' },
+      token
+    ),
+
+  resendAccessUserVerification: (token: string, userId: string) =>
+    request<{ ok: boolean; user: import('../../types').AccessManagedUser }>(
+      `/access/admin/users/${userId}/resend-verification`,
+      { method: 'POST' },
+      token
+    ),
+
   assignAdminPlatformPlan: (
     token: string,
     userId: string,
@@ -174,17 +199,24 @@ export const accessApi = {
 
   getAdminSupportMessages: (
     token: string,
-    opts: { status?: 'open' | 'replied' | 'resolved' | 'all' } = {}
+    opts: { status?: 'open' | 'replied' | 'resolved' | 'all'; q?: string } = {}
   ) => {
     const params = new URLSearchParams();
     if (opts.status && opts.status !== 'all') params.set('status', opts.status);
+    if (opts.q) params.set('q', opts.q);
     const qs = params.toString();
-    return request<{ messages: import('../../types').SupportContactMessage[] }>(
-      `/access/admin/support${qs ? `?${qs}` : ''}`,
-      {},
-      token
-    );
+    return request<{
+      messages: import('../../types').SupportContactMessage[];
+      counts?: import('../../types').AdminSupportCounts;
+    }>(`/access/admin/support${qs ? `?${qs}` : ''}`, {}, token);
   },
+
+  reopenAdminSupportMessage: (token: string, messageId: string) =>
+    request<{ message: import('../../types').SupportContactMessage }>(
+      `/access/admin/support/${messageId}/reopen`,
+      { method: 'POST' },
+      token
+    ),
 
   replyAdminSupportMessage: (token: string, messageId: string, reply: string) =>
     request<{ message: import('../../types').SupportContactMessage }>(

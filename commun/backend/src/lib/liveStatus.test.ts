@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { db, type Live } from '../models/schema';
 import {
   getActiveLiveForSalon,
+  isListeningSalonOnly,
   isSalonLiveActive,
 } from './liveStatus';
 
@@ -51,6 +52,15 @@ describe('liveStatus salon linkage', () => {
     );
     expect(getActiveLiveForSalon('salon-2')?.id).toBe('legacy-live');
     expect(isSalonLiveActive('salon-2')).toBe(true);
+  });
+
+  it('treats a salon without an active live as listening-only', () => {
+    expect(isListeningSalonOnly('salon-listen')).toBe(true);
+    db.lives.set(
+      'salon-listen',
+      makeLive({ id: 'salon-listen', salonId: 'salon-listen', hostId: 'host-4' })
+    );
+    expect(isListeningSalonOnly('salon-listen')).toBe(false);
   });
 
   it('returns undefined when live is inactive', () => {

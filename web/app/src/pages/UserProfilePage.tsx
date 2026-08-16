@@ -447,7 +447,11 @@ export function UserProfilePage({
                 onOpenLive={onOpenLive}
               />
             ) : (
-              <UserEventsSection userId={userId} onOpenPost={onOpenFeedPost} />
+              <UserEventsSection
+                userId={userId}
+                onOpenPost={onOpenFeedPost}
+                canManageGuestEvents={isSelf}
+              />
             )}
           </div>
         )}

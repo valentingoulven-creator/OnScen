@@ -35,8 +35,10 @@ import {
   recordCreatorSubscription,
 } from '../lib/subscriptions';
 import { getPlatformPlanStatus, getUserPlatformPlan } from '../lib/platformPlans';
-import { logAdminAction } from '../lib/adminAuditLog';
-import { sendAccountActivatedEmail } from '../lib/mailer';
+import { listAdminAuditForTarget, logAdminAction } from '../lib/adminAuditLog';
+import { sendAccountActivatedEmail, sendVerificationEmail } from '../lib/mailer';
+import { issueVerificationToken } from '../lib/emailVerification';
+import { bumpUserTokenVersion } from '../lib/tokenVersion';
 import {
   findMapSidebarSponsorForEventPost,
   findReelsSponsorForReelId,
@@ -132,6 +134,7 @@ function mapAdminManagedUser(u: User) {
     stripeConnectReady: Boolean(u.stripeConnectAccountId?.trim()),
     connectedPlatformsCount: u.connectedPlatforms?.length ?? 0,
     onboardingCompleted: u.onboardingCompleted !== false,
+    avatarUrl: u.avatarUrl,
   };
 }
 
@@ -165,6 +168,8 @@ accessRouter.get('/admin/users', authenticateJWT, async (req: Request, res: Resp
   const sort = String(req.query.sort || 'lastSeen') as AdminUserSort;
   const allowedSort: AdminUserSort[] = ['lastSeen', 'memberSince', 'username', 'status'];
   const sortKey = allowedSort.includes(sort) ? sort : 'lastSeen';
+  const staff = String(req.query.staff || 'all');
+  const plan = String(req.query.plan || 'all');
   const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '30'), 10) || 30, 1), 200);
   const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0);
 
@@ -179,6 +184,21 @@ accessRouter.get('/admin/users', authenticateJWT, async (req: Request, res: Resp
   const filtered = sortAdminUsers(
     realUsers
       .filter((u) => status === 'all' || getAccountStatus(u) === status)
+      .filter((u) => {
+        if (staff === 'all') return true;
+        const role = getStaffRole(u);
+        if (staff === 'staff') return Boolean(role);
+        if (staff === 'admin') return role === 'admin';
+        if (staff === 'dev') return role === 'dev';
+        return true;
+      })
+      .filter((u) => {
+        if (plan === 'all') return true;
+        if (plan === 'free' || plan === 'onscen_plus' || plan === 'onscen_ultra') {
+          return getUserPlatformPlan(u.id).id === plan;
+        }
+        return true;
+      })
       .filter(
         (u) =>
           !q ||
@@ -416,6 +436,76 @@ accessRouter.post('/admin/users/:userId/platform-plan', authenticateJWT, (req: R
   schedulePersist();
   res.json({ ok: true, status: getPlatformPlanStatus(userId) });
 });
+
+accessRouter.get('/admin/users/:userId/audit', authenticateJWT, async (req: Request, res: Response) => {
+  if (requireAdmin(req, res) == null) return;
+  const user = db.users.get(req.params.userId);
+  if (!user || user.email.endsWith('@bot.local')) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+  const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '40'), 10) || 40, 1), 100);
+  const result = await listAdminAuditForTarget(user.id, limit);
+  res.json(result);
+});
+
+/** Invalide tous les JWT du compte (bump tokenVersion). */
+accessRouter.post('/admin/users/:userId/revoke-sessions', authenticateJWT, (req: Request, res: Response) => {
+  if (requireAdmin(req, res) == null) return;
+  const user = db.users.get(req.params.userId);
+  if (!user || user.email.endsWith('@bot.local')) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+  const tokenVersion = bumpUserTokenVersion(user);
+  db.users.set(user.id, user);
+  schedulePersistUserToPg(user);
+  schedulePersist();
+  logAdminAction({
+    adminId: (req as Request & { user: { id: string } }).user.id,
+    action: 'user_revoke_sessions',
+    targetType: 'user',
+    targetId: user.id,
+    details: { tokenVersion },
+    ip: req.ip,
+  });
+  res.json({ ok: true, tokenVersion, user: mapAdminManagedUser(user) });
+});
+
+accessRouter.post(
+  '/admin/users/:userId/resend-verification',
+  authenticateJWT,
+  (req: Request, res: Response) => {
+    if (requireAdmin(req, res) == null) return;
+    const user = db.users.get(req.params.userId);
+    if (!user || user.email.endsWith('@bot.local')) {
+      res.status(404).json({ error: 'Utilisateur introuvable' });
+      return;
+    }
+    if (!user.email?.trim()) {
+      res.status(400).json({ error: 'Ce compte n’a pas d’e-mail' });
+      return;
+    }
+    if (user.emailVerified === true) {
+      res.status(400).json({ error: 'E-mail déjà vérifié' });
+      return;
+    }
+    const { url: verificationUrl } = issueVerificationToken(user);
+    void sendVerificationEmail({
+      toEmail: user.email,
+      username: user.username,
+      verificationUrl,
+    });
+    logAdminAction({
+      adminId: (req as Request & { user: { id: string } }).user.id,
+      action: 'user_resend_verification',
+      targetType: 'user',
+      targetId: user.id,
+      ip: req.ip,
+    });
+    res.json({ ok: true, user: mapAdminManagedUser(user) });
+  }
+);
 
 accessRouter.post('/admin/invites', authenticateJWT, (req: Request, res: Response) => {
   if (requireDevStaff(req, res) == null) return;

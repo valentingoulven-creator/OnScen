@@ -2,87 +2,33 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
-import { getProfilePath } from '../lib/profileDeepLink';
 import { resolveStaffRole } from '../lib/adminStaffRoles';
-import { AdminUserSnapshotsPanel } from '../components/AdminUserSnapshotsPanel';
+import { AdminAccountDossier } from '../components/AdminAccountDossier';
+import {
+  copyText,
+  formatRelativeLastSeen,
+  isBotEmail,
+  platformPlanBadgeClass,
+  resolvePlatformPlanLabel,
+  statusBadgeClass,
+  statusLabel,
+  type PlatformPlanId,
+} from '../lib/adminAccountsUi';
 import type {
   AccessManagedUser,
   AccountStatus,
+  AdminUserAuditEntry,
+  AdminUserPlanFilter,
   AdminUserSocialResponse,
   AdminUserSort,
+  AdminUserStaffFilter,
   StaffRole,
 } from '../types';
 
 type UserFilter = 'all' | AccountStatus;
 
 const PAGE_SIZE = 30;
-
-type PlatformPlanId = 'free' | 'onscen_plus' | 'onscen_ultra';
-
-const PLATFORM_PLAN_OPTIONS: { id: PlatformPlanId; labelKey: string }[] = [
-  { id: 'free', labelKey: 'admin.accounts.platformPlanFree' },
-  { id: 'onscen_plus', labelKey: 'admin.accounts.platformPlanPlus' },
-  { id: 'onscen_ultra', labelKey: 'admin.accounts.platformPlanUltra' },
-];
-
-function formatDate(ts: number | undefined, locale: string): string {
-  if (!ts) return '—';
-  return new Date(ts).toLocaleDateString(locale, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
-function formatIsoDate(iso: string | undefined, locale: string): string {
-  if (!iso) return '—';
-  const parsed = new Date(`${iso}T12:00:00`);
-  if (Number.isNaN(parsed.getTime())) return iso;
-  return parsed.toLocaleDateString(locale, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
-function formatDateTime(ts: number | undefined, locale: string): string {
-  if (!ts) return '—';
-  return new Date(ts).toLocaleString(locale, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function statusLabel(status: AccountStatus, t: (key: string) => string): string {
-  if (status === 'active') return t('admin.accounts.statusActive');
-  if (status === 'pending') return t('admin.accounts.statusPending');
-  return t('admin.accounts.statusBlocked');
-}
-
-function statusBadgeClass(status: AccountStatus): string {
-  if (status === 'active') return 'bg-green-500/20 text-green-400';
-  if (status === 'pending') return 'bg-yellow-500/20 text-yellow-400';
-  return 'bg-red-500/20 text-red-400';
-}
-
-function platformPlanBadgeClass(planId: PlatformPlanId | undefined): string {
-  if (planId === 'onscen_ultra') return 'bg-amber-500/20 text-amber-300';
-  if (planId === 'onscen_plus') return 'bg-purple-500/20 text-purple-300';
-  return 'bg-gray-500/20 text-gray-300';
-}
-
-function resolvePlatformPlanLabel(
-  user: AccessManagedUser,
-  t: (key: string) => string
-): string {
-  if (user.platformPlanLabel) return user.platformPlanLabel;
-  const planId = user.platformPlanId ?? 'free';
-  const option = PLATFORM_PLAN_OPTIONS.find((p) => p.id === planId);
-  return option ? t(option.labelKey) : t('admin.accounts.platformPlanFree');
-}
+const FILTER_OPTIONS: UserFilter[] = ['all', 'pending', 'active', 'blocked'];
 
 type FeedbackKind = 'success' | 'error';
 
@@ -95,55 +41,11 @@ function showFeedback(
   window.setTimeout(() => setFeedback(null), kind === 'error' ? 4000 : 2500);
 }
 
-async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-const BLOCK_DURATION_OPTIONS: { days: number | null; labelKey: string }[] = [
-  { days: 1, labelKey: 'admin.accounts.blockDays1' },
-  { days: 7, labelKey: 'admin.accounts.blockDays7' },
-  { days: 30, labelKey: 'admin.accounts.blockDays30' },
-  { days: 90, labelKey: 'admin.accounts.blockDays90' },
-  { days: null, labelKey: 'admin.accounts.blockPermanent' },
-];
-
-function formatBlockedUntil(ts: number | undefined, locale: string): string {
-  if (!ts) return '';
-  return new Date(ts).toLocaleString(locale, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function blockDaysRemaining(blockedUntil: number | undefined): number | null {
-  if (!blockedUntil) return null;
-  const ms = blockedUntil - Date.now();
-  if (ms <= 0) return 0;
-  return Math.ceil(ms / (24 * 60 * 60 * 1000));
-}
-
-function formatRelativeLastSeen(ts: number | undefined, locale: string): string {
-  if (!ts) return '—';
-  const diffMs = Date.now() - ts;
-  const mins = Math.floor(diffMs / 60_000);
-  if (mins < 2) return locale.startsWith('en') ? 'just now' : 'à l\'instant';
-  if (mins < 60) return locale.startsWith('en') ? `${mins} min ago` : `il y a ${mins} min`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 48) return locale.startsWith('en') ? `${hours} h ago` : `il y a ${hours} h`;
-  return formatDateTime(ts, locale);
-}
-
-function isBotEmail(email: string): boolean {
-  const lower = email.toLowerCase();
-  return lower.endsWith('@bot.local') || lower.includes('@bot.') || lower.includes('bot@');
+function filterLabel(filter: UserFilter, t: (key: string) => string): string {
+  if (filter === 'all') return t('admin.accounts.filterAll');
+  if (filter === 'pending') return t('admin.accounts.filterPending');
+  if (filter === 'active') return t('admin.accounts.filterActive');
+  return t('admin.accounts.filterBlocked');
 }
 
 function MetaChip({ children, accent }: { children: ReactNode; accent?: 'warn' | 'purple' }) {
@@ -160,26 +62,7 @@ function MetaChip({ children, accent }: { children: ReactNode; accent?: 'warn' |
   );
 }
 
-const FILTER_OPTIONS: UserFilter[] = ['all', 'pending', 'active', 'blocked'];
-
-function filterLabel(filter: UserFilter, t: (key: string) => string): string {
-  if (filter === 'all') return t('admin.accounts.filterAll');
-  if (filter === 'pending') return t('admin.accounts.filterPending');
-  if (filter === 'active') return t('admin.accounts.filterActive');
-  return t('admin.accounts.filterBlocked');
-}
-
-function relationshipLabel(
-  u: AccessManagedUser,
-  t: (key: string) => string
-): string | undefined {
-  if (u.relationshipStatus === 'celibataire') return t('admin.accounts.relationshipCelibataire');
-  if (u.relationshipStatus === 'en_couple') return t('admin.accounts.relationshipEnCouple');
-  if (u.relationshipStatusCustom) return u.relationshipStatusCustom;
-  return undefined;
-}
-
-function exportUsersCsv(users: AccessManagedUser[], t: (key: string) => string): void {
+function exportUsersCsv(users: AccessManagedUser[]): void {
   const headers = [
     'id',
     'username',
@@ -202,18 +85,18 @@ function exportUsersCsv(users: AccessManagedUser[], t: (key: string) => string):
       u.id,
       u.username,
       u.email,
-      statusLabel(u.accountStatus, t),
+      u.accountStatus,
       u.city ?? '',
       u.birthDate ?? '',
-      u.age != null ? String(u.age) : '',
-      u.relationshipStatus ?? u.relationshipStatusCustom ?? '',
-      u.memberSince ? new Date(u.memberSince).toISOString() : '',
-      u.lastSeenAt ? new Date(u.lastSeenAt).toISOString() : '',
-      String(u.followersCount ?? 0),
-      String(u.photosCount ?? 0),
-      String(u.privateReelsCount ?? 0),
-      String(u.publicReelsCount ?? 0),
-      String(u.meloCoins ?? ''),
+      u.age ?? '',
+      u.relationshipStatus ?? '',
+      u.memberSince ?? '',
+      u.lastSeenAt ?? '',
+      u.followersCount ?? '',
+      u.photosCount ?? '',
+      u.privateReelsCount ?? '',
+      u.publicReelsCount ?? '',
+      u.meloCoins ?? '',
     ]
       .map((v) => `"${String(v).replace(/"/g, '""')}"`)
       .join(',')
@@ -246,19 +129,21 @@ export function AdminAccountsTab() {
     blocked: number;
   } | null>(null);
   const [filter, setFilter] = useState<UserFilter>('all');
+  const [staffFilter, setStaffFilter] = useState<AdminUserStaffFilter>('all');
+  const [planFilter, setPlanFilter] = useState<AdminUserPlanFilter>('all');
   const [sort, setSort] = useState<AdminUserSort>('lastSeen');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [busy, setBusy] = useState('');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailById, setDetailById] = useState<Record<string, AccessManagedUser>>({});
-  const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<{ message: string; kind: FeedbackKind } | null>(null);
-  const [exporting, setExporting] = useState(false);
   const [socialById, setSocialById] = useState<Record<string, AdminUserSocialResponse>>({});
   const [socialLoadingId, setSocialLoadingId] = useState<string | null>(null);
-  const [blockDaysById, setBlockDaysById] = useState<Record<string, number | null>>({});
-  const [blockReasonById, setBlockReasonById] = useState<Record<string, string>>({});
+  const [auditById, setAuditById] = useState<Record<string, AdminUserAuditEntry[]>>({});
+  const [auditAvailableById, setAuditAvailableById] = useState<Record<string, boolean>>({});
+  const [auditLoadingId, setAuditLoadingId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ message: string; kind: FeedbackKind } | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
@@ -276,6 +161,8 @@ export function AdminAccountsTab() {
           status: filter === 'all' ? 'all' : filter,
           q: debouncedSearch || undefined,
           sort,
+          staff: staffFilter,
+          plan: planFilter,
           limit: PAGE_SIZE,
           offset,
         });
@@ -290,7 +177,7 @@ export function AdminAccountsTab() {
         setLoadingMore(false);
       }
     },
-    [token, filter, debouncedSearch, sort, t]
+    [token, filter, staffFilter, planFilter, debouncedSearch, sort, t]
   );
 
   useEffect(() => {
@@ -301,9 +188,47 @@ export function AdminAccountsTab() {
     await fetchPage(0, false);
   }, [fetchPage]);
 
-  const loadMore = () => {
-    if (!hasMore || loadingMore) return;
-    void fetchPage(users.length, true);
+  const patchUser = (user: AccessManagedUser) => {
+    setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, ...user } : u)));
+    setDetailById((prev) => ({ ...prev, [user.id]: { ...(prev[user.id] ?? user), ...user } }));
+  };
+
+  const loadDossierExtras = async (userId: string) => {
+    if (!token) return;
+    if (!detailById[userId]) {
+      try {
+        const { user } = await api.getAccessAdminUser(token, userId);
+        setDetailById((prev) => ({ ...prev, [userId]: user }));
+      } catch {
+        // Liste déjà enrichie
+      }
+    }
+    if (!socialById[userId]) {
+      setSocialLoadingId(userId);
+      try {
+        const social = await api.getAccessAdminUserSocial(token, userId);
+        setSocialById((prev) => ({ ...prev, [userId]: social }));
+      } catch {
+        // Social optionnel
+      } finally {
+        setSocialLoadingId(null);
+      }
+    }
+    setAuditLoadingId(userId);
+    try {
+      const audit = await api.getAccessAdminUserAudit(token, userId);
+      setAuditById((prev) => ({ ...prev, [userId]: audit.entries }));
+      setAuditAvailableById((prev) => ({ ...prev, [userId]: audit.available }));
+    } catch {
+      setAuditAvailableById((prev) => ({ ...prev, [userId]: false }));
+    } finally {
+      setAuditLoadingId(null);
+    }
+  };
+
+  const openDossier = (userId: string) => {
+    setSelectedId(userId);
+    void loadDossierExtras(userId);
   };
 
   const actOnUser = async (
@@ -317,7 +242,12 @@ export function AdminAccountsTab() {
       if (action === 'approve') await api.approveAccessUser(token, userId);
       if (action === 'block') await api.blockAccessUser(token, userId, blockOpts);
       if (action === 'unblock') await api.unblockAccessUser(token, userId);
+      const { user } = await api.getAccessAdminUser(token, userId);
+      patchUser(user);
       await reload();
+      const audit = await api.getAccessAdminUserAudit(token, userId);
+      setAuditById((prev) => ({ ...prev, [userId]: audit.entries }));
+      setAuditAvailableById((prev) => ({ ...prev, [userId]: audit.available }));
       showFeedback(
         setFeedback,
         action === 'block'
@@ -345,11 +275,13 @@ export function AdminAccountsTab() {
     if (!window.confirm(t(confirmKey))) return;
     setBusy(userId);
     try {
-      if (role) await api.promoteAccessUser(token, userId, role);
-      else await api.demoteAccessUser(token, userId);
+      const res = role
+        ? await api.promoteAccessUser(token, userId, role)
+        : await api.demoteAccessUser(token, userId);
+      patchUser(res.user);
       await reload();
     } catch (e) {
-      alert(e instanceof Error ? e.message : t('errors.network'));
+      showFeedback(setFeedback, e instanceof Error ? e.message : t('errors.network'), 'error');
     } finally {
       setBusy('');
     }
@@ -358,13 +290,13 @@ export function AdminAccountsTab() {
   const assignPlatformPlan = async (userId: string, planId: PlatformPlanId, username: string) => {
     if (!token) return;
     const planLabel = t(
-      PLATFORM_PLAN_OPTIONS.find((p) => p.id === planId)?.labelKey ?? 'admin.accounts.platformPlanFree'
+      planId === 'onscen_ultra'
+        ? 'admin.accounts.platformPlanUltra'
+        : planId === 'onscen_plus'
+          ? 'admin.accounts.platformPlanPlus'
+          : 'admin.accounts.platformPlanFree'
     );
-    if (
-      !window.confirm(
-        t('admin.accounts.platformPlanAssignConfirm', { plan: planLabel, username })
-      )
-    ) {
+    if (!window.confirm(t('admin.accounts.platformPlanAssignConfirm', { plan: planLabel, username }))) {
       return;
     }
     setBusy(userId);
@@ -372,32 +304,49 @@ export function AdminAccountsTab() {
       const res = await api.assignAdminPlatformPlan(token, userId, planId);
       const nextPlanId = res.status.plan.id as PlatformPlanId;
       const nextPlanLabel = res.status.plan.label;
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === userId
-            ? { ...u, platformPlanId: nextPlanId, platformPlanLabel: nextPlanLabel }
-            : u
-        )
-      );
+      const next = { platformPlanId: nextPlanId, platformPlanLabel: nextPlanLabel };
+      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, ...next } : u)));
       setDetailById((prev) => {
         const existing = prev[userId];
         if (!existing) return prev;
-        return {
-          ...prev,
-          [userId]: {
-            ...existing,
-            platformPlanId: nextPlanId,
-            platformPlanLabel: nextPlanLabel,
-          },
-        };
+        return { ...prev, [userId]: { ...existing, ...next } };
       });
       showFeedback(setFeedback, t('admin.accounts.platformPlanAssigned'), 'success');
     } catch (e) {
-      showFeedback(
-        setFeedback,
-        e instanceof Error ? e.message : t('errors.network'),
-        'error'
-      );
+      showFeedback(setFeedback, e instanceof Error ? e.message : t('errors.network'), 'error');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const revokeSessions = async (userId: string) => {
+    if (!token) return;
+    setBusy(userId);
+    try {
+      await api.revokeAccessUserSessions(token, userId);
+      const audit = await api.getAccessAdminUserAudit(token, userId);
+      setAuditById((prev) => ({ ...prev, [userId]: audit.entries }));
+      setAuditAvailableById((prev) => ({ ...prev, [userId]: audit.available }));
+      showFeedback(setFeedback, t('admin.accounts.revokeSessionsSuccess'), 'success');
+    } catch (e) {
+      showFeedback(setFeedback, e instanceof Error ? e.message : t('errors.network'), 'error');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const resendVerification = async (userId: string) => {
+    if (!token) return;
+    setBusy(userId);
+    try {
+      const res = await api.resendAccessUserVerification(token, userId);
+      patchUser(res.user);
+      const audit = await api.getAccessAdminUserAudit(token, userId);
+      setAuditById((prev) => ({ ...prev, [userId]: audit.entries }));
+      setAuditAvailableById((prev) => ({ ...prev, [userId]: audit.available }));
+      showFeedback(setFeedback, t('admin.accounts.resendVerificationSuccess'), 'success');
+    } catch (e) {
+      showFeedback(setFeedback, e instanceof Error ? e.message : t('errors.network'), 'error');
     } finally {
       setBusy('');
     }
@@ -405,42 +354,7 @@ export function AdminAccountsTab() {
 
   const handleCopy = async (text: string, label: string) => {
     const ok = await copyText(text);
-    showFeedback(
-      setFeedback,
-      ok ? label : t('admin.accounts.copyFailed'),
-      ok ? 'success' : 'error'
-    );
-  };
-
-  const toggleExpanded = async (userId: string) => {
-    if (expandedId === userId) {
-      setExpandedId(null);
-      return;
-    }
-    setExpandedId(userId);
-    if (!token) return;
-    if (!detailById[userId]) {
-      setDetailLoadingId(userId);
-      try {
-        const { user } = await api.getAccessAdminUser(token, userId);
-        setDetailById((prev) => ({ ...prev, [userId]: user }));
-      } catch {
-        // Liste paginée déjà enrichie — le panneau utilise les données locales.
-      } finally {
-        setDetailLoadingId(null);
-      }
-    }
-    if (!socialById[userId]) {
-      setSocialLoadingId(userId);
-      try {
-        const social = await api.getAccessAdminUserSocial(token, userId);
-        setSocialById((prev) => ({ ...prev, [userId]: social }));
-      } catch {
-        // Social optionnel
-      } finally {
-        setSocialLoadingId(null);
-      }
-    }
+    showFeedback(setFeedback, ok ? label : t('admin.accounts.copyFailed'), ok ? 'success' : 'error');
   };
 
   const handleExport = async () => {
@@ -451,12 +365,14 @@ export function AdminAccountsTab() {
         status: filter === 'all' ? 'all' : filter,
         q: debouncedSearch || undefined,
         sort,
+        staff: staffFilter,
+        plan: planFilter,
         limit: 5000,
         offset: 0,
       });
-      exportUsersCsv(result.users, t);
+      exportUsersCsv(result.users);
     } catch (e) {
-      alert(e instanceof Error ? e.message : t('errors.network'));
+      showFeedback(setFeedback, e instanceof Error ? e.message : t('errors.network'), 'error');
     } finally {
       setExporting(false);
     }
@@ -464,9 +380,14 @@ export function AdminAccountsTab() {
 
   const locale = i18n.language.startsWith('en') ? 'en-GB' : 'fr-FR';
   const hasSearch = search.trim().length > 0;
+  const selected = selectedId
+    ? (detailById[selectedId] ?? users.find((u) => u.id === selectedId) ?? null)
+    : null;
 
   return (
     <div className="space-y-4">
+      <p className="text-xs text-gray-500 leading-relaxed">{t('admin.accounts.pageLead')}</p>
+
       {loading && !counts ? (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
@@ -512,7 +433,7 @@ export function AdminAccountsTab() {
         {hasSearch && (
           <button
             type="button"
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-lg leading-none"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-lg leading-none w-11 h-11"
             onClick={() => setSearch('')}
             aria-label={t('admin.accounts.clearSearch')}
           >
@@ -521,11 +442,7 @@ export function AdminAccountsTab() {
         )}
       </div>
 
-      <div
-        className="flex gap-1 overflow-x-auto pb-1"
-        role="tablist"
-        aria-label={t('admin.accounts.sortLabel')}
-      >
+      <div className="flex gap-1 overflow-x-auto pb-1" role="tablist" aria-label={t('admin.accounts.filterStatus')}>
         {FILTER_OPTIONS.map((f) => (
           <button
             key={f}
@@ -533,10 +450,8 @@ export function AdminAccountsTab() {
             role="tab"
             aria-selected={filter === f}
             onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${
-              filter === f
-                ? 'bg-purple-600 text-white'
-                : 'bg-[#1a1a26] text-gray-400 hover:text-white'
+            className={`min-h-11 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${
+              filter === f ? 'bg-purple-600 text-white' : 'bg-[#1a1a26] text-gray-400 hover:text-white'
             }`}
           >
             {filterLabel(f, t)}
@@ -546,7 +461,7 @@ export function AdminAccountsTab() {
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
         <select
-          className="flex-1 min-w-[8rem] bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm"
+          className="flex-1 min-w-[8rem] bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2.5 text-sm min-h-11"
           value={sort}
           onChange={(e) => setSort(e.target.value as AdminUserSort)}
           aria-label={t('admin.accounts.sortLabel')}
@@ -556,11 +471,33 @@ export function AdminAccountsTab() {
           <option value="username">{t('admin.accounts.sortUsername')}</option>
           <option value="status">{t('admin.accounts.sortStatus')}</option>
         </select>
+        <select
+          className="flex-1 min-w-[8rem] bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2.5 text-sm min-h-11"
+          value={staffFilter}
+          onChange={(e) => setStaffFilter(e.target.value as AdminUserStaffFilter)}
+          aria-label={t('admin.accounts.filterStaff')}
+        >
+          <option value="all">{t('admin.accounts.filterStaffAll')}</option>
+          <option value="staff">{t('admin.accounts.filterStaffAny')}</option>
+          <option value="admin">{t('admin.accounts.filterStaffAdmin')}</option>
+          <option value="dev">{t('admin.accounts.filterStaffDev')}</option>
+        </select>
+        <select
+          className="flex-1 min-w-[8rem] bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2.5 text-sm min-h-11"
+          value={planFilter}
+          onChange={(e) => setPlanFilter(e.target.value as AdminUserPlanFilter)}
+          aria-label={t('admin.accounts.filterPlan')}
+        >
+          <option value="all">{t('admin.accounts.filterPlanAll')}</option>
+          <option value="free">{t('admin.accounts.platformPlanFree')}</option>
+          <option value="onscen_plus">{t('admin.accounts.platformPlanPlus')}</option>
+          <option value="onscen_ultra">{t('admin.accounts.platformPlanUltra')}</option>
+        </select>
         <button
           type="button"
           disabled={exporting || loading}
           onClick={() => void handleExport()}
-          className="px-4 py-2 rounded-xl bg-[#1a1a26] border border-[#2d2d3d] text-xs font-medium hover:border-purple-500/50 disabled:opacity-50"
+          className="min-h-11 px-4 py-2 rounded-xl bg-[#1a1a26] border border-[#2d2d3d] text-xs font-medium hover:border-purple-500/50 disabled:opacity-50"
         >
           {exporting ? t('admin.accounts.exporting') : t('admin.accounts.exportCsv')}
         </button>
@@ -569,7 +506,7 @@ export function AdminAccountsTab() {
       <div className="flex items-center justify-between gap-2 text-xs text-gray-500">
         {!loading && (
           <p>
-            {debouncedSearch
+            {debouncedSearch || staffFilter !== 'all' || planFilter !== 'all'
               ? t('admin.accounts.resultCountFiltered', { shown: users.length, total })
               : t('admin.accounts.resultCount', { shown: users.length, total })}
           </p>
@@ -594,29 +531,19 @@ export function AdminAccountsTab() {
 
       <ul className="space-y-2">
         {users.map((u) => {
-          const expanded = expandedId === u.id;
           const detail = detailById[u.id] ?? u;
-          const social = socialById[u.id];
-          const rel = relationshipLabel(detail, t);
           const planId = (detail.platformPlanId ?? 'free') as PlatformPlanId;
           const planLabel = resolvePlatformPlanLabel(detail, t);
-          const blockDays = blockDaysById[u.id] ?? 7;
-          const blockReason = blockReasonById[u.id] ?? '';
-          const isBlocked =
-            detail.accountStatus === 'blocked' || u.accountStatus === 'blocked';
-          const blockDaysLeft = blockDaysRemaining(detail.blockedUntil);
+          const isBlocked = detail.accountStatus === 'blocked' || u.accountStatus === 'blocked';
           const isBot = isBotEmail(u.email);
           return (
-            <li
-              key={u.id}
-              className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl px-3 py-3 text-sm space-y-2"
-            >
+            <li key={u.id} className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl px-3 py-3 text-sm">
               <div className="flex gap-3">
                 <button
                   type="button"
-                  className="shrink-0 w-10 h-10 rounded-full bg-[#1a1a26] border border-[#2d2d3d] overflow-hidden flex items-center justify-center text-base"
-                  onClick={() => void toggleExpanded(u.id)}
-                  aria-label={t('admin.accounts.openProfile')}
+                  className="shrink-0 w-11 h-11 rounded-full bg-[#1a1a26] border border-[#2d2d3d] overflow-hidden flex items-center justify-center text-base"
+                  onClick={() => openDossier(u.id)}
+                  aria-label={t('admin.accounts.openDossier')}
                 >
                   {detail.avatarUrl ? (
                     <img src={detail.avatarUrl} alt="" className="w-full h-full object-cover" />
@@ -624,11 +551,7 @@ export function AdminAccountsTab() {
                     <span>{detail.profileType ? '🎵' : '👤'}</span>
                   )}
                 </button>
-                <button
-                  type="button"
-                  className="flex-1 min-w-0 text-left"
-                  onClick={() => void toggleExpanded(u.id)}
-                >
+                <button type="button" className="flex-1 min-w-0 text-left" onClick={() => openDossier(u.id)}>
                   <div className="flex justify-between gap-2">
                     <div className="min-w-0">
                       <div className="font-medium truncate flex items-center gap-1.5 flex-wrap">
@@ -656,18 +579,11 @@ export function AdminAccountsTab() {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded-full h-fit ${statusBadgeClass(u.accountStatus)}`}
-                      >
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full h-fit ${statusBadgeClass(u.accountStatus)}`}>
                         {statusLabel(u.accountStatus, t)}
                       </span>
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded-full h-fit ${platformPlanBadgeClass(planId)}`}
-                      >
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full h-fit ${platformPlanBadgeClass(planId)}`}>
                         {planLabel}
-                      </span>
-                      <span className="text-gray-600 text-xs leading-none" aria-hidden>
-                        {expanded ? '▾' : '▸'}
                       </span>
                     </div>
                   </div>
@@ -678,37 +594,24 @@ export function AdminAccountsTab() {
                     <MetaChip>
                       {t('admin.accounts.followingShort', { count: detail.followingCount ?? 0 })}
                     </MetaChip>
-                    {(detail.salonsHosted ?? 0) > 0 && (
-                      <MetaChip>
-                        {t('admin.accounts.salonsShort', { count: detail.salonsHosted ?? 0 })}
-                      </MetaChip>
-                    )}
-                    {(detail.publicReelsCount ?? 0) + (detail.privateReelsCount ?? 0) > 0 && (
-                      <MetaChip>
-                        {t('admin.accounts.reelsShort', {
-                          count:
-                            (detail.publicReelsCount ?? 0) + (detail.privateReelsCount ?? 0),
-                        })}
-                      </MetaChip>
-                    )}
-                    {isBlocked && detail.blockedUntil && blockDaysLeft != null && blockDaysLeft > 0 && (
-                      <MetaChip accent="warn">
-                        {t('admin.accounts.blockDaysLeft', { days: blockDaysLeft })}
-                      </MetaChip>
-                    )}
-                    {isBlocked && !detail.blockedUntil && (
-                      <MetaChip accent="warn">{t('admin.accounts.blockedPermanent')}</MetaChip>
-                    )}
+                    {isBlocked ? <MetaChip accent="warn">{t('admin.accounts.statusBlocked')}</MetaChip> : null}
                   </div>
                 </button>
               </div>
 
-              <div className="flex flex-wrap gap-1.5 pt-0.5">
+              <div className="flex flex-wrap gap-1.5 pt-2">
+                <button
+                  type="button"
+                  className="min-h-11 px-3 rounded-xl text-[11px] font-semibold bg-purple-600/80"
+                  onClick={() => openDossier(u.id)}
+                >
+                  {t('admin.accounts.openDossier')}
+                </button>
                 {!detail.isAdmin && detail.accountStatus === 'pending' && (
                   <button
                     type="button"
                     disabled={busy === u.id}
-                    className="px-2.5 py-1.5 min-h-[44px] rounded-lg text-[11px] font-semibold bg-green-600/80 disabled:opacity-50"
+                    className="min-h-11 px-3 rounded-xl text-[11px] font-semibold bg-green-600/80 disabled:opacity-50"
                     onClick={() => void actOnUser(u.id, 'approve')}
                   >
                     {t('admin.accounts.approve')}
@@ -718,7 +621,7 @@ export function AdminAccountsTab() {
                   <button
                     type="button"
                     disabled={busy === u.id}
-                    className="px-2.5 py-1.5 min-h-[44px] rounded-lg text-[11px] font-semibold bg-green-600/70 border border-green-500/40 disabled:opacity-50"
+                    className="min-h-11 px-3 rounded-xl text-[11px] font-semibold bg-green-600/70 border border-green-500/40 disabled:opacity-50"
                     onClick={() => {
                       if (!window.confirm(t('admin.accounts.liftSuspensionConfirm'))) return;
                       void actOnUser(u.id, 'unblock');
@@ -727,401 +630,20 @@ export function AdminAccountsTab() {
                     {t('admin.accounts.unblock')}
                   </button>
                 ) : null}
-                {!isBlocked &&
-                  !detail.isAdmin &&
-                  detail.accountStatus !== 'pending' && (
-                    <button
-                      type="button"
-                      disabled={busy === u.id}
-                      className="px-2.5 py-1.5 min-h-[44px] rounded-lg text-[11px] font-semibold bg-red-600/60 border border-red-500/30 disabled:opacity-50"
-                      onClick={() => {
-                        if (!window.confirm(t('admin.accounts.blockQuickConfirm', { days: 7 }))) return;
-                        void actOnUser(u.id, 'block', { days: 7 });
-                      }}
-                    >
-                      {t('admin.accounts.blockQuick7')}
-                    </button>
-                  )}
-                {detail.adminFlag ? (
+                {!isBlocked && !detail.isAdmin && detail.accountStatus !== 'pending' ? (
                   <button
                     type="button"
-                    disabled={busy === u.id || (detail.staffRole === 'dev' && !canGrantDev)}
-                    className="px-2.5 py-1.5 min-h-[44px] rounded-lg text-[11px] font-semibold bg-purple-600/30 border border-purple-500/40 disabled:opacity-50"
-                    onClick={() => void toggleStaffRole(u.id, null)}
+                    disabled={busy === u.id}
+                    className="min-h-11 px-3 rounded-xl text-[11px] font-semibold bg-red-600/60 border border-red-500/30 disabled:opacity-50"
+                    onClick={() => {
+                      if (!window.confirm(t('admin.accounts.blockQuickConfirm', { days: 7 }))) return;
+                      void actOnUser(u.id, 'block', { days: 7 });
+                    }}
                   >
-                    {detail.staffRole === 'dev'
-                      ? t('admin.accounts.demoteDev', { defaultValue: 'Retirer Dev' })
-                      : t('admin.accounts.demoteAdmin')}
+                    {t('admin.accounts.blockQuick7')}
                   </button>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      disabled={busy === u.id}
-                      className="px-2.5 py-1.5 min-h-[44px] rounded-lg text-[11px] font-semibold bg-purple-600/70 disabled:opacity-50"
-                      onClick={() => void toggleStaffRole(u.id, 'admin')}
-                    >
-                      {t('admin.accounts.promoteStaffAdmin', { defaultValue: 'Accès Admin' })}
-                    </button>
-                    {canGrantDev ? (
-                      <button
-                        type="button"
-                        disabled={busy === u.id}
-                        className="px-2.5 py-1.5 min-h-[44px] rounded-lg text-[11px] font-semibold bg-amber-600/70 disabled:opacity-50"
-                        onClick={() => void toggleStaffRole(u.id, 'dev')}
-                      >
-                        {t('admin.accounts.promoteStaffDev', { defaultValue: 'Accès Dev' })}
-                      </button>
-                    ) : null}
-                  </>
-                )}
-                <button
-                  type="button"
-                  className="px-2.5 py-1.5 min-h-[44px] rounded-lg text-[11px] font-semibold bg-[#1a1a26] border border-[#2d2d3d] hover:border-purple-500/40"
-                  onClick={() => window.open(getProfilePath(u.id), '_blank', 'noopener,noreferrer')}
-                >
-                  {t('admin.accounts.openProfile')}
-                </button>
-                <button
-                  type="button"
-                  className="px-2.5 py-1.5 min-h-[44px] rounded-lg text-[11px] font-semibold bg-[#1a1a26] border border-[#2d2d3d] hover:border-purple-500/40"
-                  onClick={() => void toggleExpanded(u.id)}
-                >
-                  {expanded ? t('admin.accounts.collapse') : t('admin.accounts.expandDetails')}
-                </button>
+                ) : null}
               </div>
-
-              {expanded && (
-                <div className="text-xs text-gray-400 space-y-3 border-t border-[#1e1e2f] pt-3">
-                  {detailLoadingId === u.id && (
-                    <p className="text-gray-500">{t('app.loading')}</p>
-                  )}
-
-                  <section className="space-y-1.5">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                      {t('admin.accounts.sectionActivity')}
-                    </p>
-                    <p>{t('admin.accounts.memberSince', { date: formatDate(detail.memberSince, locale) })}</p>
-                    <p>{t('admin.accounts.lastSeen', { date: formatDateTime(detail.lastSeenAt, locale) })}</p>
-                    {detail.listeningRole && (
-                      <p>{t('admin.accounts.listeningRole', { role: detail.listeningRole })}</p>
-                    )}
-                    {(detail.salonsHosted ?? 0) > 0 && (
-                      <p>
-                        {t('admin.accounts.hostStats', {
-                          salons: detail.salonsHosted ?? 0,
-                          lives: detail.totalLivesHosted ?? 0,
-                          active: detail.activeLivesHosted ?? 0,
-                        })}
-                      </p>
-                    )}
-                    {detail.meloCoins != null && (
-                      <p>{t('admin.accounts.meloCoins', { count: detail.meloCoins })}</p>
-                    )}
-                    {detail.emailVerified != null && (
-                      <p>
-                        {detail.emailVerified
-                          ? t('admin.accounts.emailVerified')
-                          : t('admin.accounts.emailNotVerified')}
-                      </p>
-                    )}
-                    {detail.stripeConnectReady && (
-                      <p className="text-green-400/90">{t('admin.accounts.stripeReady')}</p>
-                    )}
-                    {(detail.connectedPlatformsCount ?? 0) > 0 && (
-                      <p>
-                        {t('admin.accounts.connectedPlatforms', {
-                          count: detail.connectedPlatformsCount ?? 0,
-                        })}
-                      </p>
-                    )}
-                  </section>
-
-                  <section className="space-y-1.5">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                      {t('admin.accounts.sectionProfile')}
-                    </p>
-                    {rel && <p>{t('admin.accounts.relationship', { status: rel })}</p>}
-                    {detail.birthDate && (
-                      <p>
-                        {t('admin.accounts.birthDate', { date: formatIsoDate(detail.birthDate, locale) })}
-                        {detail.hideBirthDateOnProfile && (
-                          <span className="ml-1 text-amber-400/80">
-                            ({t('admin.accounts.birthDateHidden')})
-                          </span>
-                        )}
-                      </p>
-                    )}
-                    {(detail.bio || detail.bioPreview) && (
-                      <p className="italic text-gray-500">{detail.bio ?? detail.bioPreview}</p>
-                    )}
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <button
-                        type="button"
-                        className="px-2.5 py-1.5 min-h-[44px] rounded-lg bg-[#1a1a26] border border-[#2d2d3d] text-[11px] hover:border-purple-500/50"
-                        onClick={() => window.open(getProfilePath(u.id), '_blank', 'noopener,noreferrer')}
-                      >
-                        {t('admin.accounts.openProfile')}
-                      </button>
-                      <button
-                        type="button"
-                        className="px-2.5 py-1.5 min-h-[44px] rounded-lg bg-[#1a1a26] border border-[#2d2d3d] text-[11px] hover:border-purple-500/50"
-                        onClick={() => void handleCopy(detail.id, t('admin.accounts.copiedId'))}
-                      >
-                        {t('admin.accounts.copyId')}
-                      </button>
-                      <button
-                        type="button"
-                        className="px-2.5 py-1.5 min-h-[44px] rounded-lg bg-[#1a1a26] border border-[#2d2d3d] text-[11px] hover:border-purple-500/50"
-                        onClick={() => void handleCopy(detail.email, t('admin.accounts.copiedEmail'))}
-                      >
-                        {t('admin.accounts.copyEmail')}
-                      </button>
-                    </div>
-                  </section>
-
-                  <section className="space-y-2 rounded-xl border border-[#1e1e2f] p-2.5 bg-[#0f0f16]/50">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                      {t('admin.accounts.sectionSocial')}
-                    </p>
-                    {socialLoadingId === u.id && !social && (
-                      <p className="text-gray-500">{t('app.loading')}</p>
-                    )}
-                    {social && (
-                      <>
-                        <p className="text-[11px] text-gray-400">
-                          {t('admin.accounts.socialCounts', {
-                            followers: social.followersTotal,
-                            following: social.followingTotal,
-                          })}
-                        </p>
-                        {social.followers.length > 0 && (
-                          <div>
-                            <p className="text-[10px] text-gray-500 mb-1">
-                              {t('admin.accounts.followersListTitle')}
-                            </p>
-                            <ul className="space-y-1 max-h-28 overflow-y-auto">
-                              {social.followers.map((f) => (
-                                <li key={f.id} className="flex justify-between gap-2 text-[11px]">
-                                  <button
-                                    type="button"
-                                    className="text-purple-300 hover:underline truncate"
-                                    onClick={() =>
-                                      window.open(getProfilePath(f.id), '_blank', 'noopener,noreferrer')
-                                    }
-                                  >
-                                    {f.username}
-                                  </button>
-                                  <span className="text-gray-600 truncate">{f.email}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {social.following.length > 0 && (
-                          <div>
-                            <p className="text-[10px] text-gray-500 mb-1">
-                              {t('admin.accounts.followingListTitle')}
-                            </p>
-                            <ul className="space-y-1 max-h-28 overflow-y-auto">
-                              {social.following.map((f) => (
-                                <li key={f.id} className="flex justify-between gap-2 text-[11px]">
-                                  <button
-                                    type="button"
-                                    className="text-purple-300 hover:underline truncate"
-                                    onClick={() =>
-                                      window.open(getProfilePath(f.id), '_blank', 'noopener,noreferrer')
-                                    }
-                                  >
-                                    {f.username}
-                                  </button>
-                                  <span className="text-gray-600 truncate">{f.email}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </section>
-
-                  <section className="space-y-2 rounded-xl border border-purple-500/20 p-2.5 bg-purple-500/5">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-purple-300/90">
-                      {t('admin.accounts.platformPlanSection')}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {PLATFORM_PLAN_OPTIONS.map((plan) => {
-                        const isCurrent = (detail.platformPlanId ?? 'free') === plan.id;
-                        return (
-                          <button
-                            key={plan.id}
-                            type="button"
-                            disabled={busy === u.id || isCurrent}
-                            className={`px-2.5 py-1.5 min-h-[44px] rounded-lg text-[11px] font-medium border transition disabled:opacity-50 ${
-                              isCurrent
-                                ? 'bg-purple-600/30 border-purple-500/50 text-purple-200'
-                                : 'bg-[#1a1a26] border-[#2d2d3d] hover:border-purple-500/50'
-                            }`}
-                            onClick={() => void assignPlatformPlan(u.id, plan.id, u.username)}
-                          >
-                            {t(plan.labelKey)}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </section>
-
-                  <section className="space-y-2 rounded-xl border border-[#1e1e2f] p-2.5">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                      {t('admin.accounts.sectionModeration')}
-                    </p>
-
-                    {!detail.isAdmin && detail.accountStatus === 'pending' && (
-                      <button
-                        type="button"
-                        disabled={busy === u.id}
-                        className="w-full min-h-[44px] py-2 rounded-lg bg-green-600/80 text-xs font-semibold disabled:opacity-50"
-                        onClick={() => void actOnUser(u.id, 'approve')}
-                      >
-                        {t('admin.accounts.approve')}
-                      </button>
-                    )}
-
-                    {isBlocked ? (
-                      <div className="space-y-2">
-                        {detail.blockedUntil && (
-                          <p className="text-amber-300/90">
-                            {t('admin.accounts.blockedUntil', {
-                              date: formatBlockedUntil(detail.blockedUntil, locale),
-                            })}
-                          </p>
-                        )}
-                        {!detail.blockedUntil && (
-                          <p className="text-red-300/90">{t('admin.accounts.blockedPermanent')}</p>
-                        )}
-                        {detail.blockedReason && (
-                          <p className="text-gray-500 italic">
-                            {t('admin.accounts.blockReason', { reason: detail.blockedReason })}
-                          </p>
-                        )}
-                        {!detail.isAdmin && (
-                          <button
-                            type="button"
-                            disabled={busy === u.id}
-                            className="w-full min-h-[44px] py-2 rounded-lg bg-green-600/70 border border-green-500/40 text-xs font-semibold disabled:opacity-50"
-                            onClick={() => {
-                              if (!window.confirm(t('admin.accounts.liftSuspensionConfirm'))) return;
-                              void actOnUser(u.id, 'unblock');
-                            }}
-                          >
-                            {t('admin.accounts.unblock')}
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      !detail.isAdmin &&
-                      detail.accountStatus !== 'pending' && (
-                        <div className="space-y-2">
-                          <p className="text-[10px] text-gray-500">{t('admin.accounts.blockHint')}</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {BLOCK_DURATION_OPTIONS.map((opt) => (
-                              <button
-                                key={String(opt.days)}
-                                type="button"
-                                disabled={busy === u.id}
-                                className={`px-2.5 py-1.5 min-h-[44px] rounded-lg text-[11px] border transition disabled:opacity-50 ${
-                                  blockDays === opt.days
-                                    ? 'bg-red-600/30 border-red-500/50 text-red-200'
-                                    : 'bg-[#1a1a26] border-[#2d2d3d] hover:border-red-500/40'
-                                }`}
-                                onClick={() =>
-                                  setBlockDaysById((prev) => ({ ...prev, [u.id]: opt.days }))
-                                }
-                              >
-                                {t(opt.labelKey)}
-                              </button>
-                            ))}
-                          </div>
-                          <input
-                            type="text"
-                            value={blockReason}
-                            onChange={(e) =>
-                              setBlockReasonById((prev) => ({ ...prev, [u.id]: e.target.value }))
-                            }
-                            placeholder={t('admin.accounts.blockReasonPlaceholder')}
-                            className="w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-lg px-3 py-2 text-[11px] text-white placeholder:text-gray-600"
-                          />
-                          <button
-                            type="button"
-                            disabled={busy === u.id}
-                            className="w-full min-h-[44px] py-2 rounded-lg bg-red-600/70 text-xs font-semibold disabled:opacity-50"
-                            onClick={() =>
-                              void actOnUser(u.id, 'block', {
-                                days: blockDays,
-                                reason: blockReason.trim() || undefined,
-                              })
-                            }
-                          >
-                            {t('admin.accounts.blockConfirmAction')}
-                          </button>
-                        </div>
-                      )
-                    )}
-
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      {detail.adminFlag ? (
-                        <button
-                          type="button"
-                          disabled={busy === u.id || (detail.staffRole === 'dev' && !canGrantDev)}
-                          className="flex-1 min-h-[44px] py-2 rounded-lg bg-purple-600/40 text-xs border border-purple-500/40 disabled:opacity-50"
-                          onClick={() => void toggleStaffRole(u.id, null)}
-                        >
-                          {detail.staffRole === 'dev'
-                            ? t('admin.accounts.demoteDev', { defaultValue: 'Retirer Dev' })
-                            : t('admin.accounts.demoteAdmin')}
-                        </button>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            disabled={busy === u.id}
-                            className="flex-1 min-h-[44px] py-2 rounded-lg bg-purple-600/80 text-xs disabled:opacity-50"
-                            onClick={() => void toggleStaffRole(u.id, 'admin')}
-                          >
-                            {t('admin.accounts.promoteStaffAdmin', { defaultValue: 'Accès Admin' })}
-                          </button>
-                          {canGrantDev ? (
-                            <button
-                              type="button"
-                              disabled={busy === u.id}
-                              className="flex-1 min-h-[44px] py-2 rounded-lg bg-amber-600/80 text-xs disabled:opacity-50"
-                              onClick={() => void toggleStaffRole(u.id, 'dev')}
-                            >
-                              {t('admin.accounts.promoteStaffDev', { defaultValue: 'Accès Dev' })}
-                            </button>
-                          ) : null}
-                        </>
-                      )}
-                      {detail.staffRole === 'admin' && canGrantDev ? (
-                        <button
-                          type="button"
-                          disabled={busy === u.id}
-                          className="flex-1 min-h-[44px] py-2 rounded-lg bg-amber-600/50 text-xs border border-amber-500/40 disabled:opacity-50"
-                          onClick={() => void toggleStaffRole(u.id, 'dev')}
-                        >
-                          {t('admin.accounts.upgradeToDev', { defaultValue: 'Passer en Dev' })}
-                        </button>
-                      ) : null}
-                    </div>
-                  </section>
-
-                  {token && !detail.isAdmin && (
-                    <AdminUserSnapshotsPanel token={token} userId={u.id} username={detail.username} />
-                  )}
-
-                  <p className="text-[10px] text-gray-600 font-mono truncate">{detail.id}</p>
-                </div>
-              )}
             </li>
           );
         })}
@@ -1131,12 +653,39 @@ export function AdminAccountsTab() {
         <button
           type="button"
           disabled={loadingMore}
-          onClick={loadMore}
-          className="w-full py-2.5 rounded-xl bg-[#1a1a26] border border-[#2d2d3d] text-sm font-medium hover:border-purple-500/50 disabled:opacity-50"
+          onClick={() => {
+            if (!hasMore || loadingMore) return;
+            void fetchPage(users.length, true);
+          }}
+          className="w-full min-h-11 py-2.5 rounded-xl bg-[#1a1a26] border border-[#2d2d3d] text-sm font-medium hover:border-purple-500/50 disabled:opacity-50"
         >
           {loadingMore ? t('app.loading') : t('admin.accounts.loadMore')}
         </button>
       )}
+
+      {selected && token ? (
+        <AdminAccountDossier
+          token={token}
+          user={selected}
+          social={socialById[selected.id] ?? null}
+          socialLoading={socialLoadingId === selected.id}
+          audit={auditById[selected.id] ?? []}
+          auditAvailable={auditAvailableById[selected.id] ?? false}
+          auditLoading={auditLoadingId === selected.id}
+          canGrantDev={canGrantDev}
+          busy={busy === selected.id}
+          locale={locale}
+          onClose={() => setSelectedId(null)}
+          onApprove={() => void actOnUser(selected.id, 'approve')}
+          onBlock={(opts) => void actOnUser(selected.id, 'block', opts)}
+          onUnblock={() => void actOnUser(selected.id, 'unblock')}
+          onToggleStaff={(role) => void toggleStaffRole(selected.id, role)}
+          onAssignPlan={(planId) => void assignPlatformPlan(selected.id, planId, selected.username)}
+          onRevokeSessions={() => void revokeSessions(selected.id)}
+          onResendVerification={() => void resendVerification(selected.id)}
+          onCopy={(text, label) => void handleCopy(text, label)}
+        />
+      ) : null}
     </div>
   );
 }

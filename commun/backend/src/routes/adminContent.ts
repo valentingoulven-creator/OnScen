@@ -3,6 +3,7 @@ import { authenticateJWT } from '../middleware/auth';
 import { requireAdmin } from '../middleware/requireAdmin';
 import { db } from '../models/schema';
 import { schedulePersist } from '../lib/persist';
+import { isListeningSalonOnly } from '../lib/liveStatus';
 import {
   adminBlockEvent,
   adminBlockLive,
@@ -55,7 +56,8 @@ adminContentRouter.get('/salons', authenticateJWT, (req: Request, res: Response)
   const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '50'), 10) || 50, 1), 200);
   const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0);
 
-  let rows = [...db.salons.values()].map(mapAdminSalonRow);
+  const listeningSalons = [...db.salons.values()].filter((s) => isListeningSalonOnly(s.id));
+  let rows = listeningSalons.map(mapAdminSalonRow);
   if (filter === 'blocked') rows = rows.filter((r) => r.adminBlocked);
   if (filter === 'active') rows = rows.filter((r) => !r.adminBlocked);
   if (q) {
@@ -65,7 +67,7 @@ adminContentRouter.get('/salons', authenticateJWT, (req: Request, res: Response)
   }
   rows.sort((a, b) => b.createdAt - a.createdAt);
 
-  const blocked = [...db.salons.values()].filter((s) => s.adminBlocked).length;
+  const blocked = listeningSalons.filter((s) => s.adminBlocked).length;
   const page = paginate(rows, limit, offset);
   res.json({
     salons: page.items,
@@ -73,7 +75,7 @@ adminContentRouter.get('/salons', authenticateJWT, (req: Request, res: Response)
     limit: page.limit,
     offset: page.offset,
     hasMore: page.hasMore,
-    counts: { total: db.salons.size, blocked, active: db.salons.size - blocked },
+    counts: { total: listeningSalons.length, blocked, active: listeningSalons.length - blocked },
   });
 });
 

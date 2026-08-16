@@ -1,8 +1,8 @@
 # Configuration Cursor Agent — OnScen
 
-Documentation de la configuration agent Cursor pour le dépôt OnScen (`C:\Dev\OnScen`).
+Documentation de la configuration agent Cursor pour le dépôt OnScen (`C:\Dev\Soundy`).
 
-> **Note chemins :** plusieurs règles historiques mentionnent `app/`, `backend/`, `docs/` — la structure actuelle est `web/app/`, `commun/backend/`, `commun/docs/`. Voir [AGENTS.md](../AGENTS.md).
+> **Chemins canoniques :** `web/app/`, `commun/backend/`, `commun/docs/`. Les anciens `app/`, `backend/`, `docs/` à la racine sont obsolètes. Voir [AGENTS.md](../AGENTS.md).
 
 ---
 
@@ -44,6 +44,7 @@ Point d'entrée pour tout agent Cursor Cloud :
 | [`onscen-dev-agent.mdc`](../.cursor/rules/onscen-dev-agent.mdc) | `@onscen-dev-agent` | false | Ingénieur implémentation, RACI, rapport session |
 | [`onscen-dev.mdc`](../.cursor/rules/onscen-dev.mdc) | `@onscen-dev` | false | Alias court Dev (même rôle) |
 | [`00-onscen-agents.mdc`](../.cursor/rules/00-onscen-agents.mdc) | `@onscen` (index) | false | Liste des mentions agents |
+| [`onscen-audit.mdc`](../.cursor/rules/onscen-audit.mdc) | `@audit` | false | Audit GO/NO-GO pré-prod — exécute `PROMPT-AUDIT-PRE-PROD.md` |
 | [`onscen-cto.mdc`](../.cursor/rules/onscen-cto.mdc) | `@onscen-cto` | false | CTO virtuel : architecture, audits, sécurité/légal/UX/infra |
 | [`onscen-ceo-ia.mdc`](../.cursor/rules/onscen-ceo-ia.mdc) | `@onscen-ceo-ia` | false | CEO virtuel stratégie, brief exécutif, RACI |
 
@@ -52,7 +53,8 @@ Point d'entrée pour tout agent Cursor Cloud :
 | Document | Rôle |
 |----------|------|
 | [`commun/docs/ONSCEN-DEV-AGENT.md`](../commun/docs/ONSCEN-DEV-AGENT.md) | Guide d'activation Dev, exemples de missions, vérifications |
-| [`commun/docs/ONSCEN-CTO-PROMPT.md`](../commun/docs/ONSCEN-CTO-PROMPT.md) | Prompt complet CTO, format 14 sections, complémentarité agents |
+| [`commun/docs/ONSCEN-CTO-PROMPT.md`](../commun/docs/ONSCEN-CTO-PROMPT.md) | Prompt CTO (preuve, handoff P0, GO prod) |
+| [`commun/docs/audit/PROMPT-AUDIT-PRE-PROD.md`](../commun/docs/audit/PROMPT-AUDIT-PRE-PROD.md) | Prompt audit GO / NO-GO |
 | [`commun/docs/ONSCEN-CEO-IA-PROMPT.md`](../commun/docs/ONSCEN-CEO-IA-PROMPT.md) | Prompt complet CEO IA, format brief, schéma `AiCeoBrief` |
 | [`commun/docs/dev-agent/INDEX.md`](../commun/docs/dev-agent/INDEX.md) | Index des rapports Dev |
 | [`commun/docs/ENVIRONNEMENTS.md`](../commun/docs/ENVIRONNEMENTS.md) | Environnements dev/staging/prod |
@@ -90,10 +92,22 @@ Ne pas commit. Rapport en fin de session.
 
 **Usage :** brief exécutif, arbitrage priorités, modèle financier — **sans modifier le code** sans demande explicite.
 
+### Audit GO / NO-GO — `@audit`
+
+1. Nouvelle conversation **Agent**.
+2. Taper **`@audit`** (catégorie **Rules** si besoin). Rien d’autre à coller.
+3. L’agent lit et exécute [`PROMPT-AUDIT-PRE-PROD.md`](../commun/docs/audit/PROMPT-AUDIT-PRE-PROD.md). Analyse seule — pas de code, pas de deploy.
+4. Répondre à la question **ACRCloud** en fin d’audit. P0 code → nouvelle session `@onscen-dev-agent`.
+
+**Exemple :**
+```markdown
+@audit
+```
+
 ### CTO — `@onscen-cto`
 
 1. Nouvelle conversation **Agent** dans Cursor.
-2. Taper `@onscen-cto` puis décrire la mission (audit, choix technique, revue pré-feature).
+2. Taper `@onscen-cto` puis décrire la mission (choix technique, revue pré-feature — **pas** le GO prod formel, utiliser `@audit`).
 3. Le CTO **analyse et recommande** — pour coder la suite, ouvrir une nouvelle session `@onscen-dev-agent`.
 
 **Exemple — audit auth :**
@@ -120,6 +134,7 @@ Impacts RGPD sur la localisation. Plan de dev pour @onscen-dev-agent.
 ```
 
 **Quand NE PAS utiliser `@onscen-cto` :**
+- Audit GO / NO-GO mise en production → **`@audit`**
 - Bug simple à corriger → `@onscen-dev-agent`
 - Brief finances / croissance / sponsors → `@onscen-ceo-ia`
 - « Ajoute ce bouton » ou tâche d'implémentation directe → `@onscen-dev-agent`
@@ -252,6 +267,7 @@ Skill Cursor utilisateur `create-rule` (`~/.cursor/skills-cursor/create-rule/SKI
 
 | Besoin | Agent |
 |--------|-------|
+| Audit GO / NO-GO pré-prod | `@audit` |
 | Audit sécurité / architecture | `@onscen-cto` |
 | Choix technique avant feature | `@onscen-cto` |
 | Implémenter la recommandation | `@onscen-dev-agent` |

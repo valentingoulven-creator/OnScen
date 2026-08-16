@@ -177,6 +177,15 @@ export function UserPostsSection({
           initialImageIndex={detailImageIndex}
           onClose={() => setDetailPost(null)}
           onOpenProfile={onOpenProfile}
+          onUpdated={(updated) => {
+            setDetailPost(updated);
+            setPosts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+          }}
+          onDeleted={(postId, deletedIds) => {
+            const gone = new Set(deletedIds.length ? deletedIds : [postId]);
+            setPosts((prev) => prev.filter((p) => !gone.has(p.id)));
+            setDetailPost(null);
+          }}
         />
       ) : null}
     </>

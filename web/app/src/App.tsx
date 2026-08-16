@@ -49,6 +49,7 @@ import { ProfileSearchBar } from './components/ProfileSearchBar';
 import type { GlobalSearchResultItem } from './lib/globalSearch';
 import { nearbyPreviewFromSearchItem } from './components/ProfileSearchBar';
 import { requestMapFlyToPlace } from './lib/mapSearchIntent';
+import { MAP_OPEN_TAB_EVENT } from './lib/mapUiEvents';
 import { MainTabNav } from './components/MainTabNav';
 import { MusicPlayerBar } from './components/MusicPlayerBar';
 import { PlatformConnectPrompt } from './components/PlatformConnectPrompt';
@@ -1142,6 +1143,12 @@ export default function App() {
     }
     setTab(nextTab);
   }, [activeLiveViewerSessionRef, activeSalonSessionRef, closeActiveSalonSession, minimizeSalonToMap, tabRef, user?.salonId]);
+
+  useEffect(() => {
+    const onOpenMapTab = () => selectTab('map');
+    window.addEventListener(MAP_OPEN_TAB_EVENT, onOpenMapTab);
+    return () => window.removeEventListener(MAP_OPEN_TAB_EVENT, onOpenMapTab);
+  }, [selectTab]);
 
   const handleGlobalSearchSelect = useCallback(
     (item: GlobalSearchResultItem) => {

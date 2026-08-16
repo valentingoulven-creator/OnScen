@@ -2,6 +2,7 @@ import { getJwtSecret, isDeployedEnv, isPreproductionEnv, isProductionEnv } from
 import { resolveCorsOrigin } from './corsConfig';
 import { isPublisherConfigComplete } from './legalPublisher';
 import { isAcrCloudConfigured } from './acrCloudConfig';
+import { isPhotoDnaConfigured } from './csamHashMatch';
 import { assertOpsHealthTokenConfigured } from '../middleware/opsHealthAuth';
 
 function assertTotpEncryptionKey(): void {
@@ -96,6 +97,21 @@ export function assertProductionStartup(): void {
     );
   } else if (isAcrCloudConfigured()) {
     console.log('[startup] ACRCloud actif — scan copyright sur uploads compositions/reels');
+  }
+
+  if (isProductionEnv() && !isPhotoDnaConfigured()) {
+    console.warn(
+      '[startup] PhotoDNA non configuré — hash-matching CSAM inactif (Sightengine seul). ' +
+        'Contrat Microsoft + PHOTODNA_SUBSCRIPTION_KEY, ou PHOTODNA_REQUIRED=1 pour refuser les uploads médias.'
+    );
+  }
+
+  const pm2Wanted = Number(process.env.PM2_INSTANCES?.trim() || '1');
+  if (isProductionEnv() && pm2Wanted > 1) {
+    console.warn(
+      `[startup] PM2_INSTANCES=${pm2Wanted} mais ecosystem.config.cjs force instances:1 ` +
+        '(store applicatif encore partiellement en RAM). Aligner l’env sur 1 ou cluster après refonte store.'
+    );
   }
 
   if (process.env.DONATIONS_ENABLED === '1' && !process.env.STRIPE_WEBHOOK_SECRET?.trim()) {

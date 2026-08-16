@@ -101,6 +101,15 @@ describe('assertProductionStartup', () => {
     warn.mockRestore();
   });
 
+  it('warns when PhotoDNA is missing in production', () => {
+    setProductionEnv();
+    delete process.env.PHOTODNA_SUBSCRIPTION_KEY;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(() => assertProductionStartup()).not.toThrow();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('PhotoDNA'));
+    warn.mockRestore();
+  });
+
   it('throws when SENTRY_DSN is missing in production', () => {
     setProductionEnv();
     delete process.env.SENTRY_DSN;

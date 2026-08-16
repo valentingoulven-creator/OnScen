@@ -17,8 +17,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { readAppVersion } from './read-app-version.mjs';
 
 const apptelRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const { name: VERSION_NAME, code: VERSION_CODE } = readAppVersion();
 const androidRoot = path.join(apptelRoot, 'android');
 const manifestPath = path.join(androidRoot, 'app/src/main/AndroidManifest.xml');
 const variablesPath = path.join(androidRoot, 'variables.gradle');
@@ -31,8 +33,6 @@ if (!fs.existsSync(androidRoot)) {
 }
 
 const TARGET_SDK = 36; // Exigence Google Play : API 36 obligatoire pour toute nouvelle app/mise à jour au 31/08/2026.
-const VERSION_CODE = 202;
-const VERSION_NAME = '2.0.2';
 
 function patchAppVersion() {
   const gradlePath = path.join(androidRoot, 'app/build.gradle');

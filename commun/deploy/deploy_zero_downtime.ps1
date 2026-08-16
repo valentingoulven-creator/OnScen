@@ -549,6 +549,18 @@ Write-Host "  [OK] $healthTried -> HTTP $($healthLocal.StatusCode)" -ForegroundC
 $contentPreview = $healthLocal.Content.Substring(0, [Math]::Min(120, $healthLocal.Content.Length))
 Write-Host "  -> Corps : $contentPreview"
 
+$deploySha = ""
+try { $deploySha = (& git -C $RepoRoot rev-parse HEAD 2>$null).Trim() } catch { }
+if ($deploySha) {
+    $shaFileCmd = "printf '%s\n%s\n' '$deploySha' '" + (Get-Date -Format 'yyyy-MM-ddTHH:mm:ssK') + "' > $REMOTE/DEPLOYED_SHA"
+    try {
+        Invoke-Remote $shaFileCmd | Out-Null
+        Write-Host "  [OK] DEPLOYED_SHA=$deploySha" -ForegroundColor Green
+    } catch {
+        Write-Host "  [!] DEPLOYED_SHA non ecrit : $_" -ForegroundColor Yellow
+    }
+}
+
 if ($VerifyProd -and $Environment -eq 'prod') {
     Write-Host "`n  -> verify-prod.sh sur le VPS..." -ForegroundColor Cyan
     $verifyCmd = 'sed -i ''s/\r$//'' ' + $REMOTE + '/deploy/verify-prod.sh 2>/dev/null; chmod +x ' + $REMOTE + '/deploy/verify-prod.sh 2>/dev/null; bash ' + $REMOTE + '/deploy/verify-prod.sh 2>&1; echo VERIFY_PROD_EXIT=$?'

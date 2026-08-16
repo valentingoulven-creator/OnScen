@@ -574,7 +574,7 @@ export function NotificationBell({
         <button
           type="button"
           onClick={openPanel}
-            className="relative w-11 h-11 flex items-center justify-center rounded-full bg-[#1a1a26] border border-[#2d2d3d] text-gray-300 hover:text-white shrink-0"
+            className="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full bg-[#1a1a26] border border-[#2d2d3d] text-gray-300 hover:text-white shrink-0"
           aria-label="Notifications"
         >
           <svg viewBox="0 0 24 24" className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="2">

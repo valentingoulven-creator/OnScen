@@ -22,7 +22,13 @@ jobs:
 
       - name: Staging — GET /health
         run: |
+          set +e
           code=$(curl -sS -o /tmp/health-staging.json -w "%{http_code}" --connect-timeout 15 --max-time 30 https://staging.onscen.com/health)
+          set -e
+          if [ "$code" != "200" ]; then
+            echo "DNS staging KO (HTTP ${code:-none}) — fallback IP"
+            code=$(curl -sS -o /tmp/health-staging.json -w "%{http_code}" --connect-timeout 15 --max-time 30 http://51.159.170.181/health)
+          fi
           echo "HTTP $code"
           cat /tmp/health-staging.json
           test "$code" = "200"

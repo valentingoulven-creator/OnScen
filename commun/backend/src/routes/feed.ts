@@ -4,6 +4,8 @@ import { asyncHandler } from '../lib/asyncHandler';
 import { schedulePersist } from '../lib/persist';
 import {
   createFeedPost,
+  updateFeedPost,
+  deleteFeedPost,
   listFeedPosts,
   resharePost,
   toggleFeedPostLike,
@@ -12,6 +14,7 @@ import {
   listFeedPostComments,
   toggleFeedPostFavorite,
   listFavoritedFeedPosts,
+  hideEventFromOwnProfile,
 } from '../lib/feedPosts';
 import { likeLimiter } from '../lib/abuseRateLimits';
 import { notifyMentions } from '../lib/mentions';
@@ -240,4 +243,83 @@ feedRouter.delete('/posts/:id/favorite', authenticateJWT, (req: Request, res: Re
   if (!result.ok) { res.status(404).json({ error: result.error }); return; }
   schedulePersist();
   res.json({ favorited: result.favorited });
+});
+
+feedRouter.delete('/posts/:id/profile-appearance', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const result = hideEventFromOwnProfile(me, req.params.id);
+  if (!result.ok) {
+    res.status(result.status).json({ error: result.error });
+    return;
+  }
+  schedulePersist();
+  res.json({ hidden: true });
+});
+
+feedRouter.patch('/posts/:id', authenticateJWT, asyncHandler(async (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const body = req.body ?? {};
+  const imageUrl = body.imageUrl != null ? String(body.imageUrl) : undefined;
+  const imageUrls = Array.isArray(body.imageUrls) ? body.imageUrls : undefined;
+  const videoUrl = body.videoUrl != null ? String(body.videoUrl) : undefined;
+  const moderation = await moderateFeedPostMedia({ imageUrl, imageUrls, videoUrl, uploaderId: me });
+  if (!moderation.allowed) {
+    res.status(422).json({ error: moderationRejectionMessage(moderation) });
+    return;
+  }
+  const existing = db.feedPosts.find((p) => p.id === req.params.id);
+  const prevTagged = new Set(existing?.eventTaggedUserIds ?? []);
+  const result = updateFeedPost(me, req.params.id, {
+    content: String(body.content ?? ''),
+    imageUrl,
+    imageUrls,
+    videoUrl,
+    isEvent: body.isEvent === true,
+    eventDate: body.eventDate != null ? String(body.eventDate) : undefined,
+    eventDates: Array.isArray(body.eventDates) ? body.eventDates : undefined,
+    eventEndTimes: Array.isArray(body.eventEndTimes) ? body.eventEndTimes : undefined,
+    eventLocation: body.eventLocation != null ? String(body.eventLocation) : undefined,
+    eventType: body.eventType != null ? String(body.eventType) : undefined,
+    eventLinkUrl: body.eventLinkUrl != null ? String(body.eventLinkUrl) : undefined,
+    eventTaggedUserIds: body.eventTaggedUserIds,
+  });
+  if (!result.ok) {
+    res.status(result.status).json({ error: result.error });
+    return;
+  }
+  schedulePersist();
+  const postAuthor = db.users.get(me);
+  const newlyTagged =
+    result.post.eventTaggedUsers?.map((u) => u.id).filter((id) => !prevTagged.has(id)) ?? [];
+  if (result.post.isEvent && postAuthor && newlyTagged.length) {
+    notifyEventTagged({
+      creator: { id: me, username: postAuthor.username, avatarUrl: postAuthor.avatarUrl },
+      postId: result.post.id,
+      eventLocation: result.post.eventLocation,
+      taggedUserIds: newlyTagged,
+    });
+  }
+  if (result.post.isEvent) {
+    const creator = db.users.get(me);
+    if (creator) refreshUserPublicCoords(creator);
+    getIo()?.emit('event_updated', {
+      postId: result.post.id,
+      eventLocation: result.post.eventLocation ?? null,
+      lat: creator?.blurredLatitude ?? null,
+      lng: creator?.blurredLongitude ?? null,
+    });
+  }
+  res.json({ post: result.post });
+}));
+
+feedRouter.delete('/posts/:id', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const result = deleteFeedPost(me, req.params.id);
+  if (!result.ok) {
+    res.status(result.status).json({ error: result.error });
+    return;
+  }
+  schedulePersist();
+  getIo()?.emit('event_deleted', { postId: req.params.id, deletedIds: result.deletedIds });
+  res.json({ deleted: true, deletedIds: result.deletedIds });
 });

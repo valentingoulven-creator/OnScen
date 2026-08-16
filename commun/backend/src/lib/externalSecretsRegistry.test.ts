@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { EXTERNAL_SECRET_PROVIDERS, EXTERNAL_SECRET_WHITELIST, getFieldDef, getProviderDef } from './externalSecretsRegistry';
+import {
+  EXTERNAL_SECRET_PROVIDERS,
+  EXTERNAL_SECRET_WHITELIST,
+  PROVIDER_CATEGORY,
+  getFieldDef,
+  getProviderDef,
+} from './externalSecretsRegistry';
 
 /** Variables "cœur système" qui ne doivent JAMAIS être éditables via ce moteur. */
 const CORE_SYSTEM_VARS = [
@@ -30,10 +36,14 @@ describe('EXTERNAL_SECRET_WHITELIST', () => {
     }
   });
 
-  it('contains every field key declared in the registry', () => {
+  it('contains every writable field key declared in the registry', () => {
     for (const provider of EXTERNAL_SECRET_PROVIDERS) {
       for (const field of provider.fields) {
-        expect(EXTERNAL_SECRET_WHITELIST.has(field.key)).toBe(true);
+        if (provider.readOnly) {
+          expect(EXTERNAL_SECRET_WHITELIST.has(field.key)).toBe(false);
+        } else {
+          expect(EXTERNAL_SECRET_WHITELIST.has(field.key)).toBe(true);
+        }
       }
     }
   });
@@ -53,6 +63,12 @@ describe('EXTERNAL_SECRET_PROVIDERS integrity', () => {
   it('has at least one field per provider', () => {
     for (const provider of EXTERNAL_SECRET_PROVIDERS) {
       expect(provider.fields.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('assigns every provider to a category', () => {
+    for (const provider of EXTERNAL_SECRET_PROVIDERS) {
+      expect(PROVIDER_CATEGORY[provider.id]).toBeTruthy();
     }
   });
 });
