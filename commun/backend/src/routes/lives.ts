@@ -70,6 +70,7 @@ import {
   stopLiveKitEgress,
 } from '../lib/livekit';
 import { getIo } from '../lib/ioInstance';
+import { buildIceServers } from '../lib/iceServers';
 import { allowUnsampledLive, unsampledLiveResponse } from '../lib/liveSamplingPolicy';
 
 export const livesRouter = Router();
