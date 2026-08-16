@@ -1,4 +1,5 @@
 # Uptime externe — ping /health prod + staging (complète monitor-alerts.sh VPS)
+# Les cron GitHub n'utilisent QUE la branche par défaut (master).
 name: Uptime Health
 
 on:
@@ -8,28 +9,41 @@ on:
   workflow_dispatch:
 
 jobs:
-  health:
+  production:
+    name: Production
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Production — GET /health
-        run: |
-          code=$(curl -sS -o /tmp/health-prod.json -w "%{http_code}" --connect-timeout 15 --max-time 30 https://onscen.com/health)
-          echo "HTTP $code"
-          cat /tmp/health-prod.json
-          test "$code" = "200"
-          grep -q '"status"' /tmp/health-prod.json
-
-      - name: Staging — GET /health
+      - name: GET https://onscen.com/health
         run: |
           set +e
-          code=$(curl -sS -o /tmp/health-staging.json -w "%{http_code}" --connect-timeout 15 --max-time 30 https://staging.onscen.com/health)
+          code=$(curl -sS -o /tmp/health.json -w "%{http_code}" --connect-timeout 15 --max-time 30 https://onscen.com/health)
+          curl_ec=$?
+          set -e
+          echo "HTTP ${code:-none} curl_exit=$curl_ec"
+          cat /tmp/health.json 2>/dev/null || true
+          test "$code" = "200"
+          grep -q '"status"' /tmp/health.json
+
+  staging:
+    name: Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: GET staging /health (DNS then IP)
+        run: |
+          set +e
+          code=$(curl -sS -o /tmp/health.json -w "%{http_code}" --connect-timeout 15 --max-time 30 https://staging.onscen.com/health)
+          curl_ec=$?
           set -e
           if [ "$code" != "200" ]; then
-            echo "DNS staging KO (HTTP ${code:-none}) — fallback IP"
-            code=$(curl -sS -o /tmp/health-staging.json -w "%{http_code}" --connect-timeout 15 --max-time 30 http://51.159.170.181/health)
+            echo "staging.onscen.com KO (HTTP ${code:-none} curl_exit=$curl_ec) — fallback http://51.159.170.181/health"
+            set +e
+            code=$(curl -sS -o /tmp/health.json -w "%{http_code}" --connect-timeout 15 --max-time 30 http://51.159.170.181/health)
+            curl_ec=$?
+            set -e
           fi
-          echo "HTTP $code"
-          cat /tmp/health-staging.json
+          echo "HTTP ${code:-none} curl_exit=$curl_ec"
+          cat /tmp/health.json 2>/dev/null || true
           test "$code" = "200"
-          grep -q '"status"' /tmp/health-staging.json
+          grep -q '"status"' /tmp/health.json

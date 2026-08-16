@@ -42455,4 +42455,29 @@ FICHIERS MODIFIÉS
 Fin MODIF 1463 — 2026-08-16
 ================================================================================
 
+================================================================================
+MODIF 1464 — Uptime Health : jobs séparés + fallback IP staging — Soundly Dev
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ GitHub « Uptime Health: All jobs have failed ». Le cron tourne sur master
+ et curl staging.onscen.com (NXDOMAIN) abortait tout le job — prod était OK.
+
+CHANGEMENTS / FIX
+-----
+ .github/workflows/uptime-health.yml
+ ─────────────────
+ • Jobs Production / Staging séparés (un DNS staging KO ne rouge plus la prod)
+ • curl DNS : set +e puis fallback http://51.159.170.181/health
+
+FICHIERS MODIFIÉS
+-----
+ .github/workflows/uptime-health.yml → jobs split + fallback IP
+
+================================================================================
+Fin MODIF 1464 — 2026-08-16
+================================================================================
+
 
