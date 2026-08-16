@@ -200,6 +200,7 @@ export function FeedPostOwnerActions({
 
   const btnClass =
     'w-11 h-11 inline-flex items-center justify-center rounded-lg text-purple-200 hover:bg-purple-950/40';
+  const iconClass = compact ? 'w-3.5 h-3.5' : 'w-4 h-4';
 
   const menu = menuOpen
     ? createPortal(
@@ -349,7 +350,7 @@ export function FeedPostOwnerActions({
         aria-label={t('feed.ownerMenu', { defaultValue: 'Actions de la publication' })}
         onClick={() => setMenuOpen(true)}
       >
-        <KebabIcon className="w-4 h-4" />
+        <KebabIcon className={iconClass} />
       </button>
       {menu}
       {editModal}

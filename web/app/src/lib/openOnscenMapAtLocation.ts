@@ -11,8 +11,10 @@ export function resolveOpenLocationCoords(opts: {
   latitude?: number | null;
   longitude?: number | null;
 }): { latitude: number; longitude: number } | null {
-  if (isValidLatLng(opts.latitude, opts.longitude)) {
-    return { latitude: opts.latitude, longitude: opts.longitude };
+  const lat = opts.latitude;
+  const lon = opts.longitude;
+  if (typeof lat === 'number' && typeof lon === 'number' && isValidLatLng(lat, lon)) {
+    return { latitude: lat, longitude: lon };
   }
   const location = opts.label.trim();
   if (!location) return null;
