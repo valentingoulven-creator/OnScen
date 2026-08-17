@@ -4,6 +4,7 @@ Rapports produits par `@onscen-dev-agent` à chaque session de développement si
 
 | Date | Rapport | Mission | Statut |
 |------|---------|---------|--------|
+| 2026-08-17 | [live-start-livekit-room](./rapports/2026-08-17-live-start-livekit-room.md) | Live prod : créer la room LiveKit avant l’egress | ⚠️ |
 | 2026-08-16 | [audit-go-prod-correctifs](./rapports/2026-08-16-audit-go-prod-correctifs.md) | Audit GO prod : restore staging + correctifs code P0/P1 | ⚠️ |
 | 2026-08-16 | [handoff-builds-mobiles](./rapports/2026-08-16-handoff-builds-mobiles.md) | Handoff audit builds iOS/Android : CI xcodebuild + version unique | ✅ |
 | 2026-08-16 | [open-location-onscen-map](./rapports/2026-08-16-open-location-onscen-map.md) | Menu lieu : ouvrir sur la carte OnScen | ✅ |

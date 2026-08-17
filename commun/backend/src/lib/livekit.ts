@@ -28,6 +28,33 @@ export function liveKitRoomName(liveId: string): string {
   return `live_${liveId}`;
 }
 
+function isLiveKitRoomAlreadyExistsError(err: unknown): boolean {
+  const code =
+    typeof err === 'object' && err && 'code' in err ? String((err as { code: unknown }).code) : '';
+  if (code === 'already_exists' || code === '6') return true;
+  const msg = err instanceof Error ? err.message : String(err);
+  return /already exists|already created/i.test(msg);
+}
+
+/**
+ * Crée la room LiveKit si besoin. Room Composite Egress échoue avec
+ * « requested room does not exist » si on le lance au POST /lives/start
+ * avant que l’hôte n’ait rejoint (la room n’est sinon créée qu’au 1er join).
+ */
+export async function ensureLiveKitRoom(liveId: string): Promise<string> {
+  const roomName = liveKitRoomName(liveId);
+  const client = buildRoomServiceClient();
+  try {
+    await client.createRoom({
+      name: roomName,
+      emptyTimeout: 15 * 60,
+    });
+  } catch (err) {
+    if (!isLiveKitRoomAlreadyExistsError(err)) throw err;
+  }
+  return roomName;
+}
+
 export async function createLiveKitToken(opts: {
   roomName: string;
   participantIdentity: string;
@@ -131,6 +158,7 @@ export { getLiveKitEgressId } from './livekitEgressStore';
  * (e.g. Cloudflare Stream ingest). Returns the egressId.
  */
 export async function startLiveKitEgress(liveId: string, rtmpUrl: string): Promise<string> {
+  await ensureLiveKitRoom(liveId);
   const client = buildEgressClient();
   const roomName = liveKitRoomName(liveId);
 

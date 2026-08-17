@@ -42480,4 +42480,33 @@ FICHIERS MODIFIÉS
 Fin MODIF 1464 — 2026-08-16
 ================================================================================
 
+================================================================================
+MODIF 1465 — Live prod : créer la room LiveKit avant l’egress
+Date : 2026-08-17
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ POST /lives/start échouait en prod : Room Composite Egress (relais
+ LiveKit → Cloudflare pour Sightengine) démarrait alors que la room
+ n’existait pas encore (« requested room does not exist »).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/livekit.ts
+ ─────────────────
+ • ensureLiveKitRoom() avant startRoomCompositeEgress.
+ • createRoom idempotent si la room existe déjà.
+
+FICHIERS MODIFIÉS
+-----
+ livekit.ts · livekitEgressStart.test.ts · livekitEgressStop.test.ts
+
+BUILD (si vérifié)
+-----
+ commun/backend → vitest livekitEgress* + lives.start + liveSamplingPolicy → ✅ 10/10
+
+================================================================================
+Fin MODIF 1465 — 2026-08-17
+================================================================================
 

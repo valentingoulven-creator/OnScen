@@ -18,6 +18,11 @@ vi.mock('livekit-server-sdk', () => ({
   EgressClient: vi.fn().mockImplementation(() => ({
     stopEgress,
   })),
+  RoomServiceClient: vi.fn().mockImplementation(() => ({
+    createRoom: vi.fn(),
+    deleteRoom: vi.fn(),
+    listRooms: vi.fn(),
+  })),
 }));
 
 describe('stopLiveKitEgressIfActive', () => {
