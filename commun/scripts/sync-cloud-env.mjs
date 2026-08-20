@@ -21,6 +21,7 @@ const ENV_JSON = path.join(CURSOR, 'environment.json');
 const WATCH_PATHS = [
   'web/app/package-lock.json',
   'commun/backend/package-lock.json',
+  'ios/apptel/package-lock.json',
   'commun/msdev/.env.example',
   'web/app/.env.development.example',
   '.cursor/environment.json',

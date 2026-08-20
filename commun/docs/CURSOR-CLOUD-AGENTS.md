@@ -55,10 +55,24 @@ npm run cloud:sync:install-hook
 
 ## Terminals cloud
 
-1. **onscen-api** — `commun/backend` msdev `:4080`
-2. **onscen-web** — Vite `:5173` (proxy API → 4080)
+1. **soundy-api** — `commun/backend` msdev `:4080`
+2. **soundy-web** — Vite `:5173` (proxy API → 4080)
+3. **onscen-tel** — Capacitor PWA `:4082/tel/` (`ios/apptel`)
 
-Ports forwardés : 5173 (web), 4080 (api).
+Ports forwardés : 5173 (web), 4080 (api), 4082 (tel).
+
+## iOS / Xcode (pas de Mac dans le cloud)
+
+Cursor Cloud = **VM Ubuntu** uniquement. **Xcode ne peut pas tourner** sur ces agents.
+
+| Tâche | Cloud (Linux) | Mac / CI macOS |
+|-------|---------------|----------------|
+| Code `web/app` + overrides `ios/apptel` | ✅ | ✅ |
+| PWA tel `:4082/tel/` | ✅ | ✅ |
+| Typecheck / build Capacitor web | ✅ | ✅ |
+| `xcodebuild`, simulateur, IPA signée | ❌ | ✅ |
+
+Workflow hybride documenté : [`CURSOR-CLOUD-IOS-XCODE.md`](./CURSOR-CLOUD-IOS-XCODE.md) · prompt agent : `.cursor/cloud-agent-prompts/02-ios-capacitor-cloud.md` · CI : `.github/workflows/ios-capacitor.yml` (`macos-latest`).
 
 ## Checklist secrets (premier agent)
 

@@ -41745,5 +41745,53 @@ CHANGEMENTS / FIX
 Fin MODIF 1439 — 2026-08-15
 ================================================================================
 
+================================================================================
+MODIF 1440 — Cloud iOS/Xcode workflow (Linux + CI macOS) — OnScen
+Date : 2026-08-16
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande d'un environnement Mac/Xcode dans Cursor Cloud. Les Cloud Agents
+ tournent uniquement sur Ubuntu — Xcode n'est pas disponible nativement.
+
+CHANGEMENTS / FIX
+-----
+ .cursor/environment.json
+ ─────────────────
+ • Terminal onscen-tel (:4082/tel/) · port 4082 forwardé
+
+ .cursor/cloud-install.sh
+ ─────────────────
+ • npm install ios/apptel + typecheck tsc (sans xcodebuild)
+
+ commun/docs/CURSOR-CLOUD-IOS-XCODE.md
+ ─────────────────
+ • Doc workflow hybride : cloud Linux + GitHub Actions macos-latest
+
+ .cursor/cloud-agent-prompts/02-ios-capacitor-cloud.md
+ ─────────────────
+ • Prompt agent iOS/Capacitor pour VM cloud
+
+ commun/docs/CURSOR-CLOUD-AGENTS.md · AGENTS.md
+ ─────────────────
+ • Section iOS/Xcode · lien doc dédiée
+
+ commun/scripts/sync-cloud-env.mjs
+ ─────────────────
+ • Watch ios/apptel/package-lock.json
+
+FICHIERS MODIFIÉS
+-----
+ .cursor/* · commun/docs/* · AGENTS.md · modification.txt
+
+BUILD (si vérifié)
+-----
+ cloud-install → ios/apptel tsc → ✅
+
+================================================================================
+Fin MODIF 1440 — 2026-08-16
+================================================================================
+
 
 
