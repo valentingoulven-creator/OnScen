@@ -64,6 +64,14 @@ async function writePng(pipeline, dest, size, { flatten = true } = {}) {
   await img.png({ compressionLevel: 9 }).toFile(dest);
 }
 
+function pngToFaviconSvg(pngBuf) {
+  const b64 = pngBuf.toString('base64');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <image href="data:image/png;base64,${b64}" width="64" height="64" preserveAspectRatio="xMidYMid meet"/>
+</svg>
+`;
+}
+
 function pngsToIco(images) {
   const header = Buffer.alloc(6);
   header.writeUInt16LE(0, 0);
@@ -110,7 +118,6 @@ async function main() {
   const androidRes = path.join(root, 'ios/apptel/android/app/src/main/res');
   const resourcesIcon = path.join(root, 'ios/apptel/resources/icon.png');
   const brandFaviconSvg = path.join(root, 'commun/brand/onscen-favicon.svg');
-  const faviconSvg = fs.readFileSync(brandFaviconSvg);
 
   for (const dest of [
     path.join(webPublic, 'onscen-logo.png'),
@@ -131,7 +138,23 @@ async function main() {
   await writePng(square, path.join(telPublic, 'icon.png'), 512);
   await writePng(square, path.join(telPublic, 'apple-touch-icon.png'), 180);
 
-  const faviconRaster = sharp(faviconSvg, { density: 384 });
+  const faviconRaster = sharp(uiPng).extend({
+    top: 6,
+    bottom: 6,
+    left: 6,
+    right: 6,
+    background: { r: 0, g: 0, b: 0, alpha: 0 },
+  });
+  const faviconSvgPng = await sharp(uiPng)
+    .resize(64, 64, {
+      fit: 'contain',
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    })
+    .png()
+    .toBuffer();
+  const faviconSvg = pngToFaviconSvg(faviconSvgPng);
+  fs.writeFileSync(brandFaviconSvg, faviconSvg);
+
   const icoSizes = [16, 32, 48];
   const icoImages = [];
   for (const size of icoSizes) {
@@ -147,7 +170,7 @@ async function main() {
   }
   const icoBuf = pngsToIco(icoImages);
   for (const destDir of [webPublic, telPublic, backendPublic]) {
-    fs.copyFileSync(brandFaviconSvg, path.join(destDir, 'favicon.svg'));
+    fs.writeFileSync(path.join(destDir, 'favicon.svg'), faviconSvg);
     fs.writeFileSync(path.join(destDir, 'favicon.ico'), icoBuf);
     await writePng(faviconRaster, path.join(destDir, 'favicon-32x32.png'), 32, { flatten: false });
     await writePng(faviconRaster, path.join(destDir, 'favicon-48x48.png'), 48, { flatten: false });

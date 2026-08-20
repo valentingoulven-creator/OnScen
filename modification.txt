@@ -42675,4 +42675,30 @@ FICHIERS MODIFIÉS
 Fin MODIF 1471 — 2026-08-20
 ================================================================================
 
+================================================================================
+MODIF 1472 — Favicon = PNG logo réel (plus de SVG sparkle) — Soundly Dev
+Date : 2026-08-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L’onglet affichait une étoile vectorielle générique, pas le PNG fourni.
+
+CHANGEMENTS / FIX
+-----
+ • ICO / PNG 16–48 générés depuis `onscen-logo.png` (fond transparent)
+ • `favicon.svg` = le même PNG embarqué (plus de sparkle redessiné)
+ • Cache HTML ?v=6
+
+FICHIERS MODIFIÉS
+-----
+ commun/scripts/apply-app-icon.mjs → favicon depuis le PNG source
+ commun/brand/onscen-favicon.svg + public favicon (web, tel, backend)
+ web/app/index.html · ios/apptel/index.html · backend public → ?v=6
+
+================================================================================
+Fin MODIF 1472 — 2026-08-20
+================================================================================
+
+
 
