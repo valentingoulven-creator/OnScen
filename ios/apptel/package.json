@@ -32,7 +32,7 @@
     "@capacitor/ios": "^8.4.2",
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/push-notifications": "^8.1.1",
-    "@livekit/components-react": "^2.9.21",
+    "@livekit/components-react": "^2.9.24",
     "@sentry/react": "^10.70.0",
     "@stripe/react-stripe-js": "^6.7.0",
     "@stripe/stripe-js": "^9.9.0",
