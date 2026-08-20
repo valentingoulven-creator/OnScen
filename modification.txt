@@ -42700,5 +42700,46 @@ FICHIERS MODIFIÉS
 Fin MODIF 1472 — 2026-08-20
 ================================================================================
 
+================================================================================
+MODIF 1473 — GO prod : PhotoDNA required + UI dons + hygiène VPS — Soundly Dev
+Date : 2026-08-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Audit 2026-08-20 NO-GO : PhotoDNA absent sans refus d’upload, UI pourboires
+ possible malgré DONATIONS_ENABLED=0, scripts debug sur le VPS, PM2_INSTANCES
+ incohérent, ACRCloud manquant en staging.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/csamHashMatch.ts
+ ─────────────────
+ • PHOTODNA_REQUIRED défaut true en env déployé (opt-out explicite =0).
+ • Erreur API PhotoDNA fail-closed aussi en préprod.
+
+ web/app/src/components/StartLiveFlowModals.tsx
+ ─────────────────
+ • Pourboires live seulement si donationsPlatformEnabled (flag serveur).
+
+ VPS prod / staging (noms seulement)
+ ─────────────────
+ • PHOTODNA_REQUIRED=1 ; PM2_INSTANCES=1 ; debug_*.js retirés ;
+   blocklist CSAM vide ; ACRCloud staging fusionné ; disque staging 74 %.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/csamHashMatch.ts → required par défaut env déployé
+ commun/backend/src/lib/csamHashMatch.test.ts
+ commun/backend/src/lib/contentModeration.test.ts
+ commun/backend/src/lib/productionStartup.ts
+ web/app/src/components/StartLiveFlowModals.tsx
+ commun/backend/.env.production.example
+ commun/deploy/RUNBOOK-PROD.md · OPS-PRIORITIES.md
+
+================================================================================
+Fin MODIF 1473 — 2026-08-20
+================================================================================
+
 
 

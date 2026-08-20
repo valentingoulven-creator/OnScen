@@ -30,7 +30,8 @@ export function StartLiveFlowModals({ flow }: { flow: StartLiveFlow }) {
 
   const defaultLiveTitle = user ? `Live — ${user.username}` : 'Live';
   const stripeConnectUiReady = stripeConnectReady === true;
-  const donationsEnabled = (stripeSimulation || stripeConnectUiReady) && !liveTipsSkipped;
+  const donationsEnabled =
+    donationsPlatformEnabled && (stripeSimulation || stripeConnectUiReady) && !liveTipsSkipped;
   /** Étape Lya Stripe : uniquement si le compte n’est pas déjà connecté. */
   const tipsSetupStepEnabled =
     stripeChecked && donationsPlatformEnabled && !stripeConnectUiReady;

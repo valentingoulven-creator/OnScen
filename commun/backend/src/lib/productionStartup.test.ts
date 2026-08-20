@@ -107,6 +107,8 @@ describe('assertProductionStartup', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(() => assertProductionStartup()).not.toThrow();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('PhotoDNA'));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('REFUSÉS'));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('REFUSÉS'));
     warn.mockRestore();
   });
 

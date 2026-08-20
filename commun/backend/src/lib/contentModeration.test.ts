@@ -55,6 +55,8 @@ describe('contentModeration with mocked Sightengine', () => {
       'SIGHTENGINE_ENABLED',
       'SIGHTENGINE_FAIL_OPEN',
       'APP_ENV',
+      'PHOTODNA_REQUIRED',
+      'PHOTODNA_SUBSCRIPTION_KEY',
     ]) {
       envBackup[key] = process.env[key];
     }
@@ -63,6 +65,8 @@ describe('contentModeration with mocked Sightengine', () => {
     process.env.SIGHTENGINE_ENABLED = '1';
     process.env.SIGHTENGINE_FAIL_OPEN = '0';
     process.env.APP_ENV = 'production';
+    process.env.PHOTODNA_REQUIRED = '0';
+    delete process.env.PHOTODNA_SUBSCRIPTION_KEY;
     vi.stubGlobal('fetch', fetchMock);
     fetchMock.mockReset();
   });
@@ -156,6 +160,16 @@ describe('contentModeration with mocked Sightengine', () => {
     delete process.env.SIGHTENGINE_API_USER;
     delete process.env.SIGHTENGINE_API_SECRET;
     process.env.APP_ENV = 'production';
+    const tinyPng =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const result = await moderateImageSource(tinyPng, 'story');
+    expect(result.allowed).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('refuse en production si PhotoDNA requis et sans clé (avant Sightengine)', async () => {
+    delete process.env.PHOTODNA_REQUIRED;
+    delete process.env.PHOTODNA_SUBSCRIPTION_KEY;
     const tinyPng =
       'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
     const result = await moderateImageSource(tinyPng, 'story');

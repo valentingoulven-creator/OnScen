@@ -2,7 +2,7 @@ import { getJwtSecret, isDeployedEnv, isPreproductionEnv, isProductionEnv } from
 import { resolveCorsOrigin } from './corsConfig';
 import { isPublisherConfigComplete } from './legalPublisher';
 import { isAcrCloudConfigured } from './acrCloudConfig';
-import { isPhotoDnaConfigured } from './csamHashMatch';
+import { isPhotoDnaConfigured, isPhotoDnaRequired } from './csamHashMatch';
 import { assertOpsHealthTokenConfigured } from '../middleware/opsHealthAuth';
 
 function assertTotpEncryptionKey(): void {
@@ -99,11 +99,18 @@ export function assertProductionStartup(): void {
     console.log('[startup] ACRCloud actif — scan copyright sur uploads compositions/reels');
   }
 
-  if (isProductionEnv() && !isPhotoDnaConfigured()) {
-    console.warn(
-      '[startup] PhotoDNA non configuré — hash-matching CSAM inactif (Sightengine seul). ' +
-        'Contrat Microsoft + PHOTODNA_SUBSCRIPTION_KEY, ou PHOTODNA_REQUIRED=1 pour refuser les uploads médias.'
-    );
+  if (isDeployedEnv() && !isPhotoDnaConfigured()) {
+    if (isPhotoDnaRequired()) {
+      console.warn(
+        '[startup] PhotoDNA non configuré — uploads images/vidéos REFUSÉS (PHOTODNA_REQUIRED, défaut env déployé). ' +
+          'Contrat Microsoft + PHOTODNA_SUBSCRIPTION_KEY, ou PHOTODNA_REQUIRED=0 seulement avec dérogation écrite.'
+      );
+    } else {
+      console.warn(
+        '[startup] PhotoDNA non configuré — hash-matching CSAM inactif (Sightengine seul). ' +
+          'PHOTODNA_REQUIRED=0 est une dérogation : les médias passent sans hash NCMEC.'
+      );
+    }
   }
 
   const pm2Wanted = Number(process.env.PM2_INSTANCES?.trim() || '1');

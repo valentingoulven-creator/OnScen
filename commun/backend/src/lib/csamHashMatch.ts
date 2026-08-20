@@ -4,6 +4,7 @@ import path from 'node:path';
 import { getDataDir } from '../paths';
 import { parseImageDataUrl } from './imageDataUrl';
 import { parseVideoDataUrl } from './videoDataUrl';
+import { isDeployedEnv } from './jwtSecret';
 
 export type CsamHashSource = 'local' | 'photodna';
 
@@ -90,10 +91,16 @@ export function isPhotoDnaConfigured(): boolean {
   return Boolean(process.env.PHOTODNA_SUBSCRIPTION_KEY?.trim());
 }
 
-/** Prod/staging : PHOTODNA_REQUIRED=1 refuse les médias si PhotoDNA n'est pas branché. */
+/**
+ * Hash-matching CSAM obligatoire sauf opt-out explicite.
+ * Env déployé (prod/préprod) : défaut true si PHOTODNA_REQUIRED est absent.
+ * PHOTODNA_REQUIRED=0/false/off désactive le refus (msdev / dérogation écrite).
+ */
 export function isPhotoDnaRequired(): boolean {
   const raw = process.env.PHOTODNA_REQUIRED?.trim().toLowerCase();
-  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+  if (raw === '0' || raw === 'false' || raw === 'no' || raw === 'off') return false;
+  if (raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on') return true;
+  return isDeployedEnv();
 }
 
 function photoDnaMatchStatus(payload: unknown): 'match' | 'nomatch' | 'error' {
@@ -145,7 +152,7 @@ export async function checkCsamHash(source: string): Promise<CsamHashCheck> {
       rememberBlockedHash(sha256, 'photodna');
       return { blocked: true, sha256, source: 'photodna' };
     }
-    if (photo === 'error' && process.env.APP_ENV === 'production') {
+    if (photo === 'error' && isDeployedEnv()) {
       return { blocked: true, sha256, source: 'photodna', unavailable: true };
     }
     return { blocked: false, sha256 };

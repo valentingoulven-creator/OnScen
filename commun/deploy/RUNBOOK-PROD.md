@@ -247,6 +247,18 @@ dropdb -h HOST -U soundy onscen_restore_test
 
 Restauration prod : crÃ©er une **nouvelle** instance DB Scaleway ou contacter le support pour restore snapshot, puis mettre Ã  jour `DATABASE_URL` dans `.env`.
 
+### RPO / RTO et cadence restore (P1-16)
+
+Cibles **ops** (dumps VPS + S3) — le fondateur peut les durcir par écrit.
+
+| Objectif | Cible | Preuve |
+|----------|--------|--------|
+| **RPO** | 24 h | cron dump ~03:15 (`backup-db.sh`) + off-site ~04:00 |
+| **RTO staging** | exercice déjà fait | `commun/docs/audit/2026-08-16-go-prod/restore-drill.md` (2026-08-16) |
+| **Cadence drill** | trimestrielle | `OPS-PRIORITIES.md` §3b — **prochain : avant le 2026-11-16** |
+
+Le drill se fait **sur staging** (`restore-db-staging.sh`), jamais sur la base prod sans fenêtre de maintenance. Noter la date dans un nouveau PV `restore-drill.md` à chaque exercice.
+
 ### Console Scaleway â€” actions manuelles
 
 1. [console.scaleway.com](https://console.scaleway.com) â†’ **Managed Databases** â†’ instance `onscen-prod`.

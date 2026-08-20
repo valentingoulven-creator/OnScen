@@ -114,7 +114,7 @@ Actions console [Managed Databases → onscen-db → Backups](https://console.sc
 - [ ] Sauvegardes automatiques **activées**
 - [ ] Dernière backup **< 24 h**
 - [ ] Rétention notée (typ. 7 j DB-DEV-S)
-- [ ] **Test restore trimestriel** sur instance `onscen_restore_test` (procédure `RUNBOOK-PROD.md`)
+- [ ] **Test restore trimestriel** sur instance `onscen_restore_test` (procédure `RUNBOOK-PROD.md`) — prochain avant **2026-11-16** (dernier drill : 2026-08-16 staging)
 
 ### 3c — `S3_BUCKET` uploads utilisateurs ✅ (prod)
 
