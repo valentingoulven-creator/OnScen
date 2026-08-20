@@ -97,7 +97,7 @@ const politiqueConfidentialite: LegalDocument = {
     },
     {
       heading: '9. Mineurs',
-      body: `Le Service s’adresse aux personnes de 13 ans et plus. Contactez-nous pour demander la suppression de données concernant un mineur de moins de 13 ans.`,
+      body: `Le Service s’adresse aux personnes de 13 ans et plus. Lancer un live, les paiements et la monétisation créateur sont réservés aux 18 ans et plus. Contactez-nous pour demander la suppression de données concernant un mineur de moins de 13 ans.`,
     },
     {
       heading: '10. Cookies et stockage local',
@@ -128,7 +128,7 @@ const cgu: LegalDocument = {
     },
     {
       heading: '3. Éligibilité et compte',
-      body: `Vous devez avoir au moins 13 ans pour créer un compte. Lancer un live est réservé aux 16 ans et plus. Les paiements sont réservés aux 18 ans et plus.\n\nL’éditeur peut suspendre ou supprimer un compte en cas de violation des CGU.`,
+      body: `Vous devez avoir au moins 13 ans pour créer un compte. Lancer un live est réservé aux 18 ans et plus. Les paiements sont réservés aux 18 ans et plus.\n\nL’éditeur peut suspendre ou supprimer un compte en cas de violation des CGU.`,
     },
     {
       heading: '4. Comportement des utilisateurs',

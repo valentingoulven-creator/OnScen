@@ -38,7 +38,7 @@ import {
   ensureMsdevDemoMonetizationAges,
   ensureMsdevListenerFollowersCount,
 } from './lib/msdevDemoAccounts';
-import { ensureAccessAdmins, isAccessControlEnabled, loadAccessControlFromPersist } from './lib/accessControl';
+import { ensureAccessAdmins, getAccessPolicy, isAccessControlEnabled, loadAccessControlFromPersist } from './lib/accessControl';
 import { ensureDefaultMapSidebarEventSponsors, ensureDefaultSponsors, migrateSponsorMapVisibility, syncDefaultSponsorFields, syncDefaultSponsorScopes } from './lib/sponsors';
 import { ensureProductionSponsorContent, refreshMsdevSponsorEventDatesIfStale } from './seed-production-sponsors';
 import { ensureDefaultSponsorPlatformConfig } from './lib/sponsorPlatformConfig';
@@ -414,13 +414,17 @@ export async function startOnScen(options: StartOptions = {}): Promise<void> {
       console.log(`[onscen] ${admins} compte(s) administrateur synchronisé(s)`);
     }
     if (isAccessControlEnabled()) {
-      if (APP_ENV === 'production') {
-        console.log(
-          '[onscen] Contrôle d’accès production actif — inscriptions fermées (comptes existants uniquement)'
-        );
-      } else {
-        console.log('[onscen] Contrôle d’accès actif — validation admin pour les nouveaux comptes');
-      }
+      const mode = getAccessPolicy().registrationMode;
+      const modeLabel =
+        mode === 'open'
+          ? 'ouvertes'
+          : mode === 'closed'
+            ? 'fermées (comptes existants uniquement)'
+            : mode === 'invite_only'
+              ? 'sur invitation'
+              : 'validation admin pour les nouveaux comptes';
+      const scope = APP_ENV === 'production' ? 'production' : 'actif';
+      console.log(`[onscen] Contrôle d’accès ${scope} — inscriptions ${modeLabel} (mode=${mode})`);
     }
     startPersistLoop();
   }

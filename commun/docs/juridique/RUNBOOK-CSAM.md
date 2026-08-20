@@ -13,6 +13,7 @@ Ce document n'est **pas** un texte destiné aux utilisateurs (voir CGU/politique
 - **SLA interne** (aligné CGU, en attente validation avocat) : qualification d'un signalement **urgent** (`illegal`, `csam_risk`) **< 24 h ouvrées** ; action conservatoire (suspension compte) **< 1 h ouvrée** si alerte automatique `minor_risk` ou signalement `csam_risk` crédible.
 - **Signalement utilisateur vs détection auto** :
   - **Détection Sightengine** (`minor_risk`, frame live) → contenu **non publié** ou live **coupé automatiquement** + alerte `csam_risk_detected`.
+  - **Match PhotoDNA / blocklist locale** → contenu **non publié** + alerte `csam_risk_detected` avec **métadonnées seulement** (date, user id, SHA-256, source). **Jamais le fichier** dans l’e-mail. PHAROS = action humaine (pas d’API NCMEC dans l’app).
   - **Signalement utilisateur** (`csam_risk`) → **alerte immédiate** + priorité admin, **sans** coupure automatique du live (éviter abus) ; enquête manuelle puis suspension / blocage admin si nécessaire.
 
 ---

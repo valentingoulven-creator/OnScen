@@ -1,6 +1,6 @@
 # Cloudflare CDN + WAF devant OnScen
 
-> **Priorité infra P1** — protéger `getsoundy.com` et `staging.getsoundy.com` sans remplacer Caddy sur le VPS.  
+> **Priorité infra P1** — protéger `onscen.com` et `staging.onscen.com` sans remplacer Caddy sur le VPS.  
 > **Effort :** ~½ journée · **Coût :** 0 € (plan Free) · **Prérequis :** accès DNS (OVH ou Cloudflare).
 
 L'app utilise déjà **Cloudflare Stream** (RTMP live). Ce guide ajoute le **proxy orange cloud** devant le site web (CDN edge, WAF L7, anti-DDoS volumétrique).
@@ -15,25 +15,24 @@ Navigateur → Cloudflare edge (cache / WAF / DDoS)
           → PM2 Node :3000
 ```
 
-Caddy reste l'origine TLS (`commun/deploy/Caddyfile`). Node expose déjà `trust proxy` pour `X-Forwarded-*` (`server.ts`).
+Caddy reste l'origine TLS (`commun/deploy/Caddyfile`) avec `trusted_proxies` = plages Cloudflare. Node expose déjà `trust proxy` pour `X-Forwarded-*` (`server.ts`).
 
 ---
 
-## État actuel (2026-07-15)
+## État actuel (2026-08-20)
 
 | Élément | Statut |
 |---------|--------|
-| Zone `getsoundy.com` | **active** (NS Cloudflare chez OVH) |
-| DNS proxifié `@`, `staging`, `www` | **OK** (résolution → IP edge `188.114.96.x`) |
-| Prod `/health` via CF | **200** · `Server: cloudflare` |
-| Staging `/health` via CF | **200** (Caddy : chemins publics + `CF-Connecting-IP`) |
-| HTTP → HTTPS | **308** |
-| Cache assets `/assets/*` | **HIT** au 2ᵉ hit (origin `immutable`) |
-| WAF Free managed ruleset | **présent** |
-| Cache Rules explicites (dashboard) | **OK** — 3 règles `OnScen CDN cache` |
-| SSL Full (strict) via API | **OK** — `strict` |
+| Zone `onscen.com` | **active** (NS `sri` / `summer`.ns.cloudflare.com) |
+| DNS proxifié `@`, `www` | **OK** — anycast CF · `Server: cloudflare` + `CF-RAY` |
+| Prod `/health` via CF | **200** — utiliser `1.1.1.1` + `--resolve` (fichier **hosts** Windows = bypass) |
+| Staging `/health` via CF | **NXDOMAIN** jusqu’à l’A `staging` au dashboard |
+| Token API Stream | Liste la zone, **403** DNS / WAF / settings |
+| Caddy `trusted_proxies` | Plages Cloudflare v4+v6 |
+| HTTP → HTTPS | **308** via Cloudflare |
+| WAF Free managed | Dashboard **Security → WAF** (API 403) |
 
-Vérification locale :
+Vérification locale (contourne le fichier hosts) :
 
 ```powershell
 powershell -File commun/scripts/cloudflare-verify-cdn.ps1
@@ -41,14 +40,15 @@ powershell -File commun/scripts/cloudflare-verify-cdn.ps1
 
 ### Token API — permissions requises pour automatiser
 
-Le token Account API doit lier les permissions **à la zone** `getsoundy.com`, pas seulement au compte :
+Le token Account API doit lier les permissions **à la zone** `onscen.com`, pas seulement au compte :
 
-| Permission (scope **Zone** `getsoundy.com`) | Usage |
+| Permission (scope **Zone** `onscen.com`) | Usage |
 |---------------------------------------------|--------|
 | Zone DNS Write | CRUD enregistrements A/CNAME |
 | Zone Settings Write | SSL mode, Always HTTPS, min TLS, WebSockets |
 | Cache Settings Write | Cache Rules `/api`, `/assets`, etc. |
 | SSL and Certificates Write | Full (strict) |
+| Zone WAF Write | Managed ruleset (sinon dashboard ci-dessous) |
 | Zone Read | diagnostic |
 
 **Piège courant :** « DNS View Write » / « Account DNS Settings Write » = scope **compte** → ne suffit pas pour `/zones/.../dns_records`. Il faut **DNS Write** sur la zone.
@@ -59,7 +59,7 @@ Les expressions API Cache Rules utilisent `starts_with(http.request.uri.path, "/
 
 ## Étape 1 — Ajouter le site Cloudflare
 
-1. [dash.cloudflare.com](https://dash.cloudflare.com) → **Add a site** → `getsoundy.com`.
+1. [dash.cloudflare.com](https://dash.cloudflare.com) → **Add a site** → `onscen.com`.
 2. Plan **Free**.
 3. Choisir l'une des options DNS :
 
@@ -68,7 +68,7 @@ Les expressions API Cache Rules utilisent `starts_with(http.request.uri.path, "/
 | **Nameservers Cloudflare** | Recommandé — gestion DNS + proxy centralisés |
 | **DNS OVH + enregistrement A proxifié** | Si vous gardez les NS OVH : créer un compte CF, ajouter le site, puis dans OVH pointer l'enregistrement A vers l'IP **ou** utiliser un sous-domaine CNAME vers un hostname CF (selon config OVH) |
 
-Pour **staging** : ajouter `staging.getsoundy.com` comme enregistrement séparé (même zone ou zone staging).
+Pour **staging** : ajouter `staging.onscen.com` comme enregistrement séparé (même zone ou zone staging).
 
 ---
 
@@ -76,8 +76,8 @@ Pour **staging** : ajouter `staging.getsoundy.com` comme enregistrement séparé
 
 | Enregistrement | Type | Valeur | Proxy |
 |----------------|------|--------|-------|
-| `getsoundy.com` | A | `51.159.164.100` | **Proxied** ☁️ |
-| `www` | CNAME | `getsoundy.com` | **Proxied** |
+| `onscen.com` | A | `51.159.164.100` | **Proxied** ☁️ |
+| `www` | CNAME | `onscen.com` | **Proxied** |
 | `staging` | A | `51.159.170.181` | **Proxied** |
 
 **Ne pas** proxifier l'accès direct par IP (`51.159.164.100`) — garder pour debug / transition uniquement.
@@ -87,10 +87,10 @@ Pour **staging** : ajouter `staging.getsoundy.com` comme enregistrement séparé
 ## Étape 3 — SSL/TLS origin (Full Strict)
 
 1. Cloudflare → **SSL/TLS** → mode **Full (strict)**.
-2. Vérifier que Caddy sur le VPS a un certificat Let's Encrypt valide pour `getsoundy.com` :
+2. Vérifier que Caddy sur le VPS a un certificat Let's Encrypt valide pour `onscen.com` :
 
 ```bash
-ssh onscen-prod "curl -sI https://127.0.0.1/health -H 'Host: getsoundy.com' --insecure | head -5"
+ssh onscen-prod "curl -sI https://127.0.0.1/health -H 'Host: onscen.com' --insecure | head -5"
 ssh onscen-prod "sudo caddy validate --config /etc/caddy/Caddyfile"
 ```
 
@@ -132,10 +132,10 @@ Créer dans **Caching → Cache Rules** :
 
 ```bash
 # Doit montrer cf-cache-status: HIT après 2e requête (asset hashé)
-curl -sI "https://getsoundy.com/assets/index-XXXX.js" | grep -i cf-cache
+curl -sI "https://onscen.com/assets/index-XXXX.js" | grep -i cf-cache
 
 # API — doit rester DYNAMIC ou BYPASS
-curl -sI "https://getsoundy.com/health" | grep -i cf-cache
+curl -sI "https://onscen.com/health" | grep -i cf-cache
 ```
 
 Remplacer `index-XXXX.js` par un fichier réel listé dans `public/index.html`.
@@ -144,13 +144,25 @@ Remplacer `index-XXXX.js` par un fichier réel listé dans `public/index.html`.
 
 ## Étape 5 — WAF & sécurité (Free)
 
-1. **Security → WAF** → activer les règles managées disponibles (OWASP basique).
-2. **Security → Bots** → laisser défaut ; surveiller faux positifs sur `/api/auth/*`.
-3. **SSL/TLS → Always Use HTTPS** : ON.
-4. **SSL/TLS → Minimum TLS Version** : 1.2.
-5. **Network → WebSockets** : ON (Socket.io live / DM).
+Le token Stream (`CLOUDFLARE_API_TOKEN`) n’a souvent **pas** WAF Write → l’API répond **403**. Dans ce cas, activer à la main (2 min) :
 
-Rate limiting applicatif existant côté Node — le WAF CF complète, ne remplace pas.
+1. [dash.cloudflare.com](https://dash.cloudflare.com) → zone **onscen.com**.
+2. **Security → WAF → Managed rules**.
+3. **Cloudflare Managed Ruleset** → interrupteur **Enabled**.
+4. (Optionnel Free) **OWASP Core Ruleset** → Enabled, action *Managed Challenge* ou *Block* (surveiller `/api/auth/*` et `/socket.io`).
+5. **Security → Settings** → Security level **Medium**.
+6. **Network → WebSockets** : **On** (lives, DM, salons).
+7. **SSL/TLS** → Always Use HTTPS **On** · Minimum TLS **1.2** · mode **Full (strict)**.
+
+Automatisation (token avec **Zone WAF Write**) :
+
+```powershell
+powershell -File commun/scripts/setup-cloudflare-cdn.ps1
+```
+
+Si la ligne `WAF managed WARN` apparaît : revenir aux clics dashboard ci-dessus, ce n’est pas bloquant pour le CDN.
+
+Rate limiting applicatif existe déjà côté Node — le WAF CF complète, ne remplace pas.
 
 ---
 
@@ -175,7 +187,7 @@ Si un middleware de rate-limit par IP semble « tout venir de Cloudflare », vé
 ssh onscen-staging
 sudo bash /opt/onscen/deploy/sync-caddy-staging.sh
 sudo systemctl reload caddy
-curl -sI https://staging.getsoundy.com/health   # doit être 200
+curl -sI https://staging.onscen.com/health   # doit être 200
 ```
 
 **DNS Cloudflare (dashboard)** — si `staging` n'existe pas encore :
@@ -190,11 +202,11 @@ curl -sI https://staging.getsoundy.com/health   # doit être 200
 
 Ordre recommandé :
 
-1. Proxifier **staging.getsoundy.com** d'abord.
+1. Proxifier **staging.onscen.com** d'abord.
 2. Checklist :
 
 ```text
-[ ] https://staging.getsoundy.com/health → 200 JSON
+[ ] https://staging.onscen.com/health → 200 JSON
 [ ] Login OAuth Google (redirect URI inchangée — même hostname)
 [ ] Live / Socket.io (connexion WS OK)
 [ ] Asset /assets/* → cf-cache-status HIT
@@ -202,13 +214,13 @@ Ordre recommandé :
 [ ] Admin → coûts Cloudflare Stream toujours OK (API token inchangé)
 ```
 
-3. Proxifier **getsoundy.com** une fois staging validé 24–48 h.
+3. Proxifier **onscen.com** une fois staging validé 24–48 h.
 
 ---
 
 ## Étape 8 — Monitoring (lien P4)
 
-Une fois proxifié, activer **Cloudflare Health Checks** (optionnel) ou **UptimeRobot** sur `https://getsoundy.com/health` — voir `commun/deploy/OPS-PRIORITIES.md` § P4.
+Une fois proxifié, activer **Cloudflare Health Checks** (optionnel) ou **UptimeRobot** sur `https://onscen.com/health` — voir `commun/deploy/OPS-PRIORITIES.md` § P4.
 
 `monitor-alerts.sh` sur le VPS ne peut pas alerter si le VPS entier est down — d'où le besoin d'un check **externe**.
 

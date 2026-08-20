@@ -1,7 +1,7 @@
 /**
  * Monitoring alert notifier.
  * Sends email alerts via Resend HTTP API (RESEND_API_KEY) or SMTP (nodemailer fallback).
- * Recipients: SMTP_ADMIN_EMAIL (default admin@onscen.com) + ALERT_EXTRA_EMAILS (comma-sep).
+ * Recipients: ALERT_EMAIL + SMTP_ADMIN_EMAIL (default admin@onscen.com) + ALERT_EXTRA_EMAILS.
  * Cooldown: same alert type cannot be emailed more than once per 30 min (configurable).
  */
 
@@ -47,6 +47,8 @@ const DEFAULT_ADMIN_EMAIL = 'admin@onscen.com';
 
 function getRecipients(): string[] {
   const recipients = new Set<string>();
+  const alertEmail = process.env.ALERT_EMAIL?.trim();
+  if (alertEmail) recipients.add(alertEmail);
   const adminEmail = process.env.SMTP_ADMIN_EMAIL || DEFAULT_ADMIN_EMAIL;
   recipients.add(adminEmail);
   const extra = process.env.ALERT_EXTRA_EMAILS ?? '';

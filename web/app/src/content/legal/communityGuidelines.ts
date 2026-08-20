@@ -12,7 +12,7 @@ export const reglesCommunaute: LegalDocument = {
     },
     {
       heading: '2. Contenus attendus',
-      body: `Nous encourageons :\n• performances, répétitions, DJ sets, concerts, sorties et événements musicaux ;\n• partage d'affiches, dates de tournée, découverte d'artistes et de lieux ;\n• échanges respectueux entre mélomanes, créateurs et établissements.\n\nLes contenus doivent avoir un **lien direct** avec la musique ou la scène (voir CGU §2 et §5).`,
+      body: `Nous encourageons :\n• performances, répétitions, DJ sets, concerts, sorties et événements musicaux ;\n• partage d'affiches, dates de tournée, découverte d'artistes et de lieux ;\n• échanges respectueux entre mélomanes, créateurs et établissements.\n\nLes contenus doivent avoir un **lien direct** avec la musique ou la scène (voir CGU §2 et §5).\n\nLes lives (diffusion publique) sont réservés aux **18 ans et plus**.`,
     },
     {
       heading: '3. Contenus interdits',

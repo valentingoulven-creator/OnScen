@@ -40,7 +40,7 @@ export const politiqueConfidentialite: LegalDocument = {
     },
     {
       heading: '9. Mineurs',
-      body: `Le Service s'adresse aux personnes de 13 ans et plus. Lors de l'inscription, chaque utilisateur confirme activement avoir au moins 13 ans (case à cocher obligatoire). Les paiements et la monétisation créateur sont réservés aux 18 ans et plus. Nous ne collectons pas sciemment de données concernant des enfants de moins de 13 ans. Si vous êtes parent et pensez qu'un mineur nous a transmis des données, contactez-nous à ${LEGAL_PRIVACY_EMAIL} pour demander la suppression.`,
+      body: `Le Service s'adresse aux personnes de 13 ans et plus. Lors de l'inscription, chaque utilisateur confirme activement avoir au moins 13 ans (case à cocher obligatoire). Lancer un live, les paiements et la monétisation créateur sont réservés aux 18 ans et plus. Nous ne collectons pas sciemment de données concernant des enfants de moins de 13 ans. Si vous êtes parent et pensez qu'un mineur nous a transmis des données, contactez-nous à ${LEGAL_PRIVACY_EMAIL} pour demander la suppression.`,
     },
     {
       heading: '10. Cookies et stockage local',

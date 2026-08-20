@@ -2,7 +2,7 @@
 export const MIN_PROFILE_AGE = 13;
 export const MAX_PROFILE_AGE = 120;
 /** Âge minimum pour lancer un live (contenu artistique). */
-export const MIN_LIVE_AGE = 16;
+export const MIN_LIVE_AGE = 18;
 /** Âge minimum pour payer (dons, abonnements) ou recevoir en tant que créateur. */
 export const CREATOR_MONETIZATION_MIN_AGE = 18;
 /** Âge minimum pour la géolocalisation précise (POST /geo/update, mode « précision max »). */

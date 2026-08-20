@@ -10,8 +10,8 @@ export function isGoogleOAuthKeysPresent(): boolean {
 
 /**
  * Login / YouTube OAuth publics.
- * En prod le client Google actuel est `deleted_client` — rester coupé
- * jusqu’à GOOGLE_OAUTH_PROD_ENABLED=1 (après recréation console).
+ * En prod, rester coupé tant que GOOGLE_OAUTH_PROD_ENABLED≠1
+ * (évite d’exposer un client Console cassé).
  */
 export function isGoogleOAuthPubliclyEnabled(): boolean {
   if (!isGoogleOAuthKeysPresent()) return false;

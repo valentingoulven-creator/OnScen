@@ -71,6 +71,8 @@ import {
 } from '../lib/livekit';
 import { getIo } from '../lib/ioInstance';
 import { buildIceServers } from '../lib/iceServers';
+import { allowUnsampledLive, unsampledLiveResponse } from '../lib/liveSamplingPolicy';
+import { isPhotoDnaBlockingLive, photoDnaUnavailableLiveResponse } from '../lib/csamHashMatch';
 
 export const livesRouter = Router();
 
@@ -90,6 +92,13 @@ function runOrRespondPlanError(res: Response, fn: () => void): boolean {
     }
     throw e;
   }
+}
+
+/** PhotoDNA requis sans clé : pas de nouveau live caméra / ingest. */
+function rejectIfPhotoDnaBlocksLive(res: Response): boolean {
+  if (!isPhotoDnaBlockingLive()) return false;
+  res.status(503).json(photoDnaUnavailableLiveResponse());
+  return true;
 }
 
 const MAX_LIVE_TITLE_LENGTH = 120;
@@ -262,6 +271,8 @@ livesRouter.post('/start', authenticateJWT, liveStartLimiter, async (req: Reques
     return;
   }
 
+  if (rejectIfPhotoDnaBlocksLive(res)) return;
+
   if (!user.liveTermsAcceptedAt) {
     res.status(403).json({
       error: 'Vous devez accepter les règles de diffusion OnScen avant de lancer un live.',
@@ -283,8 +294,15 @@ livesRouter.post('/start', authenticateJWT, liveStartLimiter, async (req: Reques
 
   if (!runOrRespondPlanError(res, () => assertCanStartLive(userId))) return;
 
-  const salon = [...db.salons.values()].find((s) => s.hostId === userId);
-  let live: Live;
+  const hostSalon = [...db.salons.values()].find((s) => s.hostId === userId);
+  if (hostSalon) {
+    res.status(409).json({
+      error: 'Vous animez déjà un salon. Terminez-le avant de lancer un live.',
+      code: 'SALON_ACTIVE',
+    });
+    return;
+  }
+
   const useObs = req.body.useObs === true;
   let streamMode = resolveStreamModeForHost(userId);
   if (useObs) {
@@ -299,59 +317,32 @@ livesRouter.post('/start', authenticateJWT, liveStartLimiter, async (req: Reques
     streamMode = 'cloudflare';
   }
 
-  if (salon) {
-    // Un live archivé (terminé) peut déjà occuper la clé `salon.id` si ce salon a déjà
-    // hébergé un live précédent (host qui redémarre). On le re-clé avant d'écraser cette
-    // entrée, pour ne pas perdre son historique (rediffusion, stats) — cf. finding I1.
-    const previousLive = db.lives.get(salon.id);
-    if (previousLive && !previousLive.isActive) {
-      const archivedKey = `live_${previousLive.endedAt ?? previousLive.startedAt}_${randomUUID()}`;
-      previousLive.id = archivedKey;
-      db.lives.delete(salon.id);
-      db.lives.set(archivedKey, previousLive);
-    }
-    /** playbackState reprend le salon (métadonnées morceau) ; la vidéo YouTube reste côté SalonPage, pas LivePage. */
-    live = {
-      id: salon.id,
-      salonId: salon.id,
-      hostId: salon.hostId,
-      hostName: salon.hostName,
-      title: sanitizeLiveTitle(req.body.title, `Live — ${salon.title}`),
-      platform: salon.platform,
-      playbackState: salon.playbackState,
-      latitude: salon.latitude,
-      longitude: salon.longitude,
-      blurredLatitude: blurCoordinate(salon.latitude),
-      blurredLongitude: blurCoordinate(salon.longitude),
-      viewersCount: 0,
-      isActive: true,
-      startedAt: Date.now(),
-      vipModeratorIds: [],
-      streamMode,
-    };
-  } else {
-    const { latitude, longitude } = resolveStartCoordinates(user, req.body);
-    const platform: MusicPlatform = 'youtube';
-    live = {
-      // UUID plutôt que Date.now() : deux requêtes concurrentes dans la même milliseconde
-      // (double-tap, retry réseau) généraient sinon le même id → collision/état incohérent.
-      id: `live_${randomUUID()}`,
-      hostId: userId,
-      hostName: user.username,
-      title: sanitizeLiveTitle(req.body.title, `Live — ${user.username}`),
-      platform,
-      playbackState: defaultStandalonePlayback(user.username, platform),
-      latitude,
-      longitude,
-      blurredLatitude: blurCoordinate(latitude),
-      blurredLongitude: blurCoordinate(longitude),
-      viewersCount: 0,
-      isActive: true,
-      startedAt: Date.now(),
-      vipModeratorIds: [],
-      streamMode,
-    };
+  if (streamMode === 'webrtc' && !allowUnsampledLive()) {
+    res.status(503).json(unsampledLiveResponse());
+    return;
   }
+
+  const { latitude, longitude } = resolveStartCoordinates(user, req.body);
+  const platform: MusicPlatform = 'youtube';
+  const live: Live = {
+    // UUID plutôt que Date.now() : deux requêtes concurrentes dans la même milliseconde
+    // (double-tap, retry réseau) généraient sinon le même id → collision/état incohérent.
+    id: `live_${randomUUID()}`,
+    hostId: userId,
+    hostName: user.username,
+    title: sanitizeLiveTitle(req.body.title, `Live — ${user.username}`),
+    platform,
+    playbackState: defaultStandalonePlayback(user.username, platform),
+    latitude,
+    longitude,
+    blurredLatitude: blurCoordinate(latitude),
+    blurredLongitude: blurCoordinate(longitude),
+    viewersCount: 0,
+    isActive: true,
+    startedAt: Date.now(),
+    vipModeratorIds: [],
+    streamMode,
+  };
 
   // Réservation atomique — posée AVANT le premier `await` qui suit. Tout ce qui précède
   // depuis la vérification `existingId` ci-dessus est strictement synchrone (Node.js ne
@@ -362,6 +353,18 @@ livesRouter.post('/start', authenticateJWT, liveStartLimiter, async (req: Reques
   try {
     if (streamMode === 'cloudflare') {
       live.streamMode = await provisionCloudflareStreamForLive(live);
+    } else if (streamMode === 'livekit') {
+      try {
+        await startLiveKitSamplingRelay(live);
+      } catch (err) {
+        if (!allowUnsampledLive()) {
+          throw err;
+        }
+        console.warn(
+          '[lives] relais échantillonnage LiveKit ignoré (ALLOW_UNSAMPLED_LIVE):',
+          err instanceof Error ? err.message : err,
+        );
+      }
     }
 
     const stripeConnectSkipped = req.body.stripeConnectSkipped === true;
@@ -381,8 +384,11 @@ livesRouter.post('/start', authenticateJWT, liveStartLimiter, async (req: Reques
       notifyFollowersLiveStarted(live, host);
       notifyFavoritesLiveStarted(host, live);
     }
-    if (live.streamMode === 'cloudflare' && live.cloudflareLiveInputId) {
-      // Audit MOD-3 : échantillonnage périodique de frames pour modération auto pendant le live.
+    if (
+      (live.streamMode === 'cloudflare' || live.streamMode === 'livekit') &&
+      live.cloudflareLiveInputId
+    ) {
+      // Audit MOD-3 / P0-03 : frames Sightengine (Cloudflare direct ou relais LiveKit).
       startLiveContentSampling(live.id, live.cloudflareLiveInputId, live.hostId);
     }
     res.status(201).json({ live: publicLive(live, undefined, userId) });
@@ -392,7 +398,13 @@ livesRouter.post('/start', authenticateJWT, liveStartLimiter, async (req: Reques
     if (db.activeLiveByHost.get(userId) === live.id) db.activeLiveByHost.delete(userId);
     console.error('[lives] Échec démarrage du live:', err);
     if (!res.headersSent) {
-      res.status(500).json({ error: 'Erreur lors du démarrage du live.', code: 'live_start_failed' });
+      const samplingRequired =
+        err instanceof Error && err.message === 'LIVE_SAMPLING_REQUIRED';
+      if (samplingRequired) {
+        res.status(503).json(unsampledLiveResponse());
+      } else {
+        res.status(500).json({ error: 'Erreur lors du démarrage du live.', code: 'live_start_failed' });
+      }
     }
   }
 });
@@ -622,6 +634,7 @@ livesRouter.post('/:id/cloudflare-stream', authenticateJWT, async (req: Request,
     res.status(403).json({ error: 'Réservé à l’hôte du live.' });
     return;
   }
+  if (rejectIfPhotoDnaBlocksLive(res)) return;
   if (!isCloudflareStreamConfigured()) {
     res.status(503).json({
       error: 'Cloudflare Stream non configuré sur le serveur.',
@@ -664,6 +677,7 @@ livesRouter.get('/:id/cloudflare-ingest', authenticateJWT, async (req: Request, 
     res.status(403).json({ error: 'Réservé à l’hôte du live.' });
     return;
   }
+  if (rejectIfPhotoDnaBlocksLive(res)) return;
   if (!isCloudflareStreamConfigured()) {
     res.status(503).json({ error: 'Cloudflare Stream non configuré.', code: 'cloudflare_not_configured' });
     return;
@@ -790,6 +804,17 @@ async function ensureLiveKitCdnCloudflareInput(live: Live): Promise<CloudflareLi
   return cfCreds;
 }
 
+async function startLiveKitSamplingRelay(live: Live): Promise<void> {
+  if (!isLiveKitConfigured() || !isCloudflareStreamConfigured()) {
+    throw new Error('LIVE_SAMPLING_REQUIRED');
+  }
+  const cfCreds = await ensureLiveKitCdnCloudflareInput(live);
+  if (!(await getLiveKitEgressId(live.id))) {
+    const rtmpUrl = `${cfCreds.rtmpsUrl}${cfCreds.rtmpsStreamKey}`;
+    await startLiveKitEgress(live.id, rtmpUrl);
+  }
+}
+
 /** RTMP/OBS credentials for LiveKit → Cloudflare CDN relay (host only, livekit mode). */
 livesRouter.get('/:id/livekit-cdn-ingest', authenticateJWT, async (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
@@ -839,6 +864,7 @@ livesRouter.post('/:id/start-egress', authenticateJWT, async (req: Request, res:
     res.status(403).json({ error: 'Réservé à l\'hôte du live.' });
     return;
   }
+  if (rejectIfPhotoDnaBlocksLive(res)) return;
   if (live.streamMode !== 'livekit') {
     res.status(400).json({ error: 'Ce live n\'est pas en mode LiveKit.', code: 'not_livekit' });
     return;

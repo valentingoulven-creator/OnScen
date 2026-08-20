@@ -2,6 +2,7 @@ import { getJwtSecret, isDeployedEnv, isPreproductionEnv, isProductionEnv } from
 import { resolveCorsOrigin } from './corsConfig';
 import { isPublisherConfigComplete } from './legalPublisher';
 import { isAcrCloudConfigured } from './acrCloudConfig';
+import { isPhotoDnaConfigured, isPhotoDnaRequired } from './csamHashMatch';
 import { assertOpsHealthTokenConfigured } from '../middleware/opsHealthAuth';
 
 function assertTotpEncryptionKey(): void {
@@ -98,6 +99,28 @@ export function assertProductionStartup(): void {
     console.log('[startup] ACRCloud actif — scan copyright sur uploads compositions/reels');
   }
 
+  if (isDeployedEnv() && !isPhotoDnaConfigured()) {
+    if (isPhotoDnaRequired()) {
+      console.warn(
+        '[startup] PhotoDNA non configuré — uploads images/vidéos et lives caméra REFUSÉS (PHOTODNA_REQUIRED, défaut env déployé). ' +
+          'Contrat Microsoft + PHOTODNA_SUBSCRIPTION_KEY, ou PHOTODNA_REQUIRED=0 seulement avec dérogation écrite.'
+      );
+    } else {
+      console.warn(
+        '[startup] PhotoDNA non configuré — hash-matching CSAM inactif (Sightengine seul). ' +
+          'PHOTODNA_REQUIRED=0 est une dérogation : les médias passent sans hash NCMEC.'
+      );
+    }
+  }
+
+  const pm2Wanted = Number(process.env.PM2_INSTANCES?.trim() || '1');
+  if (isProductionEnv() && pm2Wanted > 1) {
+    console.warn(
+      `[startup] PM2_INSTANCES=${pm2Wanted} mais ecosystem.config.cjs force instances:1 ` +
+        '(store applicatif encore partiellement en RAM). Aligner l’env sur 1 ou cluster après refonte store.'
+    );
+  }
+
   if (process.env.DONATIONS_ENABLED === '1' && !process.env.STRIPE_WEBHOOK_SECRET?.trim()) {
     throw new Error(
       '[startup] STRIPE_WEBHOOK_SECRET must be set when DONATIONS_ENABLED=1 — ' +
@@ -118,9 +141,22 @@ export function assertProductionStartup(): void {
 
   if (isProductionEnv() && process.env.GOOGLE_OAUTH_PROD_ENABLED !== '1') {
     console.warn(
-      '[startup] Google / YouTube OAuth publics coupés (client prod deleted_client). ' +
-        'Après recréation du client console : GOOGLE_OAUTH_PROD_ENABLED=1'
+      '[startup] Google / YouTube OAuth publics coupés (GOOGLE_OAUTH_PROD_ENABLED≠1). ' +
+        'Après client Console + test : GOOGLE_OAUTH_PROD_ENABLED=1'
     );
+  }
+
+  if (isProductionEnv()) {
+    const resendFrom = process.env.RESEND_FROM?.trim() ?? '';
+    if (!process.env.RESEND_API_KEY?.trim()) {
+      console.warn(
+        '[startup] RESEND_API_KEY absent — mails transactionnels et alertes monitor coupés. Voir commun/docs/RESEND-PROD.md',
+      );
+    } else if (/@resend\.dev\b/i.test(resendFrom)) {
+      console.warn(
+        '[startup] RESEND_FROM est encore @resend.dev — sandbox Resend interdit en production. Utilisez noreply@onscen.com + clé API Production.',
+      );
+    }
   }
 
   if (isProductionEnv() && process.env.STRIPE_SECRET_KEY?.trim().startsWith('sk_test_')) {

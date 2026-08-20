@@ -55,6 +55,7 @@ SMTP_PASS=$(get_env SMTP_PASS "")
 SMTP_FROM_RAW=$(get_env SMTP_FROM "")
 SMTP_FROM="${SMTP_FROM_RAW:-OnScen Monitoring <${SMTP_USER}>}"
 SMTP_ADMIN_EMAIL=$(get_env SMTP_ADMIN_EMAIL "admin@onscen.com")
+ALERT_EMAIL=$(get_env ALERT_EMAIL "")
 ALERT_EXTRA_EMAILS=$(get_env ALERT_EXTRA_EMAILS "")
 
 RESEND_API_KEY=$(get_env RESEND_API_KEY "")
@@ -65,6 +66,10 @@ RESEND_ENABLED="false"
 [[ -n "$RESEND_API_KEY" ]] && RESEND_ENABLED="true"
 
 APP_ENV=$(get_env APP_ENV "production")
+if [[ "$APP_ENV" == "production" && "$RESEND_FROM" == *"resend.dev"* ]]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S'): RESEND_FROM sandbox (@resend.dev) interdit en production — emails monitor désactivés" >> "$LOG_FILE"
+  RESEND_ENABLED="false"
+fi
 SMTP_ENABLED_FLAG=$(get_env SMTP_ENABLED "")
 SMTP_VARS_OK="false"
 [[ -n "$SMTP_HOST" && -n "$SMTP_USER" && -n "$SMTP_PASS" ]] && SMTP_VARS_OK="true"
@@ -134,6 +139,9 @@ send_alert_email() {
 
   # Construire la liste des destinataires
   local recipients="$SMTP_ADMIN_EMAIL"
+  if [[ -n "$ALERT_EMAIL" && "$recipients" != *"$ALERT_EMAIL"* ]]; then
+    recipients="${ALERT_EMAIL},${recipients}"
+  fi
   if [[ -n "$ALERT_EXTRA_EMAILS" ]]; then
     recipients="${recipients},${ALERT_EXTRA_EMAILS}"
   fi
@@ -166,6 +174,9 @@ PYEOF
     fi
 
     echo "${ts}: Erreur Resend (HTTP ${http_code}) : $(cat "$response_file" 2>/dev/null || echo '(pas de réponse)')" >> "$LOG_FILE"
+    if [[ "$http_code" == "403" || "$http_code" == "422" ]]; then
+      echo "${ts}: Hint Resend — clé encore sandbox (« testing emails ») ou domaine non vérifié. Voir commun/docs/RESEND-PROD.md" >> "$LOG_FILE"
+    fi
     return 1
   fi
 

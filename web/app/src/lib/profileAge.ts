@@ -1,7 +1,7 @@
 /** Aligné sur backend ageGates.ts */
 export const MIN_PROFILE_AGE = 13;
 export const MAX_PROFILE_AGE = 120;
-export const MIN_LIVE_AGE = 16;
+export const MIN_LIVE_AGE = 18;
 export const CREATOR_MONETIZATION_MIN_AGE = 18;
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

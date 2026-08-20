@@ -210,9 +210,9 @@ describe('publicProfile age privacy', () => {
 });
 
 describe('userMeetsLiveAge', () => {
-  it('autorise 16 ans et plus', () => {
-    expect(userMeetsLiveAge(15)).toBe(false);
-    expect(userMeetsLiveAge(16)).toBe(true);
+  it('autorise 18 ans et plus', () => {
+    expect(userMeetsLiveAge(17)).toBe(false);
+    expect(userMeetsLiveAge(18)).toBe(true);
   });
 });
 

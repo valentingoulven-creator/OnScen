@@ -4,6 +4,7 @@ import path from 'node:path';
 import { getDataDir } from '../paths';
 import { parseImageDataUrl } from './imageDataUrl';
 import { parseVideoDataUrl } from './videoDataUrl';
+import { isDeployedEnv } from './jwtSecret';
 
 export type CsamHashSource = 'local' | 'photodna';
 
@@ -11,6 +12,8 @@ export interface CsamHashCheck {
   blocked: boolean;
   sha256?: string;
   source?: CsamHashSource;
+  /** PhotoDNA requis mais absent ou en erreur — l'appelant doit refuser l'upload. */
+  unavailable?: boolean;
 }
 
 interface BlocklistFile {
@@ -84,8 +87,33 @@ export function resetCsamHashMatchForTests(): void {
   persistDisabled = true;
 }
 
-function isPhotoDnaConfigured(): boolean {
+export function isPhotoDnaConfigured(): boolean {
   return Boolean(process.env.PHOTODNA_SUBSCRIPTION_KEY?.trim());
+}
+
+/**
+ * Hash-matching CSAM obligatoire sauf opt-out explicite.
+ * Env déployé (prod/préprod) : défaut true si PHOTODNA_REQUIRED est absent.
+ * PHOTODNA_REQUIRED=0/false/off désactive le refus (msdev / dérogation écrite).
+ */
+export function isPhotoDnaRequired(): boolean {
+  const raw = process.env.PHOTODNA_REQUIRED?.trim().toLowerCase();
+  if (raw === '0' || raw === 'false' || raw === 'no' || raw === 'off') return false;
+  if (raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on') return true;
+  return isDeployedEnv();
+}
+
+/** Uploads + lives caméra gelés : requis et pas de clé Microsoft. */
+export function isPhotoDnaBlockingLive(): boolean {
+  return isPhotoDnaRequired() && !isPhotoDnaConfigured();
+}
+
+export function photoDnaUnavailableLiveResponse(): { error: string; code: string } {
+  return {
+    error:
+      'Les lives caméra sont suspendus tant que la vérification PhotoDNA n’est pas configurée.',
+    code: 'PHOTODNA_UNAVAILABLE',
+  };
 }
 
 function photoDnaMatchStatus(payload: unknown): 'match' | 'nomatch' | 'error' {
@@ -137,9 +165,14 @@ export async function checkCsamHash(source: string): Promise<CsamHashCheck> {
       rememberBlockedHash(sha256, 'photodna');
       return { blocked: true, sha256, source: 'photodna' };
     }
-    if (photo === 'error' && process.env.APP_ENV === 'production') {
-      return { blocked: true, sha256, source: 'photodna' };
+    if (photo === 'error' && isDeployedEnv()) {
+      return { blocked: true, sha256, source: 'photodna', unavailable: true };
     }
+    return { blocked: false, sha256 };
+  }
+
+  if (isPhotoDnaRequired()) {
+    return { blocked: true, sha256, source: 'photodna', unavailable: true };
   }
 
   return { blocked: false, sha256 };

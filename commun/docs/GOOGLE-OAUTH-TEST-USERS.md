@@ -1,4 +1,11 @@
-# Google OAuth — utilisateurs de test (YouTube / getsoundy.com)
+# Google OAuth — utilisateurs de test
+
+> **Obsolète pour le go-live OnScen.** Le client listé ici (`getsoundy.com`, projet `522947046161`) est **deleted_client**.  
+> Procédure actuelle : **[GOOGLE-OAUTH-PROD.md](./GOOGLE-OAUTH-PROD.md)** (nouveau client Console, domaine `onscen.com`, flag `GOOGLE_OAUTH_PROD_ENABLED`).
+
+---
+
+# (archive) Google OAuth — utilisateurs de test (YouTube / getsoundy.com)
 
 > Corrige l'erreur **`403 access_denied`** lors de la liaison compte YouTube sur [getsoundy.com](https://getsoundy.com) quand l'écran de consentement OAuth est en mode **Testing** (non vérifié).
 

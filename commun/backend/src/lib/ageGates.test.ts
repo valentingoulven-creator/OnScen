@@ -11,7 +11,7 @@ import {
 } from './ageGates';
 
 describe('ageGates', () => {
-  it('exige 16 ans minimum pour lancer un live', () => {
+  it('exige 18 ans minimum pour lancer un live', () => {
     expect(userMeetsLiveAge(15)).toBe(false);
     expect(userMeetsLiveAge(MIN_LIVE_AGE)).toBe(true);
     expect(userMeetsLiveAge(undefined)).toBe(false);
@@ -30,7 +30,7 @@ describe('ageGates', () => {
     const user17 = { birthDate: '2008-06-27' };
     const user18 = { birthDate: '2008-06-25' };
     expect(resolveUserAge(user17, ref)).toBe(17);
-    expect(userMeetsLiveAgeFromProfile(user17)).toBe(true);
+    expect(userMeetsLiveAgeFromProfile(user17)).toBe(false);
     expect(userMeetsMonetizationAgeFromProfile(user17)).toBe(false);
     expect(userMeetsMonetizationAgeFromProfile(user18)).toBe(true);
     expect(creatorMeetsMonetizationAgeFromProfile({ age: 16, birthDate: '2000-01-01' })).toBe(true);

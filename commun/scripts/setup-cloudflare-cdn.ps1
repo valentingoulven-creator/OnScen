@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# Configure Cloudflare CDN/WAF for getsoundy.com (DNS, SSL, cache rules).
+# Configure Cloudflare CDN/WAF for onscen.com (DNS, SSL, cache rules).
 # Usage:
 #   $env:CLOUDFLARE_DNS_API_TOKEN = 'cfat_...'
 #   $env:CLOUDFLARE_ACCOUNT_ID = '...'   # optional
@@ -8,7 +8,7 @@
 # Never commit tokens. Reads CLOUDFLARE_DNS_API_TOKEN or CLOUDFLARE_API_TOKEN from env,
 # then backend/.env.production as fallback.
 param(
-  [string]$ZoneName = 'getsoundy.com',
+  [string]$ZoneName = 'onscen.com',
   [string]$ProdIp = '51.159.164.100',
   [string]$StagingIp = '51.159.170.181'
 )
@@ -142,32 +142,20 @@ function Set-CacheRules {
 $script:CfToken = Get-CfToken
 Write-Host '=== Cloudflare CDN setup ==='
 
-# Account tokens need ZONE-scoped permissions (DNS Write, Zone Settings Write, Cache Settings Write).
-# Account-level "DNS View Write" / "Account DNS Settings Write" are not enough for /zones/.../dns_records.
+# Account tokens need ZONE-scoped permissions (DNS Write, Zone Settings Write, WAF Write).
 try {
   $probe = Invoke-CfApi GET "/zones?name=$ZoneName&per_page=1"
   if ($probe.result.Count -gt 0) {
     $probeZoneId = $probe.result[0].id
     try {
       Invoke-CfApi GET "/zones/$probeZoneId/dns_records?per_page=1" | Out-Null
+      Write-Host 'TOKEN DNS probe OK'
     } catch {
-      Write-Host @'
-
-TOKEN_SCOPE_WARN: this token cannot manage zone DNS/settings.
-Create a Custom Account API Token scoped to zone getsoundy.com with:
-  - Zone DNS Write
-  - Zone Settings Write
-  - Cache Settings Write
-  - Zone Read
-
-Or finish SSL + Cache Rules in the Cloudflare dashboard (see commun/deploy/CLOUDFLARE-CDN-WAF.md).
-'@
-      throw 'Cloudflare token missing zone DNS/settings permissions'
+      Write-Host 'TOKEN_SCOPE_WARN: no DNS Write — skip DNS edits, continue WAF/settings'
     }
   }
 } catch {
-  if ($_.Exception.Message -notmatch 'TOKEN_SCOPE_WARN') { throw }
-  exit 3
+  Write-Host "ZONE probe WARN: $($_.Exception.Message)"
 }
 
 $zones = Invoke-CfApi GET "/zones?name=$ZoneName"
@@ -178,20 +166,22 @@ $zone = $zones.result[0]
 $zoneId = $zone.id
 Write-Host "ZONE $($zone.name) id=$zoneId status=$($zone.status)"
 
-Ensure-DnsRecord -ZoneId $zoneId -Type 'A' -Name '@' -Content $ProdIp -Proxied $true
-Ensure-DnsRecord -ZoneId $zoneId -Type 'A' -Name 'staging' -Content $StagingIp -Proxied $true
-
-# www CNAME
 try {
+  Ensure-DnsRecord -ZoneId $zoneId -Type 'A' -Name '@' -Content $ProdIp -Proxied $true
+  Ensure-DnsRecord -ZoneId $zoneId -Type 'A' -Name 'staging' -Content $StagingIp -Proxied $true
   Ensure-DnsRecord -ZoneId $zoneId -Type 'CNAME' -Name 'www' -Content $ZoneName -Proxied $true
 } catch {
-  Write-Host "DNS www WARN: $($_.Exception.Message)"
+  Write-Host "DNS SKIP: $($_.Exception.Message)"
 }
 
-Set-ZoneSetting -ZoneId $zoneId -Id 'ssl' -Value 'strict'
-Set-ZoneSetting -ZoneId $zoneId -Id 'always_use_https' -Value 'on'
-Set-ZoneSetting -ZoneId $zoneId -Id 'min_tls_version' -Value '1.2'
-Set-ZoneSetting -ZoneId $zoneId -Id 'tls_1_3' -Value 'on'
+try {
+  Set-ZoneSetting -ZoneId $zoneId -Id 'ssl' -Value 'strict'
+  Set-ZoneSetting -ZoneId $zoneId -Id 'always_use_https' -Value 'on'
+  Set-ZoneSetting -ZoneId $zoneId -Id 'min_tls_version' -Value '1.2'
+  Set-ZoneSetting -ZoneId $zoneId -Id 'tls_1_3' -Value 'on'
+} catch {
+  Write-Host "SETTINGS SKIP: $($_.Exception.Message)"
+}
 
 try {
   Set-ZoneSetting -ZoneId $zoneId -Id 'security_level' -Value 'medium'
@@ -200,6 +190,28 @@ try {
 try {
   Set-ZoneSetting -ZoneId $zoneId -Id 'browser_check' -Value 'on'
 } catch { Write-Host "SETTING browser_check skip" }
+
+# Cloudflare Managed Ruleset (Free) — WAF L7
+try {
+  $managed = @{
+    rules = @(
+      @{
+        action = 'execute'
+        expression = 'true'
+        description = 'OnScen Cloudflare Managed Free WAF'
+        enabled = $true
+        action_parameters = @{
+          id = '77454fe2d30c4220b5701f6fdfb893ba'
+        }
+      }
+    )
+  }
+  Invoke-CfApi PUT "/zones/$zoneId/rulesets/phases/http_request_firewall_managed/entrypoint" $managed | Out-Null
+  Write-Host 'WAF managed ruleset OK'
+} catch {
+  Write-Host "WAF managed WARN: $($_.Exception.Message)"
+  Write-Host 'Dashboard: Security → WAF → Managed rules → Cloudflare Managed Ruleset → Enable'
+}
 
 Set-CacheRules -ZoneId $zoneId
 

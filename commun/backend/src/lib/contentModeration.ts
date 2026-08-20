@@ -12,7 +12,11 @@ import {
 import { db } from '../models/schema';
 import { appendContentReport } from './contentReports';
 import { sendMonitoringAlert } from './alertNotifier';
-import { checkCsamHash, rememberBlockedSource } from './csamHashMatch';
+import {
+  checkCsamHash,
+  rememberBlockedSource,
+  type CsamHashSource,
+} from './csamHashMatch';
 
 export type ModerationContext =
   | 'story'
@@ -60,12 +64,83 @@ export function moderationRejectionMessage(result: ModerationResult): string {
 }
 
 /**
- * Escalade CSAM (MOD-8) : quand Sightengine détecte une combinaison mineur+nudité/suggestif,
- * on ne se contente pas d'un refus générique — on journalise un signalement système
- * (preuve interne, catégorie dédiée) et on alerte l'équipe admin immédiatement (email,
- * criticité maximale, sans cooldown). Voir commun/docs/juridique/RUNBOOK-CSAM.md pour la
- * procédure opérationnelle attendue côté équipe à réception de cette alerte.
+ * Escalade CSAM (MOD-8) — deux voies :
+ * - hash PhotoDNA / blocklist : métadonnées (time, user id, SHA-256), jamais le fichier ;
+ * - Sightengine minor_risk : scores IA, contenu non publié.
+ * PHAROS / NCMEC : humain (RUNBOOK-CSAM.md), pas d'API automatique.
  */
+export function buildCsamHashMatchEscalation(input: {
+  context: ModerationContext;
+  uploaderId?: string;
+  username?: string;
+  sha256?: string;
+  source?: CsamHashSource;
+  at?: Date;
+}): {
+  reporterId: string;
+  reporterUsername: string;
+  details: string;
+  alertMessage: string;
+} {
+  const at = (input.at ?? new Date()).toISOString();
+  const sha = input.sha256 && /^[a-f0-9]{64}$/i.test(input.sha256) ? input.sha256.toLowerCase() : 'n/a';
+  const src = input.source ?? 'photodna';
+  const reporterId = src === 'local' ? 'system:csam-hash-local' : 'system:photodna';
+  const reporterUsername =
+    src === 'local' ? 'Blocklist CSAM locale' : 'PhotoDNA (hash-matching)';
+  const userLine = `${input.username ?? 'inconnu'} (${input.uploaderId ?? 'n/a'})`;
+  const details =
+    `Match hash CSAM bloquant sur ${input.context}. Contenu non publié. ` +
+    `Source=${src}. SHA-256=${sha}. Time=${at}. User=${userLine}. ` +
+    `Pas de fichier dans cette trace. Signalement PHAROS manuel (RUNBOOK-CSAM.md). Pas d'API NCMEC.`;
+  const alertMessage =
+    `Upload BLOQUE (hash-match CSAM, jamais publie).\n` +
+    `Time: ${at}\n` +
+    `User: ${userLine}\n` +
+    `Source: ${src}\n` +
+    `SHA-256: ${sha}\n` +
+    `Do not email or redistribute the file.\n` +
+    `Action: RUNBOOK-CSAM.md then PHAROS (internet-signalement.gouv.fr). NCMEC API is not automated.`;
+  return { reporterId, reporterUsername, details, alertMessage };
+}
+
+async function escalateHashMatchDetection(
+  context: ModerationContext,
+  uploaderId: string | undefined,
+  sha256: string | undefined,
+  source: CsamHashSource | undefined
+): Promise<void> {
+  const uploader = uploaderId ? db.users.get(uploaderId) : undefined;
+  const payload = buildCsamHashMatchEscalation({
+    context,
+    uploaderId,
+    username: uploader?.username,
+    sha256,
+    source,
+  });
+  try {
+    appendContentReport({
+      reporterId: payload.reporterId,
+      reporterUsername: payload.reporterUsername,
+      category: 'csam_risk',
+      details: payload.details,
+      targetUserId: uploaderId,
+    });
+  } catch (err) {
+    console.error('[moderation] Echec journalisation signalement csam_risk (hash):', err);
+  }
+  try {
+    await sendMonitoringAlert({
+      type: 'csam_risk_detected',
+      severity: 'critical',
+      forceSend: true,
+      message: payload.alertMessage,
+    });
+  } catch (err) {
+    console.error('[moderation] Echec envoi alerte csam_risk_detected (hash):', err);
+  }
+}
+
 async function escalateMinorRiskDetection(
   context: ModerationContext,
   uploaderId: string | undefined,
@@ -147,8 +222,15 @@ export async function moderateImageSource(
   }
 
   const hashCheck = await checkCsamHash(trimmed);
+  if (hashCheck.unavailable) {
+    return {
+      allowed: false,
+      error:
+        'Vérification PhotoDNA indisponible. Réessayez plus tard ou contactez le support.',
+    };
+  }
   if (hashCheck.blocked) {
-    await escalateMinorRiskDetection(context, uploaderId, { hash_match: 1 });
+    await escalateHashMatchDetection(context, uploaderId, hashCheck.sha256, hashCheck.source);
     return { allowed: false, reason: 'minor_risk' };
   }
 
@@ -186,8 +268,15 @@ export async function moderateVideoSource(
   }
 
   const hashCheck = await checkCsamHash(trimmed);
+  if (hashCheck.unavailable) {
+    return {
+      allowed: false,
+      error:
+        'Vérification PhotoDNA indisponible. Réessayez plus tard ou contactez le support.',
+    };
+  }
   if (hashCheck.blocked) {
-    await escalateMinorRiskDetection(context, uploaderId, { hash_match: 1 });
+    await escalateHashMatchDetection(context, uploaderId, hashCheck.sha256, hashCheck.source);
     return { allowed: false, reason: 'minor_risk' };
   }
 

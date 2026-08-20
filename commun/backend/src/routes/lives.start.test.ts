@@ -73,4 +73,76 @@ describe('POST /lives/start — garde anti-doublon (concurrence)', () => {
     const hostLives = [...db.lives.values()].filter((l) => l.hostId === hostId && l.isActive);
     expect(hostLives).toHaveLength(1);
   });
+
+  it('refuse de démarrer un live si l’hôte a déjà un salon', async () => {
+    db.salons.set('salon_host_exclusive', {
+      id: 'salon_host_exclusive',
+      hostId,
+      hostName: 'ConcurrencyHost',
+      title: 'Salon déjà ouvert',
+      platform: 'youtube',
+      playbackState: {
+        platform: 'youtube',
+        trackId: 'demo',
+        title: 'Track',
+        artist: 'Artist',
+        isPlaying: true,
+        progressMs: 0,
+        updatedAt: Date.now(),
+        startedAt: Date.now(),
+      },
+      latitude: 43.6,
+      longitude: 3.88,
+      blurredLatitude: 43.6,
+      blurredLongitude: 3.88,
+      listenersCount: 1,
+      isGhostMode: false,
+      isPublic: true,
+      accessMode: 'public',
+      allowedUserIds: [hostId],
+      allowQueue: true,
+      createdAt: Date.now(),
+    });
+
+    const token = signTokenForUser(db.users.get(hostId)!);
+    const res = await fetch(`${baseUrl}/lives/start`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-auth-token': token,
+      },
+      body: JSON.stringify({ title: 'Live interdit', latitude: 43.6, longitude: 3.88 }),
+    });
+    const body = await res.json();
+    expect(res.status).toBe(409);
+    expect(body.code).toBe('SALON_ACTIVE');
+    expect([...db.lives.values()].filter((l) => l.hostId === hostId && l.isActive)).toHaveLength(0);
+  });
+
+  it('refuse de démarrer un live si PhotoDNA est requis sans clé', async () => {
+    const prevRequired = process.env.PHOTODNA_REQUIRED;
+    const prevKey = process.env.PHOTODNA_SUBSCRIPTION_KEY;
+    process.env.PHOTODNA_REQUIRED = '1';
+    delete process.env.PHOTODNA_SUBSCRIPTION_KEY;
+    try {
+      const token = signTokenForUser(db.users.get(hostId)!);
+      const res = await fetch(`${baseUrl}/lives/start`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-auth-token': token,
+        },
+        body: JSON.stringify({ title: 'Live PhotoDNA', latitude: 43.6, longitude: 3.88 }),
+      });
+      const body = await res.json();
+      expect(res.status).toBe(503);
+      expect(body.code).toBe('PHOTODNA_UNAVAILABLE');
+      expect([...db.lives.values()].filter((l) => l.hostId === hostId && l.isActive)).toHaveLength(0);
+    } finally {
+      if (prevRequired === undefined) delete process.env.PHOTODNA_REQUIRED;
+      else process.env.PHOTODNA_REQUIRED = prevRequired;
+      if (prevKey === undefined) delete process.env.PHOTODNA_SUBSCRIPTION_KEY;
+      else process.env.PHOTODNA_SUBSCRIPTION_KEY = prevKey;
+    }
+  });
 });

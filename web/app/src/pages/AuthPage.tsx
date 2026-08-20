@@ -60,8 +60,6 @@ export function AuthPage() {
   const isMsdev = import.meta.env.VITE_APP_ENV === 'msdev';
   const isPreprod = import.meta.env.VITE_APP_ENV === 'preproduction';
   const isProduction = import.meta.env.VITE_APP_ENV === 'production';
-  /** Connexion Google grisée en prod (onscen.com) — msdev/preprod inchangés. */
-  const googleOAuthDisabled = isProduction;
   const demoLoginEmail = (
     import.meta.env.VITE_DEMO_LOGIN_EMAIL ||
     (isMsdev ? 'listener@msdev.local' : isPreprod ? 'admin@staging.onscen.com' : '')
@@ -695,7 +693,7 @@ export function AuthPage() {
       <div className="mx-auto flex h-full min-h-0 max-h-full w-full max-w-sm flex-col">
         {/* Logo centré verticalement entre le haut de la fenêtre et le bloc auth */}
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
-          <OnScenLogo variant="lockup" density="compact" showMark={false} className="mx-auto w-fit" />
+          <OnScenLogo variant="lockup" density="compact" className="mx-auto w-fit" />
         </div>
 
         <div className="flex shrink-0 flex-col gap-2.5 overflow-y-auto overscroll-contain">
@@ -991,33 +989,24 @@ export function AuthPage() {
             <>
               <button
                 type="button"
-                disabled={googleOAuthDisabled}
                 onClick={() => {
-                  if (googleOAuthDisabled) return;
                   window.location.href = '/api/auth/google';
                 }}
                 aria-describedby="google-oauth-hint"
-                aria-disabled={googleOAuthDisabled}
-                className={`w-full flex min-h-11 items-center justify-center gap-3 rounded-xl border px-4 py-2 text-sm transition ${
-                  googleOAuthDisabled
-                    ? 'cursor-not-allowed border-[#1a1a22] bg-[#0a0a0f] opacity-50'
-                    : 'cursor-pointer border-[#1e1e2f] bg-[#12121a] active:scale-[0.99] hover:border-purple-500/50 hover:bg-[#1a1a26] hover:shadow-[0_0_12px_rgba(139,92,246,0.2)]'
-                }`}
+                className="w-full flex min-h-11 cursor-pointer items-center justify-center gap-3 rounded-xl border border-[#1e1e2f] bg-[#12121a] px-4 py-2 text-sm transition active:scale-[0.99] hover:border-purple-500/50 hover:bg-[#1a1a26] hover:shadow-[0_0_12px_rgba(139,92,246,0.2)]"
               >
-                <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true" className={`shrink-0 ${googleOAuthDisabled ? 'grayscale' : ''}`}>
+                <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true" className="shrink-0">
                   <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
                   <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
                   <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
                   <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
                 </svg>
-                <span className={`text-sm font-semibold ${googleOAuthDisabled ? 'text-gray-500' : 'text-white'}`}>
+                <span className="text-sm font-semibold text-white">
                   {t('auth.continueWithGoogle')}
                 </span>
               </button>
               <p id="google-oauth-hint" className="sr-only">
-                {googleOAuthDisabled
-                  ? t('auth.continueWithGoogleDisabledHint')
-                  : t('auth.continueWithGoogleHint')}
+                {t('auth.continueWithGoogleHint')}
               </p>
             </>
           )}

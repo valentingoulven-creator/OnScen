@@ -1,5 +1,5 @@
 import { getOptionalRedis } from './optionalRedis';
-import { isEmailConfigured } from './emailSend';
+import { isEmailConfigured, isProductionEmailMisconfigured } from './emailSend';
 import { isLiveKitConfigured, pingLiveKit } from './livekit';
 import { getStripeClient } from './stripeClient';
 
@@ -44,6 +44,7 @@ async function checkStripeHealth(): Promise<ServiceHealthStatus> {
 }
 
 function checkSmtpHealth(): ServiceHealthStatus {
+  if (isProductionEmailMisconfigured()) return 'error';
   return isEmailConfigured() ? 'ok' : 'disabled';
 }
 

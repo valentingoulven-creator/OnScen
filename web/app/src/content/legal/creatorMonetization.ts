@@ -20,7 +20,7 @@ export const conditionsCreatorMonetization: LegalDocument = {
     },
     {
       heading: '4. Âge minimum et consentement',
-      body: `Compte OnScen : à partir de 13 ans (voir CGU).\n\nLancer un live (contenu artistique) : à partir de 16 ans.\n\nEffectuer un pourboire payant ou souscrire un abonnement : à partir de 18 ans.\n\nRecevoir des pourboires ou abonnements en tant que créateur : à partir de 18 ans.\n\nEn validant un paiement, vous confirmez remplir la condition d’âge ou disposer de l’autorisation légale requise pour utiliser un moyen de paiement.`,
+      body: `Compte OnScen : à partir de 13 ans (voir CGU).\n\nLancer un live (contenu artistique) : à partir de 18 ans.\n\nEffectuer un pourboire payant ou souscrire un abonnement : à partir de 18 ans.\n\nRecevoir des pourboires ou abonnements en tant que créateur : à partir de 18 ans.\n\nEn validant un paiement, vous confirmez remplir la condition d’âge ou disposer de l’autorisation légale requise pour utiliser un moyen de paiement.`,
     },
     {
       heading: '5. Abonnements récurrents',

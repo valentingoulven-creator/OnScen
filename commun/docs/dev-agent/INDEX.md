@@ -4,6 +4,21 @@ Rapports produits par `@onscen-dev-agent` à chaque session de développement si
 
 | Date | Rapport | Mission | Statut |
 |------|---------|---------|--------|
+| 2026-08-20 | [p1-photodna-alert](./rapports/2026-08-20-p1-photodna-alert.md) | P1 PhotoDNA : alerte métadonnées SHA sans fichier | ✅ |
+| 2026-08-20 | [p1-audit-fixes](./rapports/2026-08-20-p1-audit-fixes.md) | P1 audit 21h : live 18, Resend, bootstrap, disque staging | ⚠️ |
+| 2026-08-20 | [p0-git-csam](./rapports/2026-08-20-p0-git-csam.md) | P0 audit 17h : gel lives PhotoDNA + rotation TLS msdev | ⚠️ |
+| 2026-08-20 | [audit-go-prod-correctifs](./rapports/2026-08-20-audit-go-prod-correctifs.md) | Audit GO prod : PhotoDNA required, UI dons, ops VPS | ⚠️ |
+| 2026-08-17 | [live-video-under-header](./rapports/2026-08-17-live-video-under-header.md) | Live : vidéo / chat sous le header, pas dessous | ✅ |
+| 2026-08-17 | [live-start-livekit-room](./rapports/2026-08-17-live-start-livekit-room.md) | Live prod : créer la room LiveKit avant l’egress | ⚠️ |
+| 2026-08-16 | [audit-go-prod-correctifs](./rapports/2026-08-16-audit-go-prod-correctifs.md) | Audit GO prod : restore staging + correctifs code P0/P1 | ⚠️ |
+| 2026-08-16 | [handoff-builds-mobiles](./rapports/2026-08-16-handoff-builds-mobiles.md) | Handoff audit builds iOS/Android : CI xcodebuild + version unique | ✅ |
+| 2026-08-16 | [open-location-onscen-map](./rapports/2026-08-16-open-location-onscen-map.md) | Menu lieu : ouvrir sur la carte OnScen | ✅ |
+| 2026-08-16 | [feed-owner-edit-delete](./rapports/2026-08-16-feed-owner-edit-delete.md) | Fil : l’auteur peut modifier / supprimer post, événement, repost | ✅ |
+| 2026-08-16 | [map-create-intent-tel](./rapports/2026-08-16-map-create-intent-tel.md) | Handoff CTO : routeur FAB live/event/salon (tel) | ✅ |
+| 2026-08-16 | [admin-support-desk](./rapports/2026-08-16-admin-support-desk.md) | Admin Support : file tickets + fiches | ✅ |
+| 2026-08-16 | [admin-gestion-comptes](./rapports/2026-08-16-admin-gestion-comptes.md) | Admin Comptes : fiche + sessions + journal | ✅ |
+| 2026-08-16 | [integrations-apis-manquantes](./rapports/2026-08-16-integrations-apis-manquantes.md) | Onglet Intégrations : Apple, Turnstile, PhotoDNA, Sentry, Redis | ✅ |
+| 2026-08-16 | [integrations-comptes-api](./rapports/2026-08-16-integrations-comptes-api.md) | Onglet Intégrations : compte / projet lié à chaque clé API | ✅ |
 | 2026-08-15 | [favicon-contraste-onglet](./rapports/2026-08-15-favicon-contraste-onglet.md) | Favicon onglet contrasté (glyphe blanc / dégradé) | ✅ |
 | 2026-08-15 | [logo-app-favicon](./rapports/2026-08-15-logo-app-favicon.md) | Logo concert + onde : iOS/Android + favicon onglet | ✅ |
 | 2026-08-15 | [web-prod-sans-webauthn](./rapports/2026-08-15-web-prod-sans-webauthn.md) | Plus de Face ID / empreinte sur le web en prod | ✅ |

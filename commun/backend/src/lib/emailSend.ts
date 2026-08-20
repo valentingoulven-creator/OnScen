@@ -54,9 +54,51 @@ export function isEmailConfigured(): boolean {
   return isSmtpEnabled();
 }
 
+export function isResendSandboxFrom(from: string): boolean {
+  return /@resend\.dev\b/i.test(from);
+}
+
+/** Health / startup : clé présente mais From sandbox = pas prêt pour la prod. */
+export function isProductionEmailMisconfigured(): boolean {
+  if (process.env.APP_ENV !== 'production') return false;
+  const from = process.env.RESEND_FROM?.trim() || process.env.SMTP_FROM?.trim() || '';
+  if (!process.env.RESEND_API_KEY?.trim() && !isSmtpEnabled()) return true;
+  return Boolean(from) && isResendSandboxFrom(from);
+}
+
+function assertProductionFrom(from: string): void {
+  if (process.env.APP_ENV === 'production' && isResendSandboxFrom(from)) {
+    throw new Error(
+      'RESEND_FROM utilise encore @resend.dev en production. Utilisez OnScen <noreply@onscen.com> (domaine vérifié) et une clé API Production.',
+    );
+  }
+}
+
+function wrapResendError(error: unknown): Error {
+  const msg =
+    error && typeof error === 'object' && 'message' in error
+      ? String((error as { message: unknown }).message)
+      : String(error);
+  if (/testing emails|own email address/i.test(msg)) {
+    return new Error(
+      'Resend refuse l’envoi : la clé API est encore en mode test (sandbox). ' +
+        'Créez une clé Production sur resend.com/api-keys, vérifiez le domaine onscen.com, ' +
+        'puis mettez à jour RESEND_API_KEY sur le VPS (/opt/onscen/.env) et redémarrez PM2.',
+    );
+  }
+  if (error instanceof Error) return error;
+  return new Error(msg);
+}
+
 export function getEmailFrom(fallbackName = 'OnScen'): string {
-  if (process.env.RESEND_FROM) return process.env.RESEND_FROM;
-  if (process.env.SMTP_FROM) return process.env.SMTP_FROM;
+  if (process.env.RESEND_FROM) {
+    assertProductionFrom(process.env.RESEND_FROM);
+    return process.env.RESEND_FROM;
+  }
+  if (process.env.SMTP_FROM) {
+    assertProductionFrom(process.env.SMTP_FROM);
+    return process.env.SMTP_FROM;
+  }
   if (process.env.APP_ENV === 'production') {
     throw new Error('RESEND_FROM ou SMTP_FROM obligatoire en production');
   }
@@ -72,6 +114,7 @@ export async function sendEmail(params: {
   from?: string;
 }): Promise<void> {
   const from = params.from ?? getEmailFrom();
+  assertProductionFrom(from);
   const toList = Array.isArray(params.to) ? params.to : [params.to];
 
   const resend = getResend();
@@ -83,7 +126,7 @@ export async function sendEmail(params: {
       text: params.text,
       html: params.html,
     });
-    if (error) throw error;
+    if (error) throw wrapResendError(error);
     return;
   }
 

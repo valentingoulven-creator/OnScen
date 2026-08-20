@@ -16,7 +16,7 @@ export const cgu: LegalDocument = {
     },
     {
       heading: '3. Éligibilité et compte',
-      body: `Vous devez avoir au moins 13 ans pour créer un compte et utiliser OnScen. Si vous avez entre 13 et 18 ans, vous déclarez avoir l’autorisation de votre représentant légal.\n\nLancer un live (diffusion artistique) est réservé aux utilisateurs de 16 ans et plus.\n\nLes paiements (pourboires, abonnements) et la réception de monétisation en tant que créateur sont réservés aux 18 ans et plus (voir « Pourboires, abonnements et monétisation »).\n\nVous vous engagez à fournir des informations exactes lors de l’inscription et à maintenir la confidentialité de vos identifiants. Toute activité réalisée depuis votre compte est réputée effectuée par vous.\n\nL’éditeur peut suspendre ou supprimer un compte en cas de violation des CGU, sans indemnité, après notification lorsque la loi l’exige.`,
+      body: `Vous devez avoir au moins 13 ans pour créer un compte et utiliser OnScen. Si vous avez entre 13 et 18 ans, vous déclarez avoir l’autorisation de votre représentant légal.\n\nLancer un live (diffusion artistique) est réservé aux utilisateurs de 18 ans et plus.\n\nLes paiements (pourboires, abonnements) et la réception de monétisation en tant que créateur sont réservés aux 18 ans et plus (voir « Pourboires, abonnements et monétisation »).\n\nVous vous engagez à fournir des informations exactes lors de l’inscription et à maintenir la confidentialité de vos identifiants. Toute activité réalisée depuis votre compte est réputée effectuée par vous.\n\nL’éditeur peut suspendre ou supprimer un compte en cas de violation des CGU, sans indemnité, après notification lorsque la loi l’exige.`,
     },
     {
       heading: '4. Comportement des utilisateurs',
