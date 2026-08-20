@@ -758,7 +758,7 @@ authRouter.get('/check-username', async (req: Request, res: Response) => {
   const started = Date.now();
   const username = String(req.query.username || '').trim();
   let available = false;
-  let reason: string | null = null;
+  let reason: string | null;
   if (username.length < 2) {
     reason = 'Pseudo trop court (min. 2 caractères)';
   } else if (username.length > 30) {
