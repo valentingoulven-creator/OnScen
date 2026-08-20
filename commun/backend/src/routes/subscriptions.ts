@@ -169,11 +169,10 @@ subscriptionsRouter.post('/simulate', authenticateJWT, (req: Request, res: Respo
 
   const userId = (req as Request & { user: { id: string } }).user.id;
   const user = db.users.get(userId);
-  const { creatorId, tierId, targetType = 'creator', ageConfirmed } = req.body as {
+  const { creatorId, tierId, targetType = 'creator' } = req.body as {
     creatorId?: string;
     tierId?: string;
     targetType?: SubscriptionTargetType;
-    ageConfirmed?: boolean;
   };
 
   if (!user || !tierId) {
