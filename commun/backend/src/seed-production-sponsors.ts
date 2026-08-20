@@ -196,7 +196,7 @@ export function seedProductionSponsorEvents(): SeedProductionSponsorEventsResult
   }
 
   ensureSolarFestivalOrganizerUser();
-  let migrated = syncSolarFestivalSponsorPostAuthor();
+  const migrated = syncSolarFestivalSponsorPostAuthor();
 
   const now = Date.now();
   let created = 0;

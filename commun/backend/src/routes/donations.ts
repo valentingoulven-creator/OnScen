@@ -233,7 +233,7 @@ donationsRouter.post('/simulate', authenticateJWT, (req: Request, res: Response)
 
   const userId = (req as Request & { user: { id: string } }).user.id;
   const user = db.users.get(userId);
-  const { liveId, amount: rawAmount, ageConfirmed } = req.body;
+  const { liveId, amount: rawAmount } = req.body;
 
   if (!user || !liveId) {
     res.status(400).json({ error: 'Paramètres invalides' });
