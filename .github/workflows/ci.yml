@@ -18,7 +18,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: |
             commun/backend/package-lock.json
@@ -70,7 +70,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: web/app/package-lock.json
 
@@ -80,10 +80,25 @@ jobs:
           npm ci
           npx playwright install chromium --with-deps
 
+      - name: Resolve staging URL (DNS, else VPS IP)
+        id: staging
+        run: |
+          set +e
+          code=$(curl -sS -o /tmp/stg-health.json -w "%{http_code}" --connect-timeout 15 --max-time 25 https://staging.onscen.com/health)
+          curl_ec=$?
+          set -e
+          if [ "$code" = "200" ] && grep -q '"status"' /tmp/stg-health.json 2>/dev/null; then
+            echo "url=https://staging.onscen.com" >> "$GITHUB_OUTPUT"
+            echo "staging.onscen.com OK"
+          else
+            echo "staging.onscen.com KO (HTTP ${code:-none} curl_exit=$curl_ec) — fallback http://51.159.170.181"
+            echo "url=http://51.159.170.181" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: E2E smoke (health staging public — pas la prod)
         working-directory: web/app
         env:
           E2E_SKIP_SERVER: '1'
-          E2E_BASE_URL: https://staging.onscen.com
-          E2E_API_URL: https://staging.onscen.com
+          E2E_BASE_URL: ${{ steps.staging.outputs.url }}
+          E2E_API_URL: ${{ steps.staging.outputs.url }}
         run: npm run test:e2e
