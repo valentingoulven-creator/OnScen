@@ -42741,5 +42741,45 @@ FICHIERS MODIFIÉS
 Fin MODIF 1473 — 2026-08-20
 ================================================================================
 
+================================================================================
+MODIF 1474 — Contact support@onscen.com — Soundly Dev
+Date : 2026-08-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Remplacer l’adresse de contact support affichée dans l’application
+ (admin@onscen.com) par support@onscen.com.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/content/legal/types.ts
+ commun/backend/src/lib/legalConstants.ts
+ ─────────────────
+ • LEGAL_SUPPORT_EMAIL = support@onscen.com
+ • LEGAL_CONTACT_EMAIL pointe dessus (CGU, mentions, recours).
+ • RGPD / copyright restent admin@onscen.com.
+
+ web/app/src/pages/ContactOnScenPage.tsx · SettingsPage.tsx
+ ─────────────────
+ • Lien mailto + hint Paramètres → Contacter OnScen.
+
+ commun/backend/src/lib/mailer.ts
+ ─────────────────
+ • Alertes tickets → SUPPORT_EMAIL ou support@onscen.com.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/content/legal/* → constante + export
+ web/app/src/pages/ContactOnScenPage.tsx · SettingsPage.tsx
+ web/app/src/locales/fr.json · en.json
+ commun/msdev/legal-publisher.json · .example · deploy template
+ commun/backend/src/lib/mailer.ts · legalConstants.ts · legalDocumentsApp.json
+ commun/backend/.env.production.example
+
+================================================================================
+Fin MODIF 1474 — 2026-08-20
+================================================================================
+
 
 

@@ -1578,6 +1578,7 @@
   "support": {
     "title": "Contact OnScen",
     "intro": "Write your message below. The OnScen team will reply in the app.",
+    "emailFallback": "Or by email:",
     "messageLabel": "Your message",
     "messagePlaceholder": "Describe your question or request…",
     "send": "Send",

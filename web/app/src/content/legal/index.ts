@@ -15,6 +15,7 @@ import { politiqueDroitsAuteur } from './copyrightNotice';
 
 export type { LegalDocument, LegalKey, LegalSection } from './types';
 export {
+  LEGAL_SUPPORT_EMAIL,
   LEGAL_CONTACT_EMAIL,
   LEGAL_PRIVACY_EMAIL,
   LEGAL_COPYRIGHT_EMAIL,

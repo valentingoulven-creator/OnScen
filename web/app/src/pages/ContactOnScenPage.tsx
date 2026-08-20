@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { useSupportTicketUpdates } from '../hooks/useSupportTicketRealtime';
 import type { SupportContactMessage, SupportThreadMessage } from '../types';
+import { LEGAL_SUPPORT_EMAIL } from '../content/legal';
 
 interface ContactOnScenPageProps {
   onBack: () => void;
@@ -172,6 +173,15 @@ export function ContactOnScenPage({ onBack, highlightMessageId, embedded }: Cont
   const content = (
     <div className={`${embedded ? '' : 'flex-1 '}p-4 max-w-lg mx-auto w-full space-y-4`}>
         <p className="text-sm text-gray-400">{t('support.intro')}</p>
+        <p className="text-sm text-gray-400">
+          {t('support.emailFallback')}{' '}
+          <a
+            href={`mailto:${LEGAL_SUPPORT_EMAIL}`}
+            className="text-purple-400 underline break-all"
+          >
+            {LEGAL_SUPPORT_EMAIL}
+          </a>
+        </p>
 
         <label className="block">
           <span className="text-xs text-gray-400">{t('support.messageLabel')}</span>

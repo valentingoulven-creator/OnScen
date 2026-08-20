@@ -129,7 +129,7 @@ export async function sendSupportAlertEmail(params: {
     return;
   }
 
-  const adminEmail = process.env.SMTP_ADMIN_EMAIL ?? 'admin@onscen.com';
+  const supportEmail = process.env.SUPPORT_EMAIL?.trim() || 'support@onscen.com';
   const from = getEmailFrom('OnScen');
   const adminUrl = `${process.env.WEB_APP_URL ?? 'https://onscen.com'}/admin?tab=support`;
 
@@ -184,8 +184,8 @@ export async function sendSupportAlertEmail(params: {
   ].join('\n');
 
   try {
-    await sendEmail({ from, to: adminEmail, subject, text, html });
-    console.info(`[mailer] Email support envoyé à ${adminEmail} pour ${params.fromUsername}`);
+    await sendEmail({ from, to: supportEmail, subject, text, html });
+    console.info(`[mailer] Email support envoyé à ${supportEmail} pour ${params.fromUsername}`);
   } catch (err) {
     console.error('[mailer] Échec envoi email support:', err);
   }

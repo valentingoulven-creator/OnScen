@@ -162,7 +162,7 @@ export const LEGAL_FIELD_DEFINITIONS: readonly LegalFieldMeta[] = [
       'Doit être une boîte professionnelle lue régulièrement. ' +
       'ATTENTION : ne pas utiliser une adresse Gmail personnelle en production.',
     // TODO: ⚠️ Remplacer par une adresse professionnelle @onscen.com lue régulièrement
-    example: 'admin@onscen.com',
+    example: 'support@onscen.com',
   },
   {
     key: 'privacyEmail',

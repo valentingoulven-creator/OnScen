@@ -1579,6 +1579,7 @@
   "support": {
     "title": "Contacter OnScen",
     "intro": "Écrivez votre message ci-dessous. L'équipe OnScen vous répondra dans l'application.",
+    "emailFallback": "Ou par e-mail :",
     "messageLabel": "Votre message",
     "messagePlaceholder": "Décrivez votre question ou votre demande…",
     "send": "Envoyer",

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LEGAL, type LegalKey, LEGAL_PRIVACY_EMAIL } from '../content/legal';
+import { LEGAL, type LegalKey, LEGAL_PRIVACY_EMAIL, LEGAL_SUPPORT_EMAIL } from '../content/legal';
 import { resetCookieConsent } from '../lib/cookieConsent';
 import { LegalDocumentView } from '../components/LegalDocumentView';
 import {
@@ -1107,6 +1107,7 @@ export function SettingsPage({
                 <SettingsGroup>
                   <SettingsRow
                     label={t('profile.contactOnScen')}
+                    hint={LEGAL_SUPPORT_EMAIL}
                     onClick={() => setShowContact(true)}
                   />
                 </SettingsGroup>
