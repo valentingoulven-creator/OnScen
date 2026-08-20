@@ -6,7 +6,6 @@
       <stop offset="1" stop-color="#8E24AA"/>
     </linearGradient>
   </defs>
-  <rect width="64" height="64" fill="#000"/>
   <circle cx="32" cy="32" r="26.5" fill="none" stroke="url(#onscen-g)" stroke-width="1.85"/>
   <path fill="url(#onscen-g)" d="M32 8c1.55 12.8 8.7 19.95 21.5 21.5C40.7 31.05 33.55 38.2 32 51 30.45 38.2 23.3 31.05 10.5 29.5 23.3 27.95 30.45 20.8 32 8z"/>
   <path fill="#fff" d="M20 41.2c.45 3.05 1.95 4.55 5 5-3.05.45-4.55 1.95-5 5-.45-3.05-1.95-4.55-5-5 3.05-.45 4.55-1.95 5-5z"/>

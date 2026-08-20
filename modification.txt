@@ -42647,3 +42647,32 @@ CHANGEMENTS / FIX
 Fin MODIF 1470 — 2026-08-20
 ================================================================================
 
+================================================================================
+MODIF 1471 — Retrait fond noir favicon + visuel intro — Soundly Dev
+Date : 2026-08-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le favicon onglet et le visuel Instagram 01-intro avaient un fond noir plein.
+
+CHANGEMENTS / FIX
+-----
+ • Favicon SVG : plus de rectangle noir (anneau + étoiles sur transparent)
+ • PNG/ICO 16–48 générés avec alpha (`flatten: false`)
+ • Cache HTML ?v=5
+ • `01-intro.png` : canvas transparent (texte blanc + logo conservés)
+ • Icônes PWA / App Store : fond noir conservé (exigence iOS opaque)
+
+FICHIERS MODIFIÉS
+-----
+ commun/brand/onscen-favicon.svg → sans fond
+ commun/scripts/apply-app-icon.mjs → raster favicon transparent
+ web/app/index.html · ios/apptel/index.html · backend public → ?v=5
+ commun/docs/strategie/instagram/01-intro.png + build-posts.mjs
+
+================================================================================
+Fin MODIF 1471 — 2026-08-20
+================================================================================
+
+

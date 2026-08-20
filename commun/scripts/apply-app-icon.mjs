@@ -131,15 +131,16 @@ async function main() {
   await writePng(square, path.join(telPublic, 'icon.png'), 512);
   await writePng(square, path.join(telPublic, 'apple-touch-icon.png'), 180);
 
-  const faviconRaster = sharp(faviconSvg, { density: 384 }).flatten({ background: '#000000' });
+  const faviconRaster = sharp(faviconSvg, { density: 384 });
   const icoSizes = [16, 32, 48];
   const icoImages = [];
   for (const size of icoSizes) {
     const buf = await faviconRaster
       .clone()
-      .resize(size, size, { fit: 'contain', background: '#000000' })
-      .flatten({ background: '#000000' })
-      .removeAlpha()
+      .resize(size, size, {
+        fit: 'contain',
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      })
       .png()
       .toBuffer();
     icoImages.push({ size, buf });
@@ -148,8 +149,8 @@ async function main() {
   for (const destDir of [webPublic, telPublic, backendPublic]) {
     fs.copyFileSync(brandFaviconSvg, path.join(destDir, 'favicon.svg'));
     fs.writeFileSync(path.join(destDir, 'favicon.ico'), icoBuf);
-    await writePng(faviconRaster, path.join(destDir, 'favicon-32x32.png'), 32, { flatten: true });
-    await writePng(faviconRaster, path.join(destDir, 'favicon-48x48.png'), 48, { flatten: true });
+    await writePng(faviconRaster, path.join(destDir, 'favicon-32x32.png'), 32, { flatten: false });
+    await writePng(faviconRaster, path.join(destDir, 'favicon-48x48.png'), 48, { flatten: false });
   }
 
   await writePng(square, iosIcon, 1024);
