@@ -81,7 +81,7 @@
     "@types/sanitize-html": "^2.16.1",
     "@types/web-push": "^3.6.4",
     "eslint": "^10.6.0",
-    "globals": "^17.7.0",
+    "globals": "^17.11.0",
     "resedit": "^3.0.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.5",
