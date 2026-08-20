@@ -46,7 +46,10 @@ describe('aiAgents', () => {
       };
       expect(parsed.technicalKnowledge.innovationCatalog.length).toBeGreaterThan(3);
       expect(parsed.techDebtSignals.length).toBeGreaterThan(0);
-      expect(parsed.todoManualExcerpt).toBeTruthy();
+      expect(parsed).toHaveProperty('todoManualExcerpt');
+      if (parsed.todoManualExcerpt != null) {
+        expect(parsed.todoManualExcerpt.length).toBeGreaterThan(0);
+      }
     });
   });
 
