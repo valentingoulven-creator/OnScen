@@ -35,7 +35,7 @@ import { isAppTelBuild } from '../nativePlatform';
 
 /** Préfixe assets globe — `/tel/` PWA, `./` Capacitor, `/` web. */
 export function resolveGlobeAssetBase(): string {
-  let base = import.meta.env.BASE_URL || '/';
+  const base = import.meta.env.BASE_URL || '/';
   if (typeof window !== 'undefined') {
     const path = window.location.pathname;
     if (path.startsWith('/tel/') || path === '/tel') {
