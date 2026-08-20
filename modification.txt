@@ -42510,3 +42510,140 @@ BUILD (si vérifié)
 Fin MODIF 1465 — 2026-08-17
 ================================================================================
 
+================================================================================
+MODIF 1466 — Live : vidéo sous le header app, pas dessous
+Date : 2026-08-17
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La scène LiveKit (object-cover, h-full shrink-0) passait sous la barre du haut.
+ Le token --app-header-row-h (2.25rem) était plus petit que les boutons 44px,
+ et l’overlay h-full ignorait bottom.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/index.css
+ ─────────────────
+ • --app-header-row-h : 2.75rem (44px).
+ • Overlay live/salon : height auto + top/bottom.
+
+ web/app/src/App.tsx · LiveKitVideoStage · LiveVideoStage
+ ─────────────────
+ • Overlay sans h-full. Hero-wrap flex-1 min-h-0 (plus shrink-0).
+
+FICHIERS MODIFIÉS
+-----
+ index.css · App.tsx · LiveKitVideoStage · LiveVideoStage
+ mobileSalonLiveSafari.test.ts
+
+BUILD (si vérifié)
+-----
+ web/app → vitest mobileSalonLiveSafari → ✅ 10/10
+
+================================================================================
+Fin MODIF 1466 — 2026-08-17
+================================================================================
+
+================================================================================
+MODIF 1467 — Live : chat dock sous le header (overlay top forcé)
+Date : 2026-08-17
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bandeau « CHAT » (et toute la scène) restait à ~45px, sous le header app.
+ L’overlay n’était pas réellement ancré sous --app-header-total-h (h-full /
+ abspos flex).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/index.css
+ ─────────────────
+ • main > .ms-salon-fullscreen-overlay { top: header !important; height: auto }
+ • landscape-theater : top 0 !important (plein écran).
+
+ ios/apptel/src/components/RoomTheaterLayout.mobile.css
+ ─────────────────
+ • top: 0 plus spécifique (header masqué sur tel).
+
+FICHIERS MODIFIÉS
+-----
+ index.css · RoomTheaterLayout.mobile.css · mobileSalonLiveSafari.test.ts
+
+================================================================================
+Fin MODIF 1467 — 2026-08-17
+================================================================================
+
+================================================================================
+MODIF 1468 — Tri dossier stratégie (une pièce par usage)
+Date : 2026-08-17
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ commun/docs/strategie mélangeait études, budgets, decks, one-pager,
+ caches HTML et un export PDF obsolète — plusieurs docs pour le même usage.
+
+CHANGEMENTS / FIX
+-----
+ • Dossiers par public : banque/ · business-plan/ · commercial/ ·
+   presentations/ · lettres-soutien/ · _archive/
+ • README racine = carte « quelle pièce ouvrir »
+ • BUSINESS-PLAN.pdf (29/07) archivé ; caches HTML / print.html plus versionnés
+ • Scripts PDF/PPTX + export dossier avocat mis à jour
+
+================================================================================
+Fin MODIF 1468 — 2026-08-17
+================================================================================
+
+================================================================================
+MODIF 1469 — Logo OnScen : étoile + anneau dégradé — Soundly Dev
+Date : 2026-08-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Remplacer le pictogramme « scène / onde 5 barres » par le nouveau logo
+ étoile (anneau dégradé jaune → magenta, petite étoile blanche).
+
+CHANGEMENTS / FIX
+-----
+ • Source brand `commun/brand/onscen-app-icon-source.png`
+ • `OnScenLogo` : PNG étoile (fond transparent) à la place du SVG onde
+ • Auth : pictogramme visible au-dessus du wordmark
+ • Wordmark aligné sur le dégradé jaune / magenta / violet
+ • Favicon, PWA, icône iOS, apple-touch régénérés (`apply-app-icon.mjs`)
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/OnScenLogo.tsx → img étoile
+ web/app/src/pages/AuthPage.tsx → lockup avec mark
+ web/app/src/index.css → tokens logo
+ commun/scripts/apply-app-icon.mjs → pipeline étoile / fond noir
+ public favicon + pwa (web, tel, backend) + AppIcon iOS
+
+================================================================================
+Fin MODIF 1469 — 2026-08-20
+================================================================================
+
+================================================================================
+MODIF 1470 — Favicon onglet : étoile (ico + SVG vectoriel) — Soundly Dev
+Date : 2026-08-20
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L’onglet du navigateur gardait l’ancien pictogramme : le favicon SVG
+ embarquait un PNG (Chrome l’ignore) et il n’y avait pas de favicon.ico.
+
+CHANGEMENTS / FIX
+-----
+ • SVG vectoriel étoile + anneau (`commun/brand/onscen-favicon.svg`)
+ • `favicon.ico` 16/32/48 + PNG 32/48 fond noir
+ • Liens HTML : ico en premier, cache ?v=4
+
+================================================================================
+Fin MODIF 1470 — 2026-08-20
+================================================================================
+

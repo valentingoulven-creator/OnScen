@@ -7,7 +7,7 @@ const publicDir = join(dirname(fileURLToPath(import.meta.url)), '../../public');
 
 describe('PWA assets', () => {
   it('PNG brand icons exist for favicon and manifest', () => {
-    for (const file of ['icon.png', 'favicon.svg', 'favicon-32x32.png', 'favicon-48x48.png']) {
+    for (const file of ['icon.png', 'favicon.ico', 'favicon.svg', 'favicon-32x32.png', 'favicon-48x48.png']) {
       expect(existsSync(join(publicDir, file))).toBe(true);
     }
   });

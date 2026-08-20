@@ -1,15 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
-    <linearGradient id="bg" x1="6" y1="4" x2="60" y2="60" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#22d3ee"/>
-      <stop offset="0.42" stop-color="#7c3aed"/>
-      <stop offset="1" stop-color="#db2777"/>
+    <linearGradient id="onscen-g" x1="10" y1="6" x2="54" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FDB813"/>
+      <stop offset="0.48" stop-color="#EC4899"/>
+      <stop offset="1" stop-color="#8E24AA"/>
     </linearGradient>
   </defs>
-  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
-  <rect x="8" y="24" width="8" height="22" rx="4" fill="#fff"/>
-  <rect x="18.5" y="16" width="8" height="32" rx="4" fill="#fff"/>
-  <rect x="29" y="10" width="8" height="44" rx="4" fill="#fff"/>
-  <rect x="39.5" y="16" width="8" height="32" rx="4" fill="#fff"/>
-  <rect x="50" y="24" width="8" height="22" rx="4" fill="#fff"/>
+  <rect width="64" height="64" fill="#000"/>
+  <circle cx="32" cy="32" r="26.5" fill="none" stroke="url(#onscen-g)" stroke-width="1.85"/>
+  <path fill="url(#onscen-g)" d="M32 8c1.55 12.8 8.7 19.95 21.5 21.5C40.7 31.05 33.55 38.2 32 51 30.45 38.2 23.3 31.05 10.5 29.5 23.3 27.95 30.45 20.8 32 8z"/>
+  <path fill="#fff" d="M20 41.2c.45 3.05 1.95 4.55 5 5-3.05.45-4.55 1.95-5 5-.45-3.05-1.95-4.55-5-5 3.05-.45 4.55-1.95 5-5z"/>
 </svg>

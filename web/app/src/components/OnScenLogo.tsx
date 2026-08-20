@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, HTMLAttributes } from 'react';
-import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
+import onscenLogoMark from '../assets/onscen-logo.png';
 
 type OnScenLogoVariant = 'mark' | 'lockup';
 
@@ -14,62 +14,18 @@ type OnScenLogoProps = {
   showMark?: boolean;
 } & Omit<HTMLAttributes<HTMLSpanElement>, 'children'>;
 
-function OnScenMarkSvg({
-  gradientId,
-  className,
-}: {
-  gradientId: string;
-  className?: string;
-}) {
-  const grad = `url(#${gradientId})`;
+function OnScenMarkImg({ className }: { className?: string }) {
   return (
-    <svg
-      className={className}
-      viewBox="-2 0 68 64"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden
-    >
-      <defs>
-        <linearGradient id={gradientId} x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
-          <stop stopColor="var(--onscen-logo-wave-from, #22d3ee)" />
-          <stop offset="0.52" stopColor="var(--onscen-logo-wave-mid, #a855f7)" />
-          <stop offset="1" stopColor="var(--onscen-logo-wave-to, #f472b6)" />
-        </linearGradient>
-        <radialGradient
-          id={`${gradientId}-glow`}
-          cx="0"
-          cy="0"
-          r="1"
-          gradientUnits="userSpaceOnUse"
-          gradientTransform="translate(46 18) rotate(90) scale(14)"
-        >
-          <stop stopColor="#f472b6" stopOpacity="0.55" />
-          <stop offset="1" stopColor="#f472b6" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      {/* Anneau scène / projecteur */}
-      <circle cx="32" cy="34" r="26" stroke={grad} strokeWidth="1.75" opacity="0.28" />
-      <path
-        d="M10 42c0-16 9.8-28 22-28s22 12 22 28"
-        stroke={grad}
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-      <path d="M14 42h36" stroke={grad} strokeWidth="2" strokeLinecap="round" opacity="0.45" />
-      {/* Onde sonore — salons & musique */}
-      <rect x="21" y="27" width="4.5" height="13" rx="2.25" fill={grad} opacity="0.72" />
-      <rect x="29.75" y="21" width="4.5" height="19" rx="2.25" fill={grad} />
-      <rect x="38.5" y="25" width="4.5" height="15" rx="2.25" fill={grad} opacity="0.88" />
-      {/* Direct / live */}
-      <circle cx="46" cy="16" r="9" fill={`url(#${gradientId}-glow)`} />
-      <circle cx="46" cy="16" r="4.25" fill="var(--onscen-logo-wave-to, #f472b6)" />
-      <circle cx="46" cy="16" r="4.25" stroke="#fff" strokeWidth="1.25" strokeOpacity="0.35" />
-    </svg>
+    <img
+      src={onscenLogoMark}
+      alt=""
+      draggable={false}
+      className={className ?? 'h-full w-full object-contain'}
+    />
   );
 }
 
-/** Logo OnScen — scène, live et son (dégradé cyan → violet → rose). */
+/** Logo OnScen — étoile + anneau (dégradé jaune → magenta). */
 export function OnScenLogo({
   className = '',
   variant = 'mark',
@@ -79,7 +35,6 @@ export function OnScenLogo({
   ...props
 }: OnScenLogoProps) {
   const { t } = useTranslation();
-  const gradientId = `onscen-logo-${useId().replace(/:/g, '')}`;
   const alt = t('app.name', { defaultValue: 'OnScen' });
 
   if (variant === 'lockup') {
@@ -95,11 +50,11 @@ export function OnScenLogo({
         <span
           className={
             compact
-              ? 'mb-1.5 inline-flex h-11 w-11 shrink-0 overflow-visible drop-shadow-[0_0_20px_rgba(168,85,247,0.32)]'
-              : 'mb-3 mt-1 inline-flex h-14 w-14 shrink-0 overflow-visible sm:h-[4.25rem] sm:w-[4.25rem] drop-shadow-[0_0_28px_rgba(168,85,247,0.38)]'
+              ? 'mb-1.5 inline-flex h-14 w-14 shrink-0 overflow-visible drop-shadow-[0_0_20px_rgba(236,72,153,0.35)]'
+              : 'mb-3 mt-1 inline-flex h-16 w-16 shrink-0 overflow-visible sm:h-[4.5rem] sm:w-[4.5rem] drop-shadow-[0_0_28px_rgba(236,72,153,0.4)]'
           }
         >
-          <OnScenMarkSvg gradientId={gradientId} className="h-full w-full" />
+          <OnScenMarkImg className="h-full w-full object-contain" />
         </span>
         ) : null}
         <p
@@ -140,7 +95,7 @@ export function OnScenLogo({
 
   return (
     <span className={markWrapperClass} role="img" aria-label={alt} {...props}>
-      <OnScenMarkSvg gradientId={gradientId} className="h-full w-full" />
+      <OnScenMarkImg className="h-full w-full object-contain" />
     </span>
   );
 }

@@ -196,10 +196,10 @@ html {
   --ms-accent: #9333ea;
   --ms-text: #f3f4f6;
   --ms-text-muted: #9ca3af;
-  /** Logo wave — cyan (énergie) → violet (marque) → rose (social), lisible sur fond #0b0b0f */
-  --onscen-logo-wave-from: #22d3ee;
-  --onscen-logo-wave-mid: #a855f7;
-  --onscen-logo-wave-to: #f472b6;
+  /** Logo étoile — jaune → magenta → violet, lisible sur fond #0b0b0f */
+  --onscen-logo-wave-from: #fdb813;
+  --onscen-logo-wave-mid: #ec4899;
+  --onscen-logo-wave-to: #8e24aa;
   /* Tokens mobile Instagram (fallback desktop — apptel les surcharge) */
   --phone-max-w: 430px;
   --tab-nav-btn-size: 50px;
@@ -228,9 +228,9 @@ html {
   --ms-accent: #7c3aed;
   --ms-text: #111827;
   --ms-text-muted: #6b7280;
-  --onscen-logo-wave-from: #0891b2;
-  --onscen-logo-wave-mid: #7c3aed;
-  --onscen-logo-wave-to: #db2777;
+  --onscen-logo-wave-from: #d97706;
+  --onscen-logo-wave-mid: #db2777;
+  --onscen-logo-wave-to: #7e22ce;
 }
 
 /* Carrousel horizontal — dégradés latéraux quand le contenu défile */

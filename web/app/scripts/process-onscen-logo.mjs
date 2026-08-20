@@ -6,10 +6,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 
-const defaultSrc = path.join(
-  root,
-  '../../.cursor/projects/c-Dev-OnScen/assets/c__Users_vivia_AppData_Roaming_Cursor_User_workspaceStorage_419acbc9cbd4685a40a517f5f5dcb476_images_image-f8ee09c1-4def-4878-9016-aa4af8637321.png'
-);
+const defaultSrc = path.join(root, '../../commun/brand/onscen-app-icon-source.png');
 
 const src = process.argv[2] ? path.resolve(process.argv[2]) : defaultSrc;
 
@@ -19,19 +16,7 @@ const targets = [
 ];
 
 function isBackgroundPixel(r, g, b) {
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const sat = max - min;
-
-  // Blanc pur / quasi neutre clair
-  if (min >= 248 && sat <= 12) return { remove: true, alpha: 0 };
-
-  // Franges blanches autour du logo
-  if (min >= 238 && sat <= 20 && max >= 252) {
-    const t = Math.min(1, (min - 238) / 14);
-    return { remove: false, alpha: Math.round(255 * (1 - t)) };
-  }
-
+  if (r < 22 && g < 22 && b < 22) return { remove: true, alpha: 0 };
   return null;
 }
 

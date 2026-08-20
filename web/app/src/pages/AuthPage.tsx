@@ -695,7 +695,7 @@ export function AuthPage() {
       <div className="mx-auto flex h-full min-h-0 max-h-full w-full max-w-sm flex-col">
         {/* Logo centré verticalement entre le haut de la fenêtre et le bloc auth */}
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
-          <OnScenLogo variant="lockup" density="compact" showMark={false} className="mx-auto w-fit" />
+          <OnScenLogo variant="lockup" density="compact" className="mx-auto w-fit" />
         </div>
 
         <div className="flex shrink-0 flex-col gap-2.5 overflow-y-auto overscroll-contain">
